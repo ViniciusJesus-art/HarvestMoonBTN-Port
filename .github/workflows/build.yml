@@ -1,0 +1,38 @@
+# Build the 14 code binaries, check them against the original's SHA-1, and publish the
+# progress report decomp.dev reads (artifact SLUS_011.15_report). Needs no game data.
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the image
+        run: docker build -t hmbtn-build .
+
+      - name: Build and check
+        run: >
+          docker run --rm --user "$(id -u):$(id -g)" -v "$PWD":/src -w /src hmbtn-build
+          bash -c 'cmake -S . -B build -G Ninja && cmake --build build --target check'
+
+      - name: Progress report
+        run: |
+          curl -fsSL -o objdiff-cli \
+              https://github.com/encounter/objdiff/releases/download/v3.8.2/objdiff-cli-linux-x86_64
+          echo "e5445089a6f707e30cb5e02992451b604619cedfd2660ee2373a86bfefd9e718  objdiff-cli" | sha256sum -c -
+          chmod +x objdiff-cli
+          python3 tools/objdiff_config.py build > objdiff.json
+          ./objdiff-cli report generate -o build/report.json
+
+      - name: Upload the report
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: SLUS_011.15_report
+          path: build/report.json

@@ -1,0 +1,7 @@
+/build/
+__pycache__/
+/sdk/psyq-4.7/
+/sdk/include/
+/sdk/gcc-2.95.2/
+/sdk/bin/
+/objdiff.json

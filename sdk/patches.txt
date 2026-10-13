@@ -1,0 +1,8 @@
+# Words the game's copy of a PSY-Q object differs in from the archived 4.7 one
+# file member section offset archived linked
+
+# The archived 4.7 Libcd.lib is dated 2000-05-10, every other 4.7 library
+# 2000-02-18, and the 4.7 readme lists no libcd change. The game carries the 4.7
+# version stamp (0x47 at +0x4) but this write-only flag at its pre-replacement
+# value, like every earlier release.
+LIBCD.LIB BIOS_1 .data 0x2b0 0x00000001 0x00000000

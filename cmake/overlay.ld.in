@@ -1,0 +1,10 @@
+/* @NAME@ (@LIST_FILE@) */
+.@NAME@ overlay_@REGION@ : SUBALIGN(4)
+{
+    @HEADER@(.data);  /* the header word */
+@RODATA@
+@TEXT@
+@DATA@
+@BSS@
+    . = ALIGN(., 0x800);  /* the A_FILE member is whole sectors */
+}

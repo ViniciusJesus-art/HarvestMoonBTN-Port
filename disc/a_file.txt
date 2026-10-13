@@ -1,0 +1,38 @@
+# The 32 members of A_FILE.BIN, in archive order.
+#
+# index  file              from      the EXE's name for it
+#
+# `built`: the project's binary of that name, in the build directory.
+# `original`: the member as tools/afile.py unpack extracts it from the original disc.
+ 0  00_gf.bin          original  objcg\gf.bin
+ 1  01_face.bin        original  objcg\face.bin
+ 2  02_messege0.bin    original  objcg\messege0.bin
+ 3  03_messege1.bin    original  objcg\messege1.bin
+ 4  04_messege2.bin    original  objcg\messege2.bin
+ 5  05_messege3.bin    original  objcg\messege3.bin
+ 6  06_messege4.bin    original  objcg\messege4.bin
+ 7  07_Font_all.tex    original  data\font\Font_all.tex
+ 8  08_DEBUG.bin       built     obj\DEBUG.bin
+ 9  09_sound.stm       original  objcg\sound.stm
+10  10_PdaSamp.bin     built     obj\PdaSamp.bin
+11  11_GF_FARM.bin     built     obj\GF_FARM.bin
+12  12_event_s.bin     original  objcg\event_s.bin
+13  13_evch.bin        original  objcg\evch.bin
+14  14_Status.Bin      original  ObjCg\Status.Bin
+15  15_saveload.bin    built     Obj\saveload.bin
+16  16_Slp.Bin         original  ObjCg\Slp.Bin
+17  17_GF_MG1.Bin      built     Obj\GF_MG1.Bin
+18  18_MG1.Bin         original  ObjCg\MG1.Bin
+19  19_GF_MG2.Bin      built     Obj\GF_MG2.Bin
+20  20_MG2.Bin         original  ObjCg\MG2.Bin
+21  21_GF_MG3.Bin      built     Obj\GF_MG3.Bin
+22  22_MG3.Bin         original  ObjCg\MG3.Bin
+23  23_GF_MG4.Bin      built     Obj\GF_MG4.Bin
+24  24_MG4.Bin         original  ObjCg\MG4.Bin
+25  25_GF_MG5.Bin      built     Obj\GF_MG5.Bin
+26  26_MG5.Bin         original  ObjCg\MG5.Bin
+27  27_GF_TITLE.Bin    built     Obj\GF_TITLE.Bin
+28  28_GF_STAFF.Bin    built     Obj\GF_STAFF.Bin
+29  29_MesEv.Bin       original  ObjCg\MesEv.Bin
+30  30_GF_swind.bin    built     Obj\GF_swind.bin
+31  31_gf_mcard.bin    built     Obj\gf_mcard.bin

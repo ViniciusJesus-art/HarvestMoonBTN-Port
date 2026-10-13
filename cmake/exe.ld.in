@@ -1,0 +1,25 @@
+/* @NAME@ (@LIST_FILE@): the startup object, the game, the libraries. */
+.main @BASE@ : SUBALIGN(4)
+{
+    @DIR@/*(.rodata);
+    @DIR@/*(.text);
+    @DIR@/*(.data);
+    _gp = .;
+    __psyq_sdata_start = .;
+    @DIR@/*(.sdata);
+    __psyq_sdata_end = .;
+    __data_end = .;  /* .bss starts here, not after the padding */
+    . = ALIGN(., 0x800);  /* the payload is whole sectors */
+}
+/* Every .sbss and .bss input on a doubleword, as PSYLINK placed them. */
+.bss __data_end (NOLOAD) : SUBALIGN(8)
+{
+    . = ALIGN(0x8);
+    __psyq_sbss_start = .;
+    @DIR@/*(.sbss);
+    __psyq_sbss_end = .;
+    . = ALIGN(0x8);
+    __psyq_bss_start = .;
+    @DIR@/*(.bss);
+    __psyq_bss_end = .;
+}

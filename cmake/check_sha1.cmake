@@ -1,0 +1,32 @@
+# cmake "-DLISTS=<sha1 list>;..." -DDIR=<build dir> -P check_sha1.cmake
+#
+# Compare each file with the SHA-1 of the original (`sha1sum` lists: "<sha1>  <file>").
+# Fails unless every one matches.
+set(rows)
+foreach(sha1_list IN ITEMS ${LISTS})  # not IN LISTS: that misses a -D variable
+    file(STRINGS ${sha1_list} list_rows REGEX "^[0-9a-f]")
+    list(APPEND rows ${list_rows})
+endforeach()
+set(failed 0)
+foreach(row IN LISTS rows)
+    string(REGEX MATCH "^([0-9a-f]+)[ *]+(.+)$" _ ${row})
+    set(expected ${CMAKE_MATCH_1})
+    set(file ${CMAKE_MATCH_2})
+    if(NOT EXISTS ${DIR}/${file})
+        message("${file}: MISSING")
+        math(EXPR failed "${failed} + 1")
+        continue()
+    endif()
+    file(SHA1 ${DIR}/${file} actual)
+    if(actual STREQUAL expected)
+        message("${file}: OK")
+    else()
+        message("${file}: FAILED (${actual}, the original is ${expected})")
+        math(EXPR failed "${failed} + 1")
+    endif()
+endforeach()
+list(LENGTH rows total)
+if(failed)
+    message(FATAL_ERROR "${failed} of ${total} files differ from the original")
+endif()
+message("all ${total} files match the original")

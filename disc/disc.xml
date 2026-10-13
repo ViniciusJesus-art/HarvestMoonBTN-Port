@@ -1,0 +1,25 @@
+<!-- The disc's layout: what is where on it, and when it was written; no data. Read by tools/psx_disc.py; mkpsxiso builds the same image. -->
+<iso_project image_name="disc.bin" cue_sheet="disc.cue">
+    <track type="data" cdvd_style="false" xa_edc="false">
+        <identifiers system="PLAYSTATION" application="PLAYSTATION" volume="HARVESTMOON" publisher="NATSUME" data_preparer="NATSUME" copyright="COPYRIGH.TXT" abstract_file="ABSTRACT.TXT" bibliographic_file="BIBLIOGP.TXT" creation_date="0000101912000000+0" modification_date="0000101912300000+0"/>
+        <license file="license_data.dat"/>
+        <default_attributes gmt_offs="36" xa_attrib="56" xa_perm="1365" xa_gid="0" xa_uid="0"/>
+        <directory_tree source="." date="19001019123000" gmt_offs="0">
+            <file name="SYSTEM.CNF" type="data" date="20001019110426"/>
+            <file name="SLUS_011.15" type="data" date="20001019110640"/>
+            <file name="A_FILE.BIN" type="data" date="20001019110946"/>
+            <file name="A_FILE.HDT" type="data" date="20001019110740"/>
+            <file name="COPYRIGH.TXT" type="data" date="20000901114010"/>
+            <file name="BIBLIOGP.TXT" type="data" date="20000901113910"/>
+            <file name="ABSTRACT.TXT" type="data" date="20000901114046"/>
+            <dir name="STR" date="20000522143052">
+                <file name="01.XA" type="mixed" date="19990714112008"/>
+                <file name="02.XA" type="mixed" date="19990714114000"/>
+                <file name="03.XA" type="mixed" date="19990714114056"/>
+                <file name="04.XA" type="mixed" date="19990929215036"/>
+            </dir>
+            <file name="DUMMY.DAT" type="data" date="19991011105028"/>
+            <dummy sectors="150" type="0"/>
+        </directory_tree>
+    </track>
+</iso_project>

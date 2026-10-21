@@ -1,37 +1,99 @@
-# Harvest Moon: Back to Nature
+<div align="center">
 
-A matching decompilation of *Harvest Moon: Back to Nature* (PlayStation, USA,
-`SLUS_011.15`). The C source builds the EXE and its 13 overlays byte for byte and, given
-your own copy of the disc, the whole disc image.
+# Harvest Moon: Back to Nature — PC Port
 
-## Building
+**Um projeto pessoal para portar Harvest Moon: Back to Nature (PlayStation) nativamente para Linux, Windows e Android.**
 
-```sh
+*Baseado na decompilação [hmbtn-decomp](https://github.com/coalslav/hmbtn-decomp), de coalslav.*
+
+> **Status: fase inicial de planejamento e preparação.** Ainda não existe uma versão nativa jogável.
+
+---
+
+## Sobre o projeto
+
+A proposta é estudar e adaptar o código C reconstruído de **Harvest Moon: Back to Nature** para executar em plataformas modernas sem depender de um emulador de PlayStation durante a execução. Pretendo preservar a experiência do jogo original e, futuramente, explorar melhorias e suporte a mods.
+
+Este é um projeto pessoal, desenvolvido por interesse em programação, engenharia reversa e no próprio jogo. O port não é oficial e não possui afiliação com os titulares de Harvest Moon nem com os autores da decompilação.
+
+</div>
+
+## Sumário
+
+- [Estado atual](#estado-atual)
+- [Objetivos](#objetivos)
+- [Arquitetura planejada](#arquitetura-planejada)
+- [Plataformas](#plataformas)
+- [Documentação](#documentação)
+- [Compilação da decompilação original](#compilação-da-decompilação-original)
+- [Origem e créditos](#origem-e-créditos)
+- [Licenciamento e dados do jogo](#licenciamento-e-dados-do-jogo)
+
+## Estado atual
+
+O repositório contém a **decompilação correspondente à versão americana de PlayStation, `SLUS_011.15`**. O projeto de origem reconstrói o executável e seus 13 overlays com correspondência byte a byte.
+
+**Ainda não foram implementados:** runtime nativo para PC, renderização nativa, integração com SDL3, sistemas de mods e builds de Windows ou Android. A compilação existente continua sendo a do **PlayStation**, não uma compilação nativa.
+
+## Objetivos
+
+- Portar a lógica do jogo para uma aplicação nativa em Linux, Windows e Android.
+- Criar uma camada de compatibilidade para gráficos, áudio, entrada, temporização, memória e arquivos do PS1.
+- Manter, na medida do possível, o código decompilado isolado das adaptações multiplataforma.
+- Preservar uma forma de acompanhar as atualizações da decompilação original.
+- Avaliar suporte a mods e melhorias apenas depois que o jogo básico estiver funcionando.
+
+## Arquitetura planejada
+
+| Camada | Responsabilidade | Estado |
+|---|---|---|
+| `src/` | Lógica decompilada do jogo | Base existente |
+| `port/core/` | Integração e runtime nativo | Planejado |
+| `port/graphics/` | Adaptação gráfica | Planejado |
+| `port/audio/` | Adaptação de áudio | Planejado |
+| `port/input/` | Controles | Planejado |
+| `port/filesystem/` | Recursos, leitura e saves | Planejado |
+| `port/platform/` | Integração específica de cada plataforma | Planejado |
+
+**SDL3 é uma candidata de infraestrutura, não uma dependência implementada ou decisão técnica definitiva.** Antes do port, será necessário estudar os usos de PSY-Q, endereços fixos de memória, overlays e estruturas específicas do PS1.
+
+O build original continua organizado pelos `CMakeLists.txt` e pelo toolchain PS1 existentes. A configuração de build nativa deverá ser criada separadamente para evitar regressões.
+
+## Plataformas
+
+| Plataforma | Objetivo | Estado |
+|---|---|---|
+| Fedora / Linux | Primeira plataforma de desenvolvimento | Não iniciado |
+| Windows | Port nativo após estabilizar o Linux | Não iniciado |
+| Android | Port com NDK, ciclo de vida Android e controles por toque | Não iniciado |
+
+## Documentação
+
+- [Plano técnico de desenvolvimento](docs/port/ROADMAP.md)
+- [Arquitetura inicial](docs/port/ARCHITECTURE.md)
+- [Guia de contribuição e sincronização com upstream](CONTRIBUTING.md)
+- [Decompilação original](https://github.com/coalslav/hmbtn-decomp)
+
+## Compilação da decompilação original
+
+O comando abaixo **compila para PlayStation 1**, não para Linux ou Windows. Requer Docker e as ferramentas instaladas pela imagem do projeto de origem:
+
+```bash
 docker build -t hmbtn-build .
 docker run --rm --user "$(id -u):$(id -g)" -v "$PWD":/src:ro -v /tmp/hmbtn-build:/build \
-    -v /path/to/disc:/disc:ro hmbtn-build bash -c 'cmake -S /src -B /build -G Ninja \
-    -DORIGINAL_DISC=/disc/disc.bin && cmake --build /build --target check'
+  hmbtn-build bash -c 'cmake -S /src -B /build -G Ninja && cmake --build /build --target check'
 ```
 
-`check` compares every output with the original's SHA-1. Without `-DORIGINAL_DISC` it
-builds and checks only the 14 code binaries, which needs no game data.
+A verificação `check` confere os hashes dos 14 binários originais. **Quando o port ou alterações de gameplay começarem, os hashes originais não serão mais uma verificação válida para os binários modificados.** Para reconstruir a imagem de disco no fluxo original é necessária uma cópia própria do disco; consulte a documentação upstream.
 
-## Exceptions
+## Origem e créditos
 
-Two things in the build are not compiled from source:
+Este repositório é um **fork** de [coalslav/hmbtn-decomp](https://github.com/coalslav/hmbtn-decomp). A decompilação e sua estrutura inicial foram produzidas pelo projeto original. O desenvolvimento do port será realizado separadamente e o histórico de autoria será preservado.
 
-- **One patched SDK word.** The game links PSY-Q 4.7, but the only 4.7 release
-  available has a later `LIBCD.LIB`: it is dated 2000-05-10, while every other 4.7
-  library is dated 2000-02-18. The game's copy of that library has one word different, a
-  flag in `BIOS_1`'s `.data`, so the build patches it back (`sdk/patches.txt`).
-- **Padding bytes.** Where a file's data ends off a 4-byte boundary, the original
-  build padded it. In the EXE, and in Sony's own library objects, that padding is zero.
-  In 13 places in the overlays it is not: it holds leftover memory, mostly text with
-  DOS line ends (`\r\n`, `\t0`; one is `te\t0\r\n`, the end of an assembler line
-  `.byte 0`). No object holds these bytes, so each overlay lists them as `GAP` entries
-  in its `CMakeLists.txt`.
+Agradecimentos aos autores da decompilação, aos criadores das ferramentas utilizadas e aos desenvolvedores do jogo original.
 
-## License
+## Licenciamento e dados do jogo
 
-[CC0 1.0](LICENSE), covering this repository's own work only; `tools/maspsx` keeps its
-own license. The game and the PSY-Q SDK belong to their owners and are not included.
+A licença [CC0 1.0](LICENSE) do upstream cobre **somente o trabalho próprio do repositório original**. Componentes como `tools/maspsx` podem ter licença própria. O jogo, seus gráficos, músicas, recursos e o SDK PSY-Q pertencem a seus respectivos titulares e não são liberados pela CC0.
+
+O port não deve publicar cópias do jogo ou dados proprietários sem autorização. Pretende-se estudar um processo no qual cada usuário fornece os recursos da sua própria cópia do jogo. A distribuição pública de um port com tais recursos exige análise dos direitos aplicáveis.

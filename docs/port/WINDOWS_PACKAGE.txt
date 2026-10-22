@@ -1,0 +1,22 @@
+Harvest Moon: Back to Nature - porte nativo parcial (M3)
+
+Coloque a pasta data importada da sua copia do jogo ao lado de hmbtn_native.exe.
+Alternativa: hmbtn_native.exe --data "D:\Jogos\Harvest Moon\data"
+Nenhum disco, recurso do jogo ou SDK esta incluido neste pacote.
+
+Enter: encerra a introducao; outro Enter abre as opcoes.
+Setas: escolher. Z: confirmar. X/Backspace: voltar na fronteira ainda nao portada.
+--window-size 1280x720: janela larga com imagem original 4:3 centralizada.
+Escape: sair. F11: tela cheia. Gamepads SDL3 tambem sao reconhecidos.
+
+O menu e funcional, mas New Game e Continue ainda nao iniciam o jogo:
+Cadastro inclui nome, aniversario, fazenda, cachorro e resumo.
+Transicao para a primeira cena, gameplay, saves e demo ainda precisam ser portados.
+Abertura animada, musica e sons dos botoes usam os recursos extraidos.
+Fidelidade total de imagem/audio ao PS1 ainda precisa ser validada.
+
+Build atual compilado com MinGW x64; esta alteracao nao foi executada no Wine
+para evitar processos adicionais apos o problema de memoria relatado.
+Os artefatos de CI podem usar MSVC; consulte o registro de validacao do projeto.
+Validacao em Windows real e com MSVC permanece pendente.
+Documentacao: docs/port/WINDOWS.md e docs/port/TITLE_FLOW.md no projeto.

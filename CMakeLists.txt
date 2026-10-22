@@ -1,6 +1,15 @@
 # Harvest Moon: Back to Nature (SLUS_011.15), the EXE and its overlays.
 cmake_minimum_required(VERSION 3.20)
 
+# Select the host build before the PS1 toolchain is configured.
+option(HMBTN_BUILD_NATIVE "Build the native PC port foundation" OFF)
+if(HMBTN_BUILD_NATIVE)
+    project(hmbtn_native VERSION 0.1.0 LANGUAGES C)
+    include(CTest)
+    add_subdirectory(port)
+    return()
+endif()
+
 if(NOT CMAKE_TOOLCHAIN_FILE)
     set(CMAKE_TOOLCHAIN_FILE ${CMAKE_CURRENT_SOURCE_DIR}/cmake/psx-toolchain.cmake)
 endif()
@@ -59,14 +68,19 @@ add_subdirectory(src/overlay/31_gf_mcard)
 psx_program()
 
 # A_FILE and the disc, from the original disc's data (-DORIGINAL_DISC=).
-include(cmake/disc.cmake)
+set(HMBTN_EXTRACTED_DATA_DIR "" CACHE PATH "Game data installed by port/tools/game_data.py")
+if(HMBTN_EXTRACTED_DATA_DIR)
+    include(port/cmake/extracted_disc.cmake)
+else()
+    include(cmake/disc.cmake)
+endif()
 
 # Every build ends by comparing every binary, and with ORIGINAL_DISC A_FILE and the
 # disc, against the original's SHA-1, and fails on a mismatch (also runnable alone as
 # `--target check`).
 set(check_lists ${CMAKE_SOURCE_DIR}/disc/binaries.sha1)
 set(check_targets program)
-if(ORIGINAL_DISC)
+if(ORIGINAL_DISC OR HMBTN_EXTRACTED_DATA_DIR)
     list(APPEND check_lists ${CMAKE_SOURCE_DIR}/disc/disc.sha1)
     list(APPEND check_targets afile disc)
 endif()

@@ -6,7 +6,7 @@
 
 *Baseado na decompilação [hmbtn-decomp](https://github.com/coalslav/hmbtn-decomp), de coalslav.*
 
-> **Status: fase inicial de planejamento e preparação.** Ainda não existe uma versão nativa jogável.
+> **Status: menu nativo de título (M3 parcial).** Ainda não existe gameplay nativo. O foco atual é Linux e Windows; Android permanece futuro.
 
 ---
 
@@ -33,7 +33,23 @@ Este é um projeto pessoal, desenvolvido por interesse em programação, engenha
 
 O repositório contém a **decompilação correspondente à versão americana de PlayStation, `SLUS_011.15`**. O projeto de origem reconstrói o executável e seus 13 overlays com correspondência byte a byte.
 
-**Ainda não foram implementados:** runtime nativo para PC, renderização nativa, integração com SDL3, sistemas de mods e builds de Windows ou Android. A compilação existente continua sendo a do **PlayStation**, não uma compilação nativa.
+**Implementado:** janela SDL3 de área lógica 320 × 240, logo Natsume, introdução gradual do título, grama e sprites animados, e estados 0..9 do menu original adaptados em C. New Game já mostra diálogos/retrato e permite completar nomes, aniversário e resumo do cadastro. Música e sons dos botões usam VAB/SEQ dos dados extraídos, com saída SDL3. A área do jogo não contém barras ou textos de diagnóstico. Enter/Start encerra a introdução; outro Enter abre o menu. Setas/D-pad alternam e Z/face inferior confirma. Escape fecha e F11 alterna tela cheia. Linux validado; há build Windows x64 e CI MSVC preparada. Os presets compilam e testam uma tarefa por vez.
+
+**Dados do jogo:** o executável lê o bloco da tela de título em `data/A_FILE/00_gf.bin`, sem consultar o disco original. Há importação/verificação da pasta e reconstrução PS1 a partir dela. Veja o [guia dos dados](docs/port/GAME_DATA.md) e os [formatos implementados](docs/port/ASSET_FORMATS.md).
+
+**Ainda não foram implementados:** transição para a primeira cena, saves, gameplay, modelos 3D, áudio completo da SPU/reverb, mods e Android. O bootstrap não executa o jogo completo. New Game para após aceitar o resumo do cadastro; Continue/demo param na fronteira registrada no terminal; Start/Z/X retorna ao menu. A abertura e o áudio ainda exigem comparação com o PS1 antes de afirmar fidelidade total; veja [TITLE_FLOW.md](docs/port/TITLE_FLOW.md) e [NEW_GAME.md](docs/port/NEW_GAME.md). O recorte foi adaptado em `port/`; os módulos completos de `src/` ainda não são compilados no host. O build original de **PlayStation** continua disponível por padrão.
+
+## Começar no Linux e Windows
+
+Requisitos: CMake 3.20+, compilador C11, Ninja e SDL3 de desenvolvimento. Se SDL3 não estiver instalado, o CMake baixa a versão fixada e confere seu hash; o primeiro build precisa de internet. No Windows, execute em um Developer PowerShell do Visual Studio com as ferramentas C++ e Ninja disponíveis. Veja também o fluxo offline e sem Ninja no [guia de compilação](docs/port/BUILDING.md).
+
+```bash
+cmake --preset native-debug
+cmake --build --preset native-debug
+ctest --preset native-debug
+```
+
+Execute `./build/native-debug/port/hmbtn_native` no Linux ou `.\build\native-debug\port\hmbtn_native.exe` no Windows. O programa procura `data/` junto ao executável e no layout do projeto; `--data DIR` é prioritário. Enter abre o menu, setas selecionam e Enter/Z confirma. X/Backspace retorna do aviso de destino ainda não portado. `--window-test` abre o diagnóstico sem dados e `--diagnostics` verifica somente o console, sem display. Veja também [Windows e compilação cruzada](docs/port/WINDOWS.md).
 
 ## Objetivos
 
@@ -48,27 +64,33 @@ O repositório contém a **decompilação correspondente à versão americana de
 | Camada | Responsabilidade | Estado |
 |---|---|---|
 | `src/` | Lógica decompilada do jogo | Base existente |
-| `port/core/` | Integração e runtime nativo | Planejado |
-| `port/graphics/` | Adaptação gráfica | Planejado |
-| `port/audio/` | Adaptação de áudio | Planejado |
-| `port/input/` | Controles | Planejado |
-| `port/filesystem/` | Recursos, leitura e saves | Planejado |
-| `port/platform/` | Integração específica de cada plataforma | Planejado |
+| `port/core/` | Aplicação host e formatos de dados PS1 | Base compilável |
+| `port/game/` | Recorte do fluxo original do título | Abertura, menu e cadastro (0..9, 11..28) |
+| `port/tests/` | Formatos, importação, janela e eventos | Implementado |
+| `port/graphics/` | Bancos, paletas, animações e prévia de título | Recorte M2 implementado |
+| `port/audio/` | Sampler VAB/ADPCM e sequenciador SEQ do título | Implementação parcial; reverb pendente |
+| `port/input/` | Atalhos e tradução para botões PS1 | Teclado/gamepad implementados |
+| `port/filesystem/` | Leitura de intervalos de recursos; futuros saves | Leitura implementada |
+| `port/platform/` | Janela/renderizador SDL3 | Implementado |
 
-**SDL3 é uma candidata de infraestrutura, não uma dependência implementada ou decisão técnica definitiva.** Antes do port, será necessário estudar os usos de PSY-Q, endereços fixos de memória, overlays e estruturas específicas do PS1.
+**SDL3 foi integrado à infraestrutura de janela, eventos e apresentação.** A tradução dos gráficos PS1 e a adaptação da lógica ainda dependem do estudo de PSY-Q, endereços fixos, overlays e estruturas específicas do console. Veja os marcos no [roteiro](docs/port/ROADMAP.md).
 
-O build original continua organizado pelos `CMakeLists.txt` e pelo toolchain PS1 existentes. A configuração de build nativa deverá ser criada separadamente para evitar regressões.
+O build original continua organizado pelos `CMakeLists.txt` e pelo toolchain PS1 existentes. O build nativo usa `-DHMBTN_BUILD_NATIVE=ON` e diretório separado, selecionado antes do toolchain PS1. Sem essa opção, o fluxo PS1 permanece selecionado.
 
 ## Plataformas
 
 | Plataforma | Objetivo | Estado |
 |---|---|---|
-| Fedora / Linux | Primeira plataforma de desenvolvimento | Não iniciado |
-| Windows | Port nativo após estabilizar o Linux | Não iniciado |
+| Fedora / Linux | Primeira plataforma de desenvolvimento | Janela validada em Wayland e X11 |
+| Windows | Build nativo de PC | MinGW x64 e Wine verificados; Windows real/MSVC pendentes |
 | Android | Port com NDK, ciclo de vida Android e controles por toque | Não iniciado |
 
 ## Documentação
 
+- [Compilação Linux e Windows](docs/port/BUILDING.md)
+- [Build Windows e pacote portátil](docs/port/WINDOWS.md)
+- [Recorte do fluxo do título](docs/port/TITLE_FLOW.md)
+- [Auditoria inicial do código PS1](docs/port/INITIAL_AUDIT.md)
 - [Plano técnico de desenvolvimento](docs/port/ROADMAP.md)
 - [Arquitetura inicial](docs/port/ARCHITECTURE.md)
 - [Guia de contribuição e sincronização com upstream](CONTRIBUTING.md)

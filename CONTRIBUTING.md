@@ -23,4 +23,6 @@ O merge poderá exigir resolução de conflitos. Revise os arquivos antes de int
 
 ## Validação
 
-Enquanto o port nativo não existe, o único build funcional documentado é o da decompilação para PS1. Não anuncie builds nativos ou suporte a plataformas que ainda não foram testados.
+Para a base nativa, execute `cmake --preset native-debug`, `cmake --build --preset native-debug` e `ctest --preset native-debug`. Repita com `native-release` ao alterar formatos ou configurações de compilação.
+
+A CI nativa está configurada para Linux e Windows. O bootstrap foi testado localmente em Linux; não anuncie o jogo como jogável ou Windows como validado sem evidência. A validação SHA-1 do PS1 permanece no workflow original e requer seu ambiente próprio. Consulte `docs/port/BUILDING.md`.

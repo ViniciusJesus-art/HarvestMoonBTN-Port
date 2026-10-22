@@ -1,0 +1,15 @@
+#ifndef HMBTN_PAD_BUTTONS_H
+#define HMBTN_PAD_BUTTONS_H
+
+/* Same bits as src/main/input/pad.h, without its PSY-Q headers or host ABI. */
+enum HmbtnPadButton {
+    HMBTN_PAD_L2 = 0x0001, HMBTN_PAD_R2 = 0x0002,
+    HMBTN_PAD_L1 = 0x0004, HMBTN_PAD_R1 = 0x0008,
+    HMBTN_PAD_TRIANGLE = 0x0010, HMBTN_PAD_CIRCLE = 0x0020,
+    HMBTN_PAD_CROSS = 0x0040, HMBTN_PAD_SQUARE = 0x0080,
+    HMBTN_PAD_SELECT = 0x0100, HMBTN_PAD_START = 0x0800,
+    HMBTN_PAD_UP = 0x1000, HMBTN_PAD_RIGHT = 0x2000,
+    HMBTN_PAD_DOWN = 0x4000, HMBTN_PAD_LEFT = 0x8000
+};
+
+#endif

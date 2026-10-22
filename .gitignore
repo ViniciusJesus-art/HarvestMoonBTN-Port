@@ -5,3 +5,9 @@ __pycache__/
 /sdk/gcc-2.95.2/
 /sdk/bin/
 /objdiff.json
+
+# Local host builds and user configuration
+/CMakeUserPresets.json
+/.vs/
+/data/
+/saves/

@@ -218,8 +218,9 @@ bool hmbtn_title_preview_draw(HmbtnTitlePreview *p, SDL_Renderer *renderer,
                 p->flow.brightness=(uint16_t)(10-p->new_game.fade);
             if (p->new_game.finished) {
                 p->flow.destination = HMBTN_TITLE_DESTINATION_NEW_GAME;
-                p->flow.step = HMBTN_TITLE_UNAVAILABLE;
-                puts("Registration accepted: player name, birthday, farm name and dog name. Farm scene/gameplay are not ported yet.");
+                p->flow.step = HMBTN_TITLE_NEW_GAME_LEAVE;
+                p->flow.brightness = 0;
+                puts("Registration accepted; transferring names and birthday to native farm opening.");
             }
         }
         p->pending_pressed = 0;
@@ -250,4 +251,9 @@ bool hmbtn_title_preview_draw(HmbtnTitlePreview *p, SDL_Renderer *renderer,
         snprintf(error, error_size, "Cannot draw title preview: %s", SDL_GetError()); return false;
     }
     return true;
+}
+
+const HmbtnNewGame *hmbtn_title_preview_registration(const HmbtnTitlePreview *p)
+{
+    return p && p->new_game.finished ? &p->new_game : NULL;
 }

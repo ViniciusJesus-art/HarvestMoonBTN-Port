@@ -1,8 +1,10 @@
 # Build Windows x64
 
 O mesmo C nativo e as mesmas interfaces SDL3 são usados em Linux e Windows.
-O `.exe` atual implementa o recorte de menu descrito em [TITLE_FLOW.md](TITLE_FLOW.md),
-sem gameplay. Recursos devem vir da cópia do usuário e não estão no pacote.
+O fonte atual inclui o título e a chegada descrita em [FARM_INTRO.md](FARM_INTRO.md),
+sem gameplay completo. O `.exe` e o pacote local foram recompilados com MinGW x64
+incluindo esse evento; execução em Windows real/MSVC continua pendente.
+Recursos devem vir da cópia do usuário e não estão no pacote.
 
 ## MSVC no Windows
 

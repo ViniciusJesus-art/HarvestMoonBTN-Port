@@ -2,8 +2,9 @@
 
 O executável PC adapta o C de `src/overlay/27_GF_TITLE/title.c` em
 `port/game/title_flow.c` e `port/graphics/title_preview.c`. O bootstrap não executa
-o jogo completo: a transição para a primeira cena, saves, demo e fazenda ainda não estão portados.
-O cadastro está em [NEW_GAME.md](NEW_GAME.md). Não há
+o jogo completo: saves, demo e gameplay completo ainda não estão portados.
+O cadastro está em [NEW_GAME.md](NEW_GAME.md); sua confirmação agora inicia a
+chegada com personagens e roteiro, descrita em [FARM_INTRO.md](FARM_INTRO.md). Não há
 execução de instruções MIPS ou ligação ao SDK PS1.
 
 ## Sequência implementada
@@ -28,8 +29,9 @@ CD e da preparação da fazenda; o porte não fabrica essa espera. Os dados nece
 Não há barra inferior, instruções de teclado ou painel de diagnóstico sobre os
 pixels do jogo. O modo separado `--window-test` continua sendo um diagnóstico.
 Após confirmar New Game, a apresentação e os editores do cadastro abrem.
-Ao atingir um destino ainda não portado, a aplicação registra o limite no terminal,
-sem simular gameplay. Start, Cross ou Circle retorna ao menu nessa fronteira host.
+Continue/demo registram o limite no terminal, sem simular gameplay; Start, Cross
+ou Circle retorna ao menu nessa fronteira. New Game segue pela chegada, infância, canção e retorno a Thomas até
+entrar na casa/área 80 e encerrar a abertura e liberar movimento com colisões estáticas na casa inicial. Escape fecha a janela.
 
 ## Animação e composição
 

@@ -15,6 +15,7 @@ bool hmbtn_sound_bank(HmbtnSound *sound, unsigned slot, const uint8_t *vh, size_
 bool hmbtn_sound_sequence(HmbtnSound *sound, const uint8_t *seq, size_t size,
     char *error, size_t error_size);
 void hmbtn_sound_start(HmbtnSound *sound);
+void hmbtn_sound_stop_music(HmbtnSound *sound);
 void hmbtn_sound_music_volume(HmbtnSound *sound, unsigned volume); /* 0..127 */
 void hmbtn_sound_effect(HmbtnSound *sound, unsigned tone); /* bank 0, prog 0, note 60, vol 60 */
 void hmbtn_sound_render(HmbtnSound *sound, int16_t *stereo, size_t frames);

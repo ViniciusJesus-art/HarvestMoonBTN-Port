@@ -8,12 +8,29 @@ sem espera ocupada; o título avança a cerca de 29,97 ticks/s. O renderizador
 de software é o padrão deste recorte 2D, para reduzir a alocação inicial do driver.
 A variável SDL_RENDER_DRIVER pode selecionar outro renderizador.
 
+`--scene-preview` abre a prévia de geometria da fazenda (M4 parcial), com modelo
+e texturas reais desenhados em C nativo. Setas/D-pad movem a câmera e Enter/Start
+restaura a vista inicial. Sem atores, gameplay ou áudio de cenário; esta opção
+de desenvolvimento é separada da transição original de New Game. Implementação
+em `graphics/model_decode.*`, `model_render.*`, `scene_decode.*` e `scene_preview.*`; detalhes em
+[SCENE_RENDERER.md](../docs/port/SCENE_RENDERER.md).
+
 O executável agora lê o bloco da tela de título em `data/A_FILE/00_gf.bin` e
 adapta as operações de imagens/animação documentadas no C original. Ainda não
 compila os módulos completos de `src/`. O recorte dos estados 0..9 do título foi
 adaptado em `game/title_flow.*`, com entrada PS1 traduzida de teclado/gamepad.
 New Game inclui apresentação, nomes, aniversário e resumo (estados 11..28).
-A transição para a primeira cena, saves e fazenda jogável ainda não foram portados. Não há gameplay.
+A confirmação agora inicia a chegada à fazenda: jogador, Thomas, caminhada,
+mensagens e música seguem o evento `0x74`. `--intro-preview` abre esse trecho
+diretamente. A sequência carrega as áreas 230/231/232 e executa os eventos `0x75..0x79`: imagens,
+encontro com a menina, canção, despedida e volta a Thomas. A sequência entra na casa/área 80 e encerra a abertura
+com o personagem junto à porta e libera caminhada/corrida dentro da casa. `--childhood-preview` inicia diretamente o encontro.
+O áudio XA é decodificado em fluxo; detalhes em [XA_AUDIO.md](../docs/port/XA_AUDIO.md).
+`--house-preview` abre diretamente esse trecho: setas caminham, X/Circle corre.
+Chão e bloqueios usam a geometria original; a saída pela porta pausa no limite
+da etapa. Veja [HOUSE_CONTROL.md](../docs/port/HOUSE_CONTROL.md).
+Saves e fazenda com controle livre ainda não estão portados. Veja
+[FARM_INTRO.md](../docs/port/FARM_INTRO.md).
 Depende de SDL3, sem SDK PSY-Q nem emulador. Veja os marcos no
 [roteiro](../docs/port/ROADMAP.md).
 

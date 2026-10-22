@@ -5,6 +5,7 @@
 #include "title_preview.h"
 #include "game_input.h"
 #include "data_directory.h"
+#include "scene_preview.h"
 
 #include <inttypes.h>
 #include <stdio.h>
@@ -16,6 +17,7 @@ int hmbtn_app_run(const HmbtnAppOptions *options)
     int result = 0;
     bool running = true;
     HmbtnTitlePreview *preview = NULL;
+    HmbtnScenePreview *scene = NULL;
     HmbtnGameInput input = {0};
     char error[512] = {0};
     /* Presentation cadence for this diagnostic, not the original PS1 game timer. */
@@ -39,20 +41,31 @@ int hmbtn_app_run(const HmbtnAppOptions *options)
         char *data_root = hmbtn_data_directory(options->data_root);
         if (data_root) {
             printf("Game data directory: %s\n", data_root);
-            preview = hmbtn_title_preview_create(host.renderer, data_root, error, sizeof(error));
+            if (options->house_preview)
+                scene = hmbtn_scene_house_create(host.renderer, data_root, error, sizeof(error));
+            else if (options->childhood_preview)
+                scene = hmbtn_scene_childhood_create(host.renderer, data_root, error, sizeof(error));
+            else if (options->intro_preview)
+                scene = hmbtn_scene_intro_create(host.renderer, data_root, error, sizeof(error));
+            else if (options->scene_preview)
+                scene = hmbtn_scene_preview_create(host.renderer, data_root, error, sizeof(error));
+            else
+                preview = hmbtn_title_preview_create(host.renderer, data_root, error, sizeof(error));
         } else {
             snprintf(error, sizeof(error), "Cannot allocate data directory path");
         }
         SDL_free(data_root);
-        if (!preview) {
-            fprintf(stderr, "Cannot load title preview: %s\nUse --data DIR or --window-test.\n", error);
+        if (!preview && !scene) {
+            fprintf(stderr, "Cannot load game resources: %s\nUse --data DIR or --window-test.\n", error);
             hmbtn_host_close(&host);
             return 1;
         }
-        if (!SDL_SetWindowTitle(host.window, "Harvest Moon: Back to Nature")) {
+        if (!SDL_SetWindowTitle(host.window, options->house_preview ? "Harvest Moon BTN - House movement preview"
+                : options->intro_preview || options->childhood_preview ? "Harvest Moon BTN - Opening event preview"
+                : scene ? "Harvest Moon BTN - Farm geometry preview" : "Harvest Moon: Back to Nature")) {
             SDL_Log("Cannot update window title: %s", SDL_GetError());
         }
-        puts("Title assets loaded: Natsume, intro, menu and registration; farm scene/gameplay, saves and demo are not ported.");
+        if (preview) puts("Title assets loaded: Natsume, intro, menu and registration. New Game reaches the initial house with movement; full gameplay, saves and demo remain pending.");
         hmbtn_game_input_init(&input);
     } else {
         puts("Diagnostic window only: no game assets loaded.");
@@ -66,11 +79,13 @@ int hmbtn_app_run(const HmbtnAppOptions *options)
         previous = started;
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
-            if (preview) hmbtn_game_input_event(&input, &event, window_id);
+            if (preview || scene) hmbtn_game_input_event(&input, &event, window_id);
             if (preview && event.type == SDL_EVENT_WINDOW_FOCUS_LOST
                     && event.window.windowID == window_id) {
                 hmbtn_title_preview_discard_input(preview);
             }
+            if (scene && event.type == SDL_EVENT_WINDOW_FOCUS_LOST && event.window.windowID == window_id)
+                hmbtn_scene_preview_discard_input(scene);
             const HmbtnWindowAction action = hmbtn_window_action(&event, window_id);
             if (action == HMBTN_WINDOW_QUIT) {
                 running = false;
@@ -84,17 +99,36 @@ int hmbtn_app_run(const HmbtnAppOptions *options)
         if (!running) {
             break;
         }
-        if (preview) hmbtn_game_input_poll(&input);
-        const bool drawn = preview
-            ? hmbtn_title_preview_draw(preview, host.renderer, elapsed_ns,
-                hmbtn_game_input_take_pressed(&input), hmbtn_game_input_held(&input), error, sizeof(error))
-            : hmbtn_draw_diagnostics(host.renderer, frames);
+        if (preview || scene) hmbtn_game_input_poll(&input);
+        bool drawn;
+        if (scene)
+            drawn = hmbtn_scene_preview_draw(scene, host.renderer, elapsed_ns,
+                hmbtn_game_input_take_pressed(&input), hmbtn_game_input_held(&input), error, sizeof(error));
+        else if (preview)
+            drawn = hmbtn_title_preview_draw(preview, host.renderer, elapsed_ns,
+                hmbtn_game_input_take_pressed(&input), hmbtn_game_input_held(&input), error, sizeof(error));
+        else
+            drawn = hmbtn_draw_diagnostics(host.renderer, frames);
+        if (drawn && preview && hmbtn_title_preview_registration(preview)) {
+            const HmbtnNewGame registration = *hmbtn_title_preview_registration(preview);
+            char *root = hmbtn_data_directory(options->data_root);
+            /* Release title atlases and audio before allocating the farm resources. */
+            hmbtn_title_preview_destroy(preview); preview = NULL;
+            if (root) scene = hmbtn_scene_intro_create(host.renderer,root,error,sizeof(error));
+            else snprintf(error,sizeof(error),"Cannot allocate opening data path");
+            SDL_free(root);
+            if (!scene) drawn = false;
+            else {
+                hmbtn_scene_intro_registration(scene,&registration);
+                drawn = hmbtn_scene_preview_draw(scene,host.renderer,0,0,0,error,sizeof(error));
+            }
+        }
         if (!drawn
                 || (options->screenshot_path
                     && (options->frame_limit ? frames + 1 == options->frame_limit : frames == 0)
                     && !hmbtn_host_save_frame(&host, options->screenshot_path))
                 || !SDL_RenderPresent(host.renderer)) {
-            fprintf(stderr, "Cannot present native frame: %s\n", (!drawn && preview) ? error : SDL_GetError());
+            fprintf(stderr, "Cannot present native frame: %s\n", (!drawn && !options->window_test) ? error : SDL_GetError());
             result = 1;
             break;
         }
@@ -109,6 +143,7 @@ int hmbtn_app_run(const HmbtnAppOptions *options)
     }
     printf("Frames presented: %" PRIu32 "\n", frames);
     hmbtn_title_preview_destroy(preview);
+    hmbtn_scene_preview_destroy(scene);
     hmbtn_game_input_close(&input);
     hmbtn_host_close(&host);
     return result;

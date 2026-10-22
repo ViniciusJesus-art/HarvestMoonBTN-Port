@@ -9,9 +9,13 @@
 
 static void usage(const char *program)
 {
-    printf("Usage: %s --diagnostics | [--data DIR | --window-test] [--window-size WIDTHxHEIGHT] [--frames N] [--screenshot file.bmp]\n", program);
-    puts("Default: native title menu (gameplay not integrated). Enter=Start, arrows=select, Z=confirm.");
+    printf("Usage: %s --diagnostics | [--data DIR] [--window-test | --scene-preview | --intro-preview | --childhood-preview | --house-preview] [--window-size WIDTHxHEIGHT] [--frames N] [--screenshot file.bmp]\n", program);
+    puts("Default: title, registration and the first farm event. Enter=Start, arrows=select, Z=confirm.");
     puts("Data is located beside the executable or in the project; --data DIR overrides it.");
+    puts("--scene-preview: farm geometry development view; arrows pan camera, Enter resets. No gameplay.");
+    puts("--intro-preview: native arrival and childhood sequence; Z/X advance dialogue.");
+    puts("--childhood-preview: development entry at the childhood meeting and song.");
+    puts("--house-preview: initial house; arrows walk, Circle/X runs. Exit and interactions pending.");
 }
 
 int main(int argc, char **argv)
@@ -27,6 +31,14 @@ int main(int argc, char **argv)
             diagnostics = true;
         } else if (strcmp(argv[i], "--window-test") == 0) {
             options.window_test = true;
+        } else if (strcmp(argv[i], "--scene-preview") == 0) {
+            options.scene_preview = true;
+        } else if (strcmp(argv[i], "--intro-preview") == 0) {
+            options.intro_preview = true;
+        } else if (strcmp(argv[i], "--childhood-preview") == 0) {
+            options.childhood_preview = true;
+        } else if (strcmp(argv[i], "--house-preview") == 0) {
+            options.house_preview = true;
         } else if (strcmp(argv[i], "--data") == 0 && i + 1 < argc) {
             options.data_root = argv[++i];
             data_requested = true;
@@ -64,12 +76,14 @@ int main(int argc, char **argv)
             return 2;
         }
     }
-    if (diagnostics && (options.frame_limit || options.screenshot_path || data_requested || options.window_test || options.window_width)) {
+    if (diagnostics && (options.frame_limit || options.screenshot_path || data_requested || options.window_test || options.scene_preview || options.intro_preview || options.childhood_preview || options.house_preview || options.window_width)) {
         fputs("--diagnostics cannot be combined with window options.\n", stderr);
         return 2;
     }
-    if (options.window_test && data_requested) {
-        fputs("--window-test does not load resources; omit --data.\n", stderr);
+    const unsigned modes = (unsigned)options.window_test+(unsigned)options.scene_preview
+        +(unsigned)options.intro_preview+(unsigned)options.childhood_preview+(unsigned)options.house_preview;
+    if (modes > 1 || (options.window_test && data_requested)) {
+        fputs("Window diagnostic modes are exclusive; --window-test cannot load --data.\n", stderr);
         return 2;
     }
     const uint8_t sample[] = {0x00, 0x00, 0x01, 0x80};
@@ -80,6 +94,6 @@ int main(int argc, char **argv)
     puts("Harvest Moon: Back to Nature - PC port");
     puts("Native foundation ready (Linux / Windows target).");
     printf("Host pointer width: %u bits\n", (unsigned)(sizeof(void *) * CHAR_BIT));
-    puts("Partial title port: publisher, intro, menu, registration and audio; farm scene/gameplay and saves are pending.");
+    puts("Partial native port: title, registration, opening and initial house movement. Farm exit, interactions, full gameplay and saves remain pending.");
     return diagnostics ? 0 : hmbtn_app_run(&options);
 }

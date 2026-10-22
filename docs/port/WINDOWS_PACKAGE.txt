@@ -1,4 +1,4 @@
-Harvest Moon: Back to Nature - porte nativo parcial (M3)
+Harvest Moon: Back to Nature - titulo, cadastro, chegada e sequencia da infancia (M3 / M4 parcial)
 
 Coloque a pasta data importada da sua copia do jogo ao lado de hmbtn_native.exe.
 Alternativa: hmbtn_native.exe --data "D:\Jogos\Harvest Moon\data"
@@ -9,14 +9,27 @@ Setas: escolher. Z: confirmar. X/Backspace: voltar na fronteira ainda nao portad
 --window-size 1280x720: janela larga com imagem original 4:3 centralizada.
 Escape: sair. F11: tela cheia. Gamepads SDL3 tambem sao reconhecidos.
 
-O menu e funcional, mas New Game e Continue ainda nao iniciam o jogo:
-Cadastro inclui nome, aniversario, fazenda, cachorro e resumo.
-Transicao para a primeira cena, gameplay, saves e demo ainda precisam ser portados.
+O fonte atual inicia a chegada apos o cadastro, com jogador e Thomas.
+A cena inclui portas, caixa de venda, mato, pedras e galhos.
+A sequencia inclui avo, menino, cachorro, imagens, encontro com a menina,
+cancao XA, despedida e retorno a Thomas.
+A abertura termina dentro da casa/area 80, com caminhada/corrida e colisoes estaticas.
+--house-preview abre a casa diretamente. Setas caminham; X/Circle corre.
+A porta pausa no limite da etapa. Saida para a fazenda, interacoes, saves e demo faltam.
 Abertura animada, musica e sons dos botoes usam os recursos extraidos.
 Fidelidade total de imagem/audio ao PS1 ainda precisa ser validada.
 
-Build atual compilado com MinGW x64; esta alteracao nao foi executada no Wine
-para evitar processos adicionais apos o problema de memoria relatado.
+hmbtn_native.exe --scene-preview abre o modelo base da fazenda com texturas.
+Setas/D-pad movem a camera de diagnostico; Enter/Start restaura a vista.
+Esta previa e separada de New Game e nao inclui atores, gameplay ou audio da cena.
+
+--intro-preview abre a chegada diretamente,
+com personagens, dialogos e musica. Z/X avanca as mensagens.
+--childhood-preview inicia diretamente o encontro da infancia.
+
+Build atual recompilado com MinGW x64, incluindo a sequencia da infancia e audio XA em fluxo, em conteiner limitado
+a 1536 MiB e uma tarefa por vez. Nao foi executado no Wine para evitar processos
+adicionais apos o problema de memoria.
 Os artefatos de CI podem usar MSVC; consulte o registro de validacao do projeto.
 Validacao em Windows real e com MSVC permanece pendente.
 Documentacao: docs/port/WINDOWS.md e docs/port/TITLE_FLOW.md no projeto.

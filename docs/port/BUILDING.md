@@ -11,7 +11,8 @@ O CMake procura SDL3 instalado. Se não encontrar, `HMBTN_FETCH_SDL3=ON` (padrã
 baixa SDL3 3.4.18 do site oficial, confere SHA-256 e compila uma biblioteca estática
 em `build/native-*/_deps/`. Nenhum SDK PSY-Q, disco ou dado original é necessário
 para compilar ou abrir `--window-test`. O menu padrão precisa de `data/` importada
-e executa o recorte de estados 0..9 do título; ainda não há cadastro/saves/gameplay.
+e executa título, cadastro, abertura e controle na casa inicial; ainda não há saves
+ou gameplay completo.
 
 O primeiro build também compila SDL3 e leva mais tempo. No Linux, o build de SDL
 precisa dos arquivos de desenvolvimento de um backend de janela (Wayland ou X11)
@@ -49,23 +50,34 @@ ctest --preset native-debug
 Para Release, substitua `native-debug` por `native-release` nos comandos e no caminho.
 
 Sem argumentos, o programa abre uma janela de 960 × 720 e apresenta uma área lógica
-de 320 × 240. Escape fecha e F11 alterna tela cheia. A prévia lê os recursos da tela
-de título em `data/`, desenha fundo/logotipo e reproduz três sequências animadas.
-Enter/Start abre o menu, setas/D-pad alternam e Enter/Z confirma. Os destinos de
-cadastro/saves/fazenda ainda não estão portados e mostram um aviso com retorno.
+de 320 × 240. Escape fecha e F11 alterna tela cheia. O título lê seus recursos em
+`data/`, desenha a abertura e reproduz animações, música e sons dos botões.
+Enter/Start encerra a introdução; outro Enter abre o menu. Setas/D-pad alternam
+e Enter/Z confirma. O resumo do cadastro inicia a chegada à fazenda: jogador,
+Thomas, caminhada e diálogos. A infância, canção, despedida e volta a Thomas (`0x75..0x79`) também executam;
+a abertura termina dentro da casa/área 80, com o personagem junto à porta.
+A casa libera caminhada/corrida com chão e bloqueios originais. Saída para a fazenda,
+interações, saves e gameplay completo ainda faltam. Veja [FARM_INTRO.md](FARM_INTRO.md).
 A pasta é localizada junto ao executável ou no projeto; `--data DIR` é prioritário.
 
 Opções de desenvolvimento:
 
 ```bash
+./build/native-debug/port/hmbtn_native --house-preview
 ./build/native-debug/port/hmbtn_native --diagnostics
 ./build/native-debug/port/hmbtn_native --window-test --frames 3
 ./build/native-debug/port/hmbtn_native --frames 120 --screenshot build/native-debug/window.bmp
+./build/native-debug/port/hmbtn_native --scene-preview
+./build/native-debug/port/hmbtn_native --intro-preview
 ```
 
 O primeiro comando termina sem abrir janela. O segundo testa a janela sem dados do
 jogo. O terceiro abre o título parcial, salva o último frame em BMP e encerra após
 120 apresentações. A opção `--frames` aceita 1 a 1000000.
+O quarto abre o modelo base da fazenda com texturas; setas movem a câmera e Enter
+restaura a vista. É uma prévia de desenvolvimento sem gameplay, separada de
+New Game. Veja [SCENE_RENDERER.md](SCENE_RENDERER.md).
+O quinto abre a chegada com personagens e música; Z/X avança as mensagens.
 Sem display, pode-se usar `SDL_VIDEO_DRIVER=dummy SDL_RENDER_DRIVER=software`;
 isso testa o ciclo e o desenho, mas não comprova apresentação no desktop.
 

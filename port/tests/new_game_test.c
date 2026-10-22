@@ -68,6 +68,15 @@ int main(void)
     CHECK(hmbtn_message_open(&g.message,data,sizeof(data),error,sizeof(error)));
     many(&g,30);tick(&g,HMBTN_PAD_CROSS);many(&g,12);
     CHECK(g.step==18 && g.request==0x3a9 && g.birthday_phase==1);
+    /* FFC/FFB/newline separates pages; four actual lines on page 2 remain valid. */
+    const uint16_t paged[]={0,0xffc,0xffb,0xfffe,1,0xfffe,2,0xfffe,3,0xfffe,4,0xffff};
+    record(data,paged,sizeof(paged)/2);
+    HmbtnMessage paging;
+    CHECK(hmbtn_message_open(&paging,data,sizeof(data),error,sizeof(error)));
+    for(unsigned i=0;i<24;++i) hmbtn_message_tick(&paging,0,HMBTN_PAD_CROSS);
+    CHECK(paging.phase==HMBTN_MESSAGE_WAIT_PAGE);
+    hmbtn_message_tick(&paging,HMBTN_PAD_CROSS,HMBTN_PAD_CROSS);
+    CHECK(paging.page==4 && paging.words[paging.page]==1);
     const uint16_t help[]={0xff3,0,1,2,0xfffe,3,4,5,0xffff};record(data,help,sizeof(help)/2);
     CHECK(hmbtn_message_open(&g.message,data,sizeof(data),error,sizeof(error)));
     many(&g,17);CHECK(g.message.phase==HMBTN_MESSAGE_OPENING && g.message.cursor==0);
@@ -124,6 +133,14 @@ int main(void)
     many(&g,10);CHECK(g.step==28 && g.fade==10 && !g.finished);
     tick(&g,0);CHECK(g.finished && g.step==100 && g.season==1 && g.day==29);
     CHECK(!hmbtn_message_open(&g.message,data,64,error,sizeof(error)));
+    const uint16_t event_text[]={0xff5,0xe2d,0x20,0xffff};record(data,event_text,4);
+    CHECK(hmbtn_message_open(&g.message,data,sizeof(data),error,sizeof(error)));
+    for (unsigned i=0;i<18;++i) hmbtn_message_tick(&g.message,0,0);
+    CHECK(g.message.phase==HMBTN_MESSAGE_PRINTING);
+    for (unsigned i=0;i<4;++i) hmbtn_message_tick(&g.message,0,0);
+    CHECK(g.message.cursor==2 && g.message.wait_frames==1);
+    hmbtn_message_tick(&g.message,0,0);
+    CHECK(g.message.cursor==2 && g.message.wait_frames==0);
     const uint16_t invalid[]={0x400a,0xffff};record(data,invalid,2);
     CHECK(!hmbtn_message_open(&g.message,data,sizeof(data),error,sizeof(error)));
     memset(data+0x1800,0,0x800);

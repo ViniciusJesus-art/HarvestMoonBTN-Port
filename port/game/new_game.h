@@ -12,7 +12,7 @@ typedef enum HmbtnMessagePhase {
 } HmbtnMessagePhase;
 typedef struct HmbtnMessage {
     uint16_t words[HMBTN_MESSAGE_WORDS];
-    unsigned count, page, cursor, box_frame, timer;
+    unsigned count, page, cursor, box_frame, timer, wait_frames;
     HmbtnMessagePhase phase;
     bool face, no_scroll, blip;
     unsigned choices;
@@ -33,6 +33,7 @@ typedef struct HmbtnNewGame {
 void hmbtn_new_game_init(HmbtnNewGame *game);
 bool hmbtn_message_open(HmbtnMessage *message, const uint8_t *record, size_t size,
     char *error, size_t error_size);
+int hmbtn_message_tick(HmbtnMessage *message, uint32_t pressed, uint32_t held);
 void hmbtn_new_game_tick(HmbtnNewGame *game, uint32_t pressed, uint32_t held);
 bool hmbtn_new_game_name_editor(const HmbtnNewGame *game);
 /* menu_box_animate coordinates; false means the box has no pixels this tick. */

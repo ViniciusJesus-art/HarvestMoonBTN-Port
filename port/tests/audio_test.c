@@ -105,6 +105,21 @@ int main(int argc, char **argv)
         CHECK(pcm[i*2] == pcm[i*2+1]); /* Effect remains audible while music fades. */
     }
     CHECK(audible);
+    /* Use a fresh mixer so the preceding looping effect cannot mask silence. */
+    hmbtn_sound_destroy(s); s=hmbtn_sound_create(); CHECK(s);
+    CHECK(hmbtn_sound_bank(s,0,vh,sizeof(vh),vb,sizeof(vb),error,sizeof(error)));
+    CHECK(hmbtn_sound_bank(s,1,vh,sizeof(vh),vb,sizeof(vb),error,sizeof(error)));
+    CHECK(hmbtn_sound_sequence(s, seq, sizeof(seq), error, sizeof(error)));
+    hmbtn_sound_music_volume(s,127); hmbtn_sound_start(s);
+    hmbtn_sound_render(s,pcm,512);
+    hmbtn_sound_stop_music(s);
+    for (unsigned i=0;i<50;++i) hmbtn_sound_render(s,pcm,512);
+    CHECK(hmbtn_sound_loop_count(s)==0); /* Stopped sequencer must not restart at its loop. */
+    for (unsigned i=0;i<1024;++i) CHECK(pcm[i]==0);
+    hmbtn_sound_effect(s,0); hmbtn_sound_render(s,pcm,512);
+    audible=false;
+    for (unsigned i=0;i<1024;++i) if (pcm[i]) audible=true;
+    CHECK(audible); /* Dialogue effects survive stopping the song. */
     CHECK(!hmbtn_sound_sequence(s, seq, 17, error, sizeof(error)));
     CHECK(!hmbtn_sound_bank(s, 0, vh, 40, vb, sizeof(vb), error, sizeof(error)));
     CHECK(!hmbtn_sound_bank(s, 0, vh, sizeof(vh), vb, 16, error, sizeof(error)));

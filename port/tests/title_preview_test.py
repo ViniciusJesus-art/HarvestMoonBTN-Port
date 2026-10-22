@@ -98,7 +98,7 @@ class TitlePreviewTest(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             self.assertIn("Title assets loaded", result.stdout)
             self.assertIn("Frames presented: 30", result.stdout)
-            self.assertIn("Title audio ready: dummy", result.stdout)
+            self.assertIn("Native audio ready: dummy, song 26", result.stdout)
             self.assertNotIn("Title state: 7", result.stdout)  # Publisher precedes options.
             bmp = screenshot.read_bytes()
             self.assertEqual(bmp[:2], b"BM")

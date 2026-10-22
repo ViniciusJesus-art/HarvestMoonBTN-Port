@@ -19,16 +19,24 @@ bool hmbtn_message_open(HmbtnMessage *m, const uint8_t *record, size_t size,
     if (!record || size != 8192) FAIL("Invalid message record size");
     memset(m, 0, sizeof(*m));
     unsigned lines = 0;
+    bool page_leading = false;
     for (unsigned i = 0; i < HMBTN_MESSAGE_WORDS; ++i) {
         const uint16_t c = hmbtn_read_le16(record + 0x1800 + i * 2);
         m->words[m->count++] = c;
         if (c == 0xffff) { m->phase = HMBTN_MESSAGE_OPENING; return true; }
-        if (c == 0xffc || c == 0xffb) lines = 0;
-        if (c == 0xfffe && ++lines >= 4) FAIL("Scrolling text beyond four lines is not ported in this slice");
+        if (c == 0xffc || c == 0xffb) { lines = 0; page_leading = true; }
+        if (c == 0xfffe) {
+            /* WAIT_PAGE consumes the first line break after FFB. It is a
+             * separator before the new page, not an extra displayed line. */
+            if (!page_leading && ++lines >= 4) FAIL("Scrolling text beyond four lines is not ported in this slice");
+            page_leading = false;
+        }
+        if (c < 256 || c == 0xffd) page_leading = false;
         if (c >= 0xe38 && c <= 0xfef && hmbtn_read_le32(record) != 0xfefu - c)
             FAIL("External portrait-bank switch is not ported in this slice");
         if (c < 256 || c == 0xfffe || c == 0xffd || c == 0xffc || c == 0xffb
-                || c == 0xffa || c == 0xff3 || c == 0xff7 || c == 0xff4 || c == 0xff6
+                || c == 0xffa || c == 0xff3 || c == 0xff7 || c == 0xff4 || c == 0xff6 || c == 0xff5
+                || (c >= 0xe25 && c <= 0xe2f)
                 || (c >= 0xe38 && c <= 0xfef)) continue;
         FAIL("Unsupported message command in new-game slice");
     }
@@ -55,9 +63,9 @@ bool hmbtn_new_game_name_editor(const HmbtnNewGame *g)
 {
     return g->step == 15 || g->step == 21 || g->step == 24;
 }
-static void message_tick(HmbtnNewGame *g, uint32_t pressed, uint32_t held)
+int hmbtn_message_tick(HmbtnMessage *m, uint32_t pressed, uint32_t held)
 {
-    HmbtnMessage *m = &g->message;
+    int sound = -1;
     switch (m->phase) {
     case HMBTN_MESSAGE_OPENING:
         if (++m->box_frame >= 18) {
@@ -71,6 +79,7 @@ static void message_tick(HmbtnNewGame *g, uint32_t pressed, uint32_t held)
         if (++m->box_frame >= 12) m->phase = HMBTN_MESSAGE_CLOSED;
         break;
     case HMBTN_MESSAGE_PRINTING: {
+        if (m->wait_frames) { --m->wait_frames; break; }
         /* Default text speed is 3 VBlanks; VSync(2) crosses it every 2 ticks.
          * Held Cross/Circle uses interval zero: still one entry per game frame. */
         const unsigned interval = held & (HMBTN_PAD_CROSS | HMBTN_PAD_CIRCLE) ? 1 : 2;
@@ -83,9 +92,10 @@ static void message_tick(HmbtnNewGame *g, uint32_t pressed, uint32_t held)
         else if (code == 0xff4) m->face = true;
         else if (code == 0xff6) m->face = false;
         else if (code == 0xff3) m->no_scroll = true;
+        else if (code >= 0xe25 && code <= 0xe2f) m->wait_frames = (0xe2f-code+1)/2;
         /* The source alternates its text blip per typing timer. */
         m->blip = !m->blip;
-        if (!m->blip) g->sound = 4;
+        if (!m->blip) sound = 4;
         break;
     }
     case HMBTN_MESSAGE_WAIT_PAGE:
@@ -103,6 +113,7 @@ static void message_tick(HmbtnNewGame *g, uint32_t pressed, uint32_t held)
         break;
     default: break;
     }
+    return sound;
 }
 static void request(HmbtnNewGame *g, unsigned id)
 {
@@ -240,7 +251,7 @@ void hmbtn_new_game_tick(HmbtnNewGame *g,uint32_t pressed,uint32_t held)
     } else {g->repeat_frames=0;g->repeating=false;}
     g->previous_held=held;
     const bool controlled=hmbtn_new_game_name_editor(g) || g->step==18 || g->step==26;
-    message_tick(g,controlled?0:pressed,controlled?0:held);
+    g->sound = hmbtn_message_tick(&g->message,controlled?0:pressed,controlled?0:held);
     if(g->queued && g->message.phase==HMBTN_MESSAGE_CLOSED) {
         request(g,g->queued);g->queued=0;return;
     }

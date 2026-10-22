@@ -45,11 +45,24 @@ usa os 320 × 240 de `src/main/main.c`. A inicialização/ciclo de jogo completo
 não foram integrados.
 
 Áudio geral, tradução geral dos gráficos e lógica de gameplay continuam
-planejados; a música e os efeitos do título já têm uma implementação parcial. O build de PC não inclui `src/` nem SDKs PS1 e não simula subsistemas
+planejados; a música e os efeitos do título já têm uma implementação parcial. O build de PC não compila módulos de `src/` nem usa SDKs PS1; apenas reutiliza
+as tabelas existentes dos layouts iniciais por um include gerado no build e não simula subsistemas
 ausentes. CMake seleciona a base nativa antes de definir o toolchain PS1, usando
 diretórios de build independentes. SDL3 fornece serviços host; não implementa GPU,
 GTE ou SPU por nós. O recorte M2 implementa imagens indexadas e animações 2D; o
-backend geral de primitivas/modelos ainda precisa ser construído. O atlas em CPU
+backend de M4 acrescenta oito tipos de primitivas prelit TMD, projeção inteira,
+texturas afins e ordenação, em `graphics/model_decode.*` e `model_render.*`.
+`scene_preview.*` carrega o modelo base da fazenda; a opção `--scene-preview`
+permite validar sua geometria sem substituir a sequência original de New Game.
+New Game também carrega os sprites do jogador/Thomas e o evento de chegada:
+`game/event_script.*` despacha handlers C de `farm_intro.*`, e a renderização
+insere os atores na ordenação do cenário. A tabela da cena acrescenta portas, caixa, posições/rotações e campo inicial.
+As áreas 230/231/232 executam a infância, encontro, canção XA, despedida e
+retorno a Thomas (`0x75..0x79`), seguidos da entrada na casa/área 80 e término
+do roteiro. `game/ground.*` consulta a geometria original e `game/house_control.*`
+libera caminhada/corrida na casa. Saída para a fazenda, colisões com atores e
+interações permanecem pendentes; detalhes em [FARM_INTRO.md](FARM_INTRO.md) e
+[SCENE_RENDERER.md](SCENE_RENDERER.md). O atlas em CPU
 mantém posições originais para resolver imagens/paletas, sem simular o hardware.
 
 Os testes cobrem formatos, importação, leitura de arquivos, decodificação de

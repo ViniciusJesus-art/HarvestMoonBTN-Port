@@ -219,6 +219,13 @@ void hmbtn_sound_music_volume(HmbtnSound *s, unsigned volume)
 {
     s->music_volume = volume > 127 ? 127 : volume;
 }
+void hmbtn_sound_stop_music(HmbtnSound *s)
+{
+    if (!s) return;
+    s->playing = false;
+    for (unsigned i = 0; i < HMBTN_AUDIO_VOICES; ++i)
+        if (!s->voices[i].effect) s->voices[i].active = false;
+}
 
 static void gains(HmbtnSound *s, Voice *v)
 {

@@ -2,6 +2,7 @@
 #include "resource_file.h"
 #include "psx_data.h"
 #include "window_frame.h"
+#include "model_render.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -14,6 +15,12 @@ struct HmbtnNewGameUI {
     HmbtnAnimationPlayer heart;
     uint8_t icons_block[UI_BLOCK_SIZE];
 };
+void hmbtn_new_game_ui_cursor(const HmbtnNewGameUI *u, HmbtnWorldSprite *sprite,
+    const int32_t position[3], unsigned variant)
+{
+    *sprite = (HmbtnWorldSprite){&u->icons,u->atlas,{24,(uint16_t)(variant&1u),0},{0},0};
+    memcpy(sprite->position,position,sizeof(sprite->position));
+}
 HmbtnNewGameUI *hmbtn_new_game_ui_create(const char *root, char *error, size_t error_size)
 {
     HmbtnNewGameUI *u = calloc(1,sizeof(*u));
@@ -39,15 +46,21 @@ bool hmbtn_new_game_ui_load(HmbtnNewGameUI *u, const char *root, HmbtnNewGame *g
     char *error, size_t error_size)
 {
     if (!g->request || g->loaded == g->request) return true;
-    uint8_t record[8192];
-    if (!hmbtn_resource_read(root,"A_FILE/05_messege3.bin",g->request*8192,record,sizeof(record),error,error_size)
-            || !hmbtn_message_open(&g->message,record,sizeof(record),error,error_size)) return false;
-    if (hmbtn_read_le32(record) != UINT32_MAX
-            && !hmbtn_bank_apply(record+4,0x1800-4,u->atlas,error,error_size)) return false;
+    if (!hmbtn_new_game_ui_message(u,root,"A_FILE/05_messege3.bin",g->request,&g->message,error,error_size)) return false;
     g->loaded = g->request;
     printf("New-game message: 0x%03x\n",g->loaded);
     fflush(stdout);
     return true;
+}
+bool hmbtn_new_game_ui_message(HmbtnNewGameUI *u, const char *root,
+    const char *archive, unsigned id, HmbtnMessage *message, char *error, size_t error_size)
+{
+    uint8_t record[8192];
+    if (id > UINT32_MAX/8192u) { snprintf(error,error_size,"Message index outside bounds"); return false; }
+    return hmbtn_resource_read(root,archive,id*8192u,record,sizeof(record),error,error_size)
+        && hmbtn_message_open(message,record,sizeof(record),error,error_size)
+        && (hmbtn_read_le32(record) == UINT32_MAX
+            || hmbtn_bank_apply(record+4,0x1800-4,u->atlas,error,error_size));
 }
 static bool glyph(HmbtnNewGameUI *u,uint8_t *p,uint16_t code,int x,int y,unsigned palette,
     char *error,size_t error_size)

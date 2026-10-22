@@ -3,8 +3,10 @@
 O porte adapta os estados 11..28 de `27_GF_TITLE/title.c`, a caixa de
 `menu_window.c`, a fonte de `text.c` e os editores de `name_entry.c`.
 O cadastro inclui nome do jogador, aniversário, nome da fazenda, nome do cachorro
-e resumo. O bootstrap ainda não executa o jogo completo: a transição para a
-primeira cena, gameplay, saves e demo continuam pendentes.
+e resumo. A confirmação agora inicia a chegada à fazenda, com jogador, Thomas,
+diálogos e música, seguindo até o interior da casa/área 80. O bootstrap ainda
+não executa o jogo completo: saída para a fazenda, interações, saves e demo continuam pendentes.
+Após a abertura já há caminhada/corrida com colisões estáticas na casa inicial. Veja [FARM_INTRO.md](FARM_INTRO.md).
 
 ## Caminho disponível
 
@@ -27,9 +29,10 @@ Selecione New Game com cima/baixo e confirme com Z ou Enter.
    anterior; a fazenda mostra seu sufixo no cabeçalho, como no C original.
 6. O resumo mostra nomes e aniversário. A primeira opção aceita; a segunda
    recomeça as perguntas pelo nome do jogador. A aceitação apaga imagem e música
-   em dez ticks. O cadastro permanece no estado nativo; a fronteira antes da cena
-   da fazenda é registrada no terminal, sem simular gameplay ou gravar save.
-   Start/Z/X retorna ao título nessa fronteira host.
+   em dez ticks. Os nomes e o aniversário passam ao estado nativo da chegada;
+   o título e seu áudio são liberados antes de carregar a cena. A chegada segue
+   os eventos `0x74..0x79`: chegada, infância, canção, despedida e retorno a Thomas.
+   O roteiro termina dentro da casa/área 80, com o jogador na porta e libera caminhada/corrida dentro da casa. Não grava save.
 
 Os identificadores seguem os originais: nome 15, aniversário 16..18, fazenda
 19..21, cachorro 22..24, resumo 25..26 e saída 27..28. Foi removido o passo extra
@@ -106,6 +109,12 @@ As capturas incluem a janela inteira. Câmera 16:9 e resolução interna maior a
 não estão implementadas; fazem parte das melhorias posteriores à paridade PS1.
 
 ## Verificação
+
+O caminho atual do cadastro à chegada foi validado com os dados locais, em
+dummy e em janela X11/software + PipeWire 1280×720: nomes, aniversário, confirmação,
+carregamento e conversa com Thomas; 3.413 frames, saída zero e pico RSS cerca de
+79 MiB. A suíte atual tem 17 testes CTest aprovados. Detalhes em
+[FARM_INTRO.md](FARM_INTRO.md). O registro abaixo descreve o marco anterior do cadastro.
 
 Configure/build e 14 testes CTest aprovados no Linux. A regressão de molduras
 verifica RGB bege e gradiente. Os testes do cadastro cobrem ajuda completa ao abrir,

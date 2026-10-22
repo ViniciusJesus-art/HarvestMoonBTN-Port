@@ -51,7 +51,9 @@ lógica da tela de título. Manter os recursos no formato original inicialmente.
 
 **Em andamento:** logo Natsume, introdução, fundo animado, áudio nativo e estados
 0..9 e 11..28 implementados em C host. O cadastro inclui nomes, aniversário e
-resumo. A transição para a fazenda, saves e demo continuam pendentes. Detalhes em [TITLE_FLOW.md](TITLE_FLOW.md).
+resumo. A transição agora inicia a chegada à fazenda/evento `0x74`; a sequência da infância (`0x75..0x79`) e a entrada na casa também executam;
+gameplay, saves e demo continuam pendentes. Detalhes em
+[TITLE_FLOW.md](TITLE_FLOW.md) e [FARM_INTRO.md](FARM_INTRO.md).
 
 - [x] Adaptar logo Natsume e entrada gradual de título/copyright/texto antes das opções.
 - [x] Adaptar as duas camadas móveis de grama, personagens e flores.
@@ -61,7 +63,7 @@ resumo. A transição para a fazenda, saves e demo continuam pendentes. Detalhes
 - [x] Portar grade e confirmação do nome do jogador, com limite de oito glifos.
 - [x] Validar janela 1280×720 mantendo conteúdo 4:3 e capturas com margens.
 - [x] Portar aniversário, nome da fazenda, nome do cachorro e resumo do cadastro.
-- [ ] Portar a transição do cadastro para a primeira cena/fazenda.
+- [x] Transferir o cadastro e iniciar a chegada à fazenda/evento `0x74`.
 - [x] Adaptar espera por Start, seleção/confirmar, cursor e fades do menu.
 - [ ] Conferir imagem, semente aleatória, tempos e áudio contra execução PS1 de referência.
 - [ ] Completar interpolação, reverb e comparação de volumes/afinação com a SPU.
@@ -83,6 +85,22 @@ lógica C nativa e lendo arquivos extraídos, sem executar instruções MIPS.
 
 ## M4 — Primeiro trecho jogável
 
+- [x] Decodificar o TMD prelit da área 0 com offsets/índices validados.
+- [x] Implementar oito primitivas, texturas afins, cores e ordenação desse modelo.
+- [x] Exibir o modelo base da fazenda em `--scene-preview`, com câmera de diagnóstico.
+- [x] Projetar sprites do jogador/Thomas com ordenação junto aos polígonos.
+- [x] Executar a chegada: caminhada, poses, diálogos, fades e música do evento `0x74`.
+- [x] Renderizar modelos adicionais: portas, caixa, objetos com rotação e visibilidade inicial.
+- [x] Desenhar o campo inicial com mato, pedras, tocos e galhos dos layouts originais.
+- [x] Carregar a área 230 e portar a lembrança da infância/evento `0x75`.
+- [x] Exibir as dez imagens do evento `0x76`, com tempos e fades do script.
+- [x] Carregar áreas 231/232 e portar encontro e canção/evento `0x77`.
+- [x] Ler/decodificar XA em fluxo para as faixas 4/5, sem disco e sem processo externo.
+- [x] Portar despedida `0x78` e retorno a Thomas `0x79`, com música 34 e falas.
+- [x] Usar o banco de ação correto para a confirmação com a cabeça e restaurar o sprite básico.
+- [x] Carregar o interior da casa/área 80 e encerrar o roteiro da abertura.
+- [x] Integrar o término da abertura ao controle na casa, com chão e colisões estáticas originais.
+- [ ] Integrar a transição da porta e os eventos da fazenda.
 - [ ] Adaptar operações de geometria/GTE e ponto fixo usadas pelo cenário escolhido.
 - [ ] Implementar as primitivas e ordenação gráfica exigidas nesse recorte.
 - [ ] Carregar um cenário, posicionar câmera e desenhar chão/objetos/personagem.
@@ -91,6 +109,14 @@ lógica C nativa e lendo arquivos extraídos, sem executar instruções MIPS.
 
 Entrega: personagem controlável em um cenário real. Não ampliar para todo o jogo
 antes de verificar esse caminho completo.
+
+A prévia já adapta projeção/matrizes inteiras, mas a paridade GTE/GPU permanece
+pendente. New Game inicia a chegada com os atores e as mensagens do primeiro
+evento, encontro, canção, despedida e retorno ao presente. A sequência entra
+na casa/área 80, posiciona o jogador na porta e encerra o roteiro original.
+Já há caminhada/corrida na casa inicial. Saída para a fazenda, colisões gerais
+e gameplay completo permanecem pendentes. Detalhes em
+[SCENE_RENDERER.md](SCENE_RENDERER.md) e [FARM_INTRO.md](FARM_INTRO.md).
 
 ## M5 — Sistemas do jogo
 
@@ -213,3 +239,104 @@ Android, melhorias e mods terão roteiro próprio após esses marcos.
 - Próximo recorte: carregar a primeira cena após o cadastro e integrar o estado
   original da fazenda; ainda não há gameplay nativo.
 - Evidências e limites atuais em [NEW_GAME.md](NEW_GAME.md).
+
+### M4 parcial — geometria da fazenda
+
+- Leitura limitada da área 0 em `00_gf.bin`: TMD principal com 294 objetos e 4.246
+  primitivas, banco de texturas/paletas, sem carregar o arquivo inteiro.
+- Parser por bytes little-endian e renderer C de matrizes/projeção inteiras,
+  cores, UVs afins, dithering, semitransparência e ordenação por profundidade.
+- `--scene-preview` mostra geometria real e permite mover a câmera; personagens,
+  objetos dinâmicos e gameplay ainda não estão implementados.
+- Janela Linux X11/software em 1280×720: 900 frames e quatro direções/reset
+  conferidos, saída zero e pico RSS de cerca de 73 MiB.
+- Configure/build e 16 testes CTest aprovados no Linux; executável/pacote MinGW
+  Windows x64 atualizados em contêiner limitado a 1536 MiB, com uma tarefa.
+  Sem execução no Wine nesta revisão; Windows real/MSVC continuam pendentes.
+- A transição de New Game permanece na fronteira após o resumo. O original
+  solicita o evento `0x74`; seus 78 registros e dependências foram identificados
+  para o próximo recorte. Não substituir esse evento pela prévia estática.
+- Fontes, formatos, comando de execução e limites em [SCENE_RENDERER.md](SCENE_RENDERER.md).
+
+### M4 parcial — chegada com personagens e roteiro nativo
+
+- Interpretador limitado dos registros originais de evento, com validação de
+  offsets/saltos e limite de instruções por tick; handlers C do primeiro roteiro.
+- Jogador e Thomas com sprites/poses, câmera acompanhando, ordem de desenho com
+  o cenário, mensagens reais `0x76B..0x76F`, música 31 e fades.
+- O cadastro entrega nomes/aniversário à chegada; o título e seu áudio são
+  liberados antes de carregar a cena. `--intro-preview` permite testar esse recorte.
+- A execução alcança o passo 74, solicitação da área 230; infância/evento `0x75`
+  ainda não portados. Esse limite não é tratado como uma troca de cena concluída.
+- Janela X11/software + PipeWire 1280×720: 2.984 frames, cinco mensagens e saída
+  zero; pico RSS cerca de 79 MiB. Caminho completo do cadastro à primeira conversa
+  também conferido: 3.413 frames, saída zero e cerca de 79 MiB; probe dummy adicional.
+- Build/testes Linux aprovados; executável/pacote Windows recompilados com MinGW
+  x64 em contêiner de 1536 MiB e uma tarefa. Windows real/MSVC continuam pendentes.
+- Detalhes, evidências e próximos passos em [FARM_INTRO.md](FARM_INTRO.md).
+
+### M4 parcial — cenário adicional e primeiros flashbacks
+
+- Tabela original de 15 modelos: portas, caixa, objetos giratórios, posições,
+  rotações e visibilidade inicial, com uma ordenação comum a terreno e atores.
+- Campo inicial com mato, pedras, rochas, tocos e galhos. Layout 0 reproduzível;
+  seleção aleatória dos três layouts e seu estado global ainda pendentes.
+- Área 230, evento `0x75`: menino, cachorro, avô, caminhada, câmera, falas
+  `0x770/0x771`, sépia original e música 32. Evento `0x76`: dez imagens e fades.
+- Carregamento confirmado pelo host antes de avançar o comando. O próximo
+  limite é área 231/evento `0x77`, encontro da infância; depois concluir o
+  retorno da sequência e o primeiro trecho com controle e colisões.
+- Configure/build e 17 CTest aprovados. Janela real X11/software + PipeWire:
+  5.871 frames, saída zero e pico RSS de aproximadamente 80 MiB, sem swap.
+  Probe dummy adicional com dados locais: 6.500 ticks e cerca de 22 MiB.
+- Executável/pacote Windows x64 recompilados em contêiner com 1536 MiB e uma
+  tarefa por vez. Windows real/MSVC e paridade PS1 ainda pendentes.
+- Recursos, evidências e limitações em [FARM_INTRO.md](FARM_INTRO.md).
+
+### M4 parcial — encontro, canção, despedida e retorno ao presente
+
+- Áreas 231/232, atores 27/33, encontro `0x77` e canção com duas faixas XA
+  extraídas. Áudio em fluxo com histórico por canal, misturado com SEQ/efeitos.
+- Câmera com altura/distância/centro vertical e os 177 passos do recuo original.
+- Despedida `0x78` na área 230, quatro atores e falas; retorno `0x79` na área 0,
+  campo recarregado, música 34 e conversa completa com Thomas.
+- Banco de ação real do jogador para o aceno da cabeça; restauração ao terminar.
+  Cursores/sombras usam a ANI 24 e respeitam os flags dos atores. Corrigida a
+  contagem do separador FFC/FFB nas páginas de texto.
+- `--childhood-preview` testa diretamente o encontro. O fluxo normal percorre
+  todos os eventos. O próximo limite é o interior da casa/área 80, no passo 31
+  de `0x79`; depois integrar o controle livre e colisões reais.
+- 18 CTest aprovados no Linux; probe da chegada ao limite com 6.792 ticks e
+  saída zero. XA 4/5 comparados integralmente ao FFmpeg: PCM sem diferenças.
+- Implementação e recursos em [FARM_INTRO.md](FARM_INTRO.md) e
+  [XA_AUDIO.md](XA_AUDIO.md). O host continua sem executar o jogo completo.
+- Janela real Linux: 8.330 frames em 139,80 s, percurso completo do encontro ao
+  limite da casa, saída zero; imagens também conferidas por leitura direta SDL.
+  Executável/pacote MinGW Windows x64 atualizados; execução Windows real/MSVC
+  permanece pendente.
+
+### Interior da casa e conclusão do roteiro de abertura
+
+- Área 80 carrega modelos e texturas originais; móveis `0x41` usam o mesmo
+  caminho validado de pacotes prelit dos modelos `0x42`.
+- Evento `0x79` conclui a carga, posiciona o jogador conforme a tabela original,
+  clareia a tela e emite o pedido de término. A casa permanece visível.
+- 18 testes Linux aprovados e probe com recursos locais percorreu `0x74..0x79`
+  em 6.856 ticks, sem fronteira pendente; captura direta SDL conferida.
+- Build e pacote Windows x64 atualizados; execução Windows real pendente.
+- Próximo recorte: integrar o pedido de término ao primeiro ciclo de controle,
+  portar chão/colisões e validar caminhada e interação/saída pela porta.
+  O bootstrap ainda não executa o jogo completo.
+
+### Primeiro controle dentro da casa inicial
+
+- `game/ground.*` consulta os triângulos/quads, flags e centros do cenário original.
+- `game/house_control.*` libera caminhada/corrida ao encerrar `0x79`, com
+  animações originais, bloqueios e deslizamento ao correr. Atalho `--house-preview`.
+- Zona da porta reconhecida a partir dos dados: destino área 0, entrada
+  `(-4464,0,4032)`. A porta pausa no limite explícito; transição ainda pendente.
+- 19 testes Linux aprovados; nove percursos com recursos reais e teste de teclado
+  em janela X11/software de 480 frames, saída zero. Windows x64 recompilado.
+- Próximo recorte: transição completa casa → fazenda, eventos externos e retorno
+  pela porta. Interações, relógio, inventário e sons dos passos ainda faltam.
+- Escopo e evidências: [HOUSE_CONTROL.md](HOUSE_CONTROL.md). O porte continua parcial.

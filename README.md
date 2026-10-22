@@ -2,46 +2,55 @@
 
 # Harvest Moon: Back to Nature — PC Port
 
-**Um projeto pessoal para portar Harvest Moon: Back to Nature (PlayStation) nativamente para Linux, Windows e Android.**
+**A personal project to port Harvest Moon: Back to Nature (PlayStation) natively to Linux, Windows, and Android.**
 
-*Baseado na decompilação [hmbtn-decomp](https://github.com/coalslav/hmbtn-decomp), de coalslav.*
+*Based on the [hmbtn-decomp](https://github.com/coalslav/hmbtn-decomp) decompilation project by coalslav.*
 
-> **Status: menu nativo de título (M3 parcial).** Ainda não existe gameplay nativo. O foco atual é Linux e Windows; Android permanece futuro.
+> **Status: title, registration, farm arrival, and childhood sequence (partial M3/M4).** Walking and running inside the initial house are available; farm gameplay remains pending. Current development focuses on Linux and Windows; Android is planned for the future.
+
+**Veja a Versão em Português 🇧🇷 [aqui](/README-PT-BR.md)**
 
 ---
 
-## Sobre o projeto
+## About the Project
 
-A proposta é estudar e adaptar o código C reconstruído de **Harvest Moon: Back to Nature** para executar em plataformas modernas sem depender de um emulador de PlayStation durante a execução. Pretendo preservar a experiência do jogo original e, futuramente, explorar melhorias e suporte a mods.
+The goal is to study and adapt the reconstructed C code of **Harvest Moon: Back to Nature** so it can run on modern platforms without requiring a PlayStation emulator at runtime. I aim to preserve the original game's experience and, eventually, explore improvements and mod support.
 
-Este é um projeto pessoal, desenvolvido por interesse em programação, engenharia reversa e no próprio jogo. O port não é oficial e não possui afiliação com os titulares de Harvest Moon nem com os autores da decompilação.
+This is a personal project driven by my interest in programming, reverse engineering, and the game itself. This port is unofficial and is not affiliated with the Harvest Moon rights holders or the authors of the decompilation project.
 
 </div>
 
-## Sumário
+## Table of Contents
 
-- [Estado atual](#estado-atual)
-- [Objetivos](#objetivos)
-- [Arquitetura planejada](#arquitetura-planejada)
-- [Plataformas](#plataformas)
-- [Documentação](#documentação)
-- [Compilação da decompilação original](#compilação-da-decompilação-original)
-- [Origem e créditos](#origem-e-créditos)
-- [Licenciamento e dados do jogo](#licenciamento-e-dados-do-jogo)
+- [Current Status](#current-status)
+- [Getting Started on Linux and Windows](#getting-started-on-linux-and-windows)
+- [Goals](#goals)
+- [Planned Architecture](#planned-architecture)
+- [Platforms](#platforms)
+- [Documentation](#documentation)
+- [Building the Original Decompilation](#building-the-original-decompilation)
+- [Origins and Credits](#origins-and-credits)
+- [Licensing and Game Data](#licensing-and-game-data)
 
-## Estado atual
+## Current Status
 
-O repositório contém a **decompilação correspondente à versão americana de PlayStation, `SLUS_011.15`**. O projeto de origem reconstrói o executável e seus 13 overlays com correspondência byte a byte.
+The repository contains the **decompilation of the US PlayStation release, `SLUS_011.15`**. The upstream project reconstructs the executable and its 13 overlays with byte-for-byte matching output.
 
-**Implementado:** janela SDL3 de área lógica 320 × 240, logo Natsume, introdução gradual do título, grama e sprites animados, e estados 0..9 do menu original adaptados em C. New Game já mostra diálogos/retrato e permite completar nomes, aniversário e resumo do cadastro. Música e sons dos botões usam VAB/SEQ dos dados extraídos, com saída SDL3. A área do jogo não contém barras ou textos de diagnóstico. Enter/Start encerra a introdução; outro Enter abre o menu. Setas/D-pad alternam e Z/face inferior confirma. Escape fecha e F11 alterna tela cheia. Linux validado; há build Windows x64 e CI MSVC preparada. Os presets compilam e testam uma tarefa por vez.
+**Implemented:** an SDL3 window with a logical resolution of 320 × 240, the Natsume logo, the gradual title reveal, animated grass and sprites, and states 0–9 of the original menu adapted to C. New Game already displays dialogues and portraits and allows the player to complete name entry, birthday selection, and the registration summary. Music and button sound effects use VAB/SEQ data from the extracted game assets, with audio output through SDL3. The game viewport has no diagnostic bars or text. Enter/Start skips the introduction; pressing Enter again opens the menu. Arrow keys/D-pad navigate, and Z/the bottom face button confirms. Escape quits, and F11 toggles fullscreen. Linux has been validated; a Windows x64 build is available, and MSVC CI is set up. The build presets compile and test one task at a time.
 
-**Dados do jogo:** o executável lê o bloco da tela de título em `data/A_FILE/00_gf.bin`, sem consultar o disco original. Há importação/verificação da pasta e reconstrução PS1 a partir dela. Veja o [guia dos dados](docs/port/GAME_DATA.md) e os [formatos implementados](docs/port/ASSET_FORMATS.md).
+**Game data:** the executable reads the title-screen data block from `data/A_FILE/00_gf.bin` without accessing the original disc. Folder import/verification and PS1 reconstruction from the extracted data are available. See the [game data guide](docs/port/GAME_DATA.md) and [implemented asset formats](docs/port/ASSET_FORMATS.md).
 
-**Ainda não foram implementados:** transição para a primeira cena, saves, gameplay, modelos 3D, áudio completo da SPU/reverb, mods e Android. O bootstrap não executa o jogo completo. New Game para após aceitar o resumo do cadastro; Continue/demo param na fronteira registrada no terminal; Start/Z/X retorna ao menu. A abertura e o áudio ainda exigem comparação com o PS1 antes de afirmar fidelidade total; veja [TITLE_FLOW.md](docs/port/TITLE_FLOW.md) e [NEW_GAME.md](docs/port/NEW_GAME.md). O recorte foi adaptado em `port/`; os módulos completos de `src/` ainda não são compilados no host. O build original de **PlayStation** continua disponível por padrão.
+**3D scene — partial M4:** `./build/native-debug/port/hmbtn_native --scene-preview` displays the base farm model using original textures, with native C projection and rasterization. Arrow keys move the diagnostic camera, and Enter restores the default view. This is a preview without characters or gameplay, separate from the New Game flow. See [SCENE_RENDERER.md](docs/port/SCENE_RENDERER.md).
 
-## Começar no Linux e Windows
+**Farm arrival:** accepting the registration now starts the original arrival script, with the player, Thomas, dialogue, camera movement, and music. `./build/native-debug/port/hmbtn_native --intro-preview` opens this sequence directly. The scenery includes doors, the shipping box, weeds, stones, and branches. It continues through the childhood meeting and song, the farewell, and the return to Thomas (events `0x75..0x79`). The sequence now enters the farmhouse (area 80), places the player at the door and finishes the opening script. `--childhood-preview` starts directly at the meeting. See [FARM_INTRO.md](docs/port/FARM_INTRO.md).
 
-Requisitos: CMake 3.20+, compilador C11, Ninja e SDL3 de desenvolvimento. Se SDL3 não estiver instalado, o CMake baixa a versão fixada e confere seu hash; o primeiro build precisa de internet. No Windows, execute em um Developer PowerShell do Visual Studio com as ferramentas C++ e Ninja disponíveis. Veja também o fluxo offline e sem Ninja no [guia de compilação](docs/port/BUILDING.md).
+**House controls:** `./build/native-debug/port/hmbtn_native --house-preview` opens the initial house directly. Arrows/D-pad walk; X/Circle runs forward. Ground queries use the original scene polygons and flags. Reaching the exit pauses at an explicit boundary; the farm transition and furniture interactions are pending. See [HOUSE_CONTROL.md](docs/port/HOUSE_CONTROL.md).
+
+**Not yet implemented:** full gameplay, saves, general collisions, dynamic farm objects, full SPU audio/reverb, mods, or Android. The bootstrap does not run the complete game. Continue/demo stop at a boundary reported in the terminal, and Start/Z/X returns to the menu. The opening sequence and audio still need comparison with the PS1 version before full fidelity can be claimed. This portion is adapted under `port/`; the complete modules in `src/` are not compiled for the host platform. The original **PlayStation** build remains available by default. The local Windows `.exe` was rebuilt with MinGW x64 including the childhood sequence and streamed XA audio event; testing on actual Windows/MSVC is pending.
+
+## Getting Started on Linux and Windows
+
+Requirements: CMake 3.20+, a C11 compiler, Ninja, and SDL3 development files. If SDL3 is not installed, CMake downloads a pinned version and verifies its hash; the first build therefore requires an internet connection. On Windows, run the commands in a Visual Studio Developer PowerShell with the C++ tools and Ninja available. See the [build guide](docs/port/BUILDING.md) for offline builds and builds without Ninja.
 
 ```bash
 cmake --preset native-debug
@@ -49,56 +58,56 @@ cmake --build --preset native-debug
 ctest --preset native-debug
 ```
 
-Execute `./build/native-debug/port/hmbtn_native` no Linux ou `.\build\native-debug\port\hmbtn_native.exe` no Windows. O programa procura `data/` junto ao executável e no layout do projeto; `--data DIR` é prioritário. Enter abre o menu, setas selecionam e Enter/Z confirma. X/Backspace retorna do aviso de destino ainda não portado. `--window-test` abre o diagnóstico sem dados e `--diagnostics` verifica somente o console, sem display. Veja também [Windows e compilação cruzada](docs/port/WINDOWS.md).
+Run `./build/native-debug/port/hmbtn_native` on Linux or `.\build\native-debug\port\hmbtn_native.exe` on Windows. The program looks for `data/` next to the executable and in the project layout; `--data DIR` takes precedence. Enter opens the menu, the arrow keys move the selection, and Enter/Z confirms. X/Backspace returns from the notice indicating that the selected destination has not yet been ported. `--window-test` opens the diagnostic window without game data, and `--diagnostics` runs console-only checks without a display. See also [Windows and cross-compilation](docs/port/WINDOWS.md).
 
-## Objetivos
+## Goals
 
-- Portar a lógica do jogo para uma aplicação nativa em Linux, Windows e Android.
-- Criar uma camada de compatibilidade para gráficos, áudio, entrada, temporização, memória e arquivos do PS1.
-- Manter, na medida do possível, o código decompilado isolado das adaptações multiplataforma.
-- Preservar uma forma de acompanhar as atualizações da decompilação original.
-- Avaliar suporte a mods e melhorias apenas depois que o jogo básico estiver funcionando.
+- Port the game's logic to a native application for Linux, Windows, and Android.
+- Create a compatibility layer for PS1 graphics, audio, input, timing, memory, and file access.
+- Keep the decompiled code separate from cross-platform adaptations as much as possible.
+- Preserve a way to track updates from the original decompilation project.
+- Consider mod support and enhancements only after the base game is working.
 
-## Arquitetura planejada
+## Planned Architecture
 
-| Camada | Responsabilidade | Estado |
+| Layer | Responsibility | Status |
 |---|---|---|
-| `src/` | Lógica decompilada do jogo | Base existente |
-| `port/core/` | Aplicação host e formatos de dados PS1 | Base compilável |
-| `port/game/` | Recorte do fluxo original do título | Abertura, menu e cadastro (0..9, 11..28) |
-| `port/tests/` | Formatos, importação, janela e eventos | Implementado |
-| `port/graphics/` | Bancos, paletas, animações e prévia de título | Recorte M2 implementado |
-| `port/audio/` | Sampler VAB/ADPCM e sequenciador SEQ do título | Implementação parcial; reverb pendente |
-| `port/input/` | Atalhos e tradução para botões PS1 | Teclado/gamepad implementados |
-| `port/filesystem/` | Leitura de intervalos de recursos; futuros saves | Leitura implementada |
-| `port/platform/` | Janela/renderizador SDL3 | Implementado |
+| `src/` | Decompiled game logic | Existing codebase |
+| `port/core/` | Host application and PS1 data formats | Buildable foundation |
+| `port/game/` | Adapted title flow and event commands | Menu, registration, and first farm event |
+| `port/tests/` | Asset formats, import, window, and event tests | Implemented |
+| `port/graphics/` | Banks, animations, TMD models, and projected sprites | Title and farm arrival implemented in part |
+| `port/audio/` | VAB/ADPCM sampler and title SEQ sequencer | Partially implemented; reverb pending |
+| `port/input/` | Keyboard shortcuts and mapping to PS1 buttons | Keyboard/gamepad implemented |
+| `port/filesystem/` | Resource-range reads; future save support | Reading implemented |
+| `port/platform/` | SDL3 window/renderer | Implemented |
 
-**SDL3 foi integrado à infraestrutura de janela, eventos e apresentação.** A tradução dos gráficos PS1 e a adaptação da lógica ainda dependem do estudo de PSY-Q, endereços fixos, overlays e estruturas específicas do console. Veja os marcos no [roteiro](docs/port/ROADMAP.md).
+**SDL3 is integrated for window management, events, and presentation.** Translating PS1 graphics and adapting the game logic still require further work on PSY-Q, fixed memory addresses, overlays, and console-specific data structures. See the milestones in the [roadmap](docs/port/ROADMAP.md).
 
-O build original continua organizado pelos `CMakeLists.txt` e pelo toolchain PS1 existentes. O build nativo usa `-DHMBTN_BUILD_NATIVE=ON` e diretório separado, selecionado antes do toolchain PS1. Sem essa opção, o fluxo PS1 permanece selecionado.
+The original build remains organized around its existing `CMakeLists.txt` files and PS1 toolchain. The native build uses `-DHMBTN_BUILD_NATIVE=ON` and a separate build directory, selected before the PS1 toolchain. Without this option, the PS1 build flow remains the default.
 
-## Plataformas
+## Platforms
 
-| Plataforma | Objetivo | Estado |
+| Platform | Goal | Status |
 |---|---|---|
-| Fedora / Linux | Primeira plataforma de desenvolvimento | Janela validada em Wayland e X11 |
-| Windows | Build nativo de PC | MinGW x64 e Wine verificados; Windows real/MSVC pendentes |
-| Android | Port com NDK, ciclo de vida Android e controles por toque | Não iniciado |
+| Fedora / Linux | Primary development platform | Window validated on Wayland and X11 |
+| Windows | Native PC build | MinGW x64 and Wine verified; testing on actual Windows/MSVC pending |
+| Android | Port using the NDK, Android lifecycle, and touch controls | Not started |
 
-## Documentação
+## Documentation
 
-- [Compilação Linux e Windows](docs/port/BUILDING.md)
-- [Build Windows e pacote portátil](docs/port/WINDOWS.md)
-- [Recorte do fluxo do título](docs/port/TITLE_FLOW.md)
-- [Auditoria inicial do código PS1](docs/port/INITIAL_AUDIT.md)
-- [Plano técnico de desenvolvimento](docs/port/ROADMAP.md)
-- [Arquitetura inicial](docs/port/ARCHITECTURE.md)
-- [Guia de contribuição e sincronização com upstream](CONTRIBUTING.md)
-- [Decompilação original](https://github.com/coalslav/hmbtn-decomp)
+- [Linux and Windows build instructions](docs/port/BUILDING.md)
+- [Windows build and portable package](docs/port/WINDOWS.md)
+- [Adapted title flow](docs/port/TITLE_FLOW.md)
+- [Initial PS1 code audit](docs/port/INITIAL_AUDIT.md)
+- [Technical development roadmap](docs/port/ROADMAP.md)
+- [Initial architecture](docs/port/ARCHITECTURE.md)
+- [Contribution guidelines and upstream synchronization](CONTRIBUTING.md)
+- [Original decompilation project](https://github.com/coalslav/hmbtn-decomp)
 
-## Compilação da decompilação original
+## Building the Original Decompilation
 
-O comando abaixo **compila para PlayStation 1**, não para Linux ou Windows. Requer Docker e as ferramentas instaladas pela imagem do projeto de origem:
+The command below **builds for PlayStation 1**, not Linux or Windows. It requires Docker and the tools installed by the upstream project's image:
 
 ```bash
 docker build -t hmbtn-build .
@@ -106,16 +115,16 @@ docker run --rm --user "$(id -u):$(id -g)" -v "$PWD":/src:ro -v /tmp/hmbtn-build
   hmbtn-build bash -c 'cmake -S /src -B /build -G Ninja && cmake --build /build --target check'
 ```
 
-A verificação `check` confere os hashes dos 14 binários originais. **Quando o port ou alterações de gameplay começarem, os hashes originais não serão mais uma verificação válida para os binários modificados.** Para reconstruir a imagem de disco no fluxo original é necessária uma cópia própria do disco; consulte a documentação upstream.
+The `check` target verifies the hashes of the 14 original binaries. **Once the port or gameplay modifications begin, the original hashes will no longer be valid checks for modified binaries.** Rebuilding the disc image through the original workflow requires your own copy of the disc; refer to the upstream documentation.
 
-## Origem e créditos
+## Origins and Credits
 
-Este repositório é um **fork** de [coalslav/hmbtn-decomp](https://github.com/coalslav/hmbtn-decomp). A decompilação e sua estrutura inicial foram produzidas pelo projeto original. O desenvolvimento do port será realizado separadamente e o histórico de autoria será preservado.
+This repository is a **fork** of [coalslav/hmbtn-decomp](https://github.com/coalslav/hmbtn-decomp). The decompilation and its initial structure were created by the upstream project. Development of the port will take place separately, and the original authorship history will be preserved.
 
-Agradecimentos aos autores da decompilação, aos criadores das ferramentas utilizadas e aos desenvolvedores do jogo original.
+Thanks to the decompilation contributors, the creators of the tools used, and the developers of the original game.
 
-## Licenciamento e dados do jogo
+## Licensing and Game Data
 
-A licença [CC0 1.0](LICENSE) do upstream cobre **somente o trabalho próprio do repositório original**. Componentes como `tools/maspsx` podem ter licença própria. O jogo, seus gráficos, músicas, recursos e o SDK PSY-Q pertencem a seus respectivos titulares e não são liberados pela CC0.
+The upstream project's [CC0 1.0](LICENSE) license covers **only the original repository's own contributions**. Components such as `tools/maspsx` may have their own licenses. The game, its graphics, music, assets, and the PSY-Q SDK belong to their respective rights holders and are not released under CC0.
 
-O port não deve publicar cópias do jogo ou dados proprietários sem autorização. Pretende-se estudar um processo no qual cada usuário fornece os recursos da sua própria cópia do jogo. A distribuição pública de um port com tais recursos exige análise dos direitos aplicáveis.
+The port must not distribute copies of the game or proprietary game data without authorization. The intended approach is to investigate a process in which each user supplies assets from their own copy of the game. Public distribution of a port containing such assets requires an assessment of the applicable rights.

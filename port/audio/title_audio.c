@@ -1,23 +1,41 @@
 #include "title_audio.h"
 #include "resource_file.h"
+#include "xa_stream.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 bool hmbtn_title_audio_open(HmbtnTitleAudio *a, const char *root, char *error, size_t error_size)
 {
-    /* sound_offsets and song_table[SONG_TITLE-1]: bank 0, bank 53, SEQ 54.
+    return hmbtn_title_audio_open_song(a,root,26,error,error_size);
+}
+bool hmbtn_title_audio_open_song(HmbtnTitleAudio *a, const char *root, unsigned song,
+    char *error, size_t error_size)
+{
+    static const struct { unsigned song; uint32_t start, header, seq, end; } songs[] = {
+        {26,4411392,6144,4517888,4528128}, {31,5058560,8192,5224448,5230592},
+        {32,5230592,8192,5376000,5380096}, {33,5380096,8192,5525504,5527552},
+        {34,5527552,8192,5689344,5701632}
+    };
+    unsigned index = 0;
+    while (index < sizeof(songs)/sizeof(songs[0]) && songs[index].song != song) ++index;
+    if (index == sizeof(songs)/sizeof(songs[0])) { snprintf(error,error_size,"Native song %u is not integrated",song); return false; }
+    const uint32_t music_start = songs[index].start, header_size = songs[index].header;
+    const uint32_t seq_start = songs[index].seq, music_size = seq_start-music_start;
+    const uint32_t seq_size = songs[index].end-seq_start;
+    /* sound_offsets and song_table: effects 0; song 26 uses VAB 53 / SEQ 54,
+     * arrival (song 31) uses VAB 63 / SEQ 64; childhood (32) uses 65 / 66.
      * Read bounded ranges, never the complete disc or music archive. */
-    uint8_t *fx = malloc(24576), *music = malloc(106496), *seq = malloc(10240);
+    uint8_t *fx = malloc(24576), *music = malloc(music_size), *seq = malloc(seq_size);
     a->sound = hmbtn_sound_create();
     bool ok = fx && music && seq && a->sound;
     if (!ok) snprintf(error, error_size, "Cannot allocate title audio buffers");
     if (ok) ok = hmbtn_resource_read(root, "A_FILE/09_sound.stm", 0, fx, 24576, error, error_size)
-        && hmbtn_resource_read(root, "A_FILE/09_sound.stm", 4411392, music, 106496, error, error_size)
-        && hmbtn_resource_read(root, "A_FILE/09_sound.stm", 4517888, seq, 10240, error, error_size)
+        && hmbtn_resource_read(root, "A_FILE/09_sound.stm", music_start, music, music_size, error, error_size)
+        && hmbtn_resource_read(root, "A_FILE/09_sound.stm", seq_start, seq, seq_size, error, error_size)
         && hmbtn_sound_bank(a->sound, 0, fx, 4096, fx + 4096, 20480, error, error_size)
-        && hmbtn_sound_bank(a->sound, 1, music, 6144, music + 6144, 100352, error, error_size)
-        && hmbtn_sound_sequence(a->sound, seq, 10240, error, error_size);
+        && hmbtn_sound_bank(a->sound, 1, music, header_size, music + header_size, music_size-header_size, error, error_size)
+        && hmbtn_sound_sequence(a->sound, seq, seq_size, error, error_size);
     free(fx); free(music); free(seq);
     if (!ok) return false;
     a->initialized = SDL_InitSubSystem(SDL_INIT_AUDIO);
@@ -30,9 +48,9 @@ bool hmbtn_title_audio_open(HmbtnTitleAudio *a, const char *root, char *error, s
         }
     }
     if (!a->stream) {
-        fprintf(stderr, "Audio device unavailable; title is silent: %s\n", SDL_GetError());
+        fprintf(stderr, "Audio device unavailable; native playback is silent: %s\n", SDL_GetError());
     } else {
-        printf("Title audio ready: %s, VAB instruments + SEQ 54, stereo 44100 Hz.\n", SDL_GetCurrentAudioDriver());
+        printf("Native audio ready: %s, song %u, VAB + SEQ, stereo 44100 Hz.\n", SDL_GetCurrentAudioDriver(),song);
     }
     return true;
 }
@@ -67,6 +85,7 @@ bool hmbtn_title_audio_pump(HmbtnTitleAudio *a, char *error, size_t error_size)
     int16_t pcm[512 * 2];
     for (unsigned i = 0; queued < 2048 * 4 && i < 4; ++i) {
         hmbtn_sound_render(a->sound, pcm, 512);
+        if (a->xa && !hmbtn_xa_stream_mix(a->xa,pcm,512,error,error_size)) return false;
         if (!SDL_PutAudioStreamData(a->stream, pcm, sizeof(pcm))) goto failed;
         queued += (int)sizeof(pcm);
     }

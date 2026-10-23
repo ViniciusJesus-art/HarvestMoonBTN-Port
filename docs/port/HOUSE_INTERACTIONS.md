@@ -1,5 +1,9 @@
 # Som e interações na casa inicial
 
+Atualização: a saída para a fazenda e o retorno inicial pela porta já estão
+integrados; o gameplay externo completo e a paridade da transição ainda faltam. Veja [FARM_CONTROL.md](FARM_CONTROL.md).
+As referências abaixo ao limite da porta descrevem a validação anterior.
+
 A casa da primavera/área 80 agora executa música, passos, TV, calendário,
 baú de ferramentas, livro/estante, opções e a sequência de deitar na cama.
 O fluxo normal chega aqui

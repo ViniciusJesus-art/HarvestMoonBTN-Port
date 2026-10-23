@@ -12,6 +12,7 @@ void hmbtn_house_interaction_init(HmbtnHouseInteraction *h)
 {
     memset(h,0,sizeof(*h)); h->day=1; h->weekday=1; h->hour=6;
     h->picked=255; h->sound=-1; h->tv_group=18;
+    h->message_bank=3;
     h->options.vibration=h->options.stereo=h->options.clock=true;
     const uint16_t tools[5]={1,11,6,16,21};
     for(unsigned i=0;i<5;++i) h->toolbox[i].id=tools[i];
@@ -70,7 +71,7 @@ bool hmbtn_house_interact(HmbtnHouseInteraction *h,const uint8_t *section,
                 || z<=half(p+18) || z>=half(p+24) || y<=half(p+16)-128 || y>=half(p+22)+120) continue;
         if(half(p+8)!=(int32_t)player->facing) return false;
         const unsigned id=hmbtn_read_le16(p+2);
-        h->closing=h->detail=false; h->sound=3; h->steps=0;
+        h->closing=h->detail=false; h->sound=3; h->steps=0; h->message_bank=3;
         switch(id) {
         case 1:
             h->mode=HMBTN_HOUSE_OPTIONS;
@@ -81,7 +82,7 @@ bool hmbtn_house_interact(HmbtnHouseInteraction *h,const uint8_t *section,
         case 3: h->mode=HMBTN_HOUSE_TV_SELECT; request(h,0x3a1); break;
         case 8: h->mode=HMBTN_HOUSE_CALENDAR; h->calendar_day=h->day; request(h,0x3b4); break;
         case 22: h->mode=HMBTN_HOUSE_TOOLBOX_OPEN; h->pan=0; h->cursor=h->page=0; h->picked=255; h->sound=-1; break;
-        case 16: h->mode=HMBTN_HOUSE_BOOK; request(h,(unsigned)half(p+4)); break;
+        case 16: h->mode=HMBTN_HOUSE_BOOK; h->message_bank=2; request(h,(unsigned)half(p+4)); break;
         default: h->sound=-1; return false;
         }
         return true;

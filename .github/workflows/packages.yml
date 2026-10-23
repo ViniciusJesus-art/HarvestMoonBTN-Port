@@ -2,33 +2,48 @@ name: Native installers (AppImage, DEB, RPM, EXE)
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    tags: ['native-v*']
-    paths:
-      - 'port/**'
-      - 'docs/port/**'
-      - 'src/main/text/**'
-      - 'src/overlay/27_GF_TITLE/title.c'
-      - 'disc/a_file.txt'
-      - 'CMakeLists.txt'
-      - '.github/workflows/packages.yml'
-  pull_request:
-    paths:
-      - 'port/**'
-      - 'docs/port/**'
-      - 'CMakeLists.txt'
-      - '.github/workflows/packages.yml'
+    inputs:
+      package:
+        description: 'Formato ou plataforma'
+        type: choice
+        options: [Todos, Linux, Windows, AppImage, RPM, DEB, EXE]
+        default: Todos
+      publication:
+        description: 'Destino dos pacotes'
+        type: choice
+        options: [Teste, Release]
+        default: Teste
+      tag:
+        description: 'Nova tag da Release (obrigatoria apenas para Release, ex. native-v0.1.0)'
+        type: string
+        default: ''
 
 permissions:
   contents: read
 
 concurrency:
   group: native-packages-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate release tag
+        env:
+          PUBLICATION: ${{ inputs.publication }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          if [ "$PUBLICATION" = Release ]; then
+            if [[ ! "$RELEASE_TAG" =~ ^native-v[0-9][A-Za-z0-9._-]*$ ]]; then
+              echo 'Informe uma nova tag no formato native-v0.1.0.' >&2
+              exit 1
+            fi
+          fi
+
   linux:
+    needs: validate
+    if: ${{ contains(fromJSON('["Todos","Linux","AppImage","RPM","DEB"]'), inputs.package) }}
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v6
@@ -45,20 +60,25 @@ jobs:
         run: |
           cmake --build build/native-package --parallel 2
           ctest --test-dir build/native-package --output-on-failure
-      - name: Build DEB and RPM
-        run: |
-          cpack --config build/native-package/CPackConfig.cmake -G DEB -B build/artifacts
-          cpack --config build/native-package/CPackConfig.cmake -G RPM -B build/artifacts
+      - name: Build DEB
+        if: ${{ contains(fromJSON('["Todos","Linux","DEB"]'), inputs.package) }}
+        run: cpack --config build/native-package/CPackConfig.cmake -G DEB -B build/artifacts
+      - name: Build RPM
+        if: ${{ contains(fromJSON('["Todos","Linux","RPM"]'), inputs.package) }}
+        run: cpack --config build/native-package/CPackConfig.cmake -G RPM -B build/artifacts
       - name: Stage AppImage runtime and audit contents
+        if: ${{ contains(fromJSON('["Todos","Linux","AppImage"]'), inputs.package) }}
         run: |
           cmake --install build/native-package --prefix "$PWD/build/AppDir/usr"
           python3 port/packaging/audit_payload.py build/AppDir
           python3 port/packaging/download_appimage_tools.py build/appimage-tools
       - name: Build AppImage with bundled SDL backends
+        if: ${{ contains(fromJSON('["Todos","Linux","AppImage"]'), inputs.package) }}
         run: |
           python3 port/packaging/appimage.py build/AppDir build/artifacts/HarvestMoonBTN-linux-x86_64.AppImage --tool build/appimage-tools/appimagetool.AppImage --runtime build/appimage-tools/runtime-x86_64
           python3 port/packaging/audit_payload.py build/AppDir
       - name: Smoke test staged runtime and AppImage without FUSE
+        if: ${{ contains(fromJSON('["Todos","Linux","AppImage"]'), inputs.package) }}
         env:
           SDL_VIDEO_DRIVER: dummy
           SDL_RENDER_DRIVER: software
@@ -67,7 +87,8 @@ jobs:
           build/artifacts/HarvestMoonBTN-linux-x86_64.AppImage --appimage-extract-and-run --window-test --frames 3
       - name: Checksums
         working-directory: build/artifacts
-        run: sha256sum ./*.AppImage ./*.deb ./*.rpm > SHA256SUMS-linux.txt
+        run: |
+          find . -maxdepth 1 -type f \( -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' \) -print0 | sort -z | xargs -0 -r sha256sum > SHA256SUMS-linux.txt
       - uses: actions/upload-artifact@v7
         with:
           name: HarvestMoonBTN-linux-x64
@@ -80,6 +101,8 @@ jobs:
           compression-level: 0
 
   windows:
+    needs: validate
+    if: ${{ contains(fromJSON('["Todos","Windows","EXE"]'), inputs.package) }}
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v6
@@ -122,3 +145,24 @@ jobs:
             build/artifacts/SHA256SUMS-windows.txt
           if-no-files-found: error
           compression-level: 0
+
+  release:
+    needs: [linux, windows]
+    if: ${{ always() && inputs.publication == 'Release' && (needs.linux.result == 'success' || needs.windows.result == 'success') && (needs.linux.result == 'success' || needs.linux.result == 'skipped') && (needs.windows.result == 'success' || needs.windows.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: HarvestMoonBTN-*
+          path: release-files
+          merge-multiple: true
+      - name: Publish selected packages
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ inputs.tag }}
+          TARGET_COMMIT: ${{ github.sha }}
+        run: |
+          gh release create "$RELEASE_TAG" release-files/* --target "$TARGET_COMMIT" --title "Harvest Moon BTN $RELEASE_TAG" --generate-notes

@@ -10,6 +10,10 @@ static int32_t half(const uint8_t *p)
     const uint16_t v=hmbtn_read_le16(p);
     return v<32768 ? v : (int32_t)v-65536;
 }
+unsigned hmbtn_farm_music_volume(const uint8_t *section,size_t size)
+{
+    return section && size>=16 && (hmbtn_read_le16(section+8)&0x1000u) ? 80u : 100u;
+}
 bool hmbtn_house_exit_at(const uint8_t *section, size_t size,
     const int32_t position[3], HmbtnHouseExit *exit)
 {
@@ -26,6 +30,24 @@ bool hmbtn_house_exit_at(const uint8_t *section, size_t size,
             for(unsigned a=0;a<3;++a) exit->entry[a]=half(p+38+a*2);
             return true;
         }
+    }
+    return false;
+}
+
+bool hmbtn_farm_house_door_at(const uint8_t *section,size_t size,
+    const HmbtnIntroActor *player,HmbtnHouseExit *exit,unsigned *model)
+{
+    if(!section || size<16+50*44 || !player || !exit || !model) return false;
+    for(unsigned i=0;i<50;++i) {
+        const uint8_t *p=section+16+i*44;
+        if(hmbtn_read_le16(p)!=0x9000 || hmbtn_read_le16(p+2)!=80
+                || hmbtn_read_le16(p+10)!=0 || hmbtn_read_le16(p+8)!=player->facing
+                || hmbtn_read_le16(p+12)>=15) continue;
+        if(player->position[0]<=half(p+14) || player->position[0]>=half(p+20)
+                || player->position[2]<=half(p+18) || player->position[2]>=half(p+24)) continue;
+        exit->zone=i;exit->target=80;*model=hmbtn_read_le16(p+12);
+        for(unsigned a=0;a<3;++a) exit->entry[a]=half(p+38+a*2);
+        return true;
     }
     return false;
 }

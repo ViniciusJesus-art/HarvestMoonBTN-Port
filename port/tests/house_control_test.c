@@ -104,6 +104,16 @@ int main(void)
     control.exit_pending=true; p.position[0]=0;
     hmbtn_house_control_tick(&control,&p,&model,HMBTN_PAD_RIGHT);
     CHECK(p.position[0]==0);
+    hmbtn_write_le16(z,0x9000);hmbtn_write_le16(z+2,80);
+    hmbtn_write_le16(z+8,1);hmbtn_write_le16(z+10,0);
+    p.position[0]=150;p.position[2]=0;p.facing=1;unsigned door_model;
+    CHECK(hmbtn_farm_house_door_at(section,sizeof(section),&p,&exit,&door_model));
+    CHECK(exit.target==80 && door_model==0 && exit.entry[0]==-4464);
+    p.facing=3;CHECK(!hmbtn_farm_house_door_at(section,sizeof(section),&p,&exit,&door_model));
+    p.facing=1;p.position[0]=100;
+    CHECK(!hmbtn_farm_house_door_at(section,sizeof(section),&p,&exit,&door_model));
+    p.position[0]=150;hmbtn_write_le16(z+12,15);
+    CHECK(!hmbtn_farm_house_door_at(section,sizeof(section),&p,&exit,&door_model));
     puts("Ground flags, furniture footprints, slopes, object clips, house movement and exit detection passed.");
     return 0;
 }

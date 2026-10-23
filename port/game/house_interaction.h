@@ -17,7 +17,7 @@ typedef struct HmbtnStoredTool { uint16_t id, modifier, count; } HmbtnStoredTool
 typedef struct HmbtnHouseInteraction {
     HmbtnHouseMode mode;
     HmbtnMessage message;
-    unsigned request, loaded, tv_channel, tv_group, tv_ticks;
+    unsigned request, loaded, message_bank, tv_channel, tv_group, tv_ticks;
     unsigned year, season, day, weekday, hour, weather, tomorrow;
     unsigned calendar_day, cursor, page, picked, picked_page, pan;
     unsigned steps;

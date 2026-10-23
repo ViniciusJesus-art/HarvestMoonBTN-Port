@@ -1,5 +1,9 @@
 # Controle na casa inicial — M4 parcial
 
+Atualização: a saída para a fazenda e o retorno inicial pela porta já estão
+integrados; o gameplay externo completo e a paridade da transição ainda faltam. Veja [FARM_CONTROL.md](FARM_CONTROL.md).
+As referências abaixo ao limite da porta descrevem a validação anterior.
+
 Depois de New Game executar a abertura até o fim do evento `0x79`, o pedido
 original de término libera caminhada e corrida dentro da casa/área 80.
 O atalho de desenvolvimento abre diretamente esse mesmo cenário:

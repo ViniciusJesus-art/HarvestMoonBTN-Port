@@ -13,6 +13,9 @@ typedef struct HmbtnHouseExit {
 } HmbtnHouseExit;
 bool hmbtn_house_exit_at(const uint8_t *section, size_t size,
     const int32_t position[3], HmbtnHouseExit *exit);
+bool hmbtn_farm_house_door_at(const uint8_t *section,size_t size,
+    const HmbtnIntroActor *player,HmbtnHouseExit *exit,unsigned *model);
+unsigned hmbtn_farm_music_volume(const uint8_t *section,size_t size);
 /* Initial house only: no field occupants, animals, held items or tool modes. */
 void hmbtn_house_control_tick(HmbtnHouseControl *control, HmbtnIntroActor *player,
     const HmbtnModel *ground, uint32_t held);

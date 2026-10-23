@@ -29,8 +29,11 @@ disponível. Escape cancela e remove a extração temporária.
 No EXE, escolher o disco no assistente antecipa essa importação; deixar vazio
 permite fazê-la no primeiro início. O menu também oferece “Preparar dados”.
 
-O ícone é uma ilustração original de fazenda/lua gerada pelo projeto. Não é uma
-imagem proprietária retirada do disco e incluída no pacote.
+O ícone do executável, da janela, dos pacotes e dos atalhos é gerado a partir de
+`port/HMBTN_Logo.png`. No Windows, o instalador aplica o `.ico` também aos atalhos
+do menu Iniciar e da área de trabalho. No AppImage, os atalhos criados no primeiro
+uso apontam para a cópia estável e usam o mesmo logo. Para substituir o ícone,
+troque esse PNG quadrado (RGBA, 8 bits por canal) e gere novamente os pacotes.
 
 ## Destino dos dados
 
@@ -114,15 +117,23 @@ verificados por SHA-256. Sem FUSE disponível, execute com
 
 ## GitHub Actions
 
-[packages.yml](../../.github/workflows/packages.yml) cria os quatro formatos em
-push para `main`, tags `native-v*`, PRs relevantes e execução manual. Os jobs
-Linux e Windows compilam e rodam CTest sem disco; fixtures de extração são
-sintéticas. Publicam os instaladores e `SHA256SUMS` como artifacts de Actions:
+[packages.yml](../../.github/workflows/packages.yml) executa **somente manualmente**,
+em Actions → Native installers → Run workflow. Escolha:
 
-- `HarvestMoonBTN-linux-x64`: AppImage, DEB e RPM.
-- `HarvestMoonBTN-windows-x64`: assistente EXE.
+- `AppImage`, `RPM`, `DEB` ou `EXE`: somente aquele formato.
+- `Linux`: AppImage + RPM + DEB.
+- `Windows`: instalador EXE.
+- `Todos`: todos os formatos das duas plataformas.
 
-Não publica uma GitHub Release nem envia recursos locais. O workflow separado
+Em `Destino dos pacotes`, `Teste` guarda apenas artifacts da execução; `Release`
+publica os formatos selecionados numa GitHub Release, exigindo uma nova tag
+como `native-v0.1.0`. A publicação só acontece se todas as compilações solicitadas
+passarem. Os pacotes incluem seus hashes SHA-256.
+
+Os workflows separados de testes nativos e build PS1 também passaram a execução
+manual. Nenhum desses workflows compila automaticamente em push ou PR.
+
+No modo Teste não publica uma GitHub Release. Nenhum modo envia recursos locais. O workflow separado
 [native.yml](../../.github/workflows/native.yml) mantém testes Debug/Release dos
 dois sistemas. O build/checagem original de PS1 em `build.yml` foi preservado e
 não é uma dependência dos instaladores.

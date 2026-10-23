@@ -383,3 +383,21 @@ A meta do porte 1:1 permanece aberta; o jogo completo ainda não executa no host
 
 Implementação, formatos e validação local em [INSTALLERS.md](INSTALLERS.md).
 Isso organiza a distribuição do recorte atual, sem alterar o escopo parcial do jogo.
+
+### Primeiro controle fora da casa
+
+- [x] Zona de saída da casa carrega a fazenda/área 0 na entrada original.
+- [x] Controle, chão estático, música e estado do inventário preservados.
+- [x] Retorno inicial pela porta externa, com giro e som originais; temporização completa ainda pendente.
+- [ ] Autowalk/blend original da transição, colisões do campo e eventos externos.
+
+O exterior ainda é um recorte parcial. Limites e evidências em
+[FARM_CONTROL.md](FARM_CONTROL.md).
+
+### Retorno da fazenda e leitura externa
+
+- Porta da casa: zona/direção/Cross, giro com aceleração original e som 0x16.
+- Volta à área 80 na entrada serializada, sem perder inventário/opções; saída novamente validada.
+- Placas externas de tipo 16 usam seus textos importados.
+- Próximo recorte: colisões dos ocupantes do campo e uso de ferramentas.
+- O ciclo completo de portas (hold, fechamento e autowalk) ainda requer paridade.

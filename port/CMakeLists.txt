@@ -51,9 +51,11 @@ target_compile_features(hmbtn_port_core PUBLIC c_std_11)
 set_target_properties(hmbtn_port_core PROPERTIES C_EXTENSIONS OFF)
 
 find_package(Python3 3.10 REQUIRED COMPONENTS Interpreter)
-set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/packaging/make_icon.py")
+set(app_logo "${CMAKE_CURRENT_SOURCE_DIR}/HMBTN_Logo.png")
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/packaging/make_icon.py" "${app_logo}")
 execute_process(COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/packaging/make_icon.py"
-    "${CMAKE_CURRENT_BINARY_DIR}/generated" COMMAND_ERROR_IS_FATAL ANY)
+    "${app_logo}" "${CMAKE_CURRENT_BINARY_DIR}/generated" COMMAND_ERROR_IS_FATAL ANY)
 include(cmake/import_table.cmake)
 add_library(hmbtn_host STATIC core/app.c platform/sdl_host.c platform/app_icon.c
     installer/disc_import.c installer/sha256.c installer/setup.c

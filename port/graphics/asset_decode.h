@@ -29,6 +29,8 @@ bool hmbtn_bank_decode(const uint8_t *data, size_t size, HmbtnImageAtlas *atlas,
 /* Load another texture pack without erasing the previously loaded rectangles. */
 bool hmbtn_bank_apply(const uint8_t *data, size_t size, HmbtnImageAtlas *atlas,
     char *error, size_t error_size);
+bool hmbtn_bank_apply_at(const uint8_t *data, size_t size, HmbtnImageAtlas *atlas,
+    int x, int y, int palette_x, int palette_y, char *error, size_t error_size);
 bool hmbtn_texture_draw(const HmbtnImageAtlas *atlas, unsigned tx, unsigned ty,
     unsigned width, unsigned height, unsigned depth, unsigned cx, unsigned cy,
     int x, int y, uint8_t *rgba, unsigned output_width, unsigned output_height,

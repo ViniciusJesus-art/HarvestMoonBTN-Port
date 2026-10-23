@@ -1,4 +1,4 @@
-name: Native PC title menu
+name: Native PC tests
 
 on:
   push:
@@ -14,26 +14,26 @@ jobs:
         configuration: [Debug, Release]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
       - name: Configure Linux
         if: runner.os != 'Windows'
-        run: cmake -S . -B build/native -DHMBTN_BUILD_NATIVE=ON -DHMBTN_FETCH_SDL3=ON -DCMAKE_DISABLE_FIND_PACKAGE_SDL3=ON -DCMAKE_BUILD_TYPE=${{ matrix.configuration }}
+        run: cmake -S . -B build/native-ci -DHMBTN_BUILD_NATIVE=ON -DHMBTN_FETCH_SDL3=ON -DCMAKE_DISABLE_FIND_PACKAGE_SDL3=ON -DCMAKE_BUILD_TYPE=${{ matrix.configuration }}
       - name: Configure Windows x64
         if: runner.os == 'Windows'
-        run: cmake -S . -B build/native -A x64 -DHMBTN_BUILD_NATIVE=ON -DHMBTN_FETCH_SDL3=ON -DCMAKE_DISABLE_FIND_PACKAGE_SDL3=ON
+        run: cmake -S . -B build/native-ci -A x64 -DHMBTN_BUILD_NATIVE=ON -DHMBTN_FETCH_SDL3=ON -DCMAKE_DISABLE_FIND_PACKAGE_SDL3=ON
       - name: Build
-        run: cmake --build build/native --config ${{ matrix.configuration }}
+        run: cmake --build build/native-ci --config ${{ matrix.configuration }} --parallel 2
       - name: Test
-        run: ctest --test-dir build/native -C ${{ matrix.configuration }} --output-on-failure
+        run: ctest --test-dir build/native-ci -C ${{ matrix.configuration }} --output-on-failure
       - name: Stage Windows executable
         if: runner.os == 'Windows'
-        run: cmake --install build/native --config ${{ matrix.configuration }} --prefix build/package
+        run: cmake --install build/native-ci --config ${{ matrix.configuration }} --prefix build/package
       - name: Upload Windows build
         if: runner.os == 'Windows'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: hmbtn-windows-${{ matrix.configuration }}
           path: build/package

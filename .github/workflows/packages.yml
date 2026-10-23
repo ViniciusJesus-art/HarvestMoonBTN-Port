@@ -1,0 +1,124 @@
+name: Native installers (AppImage, DEB, RPM, EXE)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    tags: ['native-v*']
+    paths:
+      - 'port/**'
+      - 'docs/port/**'
+      - 'src/main/text/**'
+      - 'src/overlay/27_GF_TITLE/title.c'
+      - 'disc/a_file.txt'
+      - 'CMakeLists.txt'
+      - '.github/workflows/packages.yml'
+  pull_request:
+    paths:
+      - 'port/**'
+      - 'docs/port/**'
+      - 'CMakeLists.txt'
+      - '.github/workflows/packages.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-packages-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install build tools and runtime library headers
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build rpm dpkg-dev pkg-config file desktop-file-utils libx11-dev libxext-dev libxcursor-dev libxi-dev libxfixes-dev libxrandr-dev libxss-dev libxtst-dev libxrender-dev libudev-dev libdbus-1-dev libasound2-dev libpulse-dev libwayland-dev libxkbcommon-dev libegl1-mesa-dev libgl1-mesa-dev
+      - name: Configure native release (no disc or PS1 toolchain)
+        run: cmake -S . -B build/native-package -G Ninja -DHMBTN_BUILD_NATIVE=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_DISABLE_FIND_PACKAGE_SDL3=ON
+      - name: Build and test
+        run: |
+          cmake --build build/native-package --parallel 2
+          ctest --test-dir build/native-package --output-on-failure
+      - name: Build DEB and RPM
+        run: |
+          cpack --config build/native-package/CPackConfig.cmake -G DEB -B build/artifacts
+          cpack --config build/native-package/CPackConfig.cmake -G RPM -B build/artifacts
+      - name: Stage AppImage runtime and audit contents
+        run: |
+          cmake --install build/native-package --prefix "$PWD/build/AppDir/usr"
+          python3 port/packaging/audit_payload.py build/AppDir
+          python3 port/packaging/download_appimage_tools.py build/appimage-tools
+      - name: Build AppImage with bundled SDL backends
+        run: |
+          python3 port/packaging/appimage.py build/AppDir build/artifacts/HarvestMoonBTN-linux-x86_64.AppImage --tool build/appimage-tools/appimagetool.AppImage --runtime build/appimage-tools/runtime-x86_64
+          python3 port/packaging/audit_payload.py build/AppDir
+      - name: Smoke test staged runtime and AppImage without FUSE
+        env:
+          SDL_VIDEO_DRIVER: dummy
+          SDL_RENDER_DRIVER: software
+        run: |
+          build/AppDir/usr/bin/hmbtn_native --diagnostics
+          build/artifacts/HarvestMoonBTN-linux-x86_64.AppImage --appimage-extract-and-run --window-test --frames 3
+      - name: Checksums
+        working-directory: build/artifacts
+        run: sha256sum ./*.AppImage ./*.deb ./*.rpm > SHA256SUMS-linux.txt
+      - uses: actions/upload-artifact@v7
+        with:
+          name: HarvestMoonBTN-linux-x64
+          path: |
+            build/artifacts/*.AppImage
+            build/artifacts/*.deb
+            build/artifacts/*.rpm
+            build/artifacts/SHA256SUMS-linux.txt
+          if-no-files-found: error
+          compression-level: 0
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Configure Windows x64 with static SDL and CRT
+        run: cmake -S . -B build/native-package -A x64 -DHMBTN_BUILD_NATIVE=ON -DCMAKE_DISABLE_FIND_PACKAGE_SDL3=ON
+      - name: Build and test
+        run: |
+          cmake --build build/native-package --config Release --parallel 2
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          ctest --test-dir build/native-package -C Release --output-on-failure
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Stage runtime (no repository or disc files)
+        run: |
+          cmake --install build/native-package --config Release --prefix build/runtime
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python port/packaging/audit_payload.py build/runtime
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Create per-user EXE installer with disc selection
+        run: |
+          $nsis = "${env:ProgramFiles(x86)}\NSIS\makensis.exe"
+          if (!(Test-Path $nsis)) {
+            choco install nsis --no-progress -y
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          }
+          New-Item -ItemType Directory -Force build/artifacts | Out-Null
+          $payload = (Resolve-Path build/runtime).Path
+          $output = Join-Path $PWD 'build/artifacts/HarvestMoonBTN-windows-x64-setup.exe'
+          & $nsis "/DPAYLOAD=$payload" "/DOUTPUT=$output" port/packaging/windows.nsi
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $hash = (Get-FileHash $output -Algorithm SHA256).Hash.ToLower()
+          "$hash  HarvestMoonBTN-windows-x64-setup.exe" | Out-File -Encoding ascii build/artifacts/SHA256SUMS-windows.txt
+      - uses: actions/upload-artifact@v7
+        with:
+          name: HarvestMoonBTN-windows-x64
+          path: |
+            build/artifacts/*setup.exe
+            build/artifacts/SHA256SUMS-windows.txt
+          if-no-files-found: error
+          compression-level: 0

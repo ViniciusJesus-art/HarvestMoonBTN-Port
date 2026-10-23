@@ -27,6 +27,14 @@ bool hmbtn_scene_data_open(HmbtnSceneData *s, const uint8_t *bytes, size_t size,
         if (offset > size-0x2000 || (offset&3u)) goto invalid;
         if (!hmbtn_model_open(&s->models[i],bytes+0x2000+offset,
                 size-0x2000-offset,error,error_size)) return false;
+        if(flags&0x4000u) {
+            HmbtnModel from=s->models[i],to;
+            const uint32_t key=hmbtn_read_le32(p+8), output=hmbtn_read_le32(p+12);
+            if(key>size-0x2000 || output>size-0x2000 || (key&3u) || (output&3u)) goto invalid;
+            if(!hmbtn_model_open(&to,bytes+0x2000+key,size-0x2000-key,error,error_size)
+                    || !hmbtn_model_open(&s->models[i],bytes+0x2000+output,size-0x2000-output,error,error_size)) return false;
+            if(!hmbtn_model_morph_bind(&s->models[i],&from,&to)) goto invalid;
+        }
         for (unsigned axis = 0; axis < 3; ++axis) {
             s->position[i][axis] = signed_half(p+20+axis*2);
             s->angle[i][axis] = hmbtn_read_le16(p+28+axis*2);

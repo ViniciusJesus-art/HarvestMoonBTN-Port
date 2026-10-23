@@ -141,6 +141,19 @@ int main(void)
     CHECK(g.message.cursor==2 && g.message.wait_frames==1);
     hmbtn_message_tick(&g.message,0,0);
     CHECK(g.message.cursor==2 && g.message.wait_frames==0);
+    /* TV and bookshelf text uses FF1: continuous, clipped line scrolling. */
+    const uint16_t scrolling[]={0xff1,0,0xfffe,1,0xfffe,2,0xfffe,3,0xfffe,4,0xfffe,5,0xffff};
+    record(data,scrolling,sizeof(scrolling)/2);
+    CHECK(hmbtn_message_open(&g.message,data,sizeof(data),error,sizeof(error)));
+    for(unsigned i=0;i<18;++i) hmbtn_message_tick(&g.message,0,0);
+    for(unsigned i=0;i<9;++i) hmbtn_message_tick(&g.message,0,HMBTN_PAD_CROSS);
+    CHECK(g.message.phase==HMBTN_MESSAGE_SCROLLING && g.message.page==0);
+    for(unsigned i=0;i<6;++i) hmbtn_message_tick(&g.message,0,HMBTN_PAD_CROSS);
+    CHECK(g.message.scroll_y==12 && g.message.page==0);
+    hmbtn_message_tick(&g.message,0,HMBTN_PAD_CROSS);
+    CHECK(g.message.scroll_y==0 && g.message.page==3 && g.message.phase==HMBTN_MESSAGE_PRINTING);
+    for(unsigned i=0;i<100;++i) hmbtn_message_tick(&g.message,0,HMBTN_PAD_CROSS);
+    CHECK(g.message.phase==HMBTN_MESSAGE_WAIT_END && g.message.page>3);
     const uint16_t invalid[]={0x400a,0xffff};record(data,invalid,2);
     CHECK(!hmbtn_message_open(&g.message,data,sizeof(data),error,sizeof(error)));
     memset(data+0x1800,0,0x800);

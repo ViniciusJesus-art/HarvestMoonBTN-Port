@@ -14,6 +14,7 @@ HmbtnScenePreview *hmbtn_scene_childhood_create(SDL_Renderer *renderer,
 HmbtnScenePreview *hmbtn_scene_house_create(SDL_Renderer *renderer,
     const char *data_root, char *error, size_t error_size);
 void hmbtn_scene_preview_discard_input(HmbtnScenePreview *scene);
+bool hmbtn_scene_preview_take_rumble(HmbtnScenePreview *scene);
 void hmbtn_scene_intro_registration(HmbtnScenePreview *scene, const HmbtnNewGame *registration);
 void hmbtn_scene_preview_destroy(HmbtnScenePreview *scene);
 bool hmbtn_scene_preview_draw(HmbtnScenePreview *scene, SDL_Renderer *renderer,

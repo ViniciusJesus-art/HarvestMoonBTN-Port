@@ -1,4 +1,5 @@
 #include "sdl_host.h"
+#include "app_icon.h"
 
 bool hmbtn_host_open(HmbtnHost *host)
 {
@@ -17,6 +18,7 @@ bool hmbtn_host_open(HmbtnHost *host)
     /* This slice uploads a single CPU-composed 320x240 image. Prefer software
      * presentation to avoid a GPU driver's startup allocation for the title.
      * An explicit SDL_RENDER_DRIVER environment hint keeps its higher priority. */
+    hmbtn_app_icon(host->window);
     SDL_SetHintWithPriority(SDL_HINT_RENDER_DRIVER, "software", SDL_HINT_DEFAULT);
     host->renderer = SDL_CreateRenderer(host->window, NULL);
     if (!host->renderer || !SDL_SetRenderLogicalPresentation(host->renderer,

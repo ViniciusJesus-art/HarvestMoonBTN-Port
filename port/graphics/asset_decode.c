@@ -57,6 +57,11 @@ bool hmbtn_bank_decode(const uint8_t *data, size_t size, HmbtnImageAtlas *atlas,
 bool hmbtn_bank_apply(const uint8_t *data, size_t size, HmbtnImageAtlas *atlas,
     char *error, size_t error_size)
 {
+    return hmbtn_bank_apply_at(data,size,atlas,0,0,0,0,error,error_size);
+}
+bool hmbtn_bank_apply_at(const uint8_t *data, size_t size, HmbtnImageAtlas *atlas,
+    int shift_x, int shift_y, int palette_x, int palette_y, char *error, size_t error_size)
+{
     if (!data || !atlas || size < 4 || data[0] != 0x0D) FAIL("Invalid image bank header");
     const unsigned count = hmbtn_read_le16(data + 2);
     if (!count || count > 4096) FAIL("Invalid image bank count");
@@ -66,8 +71,11 @@ bool hmbtn_bank_apply(const uint8_t *data, size_t size, HmbtnImageAtlas *atlas,
         const uint32_t tag = hmbtn_read_le32(data + offset);
         const size_t payload = tag & UINT32_C(0xFFFFFF);
         const unsigned flags = tag >> 24;
-        const unsigned x = hmbtn_read_le16(data + offset + 4);
-        const unsigned y = hmbtn_read_le16(data + offset + 6);
+        const int64_t moved_x=(int64_t)hmbtn_read_le16(data+offset+4)+((flags&3)==2 ? palette_x : shift_x);
+        const int64_t moved_y=(int64_t)hmbtn_read_le16(data+offset+6)+((flags&3)==2 ? palette_y : shift_y);
+        if(moved_x<0 || moved_x>=HMBTN_ATLAS_WIDTH || moved_y<0 || moved_y>=HMBTN_ATLAS_HEIGHT)
+            FAIL("Relocated image bank outside atlas");
+        const unsigned x=(unsigned)moved_x, y=(unsigned)moved_y;
         const unsigned w = hmbtn_read_le16(data + offset + 8);
         const unsigned h = hmbtn_read_le16(data + offset + 10);
         const size_t padded = (payload + 3) & ~(size_t)3;

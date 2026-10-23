@@ -61,7 +61,11 @@ As áreas 230/231/232 executam a infância, encontro, canção XA, despedida e
 retorno a Thomas (`0x75..0x79`), seguidos da entrada na casa/área 80 e término
 do roteiro. `game/ground.*` consulta a geometria original e `game/house_control.*`
 libera caminhada/corrida na casa. Saída para a fazenda, colisões com atores e
-interações permanecem pendentes; detalhes em [FARM_INTRO.md](FARM_INTRO.md) e
+demais interações permanecem pendentes. `game/house_interaction.*` e
+`graphics/house_ui.*` executam TV, calendário, baú, livro/estante, opções e menu
+da cama. `game/house_sleep.*` coordena câmera, animação e coberta até o limite
+do pernoite, sem simular avanço diário ou salvamento. Detalhes em
+[HOUSE_INTERACTIONS.md](HOUSE_INTERACTIONS.md), [FARM_INTRO.md](FARM_INTRO.md) e
 [SCENE_RENDERER.md](SCENE_RENDERER.md). O atlas em CPU
 mantém posições originais para resolver imagens/paletas, sem simular o hardware.
 

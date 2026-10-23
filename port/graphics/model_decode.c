@@ -68,7 +68,7 @@ bool hmbtn_model_open(HmbtnModel *m, const uint8_t *data, size_t size,
         snprintf(error, error_size, "Invalid TMD header; only relative, prelit models are supported");
         return false;
     }
-    HmbtnModel candidate = {data, size, hmbtn_read_le32(data + 8), 0};
+    HmbtnModel candidate = {.data=data, .size=size, .object_count=hmbtn_read_le32(data+8)};
     if (!candidate.object_count || candidate.object_count > 1024
             || !span(size, 12, (size_t)candidate.object_count * 28)) goto invalid;
     const size_t table_end = (size_t)candidate.object_count * 28;
@@ -112,4 +112,26 @@ void hmbtn_model_vertex(const HmbtnModel *m, const HmbtnModelObject *o,
         const uint16_t value = hmbtn_read_le16(b + i * 2);
         position[i] = value < 32768 ? (int32_t)value : (int32_t)value - 65536;
     }
+    if(m->morph_from && m->morph_steps && o->vertices==hmbtn_read_le32(m->data+12)
+            && index<hmbtn_read_le32(m->data+16)) {
+        for(unsigned i=0;i<3;++i) {
+            const size_t at=(size_t)index*8+i*2;
+            const unsigned a=hmbtn_read_le16(m->morph_from+at), b_to=hmbtn_read_le16(m->morph_to+at);
+            const int32_t from=a<32768 ? (int32_t)a : (int32_t)a-65536;
+            const unsigned d=(b_to-a)&65535u; /* Original delta is an SVECTOR. */
+            const int32_t delta=d<32768 ? (int32_t)d : (int32_t)d-65536;
+            const unsigned value=(unsigned)(from+(int32_t)((int64_t)delta*m->morph_step/m->morph_steps))&65535u;
+            position[i]=value<32768 ? (int32_t)value : (int32_t)value-65536;
+        }
+    }
+}
+bool hmbtn_model_morph_bind(HmbtnModel *out,const HmbtnModel *from,const HmbtnModel *to)
+{
+    HmbtnModelObject a,b,c;
+    if(!hmbtn_model_object(out,0,&c) || !hmbtn_model_object(from,0,&a)
+            || !hmbtn_model_object(to,0,&b) || a.vertex_count!=b.vertex_count
+            || a.vertex_count!=c.vertex_count) return false;
+    out->morph_from=from->data+12+a.vertices; out->morph_to=to->data+12+b.vertices;
+    out->morph_steps=1; out->morph_step=0;
+    return true;
 }

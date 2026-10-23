@@ -1,0 +1,34 @@
+Harvest Moon: Back to Nature - native PC port (partial)
+
+This package contains only the native port and its built-in resource importer.
+It does not contain a PS1 emulator, MIPS executables, Sony SDK or game resources.
+The full game is not yet ported. Overnight progression and saves remain pending.
+
+Start Harvest Moon BTN from the application menu. On the first launch, select
+an American SLUS_011.15 MODE2/2352 .bin (compatible translations are accepted).
+You can also drop the .bin onto the preparation window. Python is not required.
+The disc image is not copied or modified; only resource files are extracted.
+A native-import.json lists the source path, files, sizes and SHA-256 hashes.
+
+Resources are installed per user, separately from application files:
+  Linux:   $XDG_DATA_HOME/hmbtn/HarvestMoonBTN/data
+           (normally ~/.local/share/hmbtn/HarvestMoonBTN/data)
+  Windows: %APPDATA%\hmbtn\HarvestMoonBTN\data
+
+Updates and uninstall keep these resources. The app never overwrites an existing
+import. Remove/rename that data directory deliberately to import another disc.
+Developer override: hmbtn_native --data DIR
+Headless import: hmbtn_native --import-bin FILE --data NEW_DIRECTORY
+
+Linux DEB/RPM: open in your distribution's software installer. System libraries
+are resolved by its package manager; there is no separate SDL/Python installation.
+AppImage: allow execution and open it. The first preparation also registers a
+user menu/desktop shortcut and keeps a copy of the AppImage in the user data
+folder. Modern AppImage runtime bundles libfuse. On restricted systems without
+FUSE, run with --appimage-extract-and-run (no additional package required).
+
+Keyboard: arrows move, Z confirms/interacts, X cancels/runs, V is Triangle,
+Enter is Start, Tab is Select, Q/E are shoulder buttons. F11 fullscreen, Esc quits.
+Logical game view remains 320x240, preserving 4:3 inside resized windows.
+
+The application icon is original farm/moon artwork, not artwork from the disc.

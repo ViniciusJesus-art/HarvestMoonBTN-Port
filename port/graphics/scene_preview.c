@@ -9,6 +9,8 @@
 #include "pad_buttons.h"
 #include "farm_intro.h"
 #include "house_control.h"
+#include "house_sleep.h"
+#include "house_ui.h"
 #include "new_game_ui.h"
 #include "title_audio.h"
 #include "xa_stream.h"
@@ -36,6 +38,12 @@ struct HmbtnScenePreview {
     unsigned area;
     HmbtnFarmIntro intro;
     HmbtnHouseControl control;
+    HmbtnHouseInteraction house;
+    HmbtnHouseSleep sleep;
+    bool sleep_reported;
+    HmbtnHouseUI *house_ui;
+    unsigned house_music_ticks, tv_frame;
+    uint8_t tv_sectors[0x1800];
     HmbtnNewGame dialogue;
     HmbtnNewGameUI *ui;
     HmbtnTitleAudio audio;
@@ -68,6 +76,7 @@ void hmbtn_scene_preview_destroy(HmbtnScenePreview *s)
     hmbtn_xa_stream_close(&s->xa);
     hmbtn_title_audio_close(&s->audio);
     hmbtn_new_game_ui_destroy(s->ui);
+    hmbtn_house_ui_destroy(s->house_ui);
     SDL_free(s->data_root);
     free(s->player_block); free(s->event_block); free(s->player_atlas); free(s->mayor_atlas);
     free(s->field_block); free(s->field_atlas);
@@ -130,6 +139,7 @@ static HmbtnScenePreview *scene_create(SDL_Renderer *renderer,
 {
     HmbtnScenePreview *s = calloc(1,sizeof(*s));
     if (!s) goto allocation;
+    hmbtn_house_interaction_init(&s->house);
     s->pixels = malloc(FRAME_BYTES); s->atlas = malloc(sizeof(*s->atlas));
     if (!s->pixels || !s->atlas) goto allocation;
     if (!load_area(s,root,0,error,error_size)) goto fail;
@@ -252,6 +262,13 @@ void hmbtn_scene_preview_discard_input(HmbtnScenePreview *s)
 {
     if (s) s->pending_pressed = 0;
 }
+bool hmbtn_scene_preview_take_rumble(HmbtnScenePreview *s)
+{
+    if(!s) return false;
+    const bool pending=s->house.options.rumble;
+    s->house.options.rumble=false;
+    return pending;
+}
 HmbtnScenePreview *hmbtn_scene_house_create(SDL_Renderer *renderer,
     const char *root, char *error, size_t error_size)
 {
@@ -347,15 +364,120 @@ static bool opening_tick(HmbtnScenePreview *s, uint32_t held, char *error, size_
         error[0] = '\0';
     }
     if (s->intro.script.finished && s->intro.finish_requested && !s->completion_reported) {
+        /* farm_track_id: sunny spring, sceneId 999 -> song 1. The farm's
+         * effects VAB is independent of both common UI effects and music. */
+        hmbtn_title_audio_close(&s->audio);
+        if(!hmbtn_title_audio_open_song(&s->audio,s->data_root,1,error,error_size)) return false;
+        uint8_t *fx=malloc(227328);
+        if(!fx) { snprintf(error,error_size,"Cannot allocate farm effects bank"); return false; }
+        const bool loaded=hmbtn_resource_read(s->data_root,"A_FILE/09_sound.stm",24576,fx,227328,error,error_size)
+            && hmbtn_sound_bank(s->audio.sound,2,fx,10240,fx+10240,217088,error,error_size);
+        free(fx); if(!loaded) return false;
+        s->house_ui=hmbtn_house_ui_create();
+        if(!s->house_ui) { snprintf(error,error_size,"Cannot allocate house interface"); return false; }
+        s->audio_song=1; s->audio.xa=&s->xa; hmbtn_sound_start(s->audio.sound);
+        s->intro.stop_music=false; s->intro.music_volume=0;
         s->control.enabled=true;
         s->intro.action_active=false; s->intro.player.pose=false;
-        puts("Opening complete: farmhouse interior (area 80). House movement enabled; arrows walk, Circle/X runs. Interactions and farm exit remain pending.");
+        puts("Opening complete: farmhouse interior (area 80). Arrows walk, Circle/X runs, Cross/Z interacts. TV, toolbox, calendar, bookshelf, options and bed menu enabled; overnight world updates, save/load and farm exit remain pending.");
         fflush(stdout); s->completion_reported = true;
     }
     if(s->control.enabled) {
-        hmbtn_house_control_tick(&s->control,&s->intro.player,&s->scene.terrain,held);
+        if(s->house_music_ticks<100) ++s->house_music_ticks;
+        s->intro.music_volume=s->house_music_ticks*127/100;
+        bool opened=false;
+        if(!s->control.exit_pending && s->house.mode==HMBTN_HOUSE_FREE && (s->pending_pressed&HMBTN_PAD_CROSS))
+            opened=hmbtn_house_interact(&s->house,s->section,s->scene.terrain.size+0x2000,&s->intro.player);
+        if(s->house.mode!=HMBTN_HOUSE_FREE) {
+            if(!opened) hmbtn_house_interaction_tick(&s->house,s->pending_pressed,held);
+            if(s->house.sound>=0) hmbtn_sound_effect(s->audio.sound,(unsigned)s->house.sound);
+            if(s->house.request && s->house.loaded!=s->house.request) {
+                if(s->house.request==21) {
+                    /* text_find_staged_value: the initial can has zero water.
+                     * There is no refill/tool-use branch in the house yet. */
+                    uint8_t record[8192];
+                    if(!hmbtn_resource_read(s->data_root,"A_FILE/05_messege3.bin",21*8192u,
+                            record,sizeof(record),error,error_size)) return false;
+                    for(unsigned i=0;i<HMBTN_MESSAGE_WORDS;++i)
+                        if(hmbtn_read_le16(record+0x1800+i*2)==0x4010)
+                            hmbtn_write_le16(record+0x1800+i*2,0x40);
+                    if(!hmbtn_ui_message_record(s->ui,record,sizeof(record),&s->house.message,error,error_size)) return false;
+                } else if(!hmbtn_new_game_ui_message(s->ui,s->data_root,"A_FILE/05_messege3.bin",
+                            s->house.request,&s->house.message,error,error_size)) return false;
+                s->house.loaded=s->house.request;
+                s->house.message.suppress_cursor=s->house.mode==HMBTN_HOUSE_TV_SELECT
+                    || s->house.mode==HMBTN_HOUSE_TOOLBOX
+                    || s->house.mode==HMBTN_HOUSE_BED
+                    || (s->house.mode==HMBTN_HOUSE_OPTIONS && !s->house.detail)
+                    || (s->house.mode==HMBTN_HOUSE_CALENDAR && !s->house.detail);
+                printf("House message: 0x%03x, mode %u\n",s->house.request,(unsigned)s->house.mode); fflush(stdout);
+            }
+            if(s->house.mode!=HMBTN_HOUSE_SLEEP)
+                s->intro.player.sprite=(HmbtnAnimationPlayer){0,(uint16_t)s->intro.player.facing,0};
+        } else if(!opened) {
+            hmbtn_house_control_tick(&s->control,&s->intro.player,&s->scene.terrain,
+                hmbtn_house_world_buttons(&s->house.options,held));
+            hmbtn_house_options_idle(&s->house.options,s->control.mode!=0,s->intro.player.facing);
+            if(s->control.mode && !s->control.exit_pending) {
+                if(s->house.steps>(s->control.mode==4 ? 8u : 12u)) {
+                    if(!hmbtn_sound_key_on(s->audio.sound,2,8,0,68,20)) {
+                        snprintf(error,error_size,"Original footstep tone is unavailable"); return false;
+                    }
+                    s->house.steps=0;
+                } else ++s->house.steps;
+            }
+        }
+        hmbtn_sound_stereo(s->audio.sound,s->house.options.stereo);
+        if(s->house.boundary) {
+            printf("House boundary: %s is not ported yet; no save file was read or written. The bed menu remains available.\n",
+                s->house.boundary==2 ? "diary/load overlay" : "livestock exchange overlay");
+            fflush(stdout); s->house.boundary=0;
+        }
+        if(s->house.mode==HMBTN_HOUSE_SLEEP) {
+            if(!s->sleep.active) {
+                /* player_load_tool_anim: mode 74 -> row 15, aligned ANI 312. */
+                if(!s->action_block) s->action_block=malloc(0x3800);
+                if(!s->action_atlas) s->action_atlas=malloc(sizeof(*s->action_atlas));
+                if(!s->action_block || !s->action_atlas) {
+                    snprintf(error,error_size,"Cannot allocate sleep animation bank"); return false;
+                }
+                if(!hmbtn_resource_read(s->data_root,"A_FILE/00_gf.bin",0x3CED000,s->action_block,0x3800,error,error_size)
+                        || !hmbtn_animation_open(&s->action_animation,s->action_block,312,error,error_size)
+                        || !hmbtn_bank_decode(s->action_block+312,0x3800-312,s->action_atlas,error,error_size)) return false;
+                hmbtn_house_sleep_start(&s->sleep,&s->intro.player); s->intro.action_active=true;
+            }
+            hmbtn_house_sleep_tick(&s->sleep,&s->intro.player);
+            /* scene_link_handback: eight steps to lift, then twelve to settle. */
+            s->scene.flags[1]=(uint16_t)((s->scene.flags[1]&~0x1000u)|(s->sleep.second_bed ? 0x1000u : 0u));
+            s->scene.flags[2]=(uint16_t)((s->scene.flags[2]&~0x1000u)|(s->sleep.second_bed ? 0u : 0x1000u));
+            s->scene.models[1].morph_steps=8;
+            s->scene.models[1].morph_step=s->sleep.second_bed ? 8 : s->sleep.link_step;
+            s->scene.models[2].morph_steps=12;
+            s->scene.models[2].morph_step=s->sleep.link_state==2 ? s->sleep.link_step : 0;
+            s->intro.music_volume=s->intro.music_volume*(30-s->sleep.fade)/30;
+            if(s->sleep.boundary && !s->sleep_reported) {
+                hmbtn_sound_stop_music(s->audio.sound);
+                printf("Overnight boundary: original bed animation and fade completed%s. Field/animals/weather/day events must be ported before advancing time or saving. No date change or save write occurred. Escape closes the window.\n",
+                    s->house.save_requested ? " (diary requested)" : "");
+                fflush(stdout); s->sleep_reported=true;
+            }
+        }
+        s->scene.angle[0][2]=(uint16_t)s->house.pan;
+        if(s->house.tv_dirty) {
+            if(!hmbtn_resource_read(s->data_root,"A_FILE/00_gf.bin",0x3D5A800+s->house.tv_group*0x1800,
+                    s->tv_sectors,sizeof(s->tv_sectors),error,error_size)) return false;
+            s->house.tv_dirty=false; s->tv_frame=UINT32_MAX;
+        }
+        if(s->tv_sectors[0] && (s->house.mode==HMBTN_HOUSE_TV || s->house.tv_group==18)) {
+            const unsigned frame=s->house.mode==HMBTN_HOUSE_TV ? (s->house.tv_ticks/16)%3 : 0;
+            if(s->tv_frame!=frame) {
+                if(!hmbtn_bank_apply_at(s->tv_sectors+frame*2048,2048,s->atlas,320,1,320,-48,error,error_size)) return false;
+                s->tv_frame=frame;
+            }
+        }
+        s->dialogue.message=s->house.message;
         HmbtnHouseExit exit;
-        if(!s->control.exit_pending && hmbtn_house_exit_at(s->section,
+        if(s->house.mode==HMBTN_HOUSE_FREE && !s->control.exit_pending && hmbtn_house_exit_at(s->section,
                 s->scene.terrain.size+0x2000,s->intro.player.position,&exit)) {
             s->control.exit_pending=true; s->control.exit_zone=exit.zone;
             s->intro.player.sprite=(HmbtnAnimationPlayer){0,(uint16_t)s->intro.player.facing,0};
@@ -363,7 +485,7 @@ static bool opening_tick(HmbtnScenePreview *s, uint32_t held, char *error, size_
                 exit.zone,exit.target,(int)exit.entry[0],(int)exit.entry[1],(int)exit.entry[2]);
             fflush(stdout);
         }
-        memcpy(s->intro.camera,s->intro.player.position,sizeof(s->intro.camera));
+        memcpy(s->intro.camera,s->sleep.active ? s->sleep.camera : s->intro.player.position,sizeof(s->intro.camera));
     }
     if (s->intro.message && s->loaded_message != s->intro.message) {
         if (!hmbtn_new_game_ui_message(s->ui,s->data_root,"A_FILE/03_messege1.bin",
@@ -373,7 +495,7 @@ static bool opening_tick(HmbtnScenePreview *s, uint32_t held, char *error, size_
     }
     if (!s->intro.message) {
         s->loaded_message = 0;
-        if (!actor_animation_tick(s->intro.action_active ? &s->action_animation : &s->player_animation,
+        if ((!s->sleep.active || s->sleep.phase<4) && !actor_animation_tick(s->intro.action_active ? &s->action_animation : &s->player_animation,
                 &s->intro.player,error,error_size)) return false;
         if (s->intro.action_active) s->intro.action_finished = s->intro.player.animation_done;
         for (unsigned id = 1; id < 35; ++id) {
@@ -485,9 +607,11 @@ bool hmbtn_scene_preview_draw(HmbtnScenePreview *s, SDL_Renderer *renderer,
                 if (!hmbtn_animation_draw(&s->actor_animation[s->intro.cell_actor],s->mayor_atlas,
                         &cell->sprite,80,60,s->pixels,320,240,FRAME_BYTES,error,error_size)) return false;
             }
-            const unsigned brightness = hmbtn_farm_intro_brightness(&s->intro);
+            const unsigned brightness = s->sleep.active ? 255*(30-s->sleep.fade)/30 : hmbtn_farm_intro_brightness(&s->intro);
             for (size_t i = 0; i < FRAME_BYTES; ++i)
                 if (i%4 != 3) s->pixels[i] = (uint8_t)((s->pixels[i]*brightness+(s->intro.fade_white ? 255*(255-brightness) : 0))/255);
+            if(s->control.enabled && !hmbtn_house_ui_draw(s->house_ui,s->ui,&s->house,
+                    s->data_root,s->ticks,s->pixels,error,error_size)) return false;
             if (!hmbtn_new_game_ui_draw(s->ui,&s->dialogue,s->ticks,s->pixels,error,error_size)) return false;
         }
         if (!SDL_UpdateTexture(s->texture,NULL,s->pixels,320*4)) goto sdl_error;

@@ -14,6 +14,7 @@ struct HmbtnNewGameUI {
     HmbtnAnimation icons;
     HmbtnAnimationPlayer heart;
     uint8_t icons_block[UI_BLOCK_SIZE];
+    bool dim;
 };
 void hmbtn_new_game_ui_cursor(const HmbtnNewGameUI *u, HmbtnWorldSprite *sprite,
     const int32_t position[3], unsigned variant)
@@ -58,7 +59,12 @@ bool hmbtn_new_game_ui_message(HmbtnNewGameUI *u, const char *root,
     uint8_t record[8192];
     if (id > UINT32_MAX/8192u) { snprintf(error,error_size,"Message index outside bounds"); return false; }
     return hmbtn_resource_read(root,archive,id*8192u,record,sizeof(record),error,error_size)
-        && hmbtn_message_open(message,record,sizeof(record),error,error_size)
+        && hmbtn_ui_message_record(u,record,sizeof(record),message,error,error_size);
+}
+bool hmbtn_ui_message_record(HmbtnNewGameUI *u,const uint8_t *record,size_t size,
+    HmbtnMessage *message,char *error,size_t error_size)
+{
+    return hmbtn_message_open(message,record,size,error,error_size)
         && (hmbtn_read_le32(record) == UINT32_MAX
             || hmbtn_bank_apply(record+4,0x1800-4,u->atlas,error,error_size));
 }
@@ -67,6 +73,21 @@ static bool glyph(HmbtnNewGameUI *u,uint8_t *p,uint16_t code,int x,int y,unsigne
 {
     static const unsigned rows[6]={254,250,250,252,253,251};
     if(code==0xffd || code>=256) return true;
+    if(u->dim) {
+        uint8_t tile[8*12*4]={0};
+        if(!hmbtn_texture_draw(u->atlas,896+(code&15)*2,(code>>4)*12,8,12,4,
+                896,rows[palette],0,0,tile,8,12,error,error_size)) return false;
+        for(int row=0;row<12;++row) for(int col=0;col<8;++col) {
+            if(x+col<0 || x+col>=WIDTH || y+row<0 || y+row>=HEIGHT) continue;
+            const uint8_t *src=tile+(row*8+col)*4;
+            if(!src[3]) continue;
+            uint8_t *dst=p+((y+row)*WIDTH+x+col)*4;
+            for(unsigned channel=0;channel<3;++channel)
+                dst[channel]=(uint8_t)((src[channel]+dst[channel])/2);
+            dst[3]=255;
+        }
+        return true;
+    }
     return hmbtn_texture_draw(u->atlas,896+(code&15)*2,(code>>4)*12,8,12,4,
         896,rows[palette],x,y,p,WIDTH,HEIGHT,error,error_size);
 }
@@ -79,11 +100,35 @@ static bool text(HmbtnNewGameUI *u,uint8_t *p,const uint16_t *words,unsigned cou
         if(c==0xffff || c==0xffc) break;
         if(c==0xfffe) { x=origin;y+=14; }
         else if(c<256 || c==0xffd) {
-            if ((!message || y<222) && !glyph(u,p,c,x,y,palette,error,error_size)) return false;
+            if(message && c<256) {
+                uint8_t tile[8*12*4]={0};
+                static const unsigned rows[6]={254,250,250,252,253,251};
+                if(!hmbtn_texture_draw(u->atlas,896+(c&15)*2,(c>>4)*12,8,12,4,
+                        896,rows[palette],0,0,tile,8,12,error,error_size)) return false;
+                for(int row=0;row<12;++row) for(int col=0;col<8;++col) {
+                    if(y+row<168 || y+row>=224 || x+col<0 || x+col>=WIDTH) continue;
+                    const uint8_t *pixel=tile+(row*8+col)*4;
+                    if(pixel[3]) memcpy(p+((y+row)*WIDTH+x+col)*4,pixel,4);
+                }
+            } else if(!message && !glyph(u,p,c,x,y,palette,error,error_size)) return false;
             x+=8+spacing;
         }
     }
     return true;
+}
+bool hmbtn_ui_text(HmbtnNewGameUI *u,uint8_t *p,const uint16_t *words,unsigned count,
+    int x,int y,int spacing,unsigned palette,char *error,size_t error_size)
+{
+    if(palette>=6) return false;
+    return text(u,p,words,count,x,y,spacing,palette,false,error,error_size);
+}
+bool hmbtn_ui_text_dim(HmbtnNewGameUI *u,uint8_t *p,const uint16_t *words,unsigned count,
+    int x,int y,bool dim,char *error,size_t error_size)
+{
+    u->dim=dim;
+    const bool ok=text(u,p,words,count,x,y,0,3,false,error,error_size);
+    u->dim=false;
+    return ok;
 }
 static bool icon(HmbtnNewGameUI *u,uint8_t *p,unsigned animation,unsigned sub,int x,int y,
     char *error,size_t error_size)
@@ -95,6 +140,11 @@ static bool number(HmbtnNewGameUI *u,uint8_t *p,unsigned value,int x,int y,char 
 {
     const uint16_t digits[3]={value<10?0xffd:(uint16_t)(0x40+value/10),(uint16_t)(0x40+value%10),0xffff};
     return text(u,p,digits,3,x,y,0,3,false,error,error_size);
+}
+bool hmbtn_ui_icon(HmbtnNewGameUI *u,uint8_t *p,unsigned animation,unsigned sub,int x,int y,
+    char *error,size_t error_size)
+{
+    return icon(u,p,animation,sub,x,y,error,error_size);
 }
 static bool summary(HmbtnNewGameUI *u,const HmbtnNewGame *g,uint8_t *p,char *error,size_t error_size)
 {
@@ -174,10 +224,10 @@ bool hmbtn_new_game_ui_draw(HmbtnNewGameUI *u,const HmbtnNewGame *g,
     const HmbtnMessage *m=&g->message;
     int x,y,w,h;
     if(hmbtn_message_box(m,&x,&y,&w,&h)) hmbtn_window_frame_draw(p,WIDTH,HEIGHT,x,y,w,h);
-    if(m->phase==HMBTN_MESSAGE_PRINTING || m->phase==HMBTN_MESSAGE_WAIT_END || m->phase==HMBTN_MESSAGE_WAIT_PAGE) {
-        if(!text(u,p,m->words+m->page,m->cursor-m->page,30,168,0,3,true,error,error_size)) return false;
+    if(m->phase==HMBTN_MESSAGE_PRINTING || m->phase==HMBTN_MESSAGE_SCROLLING || m->phase==HMBTN_MESSAGE_WAIT_END || m->phase==HMBTN_MESSAGE_WAIT_PAGE) {
+        if(!text(u,p,m->words+m->page,m->cursor-m->page,30,168-(int)m->scroll_y,0,3,true,error,error_size)) return false;
         if(m->face && !hmbtn_texture_draw(u->atlas,960,175,80,80,8,0,490,26,84,p,WIDTH,HEIGHT,error,error_size)) return false;
-        if(!editor && !birthday && g->step!=26 && (m->phase==HMBTN_MESSAGE_WAIT_END || m->phase==HMBTN_MESSAGE_WAIT_PAGE)) {
+        if(!m->suppress_cursor && !editor && !birthday && g->step!=26 && (m->phase==HMBTN_MESSAGE_WAIT_END || m->phase==HMBTN_MESSAGE_WAIT_PAGE)) {
             if(!hmbtn_animation_draw(&u->icons,u->atlas,&u->heart,285,217,p,WIDTH,HEIGHT,
                     WIDTH*HEIGHT*4,error,error_size)
                     || !hmbtn_animation_tick(&u->icons,&u->heart,error,error_size)) return false;

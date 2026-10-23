@@ -5,7 +5,8 @@ O porte adapta os estados 11..28 de `27_GF_TITLE/title.c`, a caixa de
 O cadastro inclui nome do jogador, aniversário, nome da fazenda, nome do cachorro
 e resumo. A confirmação agora inicia a chegada à fazenda, com jogador, Thomas,
 diálogos e música, seguindo até o interior da casa/área 80. O bootstrap ainda
-não executa o jogo completo: saída para a fazenda, interações, saves e demo continuam pendentes.
+não executa o jogo completo: saída para a fazenda, demais interações, saves e demo continuam pendentes.
+TV, calendário, baú, livro, música e passos já executam; veja [HOUSE_INTERACTIONS.md](HOUSE_INTERACTIONS.md).
 Após a abertura já há caminhada/corrida com colisões estáticas na casa inicial. Veja [FARM_INTRO.md](FARM_INTRO.md).
 
 ## Caminho disponível

@@ -1,5 +1,9 @@
 # Base nativa para PC
 
+Os pacotes AppImage/DEB/RPM/EXE incluem somente o runtime do porte e seu extrator
+nativo. No primeiro uso, o programa pede o `.bin` e guarda apenas recursos na
+pasta do usuário; não exige Python instalado. Veja [INSTALLERS.md](../docs/port/INSTALLERS.md).
+
 `core/main.c` fornece a entrada C11 e as opções do executável. Sem argumentos,
 `core/app.c` abre uma janela SDL3, processa eventos e apresenta o menu nativo parcial.
 Escape fecha; F11 alterna tela cheia. A área lógica é 320 × 240, com escala inteira
@@ -27,6 +31,10 @@ encontro com a menina, canção, despedida e volta a Thomas. A sequência entra 
 com o personagem junto à porta e libera caminhada/corrida dentro da casa. `--childhood-preview` inicia diretamente o encontro.
 O áudio XA é decodificado em fluxo; detalhes em [XA_AUDIO.md](../docs/port/XA_AUDIO.md).
 `--house-preview` abre diretamente esse trecho: setas caminham, X/Circle corre.
+Z/Cross interage com TV, calendário, baú, livro, opções e cama. As configurações
+alteram controle, vibração SDL, estéreo/mono e relógio. A cama executa a animação,
+coberta e fade; para antes das atualizações diárias e não salva.
+Veja [HOUSE_INTERACTIONS.md](../docs/port/HOUSE_INTERACTIONS.md).
 Chão e bloqueios usam a geometria original; a saída pela porta pausa no limite
 da etapa. Veja [HOUSE_CONTROL.md](../docs/port/HOUSE_CONTROL.md).
 Saves e fazenda com controle livre ainda não estão portados. Veja
@@ -66,3 +74,5 @@ O fluxo parcial e o build Windows estão em [TITLE_FLOW.md](../docs/port/TITLE_F
 e [WINDOWS.md](../docs/port/WINDOWS.md).
 
 O recorte do cadastro e a apresentação em janelas 16:9 estão em [NEW_GAME.md](../docs/port/NEW_GAME.md).
+
+Música, passos, TV, calendário, baú de ferramentas e livro/estante estão descritos em [HOUSE_INTERACTIONS.md](../docs/port/HOUSE_INTERACTIONS.md).

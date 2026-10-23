@@ -12,6 +12,10 @@
 
 ---
 
+## PC installers
+
+AppImage, DEB, RPM and EXE packages contain only the native port and its resource importer. Select your `.bin` on first launch; only resources are extracted into the user data folder. No Python, SDK or emulator is required. See [installation and GitHub Actions](docs/port/INSTALLERS.md). The full game is not yet ported.
+
 ## About the Project
 
 The goal is to study and adapt the reconstructed C code of **Harvest Moon: Back to Nature** so it can run on modern platforms without requiring a PlayStation emulator at runtime. I aim to preserve the original game's experience and, eventually, explore improvements and mod support.
@@ -44,7 +48,7 @@ The repository contains the **decompilation of the US PlayStation release, `SLUS
 
 **Farm arrival:** accepting the registration now starts the original arrival script, with the player, Thomas, dialogue, camera movement, and music. `./build/native-debug/port/hmbtn_native --intro-preview` opens this sequence directly. The scenery includes doors, the shipping box, weeds, stones, and branches. It continues through the childhood meeting and song, the farewell, and the return to Thomas (events `0x75..0x79`). The sequence now enters the farmhouse (area 80), places the player at the door and finishes the opening script. `--childhood-preview` starts directly at the meeting. See [FARM_INTRO.md](docs/port/FARM_INTRO.md).
 
-**House controls:** `./build/native-debug/port/hmbtn_native --house-preview` opens the initial house directly. Arrows/D-pad walk; X/Circle runs forward. Ground queries use the original scene polygons and flags. Reaching the exit pauses at an explicit boundary; the farm transition and furniture interactions are pending. See [HOUSE_CONTROL.md](docs/port/HOUSE_CONTROL.md).
+**House controls:** `./build/native-debug/port/hmbtn_native --house-preview` opens the initial house directly. Arrows/D-pad walk; X/Circle runs forward. Ground queries use the original scene polygons and flags. Reaching the exit pauses at an explicit boundary; the farm transition remains pending. Z/Cross interacts with the TV, calendar, toolbox and bookshelf; music and footsteps are active. The options menu changes controls, vibration, stereo/mono and the clock. The bed menu plays the original sleep/blanket animation and fade, then stops before unported overnight world updates; diary/save/load remain pending. See [HOUSE_CONTROL.md](docs/port/HOUSE_CONTROL.md) and [HOUSE_INTERACTIONS.md](docs/port/HOUSE_INTERACTIONS.md).
 
 **Not yet implemented:** full gameplay, saves, general collisions, dynamic farm objects, full SPU audio/reverb, mods, or Android. The bootstrap does not run the complete game. Continue/demo stop at a boundary reported in the terminal, and Start/Z/X returns to the menu. The opening sequence and audio still need comparison with the PS1 version before full fidelity can be claimed. This portion is adapted under `port/`; the complete modules in `src/` are not compiled for the host platform. The original **PlayStation** build remains available by default. The local Windows `.exe` was rebuilt with MinGW x64 including the childhood sequence and streamed XA audio event; testing on actual Windows/MSVC is pending.
 
@@ -128,3 +132,5 @@ Thanks to the decompilation contributors, the creators of the tools used, and th
 The upstream project's [CC0 1.0](LICENSE) license covers **only the original repository's own contributions**. Components such as `tools/maspsx` may have their own licenses. The game, its graphics, music, assets, and the PSY-Q SDK belong to their respective rights holders and are not released under CC0.
 
 The port must not distribute copies of the game or proprietary game data without authorization. The intended approach is to investigate a process in which each user supplies assets from their own copy of the game. Public distribution of a port containing such assets requires an assessment of the applicable rights.
+
+House music, footsteps, TV channels, calendar and toolbox interactions are described in [HOUSE_INTERACTIONS.md](docs/port/HOUSE_INTERACTIONS.md).

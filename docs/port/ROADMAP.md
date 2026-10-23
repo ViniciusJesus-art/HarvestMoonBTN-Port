@@ -340,3 +340,46 @@ Android, melhorias e mods terão roteiro próprio após esses marcos.
 - Próximo recorte: transição completa casa → fazenda, eventos externos e retorno
   pela porta. Interações, relógio, inventário e sons dos passos ainda faltam.
 - Escopo e evidências: [HOUSE_CONTROL.md](HOUSE_CONTROL.md). O porte continua parcial.
+
+### Música e interações da casa inicial
+
+- [x] Tema de primavera e passos com os bancos/parâmetros originais.
+- [x] TV: quatro canais, programas por data e animação original no aparelho.
+- [x] Calendário: navegação e mensagens dos eventos.
+- [x] Baú: tampa, interface e cinco ferramentas; equipar, mover, trocar,
+  organizar e consultar descrições, conservando os itens na sessão.
+- [x] Livro/estante com texto e rolagem contínua original.
+- [x] Mesa de opções: manual, tipos de controle, vibração SDL, estéreo/mono e relógio.
+- [x] Menu da cama e sequência original de deitar, câmera, coberta e fades.
+- [ ] Avanço do pernoite/manhã: plantações, animais, clima e eventos diários.
+- [ ] Diário/save/load e troca de animais; entradas identificam seus limites.
+- [ ] Comparação sistemática da apresentação e áudio com o PS1.
+- [ ] Transição para a fazenda e eventos externos (permanece etapa seguinte).
+
+Detalhes e controles em [HOUSE_INTERACTIONS.md](HOUSE_INTERACTIONS.md).
+A meta do porte 1:1 permanece aberta; o jogo completo ainda não executa no host.
+
+### Continuação da casa — opções e cama
+
+- Configurações alteram o comportamento real: mapeamento do personagem,
+  canais de áudio, relógio e pedido de vibração ao controle conectado.
+- Morphs usam a topologia de saída e chaves de vértices validadas, sem modificar
+  os recursos; isso permite animar a coberta com as duas entradas LINK da cama.
+- Dormir para após a animação e o fade, antes das atualizações diárias ainda
+  ausentes. A data não muda e o pedido de diário não produz um save parcial.
+- Próximo recorte: transição casa↔fazenda e seus eventos, conforme a prioridade
+  atual. Avanço diário/pernoite e salvamento completo dependem também do estado
+  externo ainda não portado. A saída atual permanece no limite.
+- Validação e diferenças conhecidas em [HOUSE_INTERACTIONS.md](HOUSE_INTERACTIONS.md).
+
+### Distribuição do porte — instaladores
+
+- [x] Extrator nativo em fluxo e preparação gráfica com seleção/arraste do `.bin`.
+- [x] Importar somente recursos, sem executável de PS1, overlays MIPS ou disco agregado.
+- [x] Dados por usuário, manifesto SHA-256, transação e cancelamento sem pasta parcial.
+- [x] Pacotes AppImage, DEB, RPM e EXE; ícone e atalhos; sem Python/SDK/emulador no usuário final.
+- [x] Workflow de artifacts Linux/Windows sem dados proprietários, com builds e CTest.
+- [ ] Validar instalação e interface em Windows real; executar o workflow no GitHub.
+
+Implementação, formatos e validação local em [INSTALLERS.md](INSTALLERS.md).
+Isso organiza a distribuição do recorte atual, sem alterar o escopo parcial do jogo.

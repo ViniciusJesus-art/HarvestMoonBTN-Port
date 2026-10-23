@@ -9,6 +9,7 @@ typedef struct HmbtnAppOptions {
     unsigned window_width, window_height; /* Zero uses the default; never game coordinates. */
     const char *screenshot_path; /* Finite run: last frame. Otherwise: first frame. */
     const char *data_root;
+    bool setup;
     bool window_test; /* M1 diagnostic; does not require game data. */
     bool scene_preview; /* Development view of farm geometry; no gameplay. */
     bool intro_preview; /* Original opening, including the childhood sequence. */

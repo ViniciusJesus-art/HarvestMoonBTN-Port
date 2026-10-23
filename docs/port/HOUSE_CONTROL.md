@@ -58,9 +58,10 @@ Ao entrar nela, o controle pausa e o terminal registra `House exit boundary`.
 A casa permanece visível; Escape fecha a janela. Ainda não há transição de
 porta, animação de saída nem execução dos eventos externos.
 
-Continuam pendentes: saída/entrada da fazenda, interações (TV, calendário,
-cama, baú, livro), relógio, inventário, sons dos passos, colisões com atores,
-menus, saves e o restante do gameplay. Não afirmar paridade 1:1: câmera,
+A etapa seguinte acrescentou música, passos, TV, calendário, baú e livro;
+veja [HOUSE_INTERACTIONS.md](HOUSE_INTERACTIONS.md). Continuam pendentes
+saída/entrada da fazenda, cama/pernoite, diário/save/load, opções, progressão
+do relógio, colisões com atores e o restante do gameplay. Não afirmar paridade 1:1: câmera,
 velocidades, imagens e áudio ainda precisam de comparação reproduzível com PS1.
 O bootstrap e este recorte ainda não executam o jogo completo.
 

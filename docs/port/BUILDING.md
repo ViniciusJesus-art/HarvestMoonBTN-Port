@@ -5,6 +5,7 @@
 - CMake 3.20 ou superior.
 - Compilador C11: GCC no Linux ou MSVC com suporte C11 no Windows.
 - Ninja para os presets; opcional quando usar o gerador padrão.
+- Python 3.10+ para gerar o ícone durante o build e executar testes; não é exigido pelo aplicativo instalado.
 - SDL3 3.2+ de desenvolvimento, ou acesso à internet para baixar a versão fixada.
 
 O CMake procura SDL3 instalado. Se não encontrar, `HMBTN_FETCH_SDL3=ON` (padrão)
@@ -12,7 +13,8 @@ baixa SDL3 3.4.18 do site oficial, confere SHA-256 e compila uma biblioteca est�
 em `build/native-*/_deps/`. Nenhum SDK PSY-Q, disco ou dado original é necessário
 para compilar ou abrir `--window-test`. O menu padrão precisa de `data/` importada
 e executa título, cadastro, abertura e controle na casa inicial; ainda não há saves
-ou gameplay completo.
+ou gameplay completo. Instaladores com importação nativa, sem Python no usuário
+final, são descritos em [INSTALLERS.md](INSTALLERS.md).
 
 O primeiro build também compila SDL3 e leva mais tempo. No Linux, o build de SDL
 precisa dos arquivos de desenvolvimento de um backend de janela (Wayland ou X11)
@@ -57,7 +59,10 @@ e Enter/Z confirma. O resumo do cadastro inicia a chegada à fazenda: jogador,
 Thomas, caminhada e diálogos. A infância, canção, despedida e volta a Thomas (`0x75..0x79`) também executam;
 a abertura termina dentro da casa/área 80, com o personagem junto à porta.
 A casa libera caminhada/corrida com chão e bloqueios originais. Saída para a fazenda,
-interações, saves e gameplay completo ainda faltam. Veja [FARM_INTRO.md](FARM_INTRO.md).
+avanço do pernoite, diário/saves e gameplay completo ainda faltam. TV, calendário,
+baú, livro, música, passos e opções estão implementados. A cama executa o menu,
+animação e fade, parando antes das atualizações diárias. Veja
+[HOUSE_INTERACTIONS.md](HOUSE_INTERACTIONS.md) e [FARM_INTRO.md](FARM_INTRO.md).
 A pasta é localizada junto ao executável ou no projeto; `--data DIR` é prioritário.
 
 Opções de desenvolvimento:

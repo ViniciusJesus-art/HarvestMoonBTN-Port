@@ -22,20 +22,21 @@ bool hmbtn_message_open(HmbtnMessage *m, const uint8_t *record, size_t size,
     bool page_leading = false;
     for (unsigned i = 0; i < HMBTN_MESSAGE_WORDS; ++i) {
         const uint16_t c = hmbtn_read_le16(record + 0x1800 + i * 2);
+        if(c==0xff1) m->scroll_hold=true;
         m->words[m->count++] = c;
         if (c == 0xffff) { m->phase = HMBTN_MESSAGE_OPENING; return true; }
         if (c == 0xffc || c == 0xffb) { lines = 0; page_leading = true; }
         if (c == 0xfffe) {
             /* WAIT_PAGE consumes the first line break after FFB. It is a
              * separator before the new page, not an extra displayed line. */
-            if (!page_leading && ++lines >= 4) FAIL("Scrolling text beyond four lines is not ported in this slice");
+            if (!page_leading && ++lines >= 4 && !m->scroll_hold) FAIL("Scrolling text beyond four lines is not ported in this slice");
             page_leading = false;
         }
         if (c < 256 || c == 0xffd) page_leading = false;
         if (c >= 0xe38 && c <= 0xfef && hmbtn_read_le32(record) != 0xfefu - c)
             FAIL("External portrait-bank switch is not ported in this slice");
         if (c < 256 || c == 0xfffe || c == 0xffd || c == 0xffc || c == 0xffb
-                || c == 0xffa || c == 0xff3 || c == 0xff7 || c == 0xff4 || c == 0xff6 || c == 0xff5
+                || c == 0xffa || c == 0xff1 || c == 0xff2 || c == 0xff3 || c == 0xff7 || c == 0xff4 || c == 0xff6 || c == 0xff5
                 || (c >= 0xe25 && c <= 0xe2f)
                 || (c >= 0xe38 && c <= 0xfef)) continue;
         FAIL("Unsupported message command in new-game slice");
@@ -67,6 +68,14 @@ int hmbtn_message_tick(HmbtnMessage *m, uint32_t pressed, uint32_t held)
 {
     int sound = -1;
     switch (m->phase) {
+    case HMBTN_MESSAGE_SCROLLING:
+        m->scroll_y+=(held&(HMBTN_PAD_CROSS|HMBTN_PAD_CIRCLE)) ? 2u : 1u;
+        if(m->scroll_y>=14) {
+            while(m->page<m->cursor && m->words[m->page++]!=0xfffe) {}
+            m->scroll_y=0; if(m->lines) --m->lines;
+            m->phase=HMBTN_MESSAGE_PRINTING;
+        }
+        break;
     case HMBTN_MESSAGE_OPENING:
         if (++m->box_frame >= 18) {
             m->phase = HMBTN_MESSAGE_PRINTING; m->timer = 0;
@@ -92,6 +101,7 @@ int hmbtn_message_tick(HmbtnMessage *m, uint32_t pressed, uint32_t held)
         else if (code == 0xff4) m->face = true;
         else if (code == 0xff6) m->face = false;
         else if (code == 0xff3) m->no_scroll = true;
+        else if(code==0xfffe && m->scroll_hold && ++m->lines>=4) m->phase=HMBTN_MESSAGE_SCROLLING;
         else if (code >= 0xe25 && code <= 0xe2f) m->wait_frames = (0xe2f-code+1)/2;
         /* The source alternates its text blip per typing timer. */
         m->blip = !m->blip;

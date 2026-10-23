@@ -1,0 +1,10 @@
+FROM ubuntu:22.04
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+    ca-certificates cmake ninja-build gcc g++ python3 pkg-config dpkg-dev rpm nsis \
+    libx11-dev libxext-dev libxcursor-dev libxi-dev libxfixes-dev libxrandr-dev \
+    libxss-dev libxtst-dev libxrender-dev libudev-dev libdbus-1-dev libasound2-dev libpulse-dev libwayland-dev \
+    libxkbcommon-dev libegl1-mesa-dev libgl1-mesa-dev \
+    && rm -rf /var/lib/apt/lists/*
+WORKDIR /src
+RUN apt-get update && apt-get install -y --no-install-recommends file desktop-file-utils \
+    && rm -rf /var/lib/apt/lists/*

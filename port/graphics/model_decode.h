@@ -11,6 +11,8 @@ typedef struct HmbtnModel {
     const uint8_t *data;
     size_t size;
     uint32_t object_count, primitive_count;
+    const uint8_t *morph_from, *morph_to; /* Validated first-object vertex arrays. */
+    unsigned morph_step, morph_steps;
 } HmbtnModel;
 
 typedef struct HmbtnModelObject {
@@ -31,5 +33,6 @@ bool hmbtn_model_primitive(const HmbtnModel *model, size_t offset,
     HmbtnModelPrimitive *primitive);
 void hmbtn_model_vertex(const HmbtnModel *model, const HmbtnModelObject *object,
     uint16_t index, int32_t position[3]);
+bool hmbtn_model_morph_bind(HmbtnModel *output,const HmbtnModel *from,const HmbtnModel *to);
 
 #endif

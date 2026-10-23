@@ -91,6 +91,17 @@ int main(int argc, char **argv)
     bool audible = false;
     for (unsigned i = 0; i < 512; ++i) { if (pcm[i*2]) audible = true; CHECK(pcm[i*2+1] == 0); }
     CHECK(audible); /* Actual decoded sample, with original pan semantics. */
+    hmbtn_sound_stereo(s,false); hmbtn_sound_render(s,pcm,512);
+    audible=false;
+    for(unsigned i=0;i<512;++i) {
+        CHECK(pcm[i*2]==pcm[i*2+1]);
+        if(pcm[i*2]) audible=true;
+    }
+    CHECK(audible); /* A panned sample reaches both speakers in mono. */
+    hmbtn_sound_stereo(s,true); hmbtn_sound_render(s,pcm,512);
+    audible=false;
+    for(unsigned i=0;i<512;++i) { CHECK(!pcm[i*2+1]); if(pcm[i*2]) audible=true; }
+    CHECK(audible); /* Restoring stereo preserves the original pan. */
     for (unsigned i = 0; i < 12; ++i) hmbtn_sound_render(s, pcm, 512);
     for (unsigned i = 0; i < 1024; ++i) CHECK(pcm[i] == 0); /* Note-off + ADSR. */
     for (unsigned i = 0; i < 32; ++i) hmbtn_sound_render(s, pcm, 512);
@@ -120,6 +131,17 @@ int main(int argc, char **argv)
     audible=false;
     for (unsigned i=0;i<1024;++i) if (pcm[i]) audible=true;
     CHECK(audible); /* Dialogue effects survive stopping the song. */
+    /* A separate farm bank can sound while the music is stopped, using its
+     * own program/tone, note and volume rather than the common UI program. */
+    CHECK(hmbtn_sound_bank(s,2,vh,sizeof(vh),vb,sizeof(vb),error,sizeof(error)));
+    CHECK(hmbtn_sound_key_on(s,2,0,0,68,20));
+    CHECK(!hmbtn_sound_key_on(s,3,0,0,68,20));
+    CHECK(!hmbtn_sound_key_on(s,2,1,0,68,20));
+    CHECK(!hmbtn_sound_key_on(s,2,0,1,68,20));
+    CHECK(!hmbtn_sound_key_on(s,2,0,0,128,20));
+    hmbtn_sound_stop_music(s); hmbtn_sound_render(s,pcm,512);
+    audible=false; for(unsigned i=0;i<1024;++i) if(pcm[i]) audible=true;
+    CHECK(audible);
     CHECK(!hmbtn_sound_sequence(s, seq, 17, error, sizeof(error)));
     CHECK(!hmbtn_sound_bank(s, 0, vh, 40, vb, sizeof(vb), error, sizeof(error)));
     CHECK(!hmbtn_sound_bank(s, 0, vh, sizeof(vh), vb, 16, error, sizeof(error)));

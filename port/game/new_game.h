@@ -8,7 +8,8 @@
 enum { HMBTN_MESSAGE_WORDS = 1024, HMBTN_NAME_CHARS = 8 };
 typedef enum HmbtnMessagePhase {
     HMBTN_MESSAGE_CLOSED, HMBTN_MESSAGE_OPENING, HMBTN_MESSAGE_PRINTING,
-    HMBTN_MESSAGE_WAIT_PAGE, HMBTN_MESSAGE_WAIT_END, HMBTN_MESSAGE_CLOSING
+    HMBTN_MESSAGE_WAIT_PAGE, HMBTN_MESSAGE_WAIT_END, HMBTN_MESSAGE_CLOSING,
+    HMBTN_MESSAGE_SCROLLING
 } HmbtnMessagePhase;
 typedef struct HmbtnMessage {
     uint16_t words[HMBTN_MESSAGE_WORDS];
@@ -16,6 +17,8 @@ typedef struct HmbtnMessage {
     HmbtnMessagePhase phase;
     bool face, no_scroll, blip;
     unsigned choices;
+    unsigned lines, scroll_y;
+    bool scroll_hold, suppress_cursor;
 } HmbtnMessage;
 typedef struct HmbtnNewGame {
     unsigned step; /* Original title steps 11..28; 100 is the host scene boundary. */

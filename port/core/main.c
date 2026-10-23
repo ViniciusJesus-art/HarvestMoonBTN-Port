@@ -6,16 +6,20 @@
 #include <SDL3/SDL_main.h>
 #include "app.h"
 #include "psx_data.h"
+#include "disc_import.h"
+#include "data_directory.h"
 
 static void usage(const char *program)
 {
     printf("Usage: %s --diagnostics | [--data DIR] [--window-test | --scene-preview | --intro-preview | --childhood-preview | --house-preview] [--window-size WIDTHxHEIGHT] [--frames N] [--screenshot file.bmp]\n", program);
     puts("Default: title, registration and the first farm event. Enter=Start, arrows=select, Z=confirm.");
-    puts("Data is located beside the executable or in the project; --data DIR overrides it.");
+    puts("Data: --data DIR, user resources, executable/project. First launch can import a .bin.");
+    puts("--setup: select a .bin and prepare user resources. First launch offers this automatically.");
+    puts("--import-bin FILE [--data DIR]: import resources without Python; DIR must not exist.");
     puts("--scene-preview: farm geometry development view; arrows pan camera, Enter resets. No gameplay.");
     puts("--intro-preview: native arrival and childhood sequence; Z/X advance dialogue.");
     puts("--childhood-preview: development entry at the childhood meeting and song.");
-    puts("--house-preview: initial house; arrows walk, Circle/X runs. Exit and interactions pending.");
+    puts("--house-preview: initial house; arrows walk, X runs, Z interacts with TV, toolbox, calendar and bookshelf. Farm exit pending.");
 }
 
 int main(int argc, char **argv)
@@ -23,10 +27,15 @@ int main(int argc, char **argv)
     HmbtnAppOptions options = {0};
     bool diagnostics = false;
     bool data_requested = false;
+    const char *import_image=NULL;
     for (int i = 1; i < argc; ++i) {
         if (strcmp(argv[i], "--help") == 0) {
             usage(argv[0]);
             return 0;
+        } else if (strcmp(argv[i], "--setup") == 0) {
+            options.setup=true;
+        } else if (strcmp(argv[i], "--import-bin") == 0 && i+1<argc) {
+            import_image=argv[++i];
         } else if (strcmp(argv[i], "--diagnostics") == 0) {
             diagnostics = true;
         } else if (strcmp(argv[i], "--window-test") == 0) {
@@ -82,6 +91,18 @@ int main(int argc, char **argv)
     }
     const unsigned modes = (unsigned)options.window_test+(unsigned)options.scene_preview
         +(unsigned)options.intro_preview+(unsigned)options.childhood_preview+(unsigned)options.house_preview;
+    if((import_image || options.setup) && (modes || diagnostics || options.frame_limit
+            || options.screenshot_path || options.window_width || (import_image && options.setup))) {
+        fputs("Data setup cannot be combined with game/diagnostic options.\n",stderr);return 2;
+    }
+    if(import_image) {
+        char *out=options.data_root ? SDL_strdup(options.data_root) : hmbtn_user_data_directory();
+        char error[512]={0};
+        const bool ok=out && hmbtn_disc_import(import_image,out,NULL,NULL,error,sizeof(error));
+        if(ok) printf("Native resources installed: %s\nNo PS1 executable, overlays or disc image retained.\n",out);
+        else fprintf(stderr,"Import failed: %s\n",out ? error : SDL_GetError());
+        SDL_free(out);return ok ? 0 : 1;
+    }
     if (modes > 1 || (options.window_test && data_requested)) {
         fputs("Window diagnostic modes are exclusive; --window-test cannot load --data.\n", stderr);
         return 2;
@@ -94,6 +115,6 @@ int main(int argc, char **argv)
     puts("Harvest Moon: Back to Nature - PC port");
     puts("Native foundation ready (Linux / Windows target).");
     printf("Host pointer width: %u bits\n", (unsigned)(sizeof(void *) * CHAR_BIT));
-    puts("Partial native port: title, registration, opening and initial house movement. Farm exit, interactions, full gameplay and saves remain pending.");
+    puts("Partial native port: title, opening, house movement, music, TV, toolbox, calendar and bookshelf. Farm exit, remaining interactions, full gameplay and saves remain pending.");
     return diagnostics ? 0 : hmbtn_app_run(&options);
 }

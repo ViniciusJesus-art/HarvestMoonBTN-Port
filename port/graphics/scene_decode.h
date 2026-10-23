@@ -11,8 +11,8 @@ typedef struct HmbtnSceneData {
     uint32_t primitive_capacity;
 } HmbtnSceneData;
 
-/* Immutable section bytes remain owned by the caller. Morphs begin at their
- * first key, as scene_populate_objects/morph_reset do in the original. */
+/* Immutable section bytes remain owned by the caller. Morphs draw their output
+ * topology with validated source keys; step zero selects the first key. */
 bool hmbtn_scene_data_open(HmbtnSceneData *scene, const uint8_t *bytes, size_t size,
     char *error, size_t error_size);
 void hmbtn_scene_data_tick(HmbtnSceneData *scene);

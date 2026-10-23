@@ -207,6 +207,22 @@ int main(void)
     hmbtn_scene_data_tick(&scene);
     CHECK(hmbtn_scene_data_instances(&scene,instances) == 2);
     CHECK(instances[0].position[0] == -5000 && instances[0].angle[0] == 1040);
+    /* A morph draws the output key's topology with interpolated source keys. */
+    hmbtn_write_le32(section+0x948,0x4000);
+    hmbtn_write_le32(section+0x948+8,0);
+    hmbtn_write_le32(section+0x948+12,0x100);
+    hmbtn_write_le16(section+0x2000+40,120);
+    CHECK(hmbtn_scene_data_open(&scene,section,sizeof(section),error,sizeof(error)));
+    HmbtnModelObject morph_object; int32_t morph_vertex[3];
+    CHECK(hmbtn_model_object(&scene.models[0],0,&morph_object));
+    scene.models[0].morph_steps=8; scene.models[0].morph_step=4;
+    hmbtn_model_vertex(&scene.models[0],&morph_object,0,morph_vertex);
+    CHECK(morph_vertex[0]==20 && morph_vertex[1]==-80 && morph_vertex[2]==2000);
+    scene.models[0].morph_step=8;
+    hmbtn_model_vertex(&scene.models[0],&morph_object,0,morph_vertex); CHECK(morph_vertex[0]==120);
+    hmbtn_write_le32(section+0x948+8,UINT32_MAX);
+    CHECK(!hmbtn_scene_data_open(&scene,section,sizeof(section),error,sizeof(error)));
+    hmbtn_write_le32(section+0x948+8,0);
     hmbtn_write_le32(section+0x94C,UINT32_MAX);
     CHECK(!hmbtn_scene_data_open(&scene,section,sizeof(section),error,sizeof(error)));
     hmbtn_write_le16(bytes+72,0); /* +35 original OT depth bias makes red draw first. */

@@ -6,6 +6,8 @@
 #include "game_input.h"
 #include "data_directory.h"
 #include "scene_preview.h"
+#include "setup.h"
+#include "app_icon.h"
 
 #include <inttypes.h>
 #include <stdio.h>
@@ -39,6 +41,21 @@ int hmbtn_app_run(const HmbtnAppOptions *options)
         SDL_GetCurrentVideoDriver(), SDL_GetRendererName(host.renderer));
     if (!options->window_test) {
         char *data_root = hmbtn_data_directory(options->data_root);
+        if(options->setup || (data_root && !hmbtn_data_directory_available(data_root)
+                && !options->data_root && !options->frame_limit)) {
+            SDL_free(data_root);
+            data_root=options->data_root ? SDL_strdup(options->data_root) : hmbtn_user_data_directory();
+            if(!data_root) { hmbtn_host_close(&host);return 1; }
+            int prepared=1;
+            if(hmbtn_data_directory_available(data_root)) {
+                if(options->setup) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_INFORMATION,
+                    "Recursos ja instalados",data_root,host.window);
+            } else prepared=hmbtn_setup_run(host.window,host.renderer,data_root);
+            if(prepared==1 && options->setup && !options->data_root) hmbtn_app_shortcuts();
+            if(prepared!=1 || options->setup) {
+                SDL_free(data_root);hmbtn_host_close(&host);return prepared<0 ? 1 : 0;
+            }
+        }
         if (data_root) {
             printf("Game data directory: %s\n", data_root);
             if (options->house_preview)
@@ -57,6 +74,8 @@ int hmbtn_app_run(const HmbtnAppOptions *options)
         SDL_free(data_root);
         if (!preview && !scene) {
             fprintf(stderr, "Cannot load game resources: %s\nUse --data DIR or --window-test.\n", error);
+            if(!options->frame_limit) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR,
+                "Nao foi possivel carregar os recursos",error,host.window);
             hmbtn_host_close(&host);
             return 1;
         }
@@ -67,6 +86,7 @@ int hmbtn_app_run(const HmbtnAppOptions *options)
         }
         if (preview) puts("Title assets loaded: Natsume, intro, menu and registration. New Game reaches the initial house with movement; full gameplay, saves and demo remain pending.");
         hmbtn_game_input_init(&input);
+        if(!options->frame_limit && !options->data_root) hmbtn_app_shortcuts();
     } else {
         puts("Diagnostic window only: no game assets loaded.");
     }
@@ -109,6 +129,9 @@ int hmbtn_app_run(const HmbtnAppOptions *options)
                 hmbtn_game_input_take_pressed(&input), hmbtn_game_input_held(&input), error, sizeof(error));
         else
             drawn = hmbtn_draw_diagnostics(host.renderer, frames);
+        if(scene && hmbtn_scene_preview_take_rumble(scene) && input.gamepad
+                && !SDL_RumbleGamepad(input.gamepad,0x5000,0x5000,150))
+            SDL_Log("Controller vibration unavailable: %s",SDL_GetError());
         if (drawn && preview && hmbtn_title_preview_registration(preview)) {
             const HmbtnNewGame registration = *hmbtn_title_preview_registration(preview);
             char *root = hmbtn_data_directory(options->data_root);

@@ -61,6 +61,11 @@ int main(void)
     make_bank(bank);
     make_animation(ani);
     CHECK(hmbtn_bank_decode(bank, sizeof(bank), atlas, error, sizeof(error)));
+    CHECK(hmbtn_bank_apply_at(bank,sizeof(bank),atlas,320,1,320,-4,error,sizeof(error)));
+    CHECK(atlas->present[1*1024+320] && atlas->words[1*1024+320]==0x3210);
+    CHECK(atlas->present[321] && atlas->words[321]==0x001F); /* Separate CLUT offset. */
+    CHECK(!hmbtn_bank_apply_at(bank,sizeof(bank),atlas,-1,0,0,0,error,sizeof(error)));
+    CHECK(!hmbtn_bank_apply_at(bank,sizeof(bank),atlas,1024,0,0,0,error,sizeof(error)));
     CHECK(atlas->words[0] == 0x3210 && atlas->words[1024] == 0x1234);
     HmbtnAnimation animation;
     HmbtnAnimationPlayer player = {0};

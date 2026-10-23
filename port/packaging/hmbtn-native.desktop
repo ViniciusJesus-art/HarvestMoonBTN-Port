@@ -1,0 +1,16 @@
+[Desktop Entry]
+Type=Application
+Name=Harvest Moon: Back to Nature (PC)
+Comment=Native PC port — requires resources imported from your disc
+Comment[pt_BR]=Porte nativo para PC — importe os recursos do seu disco
+Exec=hmbtn_native
+Icon=hmbtn-native
+Terminal=false
+Categories=Game;RolePlaying;
+StartupWMClass=hmbtn_native
+Actions=Import;
+
+[Desktop Action Import]
+Name=Prepare game data
+Name[pt_BR]=Preparar dados do jogo
+Exec=hmbtn_native --setup

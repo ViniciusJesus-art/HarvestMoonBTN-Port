@@ -1,7 +1,11 @@
 Harvest Moon: Back to Nature - titulo, cadastro, chegada e sequencia da infancia (M3 / M4 parcial)
 
-Coloque a pasta data importada da sua copia do jogo ao lado de hmbtn_native.exe.
-Alternativa: hmbtn_native.exe --data "D:\Jogos\Harvest Moon\data"
+O assistente EXE instala por usuario e permite selecionar o .bin para importar.
+Sem selecao, o primeiro inicio abre a preparacao dos dados; tambem aceita arrastar o .bin.
+Python, SDK e emulador nao sao exigidos no usuario final.
+Os recursos ficam em %APPDATA%\hmbtn\HarvestMoonBTN\data, separados do aplicativo.
+Atualizacao e desinstalacao preservam esses recursos. Nao se copia o disco nem executaveis de PS1.
+Alternativa de desenvolvimento: hmbtn_native.exe --data "D:\Jogos\Harvest Moon\data"
 Nenhum disco, recurso do jogo ou SDK esta incluido neste pacote.
 
 Enter: encerra a introducao; outro Enter abre as opcoes.
@@ -15,7 +19,10 @@ A sequencia inclui avo, menino, cachorro, imagens, encontro com a menina,
 cancao XA, despedida e retorno a Thomas.
 A abertura termina dentro da casa/area 80, com caminhada/corrida e colisoes estaticas.
 --house-preview abre a casa diretamente. Setas caminham; X/Circle corre.
-A porta pausa no limite da etapa. Saida para a fazenda, interacoes, saves e demo faltam.
+Z/Cross interage: TV, calendario, bau, livro, opcoes e cama. Musica e passos ativos.
+As opcoes alteram controle, vibracao, stereo/mono e relogio. Configuracoes so na sessao.
+A cama executa a animacao e fade, parando em tela preta antes das atualizacoes diarias.
+A porta pausa no limite da etapa. Saida para a fazenda, avanco do dia, diario e saves faltam.
 Abertura animada, musica e sons dos botoes usam os recursos extraidos.
 Fidelidade total de imagem/audio ao PS1 ainda precisa ser validada.
 
@@ -27,9 +34,8 @@ Esta previa e separada de New Game e nao inclui atores, gameplay ou audio da cen
 com personagens, dialogos e musica. Z/X avanca as mensagens.
 --childhood-preview inicia diretamente o encontro da infancia.
 
-Build atual recompilado com MinGW x64, incluindo a sequencia da infancia e audio XA em fluxo, em conteiner limitado
-a 1536 MiB e uma tarefa por vez. Nao foi executado no Wine para evitar processos
-adicionais apos o problema de memoria.
+Runtime MinGW x64 e instalador NSIS gerados localmente. Instalacao, atalhos,
+importacao e preservacao dos dados na desinstalacao foram conferidos em Wine isolado.
 Os artefatos de CI podem usar MSVC; consulte o registro de validacao do projeto.
 Validacao em Windows real e com MSVC permanece pendente.
-Documentacao: docs/port/WINDOWS.md e docs/port/TITLE_FLOW.md no projeto.
+Documentacao: docs/port/INSTALLERS.md, WINDOWS.md e TITLE_FLOW.md no projeto.

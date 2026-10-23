@@ -19,12 +19,12 @@ typedef struct Voice {
     double position, pitch, left, right;
     int envelope, phase;
     uint32_t counter;
-    unsigned channel, note, velocity, program;
+    unsigned channel, note, velocity, program, bank;
     uint64_t serial;
     bool effect, active;
 } Voice;
 struct HmbtnSound {
-    Bank banks[2];
+    Bank banks[3]; /* Common effects, sequence, farm effects. */
     Event *events;
     size_t event_count, next_event, loop_event;
     uint64_t frame, loop_frame, serial;
@@ -32,7 +32,7 @@ struct HmbtnSound {
     Channel channels[16];
     Voice voices[HMBTN_AUDIO_VOICES];
     unsigned music_volume;
-    bool playing;
+    bool playing, mono;
 };
 
 static void bank_free(Bank *b)
@@ -52,6 +52,7 @@ void hmbtn_sound_destroy(HmbtnSound *s)
     if (!s) return;
     bank_free(&s->banks[0]);
     bank_free(&s->banks[1]);
+    bank_free(&s->banks[2]);
     free(s->events);
     free(s);
 }
@@ -99,7 +100,7 @@ static bool sample_decode(Sample *s, const uint8_t *data, size_t size,
 bool hmbtn_sound_bank(HmbtnSound *s, unsigned slot, const uint8_t *vh, size_t vh_size,
     const uint8_t *vb, size_t vb_size, char *error, size_t error_size)
 {
-    if (slot > 1 || vh_size < 0x820 || memcmp(vh, "pBAV", 4)
+    if (slot > 2 || vh_size < 0x820 || memcmp(vh, "pBAV", 4)
             || hmbtn_read_le32(vh + 4) != 7) FAIL("Invalid VAB header");
     const unsigned programs = hmbtn_read_le16(vh + 18), samples = hmbtn_read_le16(vh + 22);
     const size_t sizes_offset = 0x820 + (size_t)programs * 512;
@@ -215,6 +216,7 @@ void hmbtn_sound_start(HmbtnSound *s)
         if (!s->voices[i].effect) s->voices[i].active = false;
     s->playing = s->event_count > 0;
 }
+void hmbtn_sound_stereo(HmbtnSound *s, bool stereo) { s->mono=!stereo; }
 void hmbtn_sound_music_volume(HmbtnSound *s, unsigned volume)
 {
     s->music_volume = volume > 127 ? 127 : volume;
@@ -229,7 +231,7 @@ void hmbtn_sound_stop_music(HmbtnSound *s)
 
 static void gains(HmbtnSound *s, Voice *v)
 {
-    const Bank *b = &s->banks[v->effect ? 0 : 1];
+    const Bank *b = &s->banks[v->bank];
     const Program *p = &b->programs[v->program];
     const Channel *c = &s->channels[v->channel];
     const double volume = (double)v->velocity * b->volume * p->volume * v->tone->volume
@@ -241,11 +243,11 @@ static void gains(HmbtnSound *s, Voice *v)
     v->right = volume * (pan >= 64 ? 1.0 : pan / 64.0);
 }
 
-static void note_on(HmbtnSound *s, unsigned channel, unsigned note, unsigned velocity, int effect_tone)
+static void key_on(HmbtnSound *s, unsigned bank_id, unsigned program,
+    unsigned channel, unsigned note, unsigned velocity, int effect_tone)
 {
     const bool effect = effect_tone >= 0;
-    const unsigned program = effect ? 0 : s->channels[channel].program;
-    const Bank *bank = &s->banks[effect ? 0 : 1];
+    const Bank *bank = &s->banks[bank_id];
     const Program *p = &bank->programs[program];
     for (unsigned j = 0; j < p->count; ++j) {
         const Tone *tone = &p->tones[j];
@@ -263,10 +265,24 @@ static void note_on(HmbtnSound *s, unsigned channel, unsigned note, unsigned vel
         if (v->pitch > 4.0) v->pitch = 4.0;
         v->effect = effect; v->channel = channel; v->note = note;
         v->velocity = velocity; v->program = program;
+        v->bank = bank_id;
         v->active = v->sample->count > 0;
         v->serial = ++s->serial;
         gains(s, v);
     }
+}
+static void note_on(HmbtnSound *s, unsigned channel, unsigned note, unsigned velocity, int effect_tone)
+{
+    key_on(s,effect_tone>=0 ? 0u : 1u,effect_tone>=0 ? 0u : s->channels[channel].program,
+        channel,note,velocity,effect_tone);
+}
+bool hmbtn_sound_key_on(HmbtnSound *s, unsigned bank, unsigned program,
+    unsigned tone, unsigned note, unsigned volume)
+{
+    if(!s || bank>2 || program>127 || note>127 || volume>127
+            || tone>=s->banks[bank].programs[program].count) return false;
+    key_on(s,bank,program,0,note,volume,(int)tone);
+    return true;
 }
 void hmbtn_sound_effect(HmbtnSound *s, unsigned tone)
 {
@@ -371,6 +387,7 @@ void hmbtn_sound_render(HmbtnSound *s, int16_t *stereo, size_t frames)
             envelope_tick(v);
         }
         /* Original SPU master volume is 0x3fff (about half of full scale). */
+        if(s->mono) left=right=(left+right)*0.5;
         stereo[frame * 2] = (int16_t)clamp16((int)(left * 0.5));
         stereo[frame * 2 + 1] = (int16_t)clamp16((int)(right * 0.5));
         if (s->playing) ++s->frame;

@@ -10,6 +10,10 @@
 
 ---
 
+## Instaladores para PC
+
+Os pacotes AppImage, DEB, RPM e EXE distribuem somente o porte e seu extrator nativo. No primeiro uso, selecione seu `.bin`; apenas os recursos são extraídos para a pasta do usuário. Python, SDK e emulador não são necessários. Veja [instalação e GitHub Actions](docs/port/INSTALLERS.md). O jogo completo ainda não está portado.
+
 ## Sobre o projeto
 
 A proposta é estudar e adaptar o código C reconstruído de **Harvest Moon: Back to Nature** para executar em plataformas modernas sem depender de um emulador de PlayStation durante a execução. Pretendo preservar a experiência do jogo original e, futuramente, explorar melhorias e suporte a mods.
@@ -41,7 +45,7 @@ O repositório contém a **decompilação correspondente à versão americana de
 
 **Chegada à fazenda:** aceitar o resumo do cadastro agora inicia o roteiro original, com jogador, Thomas, diálogos, câmera e música. `./build/native-debug/port/hmbtn_native --intro-preview` abre essa sequência diretamente. A cena inclui portas, caixa de venda, mato, pedras e galhos. A sequência continua pelo encontro com a menina, canção, despedida e retorno a Thomas (eventos `0x75..0x79`), além das dez imagens das lembranças. A sequência entra na casa/área 80, posiciona o jogador junto à porta e encerra o roteiro da abertura. `--childhood-preview` abre diretamente o encontro. Veja [FARM_INTRO.md](docs/port/FARM_INTRO.md).
 
-**Controle na casa:** `./build/native-debug/port/hmbtn_native --house-preview` abre a casa inicial diretamente. Setas/D-pad caminham; X/Circle corre para a frente. O chão e os bloqueios usam polígonos e flags do cenário original. A porta pausa em um limite explícito; a transição para a fazenda e as interações com móveis estão pendentes. Veja [HOUSE_CONTROL.md](docs/port/HOUSE_CONTROL.md).
+**Controle na casa:** `./build/native-debug/port/hmbtn_native --house-preview` abre a casa inicial diretamente. Setas/D-pad caminham; X/Circle corre para a frente. O chão e os bloqueios usam polígonos e flags do cenário original. A porta pausa em um limite explícito; a transição para a fazenda continua pendente. Z/Cross interage com TV, calendário, baú e livro/estante; música e passos estão ativos. As opções alteram controle, vibração, estéreo/mono e relógio. A cama executa o menu, animação/coberta e fade, parando antes das atualizações diárias; avanço do dia e diário/save/load permanecem pendentes. Veja [HOUSE_CONTROL.md](docs/port/HOUSE_CONTROL.md) e [HOUSE_INTERACTIONS.md](docs/port/HOUSE_INTERACTIONS.md).
 
 **Ainda não foram implementados:** gameplay completo, saves, colisões gerais, objetos dinâmicos da fazenda, áudio completo da SPU/reverb, mods e Android. O bootstrap não executa o jogo completo. Continue/demo param na fronteira registrada no terminal; Start/Z/X retorna ao menu. A abertura e o áudio ainda exigem comparação com o PS1 antes de afirmar fidelidade total. O recorte foi adaptado em `port/`; os módulos completos de `src/` ainda não são compilados no host. O build original de **PlayStation** continua disponível por padrão. O `.exe` Windows local foi recompilado com MinGW x64 incluindo sequência da infância e áudio XA em fluxo; Windows real/MSVC continuam pendentes.
 
@@ -125,3 +129,5 @@ Agradecimentos aos autores da decompilação, aos criadores das ferramentas util
 A licença [CC0 1.0](LICENSE) do upstream cobre **somente o trabalho próprio do repositório original**. Componentes como `tools/maspsx` podem ter licença própria. O jogo, seus gráficos, músicas, recursos e o SDK PSY-Q pertencem a seus respectivos titulares e não são liberados pela CC0.
 
 O port não deve publicar cópias do jogo ou dados proprietários sem autorização. Pretende-se estudar um processo no qual cada usuário fornece os recursos da sua própria cópia do jogo. A distribuição pública de um port com tais recursos exige análise dos direitos aplicáveis.
+
+Música, passos, TV, calendário, baú de ferramentas e livro/estante estão descritos em [HOUSE_INTERACTIONS.md](docs/port/HOUSE_INTERACTIONS.md).

@@ -8,11 +8,11 @@
 #define FAIL(message) do { snprintf(error, error_size, "%s", message); return false; } while (0)
 enum { MAX_EVENTS = 65536, MAX_PCM_BYTES = 4 * 1024 * 1024 };
 typedef struct Sample { int16_t *pcm; uint32_t count, loop; bool repeats; } Sample;
-typedef struct Tone { uint8_t volume, pan, center, shift, min, max; uint16_t adsr1, adsr2, sample; } Tone;
+typedef struct Tone { uint8_t volume, pan, center, shift, min, max, bend_min, bend_max; uint16_t adsr1, adsr2, sample; } Tone;
 typedef struct Program { uint8_t count, volume, pan; Tone tones[16]; } Program;
 typedef struct Bank { uint8_t volume, pan; Program programs[128]; Sample samples[256]; } Bank;
 typedef struct Event { uint64_t frame; uint8_t status, a, b; } Event;
-typedef struct Channel { unsigned program, volume, pan; } Channel;
+typedef struct Channel { unsigned program, volume, pan, bend; } Channel;
 typedef struct Voice {
     const Sample *sample;
     const Tone *tone;
@@ -125,10 +125,11 @@ bool hmbtn_sound_bank(HmbtnSound *s, unsigned slot, const uint8_t *vh, size_t vh
             Tone *tone = &program->tones[j];
             tone->volume = t[2]; tone->pan = t[3]; tone->center = t[4]; tone->shift = t[5];
             tone->min = t[6]; tone->max = t[7];
+            tone->bend_min=t[12];tone->bend_max=t[13];
             tone->adsr1 = hmbtn_read_le16(t + 16); tone->adsr2 = hmbtn_read_le16(t + 18);
             tone->sample = hmbtn_read_le16(t + 22);
             if (!tone->sample || tone->sample > samples || t[2] > 127 || t[3] > 127
-                    || t[4] > 127 || t[5] > 127 || t[6] > t[7]) FAIL("Invalid VAB tone");
+                    || t[4] > 127 || t[5] > 127 || t[6] > t[7] || t[12]>127 || t[13]>127) FAIL("Invalid VAB tone");
         }
         ++tone_program;
     }
@@ -193,8 +194,8 @@ bool hmbtn_sound_sequence(HmbtnSound *s, const uint8_t *seq, size_t size,
             continue;
         }
         const unsigned kind = status & 240, count = kind == 192 ? 1 : 2;
-        if (kind != 128 && kind != 144 && kind != 176 && kind != 192)
-            FAIL("Unsupported SEQ event (title sequencer scope)");
+        if (kind != 128 && kind != 144 && kind != 176 && kind != 192 && kind != 224)
+            FAIL("Unsupported native SEQ event");
         if (size - p < count || seq[p] > 127 || (count == 2 && seq[p+1] > 127))
             FAIL("Invalid SEQ event data");
         event.a = seq[p++];
@@ -211,7 +212,7 @@ void hmbtn_sound_start(HmbtnSound *s)
     s->next_event = s->loop_event = 0;
     s->frame = s->loop_frame = 0;
     s->loops = 0;
-    for (unsigned i = 0; i < 16; ++i) s->channels[i] = (Channel){0,127,64};
+    for (unsigned i = 0; i < 16; ++i) s->channels[i] = (Channel){0,127,64,8192};
     for (unsigned i = 0; i < HMBTN_AUDIO_VOICES; ++i)
         if (!s->voices[i].effect) s->voices[i].active = false;
     s->playing = s->event_count > 0;
@@ -243,6 +244,13 @@ static void gains(HmbtnSound *s, Voice *v)
     v->right = volume * (pan >= 64 ? 1.0 : pan / 64.0);
 }
 
+static void voice_pitch(const HmbtnSound *s,Voice *v)
+{
+    const int bend=v->effect ? 0 : (int)s->channels[v->channel].bend-8192;
+    const double semitones=bend*(bend<0 ? v->tone->bend_min : v->tone->bend_max)/8192.0;
+    v->pitch=pow(2.0,((double)v->note-v->tone->center-v->tone->shift/128.0+semitones)/12.0);
+    if(v->pitch>4.0) v->pitch=4.0;
+}
 static void key_on(HmbtnSound *s, unsigned bank_id, unsigned program,
     unsigned channel, unsigned note, unsigned velocity, int effect_tone)
 {
@@ -261,9 +269,8 @@ static void key_on(HmbtnSound *s, unsigned bank_id, unsigned program,
         memset(v, 0, sizeof(*v));
         v->sample = &bank->samples[tone->sample];
         v->tone = tone;
-        v->pitch = pow(2.0, ((double)note - tone->center - tone->shift / 128.0) / 12.0);
-        if (v->pitch > 4.0) v->pitch = 4.0;
         v->effect = effect; v->channel = channel; v->note = note;
+        voice_pitch(s,v);
         v->velocity = velocity; v->program = program;
         v->bank = bank_id;
         v->active = v->sample->count > 0;
@@ -279,10 +286,24 @@ static void note_on(HmbtnSound *s, unsigned channel, unsigned note, unsigned vel
 bool hmbtn_sound_key_on(HmbtnSound *s, unsigned bank, unsigned program,
     unsigned tone, unsigned note, unsigned volume)
 {
+    return hmbtn_sound_effect_start(s,bank,program,tone,note,volume)!=0;
+}
+uint64_t hmbtn_sound_effect_start(HmbtnSound *s,unsigned bank,unsigned program,
+    unsigned tone,unsigned note,unsigned volume)
+{
     if(!s || bank>2 || program>127 || note>127 || volume>127
-            || tone>=s->banks[bank].programs[program].count) return false;
+            || tone>=s->banks[bank].programs[program].count) return 0;
+    const uint64_t previous=s->serial;
     key_on(s,bank,program,0,note,volume,(int)tone);
-    return true;
+    return s->serial!=previous ? s->serial : 0;
+}
+void hmbtn_sound_release_voice(HmbtnSound *s,uint64_t handle)
+{
+    if(!s || !handle) return;
+    for(unsigned i=0;i<HMBTN_AUDIO_VOICES;++i) {
+        Voice *v=&s->voices[i];
+        if(v->active && v->effect && v->serial==handle) { v->phase=3;v->counter=0; }
+    }
 }
 void hmbtn_sound_effect(HmbtnSound *s, unsigned tone)
 {
@@ -340,6 +361,12 @@ static void events_tick(HmbtnSound *s)
             if (s->loop_frame >= s->frame) { s->playing = false; break; }
             s->frame = s->loop_frame; s->next_event = s->loop_event; ++s->loops;
         } else if (kind == 192) s->channels[channel].program = e->a;
+        else if (kind == 224) {
+            s->channels[channel].bend=e->a+128u*e->b;
+            for(unsigned i=0;i<HMBTN_AUDIO_VOICES;++i)
+                if(s->voices[i].active && !s->voices[i].effect && s->voices[i].channel==channel)
+                    voice_pitch(s,&s->voices[i]);
+        }
         else if (kind == 144 && e->b) note_on(s, channel, e->a, e->b, -1);
         else if (kind == 128 || (kind == 144 && !e->b)) {
             for (unsigned i = 0; i < HMBTN_AUDIO_VOICES; ++i) {

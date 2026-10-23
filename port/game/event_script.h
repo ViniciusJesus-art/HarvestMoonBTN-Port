@@ -22,7 +22,8 @@ typedef struct HmbtnEventCommand {
 } HmbtnEventCommand;
 typedef enum HmbtnEventResult {
     HMBTN_EVENT_ERROR = -1, HMBTN_EVENT_WAIT, HMBTN_EVENT_DONE, HMBTN_EVENT_BOUNDARY,
-    HMBTN_EVENT_PENDING /* Host resource request: preserve the cursor until fulfilled. */
+    HMBTN_EVENT_PENDING, /* Host resource request: preserve the cursor until fulfilled. */
+    HMBTN_EVENT_JUMP /* Handler supplied a validated runtime return cursor. */
 } HmbtnEventResult;
 typedef HmbtnEventResult (*HmbtnEventHandler)(void *context, const HmbtnEventCommand *command,
     char *error, size_t error_size);

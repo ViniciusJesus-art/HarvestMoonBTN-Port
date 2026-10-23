@@ -180,6 +180,70 @@ int main(void)
     /* A house spawn elsewhere must fail instead of teleporting to guessed data. */
     CHECK(hmbtn_farm_intro_open(&intro,bytes+16,96,error,sizeof(error)));
     CHECK(!hmbtn_farm_intro_tick(&intro,error,sizeof(error)));
+    /* Calls and runtime returns leave the immutable bytecode untouched. */
+    step(bytes,0x4F,3,255,0,5,0,0,0);
+    step(bytes+16,0x15,2,255,1,6,0,77,0);
+    step(bytes+32,255,0,0,0,0,0,0,0);
+    step(bytes+48,0x15,255,255,0,7,0,88,0);
+    step(bytes+64,0x50,4,4,0,5,0,0,0);
+    uint8_t immutable[80];memcpy(immutable,bytes,sizeof(immutable));
+    CHECK(hmbtn_farm_intro_open(&intro,bytes,80,error,sizeof(error)));
+    intro.event=12;
+    CHECK(hmbtn_farm_intro_tick(&intro,error,sizeof(error)));
+    CHECK(intro.script.pc==2 && intro.slots[5]==1 && intro.slots[6]==77 && intro.slots[7]==88);
+    CHECK(memcmp(bytes,immutable,sizeof(immutable))==0);
+    CHECK(hmbtn_farm_intro_tick(&intro,error,sizeof(error)) && intro.script.finished);
+    CHECK(hmbtn_farm_intro_open(&intro,bytes,80,error,sizeof(error)));
+    intro.script.pc=4;intro.slots[5]=80;
+    CHECK(!hmbtn_farm_intro_tick(&intro,error,sizeof(error)));
+    /* Wait on a bank halfway through one conversation, without reopening it. */
+    step(bytes,2,255,255,0,1,70,-1,0);
+    step(bytes+16,0x3B,255,1,1,105,0,0,0);
+    step(bytes+32,2,255,2,1,1,70,-1,0);
+    step(bytes+48,255,0,0,0,0,0,0,0);
+    CHECK(hmbtn_farm_intro_open(&intro,bytes,64,error,sizeof(error)));
+    intro.event=12;intro.text_bank=142;
+    CHECK(hmbtn_farm_intro_tick(&intro,error,sizeof(error)) && intro.message==70 && intro.script.pc==1);
+    for(unsigned i=0;i<5;++i) CHECK(hmbtn_farm_intro_tick(&intro,error,sizeof(error)) && intro.script.pc==1);
+    intro.text_bank=105;
+    CHECK(hmbtn_farm_intro_tick(&intro,error,sizeof(error)) && intro.script.pc==2 && intro.message==70);
+    CHECK(hmbtn_farm_intro_tick(&intro,error,sizeof(error)) && intro.script.pc==2);
+    intro.message_done=true;
+    CHECK(hmbtn_farm_intro_tick(&intro,error,sizeof(error)) && intro.script.pc==3 && !intro.message);
+    /* Acknowledge targets only after the host loads the actual scene. */
+    const unsigned tour_areas[]={0,32,36,40,48,52};
+    for(unsigned i=0;i<sizeof(tour_areas)/sizeof(tour_areas[0]);++i) {
+        step(bytes,8,255,0,0,(int)tour_areas[i],0,0,0);
+        step(bytes+16,255,0,0,0,0,0,0,0);
+        CHECK(hmbtn_farm_intro_open(&intro,bytes,32,error,sizeof(error)));
+        intro.event=12;intro.area=80;
+        CHECK(hmbtn_farm_intro_tick(&intro,error,sizeof(error)) && intro.area_pending && intro.script.pc==0);
+        CHECK(intro.target_area==tour_areas[i] && !intro.script.boundary);
+        intro.area=tour_areas[i];intro.area_pending=false;
+        CHECK(hmbtn_farm_intro_tick(&intro,error,sizeof(error)) && intro.script.finished);
+    }
+    /* Zack's cut saves/restores (y,x,z); Thomas stops by his previous speed. */
+    step(bytes,0x49,255,255,0,41,1,2,3);
+    step(bytes+16,0x3D,255,255,0,0,192,-5023,1450);
+    step(bytes+32,0x3D,255,255,0,1,1,2,3);
+    step(bytes+48,0x53,255,255,0,17,0,0,2);
+    step(bytes+64,0x67,255,255,0,41,0,0,26);
+    step(bytes+80,255,0,0,0,0,0,0,0);
+    CHECK(hmbtn_farm_intro_open(&intro,bytes,96,error,sizeof(error)));
+    intro.event=12;intro.player.position[0]=-4257;intro.player.position[1]=10;intro.player.position[2]=3959;
+    intro.mayor.velocity[2]=40;intro.zack.position[0]=-3888;intro.zack.position[2]=7895;
+    CHECK(hmbtn_farm_intro_tick(&intro,error,sizeof(error)) && intro.script.finished);
+    CHECK(intro.slots[1]==10 && intro.slots[2]==-4257 && intro.slots[3]==3959);
+    CHECK(intro.player.position[0]==-4257 && intro.player.position[1]==10 && intro.player.position[2]==3959);
+    CHECK(intro.player.facing==2 && intro.mayor.sprite.frame==2 && !intro.mayor.velocity[2]);
+    /* The last step from the house points north; standing must face Thomas. */
+    CHECK(hmbtn_farm_intro_open(&intro,bytes,96,error,sizeof(error)));
+    intro.visit_approach=true;
+    intro.player.position[0]=-4257;intro.player.position[2]=4000;intro.player.facing=0;
+    intro.mayor.position[0]=-3888;intro.mayor.position[2]=3959;
+    CHECK(hmbtn_farm_intro_tick(&intro,error,sizeof(error)));
+    CHECK(!intro.visit_approach && intro.player.position[2]==3959 && intro.player.facing==3);
+    CHECK(intro.player.sprite.animation==0 && intro.player.sprite.frame==3);
     puts("Bounded events, native movement, camera, resource handshakes and farmhouse handoff passed.");
     return 0;
 }

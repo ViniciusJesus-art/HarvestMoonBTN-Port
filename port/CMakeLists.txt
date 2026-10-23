@@ -39,10 +39,25 @@ foreach(label season_text_codes weekday_text_codes)
 endforeach()
 string(REPLACE "TEXT_CODE_SPACE" "0x0FFD" house_labels "${house_labels}")
 file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/generated/house_labels.inc" "${house_labels}")
+file(READ "${text_bank_source}" farm_text_source)
+set(farm_labels "/* Original text-bank labels for native farm menus. */\n")
+foreach(label swap_equip swap_rucksack farm pieces gold amount_shipped help status_free
+        earnings_expenses this_months_accounts level glyph_8f nothing
+        go_getter spend_too_much idler satisfactory you_should_save play_too_much
+        hard_worker keep_working try_harder
+        chef nappy timid hoggy staid bold aqua)
+    string(REGEX MATCH "\\.${label} = \\{[^}]+\\}" farm_label "${farm_text_source}")
+    if(NOT farm_label)
+        message(FATAL_ERROR "Missing original farm label ${label}")
+    endif()
+    string(REPLACE ".${label} =" "static const uint16_t farm_${label}[] =" farm_label "${farm_label}")
+    string(APPEND farm_labels "${farm_label};\n")
+endforeach()
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/generated/farm_menu_labels.inc" "${farm_labels}")
 add_library(hmbtn_port_core STATIC core/psx_data.c graphics/asset_decode.c graphics/window_frame.c
     graphics/model_decode.c graphics/model_render.c graphics/scene_decode.c game/title_flow.c game/new_game.c
     game/event_script.c game/farm_intro.c game/ground.c game/house_control.c game/house_interaction.c
-    game/house_sleep.c audio/psx_audio.c audio/xa_decode.c)
+    game/house_sleep.c game/farm_field.c game/farm_action.c game/field_effects.c game/farm_menu.c game/farm_carry.c game/farm_clock.c game/farm_shipping.c game/world_map.c game/village.c audio/psx_audio.c audio/xa_decode.c)
 target_include_directories(hmbtn_port_core PUBLIC core graphics game input audio)
 if(NOT MSVC)
     target_link_libraries(hmbtn_port_core PUBLIC m)
@@ -51,6 +66,31 @@ target_compile_features(hmbtn_port_core PUBLIC c_std_11)
 set_target_properties(hmbtn_port_core PROPERTIES C_EXTENSIONS OFF)
 
 find_package(Python3 3.10 REQUIRED COMPONENTS Interpreter)
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/generate_farm_tables.py"
+    "${CMAKE_SOURCE_DIR}/src/main/game/farm_tables.c"
+    "${CMAKE_SOURCE_DIR}/src/main/game/farm_tables.h"
+    "${CMAKE_SOURCE_DIR}/src/include/items.h"
+    "${CMAKE_SOURCE_DIR}/src/overlay/11_GF_FARM/farm_probe.c"
+    "${CMAKE_SOURCE_DIR}/src/overlay/11_GF_FARM/field/field.c"
+    "${CMAKE_SOURCE_DIR}/src/overlay/11_GF_FARM/menu/storage_swap.c"
+    "${CMAKE_SOURCE_DIR}/src/main/sound/sound.c")
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+    "${CMAKE_SOURCE_DIR}/src/main/sound/sound_request.c"
+    "${CMAKE_SOURCE_DIR}/src/overlay/11_GF_FARM/farm_data.c"
+    "${CMAKE_SOURCE_DIR}/src/overlay/common/farm_section_table.h"
+    "${CMAKE_SOURCE_DIR}/src/overlay/11_GF_FARM/people/player.c")
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+    "${CMAKE_SOURCE_DIR}/src/overlay/11_GF_FARM/estate.c"
+    "${CMAKE_SOURCE_DIR}/src/overlay/11_GF_FARM/world/clock.c")
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+    "${CMAKE_SOURCE_DIR}/src/main/game/event_flags.h"
+    "${CMAKE_SOURCE_DIR}/src/overlay/11_GF_FARM/event/cue_history.c"
+    "${CMAKE_SOURCE_DIR}/src/overlay/11_GF_FARM/event/event_rules.c"
+    "${CMAKE_SOURCE_DIR}/src/overlay/11_GF_FARM/farm_load.c")
+execute_process(COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/cmake/generate_farm_tables.py"
+    "${CMAKE_SOURCE_DIR}" "${CMAKE_CURRENT_BINARY_DIR}/generated/farm_tables.inc" COMMAND_ERROR_IS_FATAL ANY)
+target_include_directories(hmbtn_port_core PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated")
 set(app_logo "${CMAKE_CURRENT_SOURCE_DIR}/HMBTN_Logo.png")
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/packaging/make_icon.py" "${app_logo}")
@@ -61,7 +101,7 @@ add_library(hmbtn_host STATIC core/app.c platform/sdl_host.c platform/app_icon.c
     installer/disc_import.c installer/sha256.c installer/setup.c
     graphics/diagnostic_screen.c graphics/title_preview.c input/window_input.c
     input/game_input.c filesystem/resource_file.c filesystem/data_directory.c audio/title_audio.c audio/xa_stream.c
-    graphics/new_game_ui.c graphics/house_ui.c graphics/scene_preview.c)
+    graphics/new_game_ui.c graphics/house_ui.c graphics/farm_menu_ui.c graphics/village_art.c graphics/scene_preview.c)
 target_include_directories(hmbtn_host PUBLIC core platform graphics input filesystem game installer)
 target_include_directories(hmbtn_host PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated")
 target_link_libraries(hmbtn_host PUBLIC hmbtn_port_core SDL3::SDL3)
@@ -138,9 +178,69 @@ if(BUILD_TESTING)
     add_executable(hmbtn_event_script_test tests/event_script_test.c)
     target_link_libraries(hmbtn_event_script_test PRIVATE hmbtn_port_core)
     add_test(NAME native_event_runtime COMMAND hmbtn_event_script_test)
+    add_executable(hmbtn_farm_clock_test tests/farm_clock_test.c)
+    target_link_libraries(hmbtn_farm_clock_test PRIVATE hmbtn_port_core)
+    add_test(NAME native_farm_clock COMMAND hmbtn_farm_clock_test)
+    add_executable(hmbtn_world_map_test tests/world_map_test.c)
+    target_link_libraries(hmbtn_world_map_test PRIVATE hmbtn_port_core)
+    add_test(NAME native_world_map COMMAND hmbtn_world_map_test)
+    add_executable(hmbtn_village_test tests/village_test.c)
+    target_link_libraries(hmbtn_village_test PRIVATE hmbtn_port_core)
+    add_test(NAME native_village COMMAND hmbtn_village_test)
+    add_executable(hmbtn_village_playthrough tests/village_playthrough.c)
+    target_include_directories(hmbtn_village_playthrough PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated")
+    target_link_libraries(hmbtn_village_playthrough PRIVATE hmbtn_host)
+    add_executable(hmbtn_first_morning_playthrough tests/first_morning_playthrough.c)
+    target_include_directories(hmbtn_first_morning_playthrough PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated")
+    target_link_libraries(hmbtn_first_morning_playthrough PRIVATE hmbtn_host)
+    add_executable(hmbtn_world_clock_playthrough tests/world_clock_playthrough.c)
+    target_include_directories(hmbtn_world_clock_playthrough PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated")
+    target_link_libraries(hmbtn_world_clock_playthrough PRIVATE hmbtn_host)
+    add_executable(hmbtn_shipping_playthrough tests/shipping_playthrough.c)
+    target_include_directories(hmbtn_shipping_playthrough PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated")
+    target_link_libraries(hmbtn_shipping_playthrough PRIVATE hmbtn_host)
+    add_executable(hmbtn_world_map_playthrough tests/world_map_playthrough.c)
+    target_include_directories(hmbtn_world_map_playthrough PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated")
+    target_link_libraries(hmbtn_world_map_playthrough PRIVATE hmbtn_host)
+    add_executable(hmbtn_farm_interiors_playthrough tests/farm_interiors_playthrough.c)
+    target_include_directories(hmbtn_farm_interiors_playthrough PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated")
+    target_link_libraries(hmbtn_farm_interiors_playthrough PRIVATE hmbtn_host)
+    set(HMBTN_TEST_GAME_DATA "" CACHE PATH "Optional extracted game data for local integration checks")
+    if(HMBTN_TEST_GAME_DATA)
+        add_test(NAME native_village_playthrough COMMAND hmbtn_village_playthrough "${HMBTN_TEST_GAME_DATA}")
+        set_tests_properties(native_village_playthrough PROPERTIES TIMEOUT 120
+            ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_RENDER_DRIVER=software;SDL_AUDIO_DRIVER=dummy")
+        add_test(NAME native_farm_interiors_playthrough COMMAND hmbtn_farm_interiors_playthrough "${HMBTN_TEST_GAME_DATA}")
+        set_tests_properties(native_farm_interiors_playthrough PROPERTIES TIMEOUT 60
+            ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_RENDER_DRIVER=software;SDL_AUDIO_DRIVER=dummy")
+        add_test(NAME native_first_morning_playthrough COMMAND hmbtn_first_morning_playthrough "${HMBTN_TEST_GAME_DATA}")
+        set_tests_properties(native_first_morning_playthrough PROPERTIES TIMEOUT 60
+            ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_RENDER_DRIVER=software;SDL_AUDIO_DRIVER=dummy")
+        add_test(NAME native_world_clock_playthrough COMMAND hmbtn_world_clock_playthrough "${HMBTN_TEST_GAME_DATA}")
+        set_tests_properties(native_world_clock_playthrough PROPERTIES TIMEOUT 60
+            ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_RENDER_DRIVER=software;SDL_AUDIO_DRIVER=dummy")
+        add_test(NAME native_shipping_playthrough COMMAND hmbtn_shipping_playthrough "${HMBTN_TEST_GAME_DATA}")
+        set_tests_properties(native_shipping_playthrough PROPERTIES TIMEOUT 60
+            ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_RENDER_DRIVER=software;SDL_AUDIO_DRIVER=dummy")
+        add_test(NAME native_world_map_playthrough COMMAND hmbtn_world_map_playthrough "${HMBTN_TEST_GAME_DATA}")
+        set_tests_properties(native_world_map_playthrough PROPERTIES TIMEOUT 60
+            ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_RENDER_DRIVER=software;SDL_AUDIO_DRIVER=dummy")
+    endif()
     add_executable(hmbtn_house_control_test tests/house_control_test.c)
     target_link_libraries(hmbtn_house_control_test PRIVATE hmbtn_port_core)
     add_test(NAME native_house_control COMMAND hmbtn_house_control_test)
+    add_executable(hmbtn_farm_field_test tests/farm_field_test.c)
+    target_link_libraries(hmbtn_farm_field_test PRIVATE hmbtn_port_core)
+    add_test(NAME native_farm_field COMMAND hmbtn_farm_field_test)
+    add_executable(hmbtn_farm_menu_test tests/farm_menu_test.c)
+    target_link_libraries(hmbtn_farm_menu_test PRIVATE hmbtn_port_core)
+    add_test(NAME native_farm_menu COMMAND hmbtn_farm_menu_test)
+    add_executable(hmbtn_farm_carry_test tests/farm_carry_test.c)
+    target_link_libraries(hmbtn_farm_carry_test PRIVATE hmbtn_port_core)
+    add_test(NAME native_farm_carry COMMAND hmbtn_farm_carry_test)
+    add_executable(hmbtn_farm_shipping_test tests/farm_shipping_test.c)
+    target_link_libraries(hmbtn_farm_shipping_test PRIVATE hmbtn_port_core)
+    add_test(NAME native_farm_shipping COMMAND hmbtn_farm_shipping_test)
     add_executable(hmbtn_house_interaction_test tests/house_interaction_test.c)
     target_link_libraries(hmbtn_house_interaction_test PRIVATE hmbtn_port_core)
     add_test(NAME native_house_interaction COMMAND hmbtn_house_interaction_test)

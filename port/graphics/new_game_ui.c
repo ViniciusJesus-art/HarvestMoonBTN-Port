@@ -15,6 +15,8 @@ struct HmbtnNewGameUI {
     HmbtnAnimationPlayer heart;
     uint8_t icons_block[UI_BLOCK_SIZE];
     bool dim;
+    char *root;
+    unsigned portrait_bank;
 };
 void hmbtn_new_game_ui_cursor(const HmbtnNewGameUI *u, HmbtnWorldSprite *sprite,
     const int32_t position[3], unsigned variant)
@@ -27,6 +29,9 @@ HmbtnNewGameUI *hmbtn_new_game_ui_create(const char *root, char *error, size_t e
     HmbtnNewGameUI *u = calloc(1,sizeof(*u));
     uint8_t small[8192];
     if (!u) { snprintf(error,error_size,"Cannot allocate new-game UI"); return NULL; }
+    u->root=malloc(strlen(root)+1);
+    if(!u->root) { free(u);snprintf(error,error_size,"Cannot retain UI resource root");return NULL; }
+    strcpy(u->root,root);u->portrait_bank=UINT32_MAX;
     u->atlas = malloc(sizeof(*u->atlas));
     if (!u->atlas) { snprintf(error,error_size,"Cannot allocate UI image atlas"); goto failed; }
     if (!hmbtn_resource_read(root,"A_FILE/00_gf.bin",0,small,sizeof(small),error,error_size)
@@ -41,7 +46,7 @@ failed:
 }
 void hmbtn_new_game_ui_destroy(HmbtnNewGameUI *u)
 {
-    if (u) { free(u->atlas); free(u); }
+    if (u) { free(u->root);free(u->atlas); free(u); }
 }
 bool hmbtn_new_game_ui_load(HmbtnNewGameUI *u, const char *root, HmbtnNewGame *g,
     char *error, size_t error_size)
@@ -64,9 +69,20 @@ bool hmbtn_new_game_ui_message(HmbtnNewGameUI *u, const char *root,
 bool hmbtn_ui_message_record(HmbtnNewGameUI *u,const uint8_t *record,size_t size,
     HmbtnMessage *message,char *error,size_t error_size)
 {
-    return hmbtn_message_open(message,record,size,error,error_size)
+    const bool ok=hmbtn_message_open(message,record,size,error,error_size)
         && (hmbtn_read_le32(record) == UINT32_MAX
             || hmbtn_bank_apply(record+4,0x1800-4,u->atlas,error,error_size));
+    if(ok && hmbtn_read_le32(record)!=UINT32_MAX) u->portrait_bank=hmbtn_read_le32(record);
+    return ok;
+}
+bool hmbtn_ui_message_portrait(HmbtnNewGameUI *u,const HmbtnMessage *m,char *error,size_t error_size)
+{
+    if(m->bank==UINT32_MAX || m->bank==u->portrait_bank) return true;
+    uint8_t bank[0x1800];
+    if(m->bank>UINT32_MAX/sizeof(bank)) { snprintf(error,error_size,"Portrait bank outside bounds");return false; }
+    if(!hmbtn_resource_read(u->root,"A_FILE/01_face.bin",m->bank*sizeof(bank),bank,sizeof(bank),error,error_size)
+            || !hmbtn_bank_apply(bank,sizeof(bank),u->atlas,error,error_size)) return false;
+    u->portrait_bank=m->bank;return true;
 }
 static bool glyph(HmbtnNewGameUI *u,uint8_t *p,uint16_t code,int x,int y,unsigned palette,
     char *error,size_t error_size)
@@ -172,6 +188,7 @@ static bool summary(HmbtnNewGameUI *u,const HmbtnNewGame *g,uint8_t *p,char *err
 bool hmbtn_new_game_ui_draw(HmbtnNewGameUI *u,const HmbtnNewGame *g,
     unsigned tick,uint8_t *p,char *error,size_t error_size)
 {
+    if(g->message.phase!=HMBTN_MESSAGE_CLOSED && !hmbtn_ui_message_portrait(u,&g->message,error,error_size)) return false;
     const bool editor=hmbtn_new_game_name_editor(g);
     const bool birthday=g->step==18;
     if(editor || birthday) {
@@ -227,12 +244,12 @@ bool hmbtn_new_game_ui_draw(HmbtnNewGameUI *u,const HmbtnNewGame *g,
     if(m->phase==HMBTN_MESSAGE_PRINTING || m->phase==HMBTN_MESSAGE_SCROLLING || m->phase==HMBTN_MESSAGE_WAIT_END || m->phase==HMBTN_MESSAGE_WAIT_PAGE) {
         if(!text(u,p,m->words+m->page,m->cursor-m->page,30,168-(int)m->scroll_y,0,3,true,error,error_size)) return false;
         if(m->face && !hmbtn_texture_draw(u->atlas,960,175,80,80,8,0,490,26,84,p,WIDTH,HEIGHT,error,error_size)) return false;
-        if(!m->suppress_cursor && !editor && !birthday && g->step!=26 && (m->phase==HMBTN_MESSAGE_WAIT_END || m->phase==HMBTN_MESSAGE_WAIT_PAGE)) {
+        if(!m->suppress_cursor && !editor && !birthday && g->step!=26 && !(g->step==100 && m->choices) && (m->phase==HMBTN_MESSAGE_WAIT_END || m->phase==HMBTN_MESSAGE_WAIT_PAGE)) {
             if(!hmbtn_animation_draw(&u->icons,u->atlas,&u->heart,285,217,p,WIDTH,HEIGHT,
                     WIDTH*HEIGHT*4,error,error_size)
                     || !hmbtn_animation_tick(&u->icons,&u->heart,error,error_size)) return false;
         }
-        if(g->step==26 && m->phase==HMBTN_MESSAGE_WAIT_END
+        if((g->step==26 || (g->step==100 && m->choices)) && m->phase==HMBTN_MESSAGE_WAIT_END
                 && !icon(u,p,11,1,36,174+(int)g->choice*14,error,error_size)) return false;
         if(((editor && g->confirming) || (birthday && g->birthday_phase==3)) && m->phase==HMBTN_MESSAGE_WAIT_END) {
             hmbtn_window_frame_draw(p,WIDTH,HEIGHT,145,76,40,30);

@@ -27,6 +27,7 @@ typedef struct HmbtnWorldSprite {
 
 HmbtnModelRenderer *hmbtn_model_renderer_create(uint32_t primitive_capacity);
 void hmbtn_model_renderer_destroy(HmbtnModelRenderer *renderer);
+bool hmbtn_model_project_point(const HmbtnCamera *camera,const int32_t position[3],int *x,int *y);
 /* Fixed 320x240 output. The caller clears its frame; this overlays the model. */
 bool hmbtn_model_render(HmbtnModelRenderer *renderer, const HmbtnModel *model,
     const HmbtnImageAtlas *atlas, const HmbtnCamera *camera, uint8_t *rgba,

@@ -25,7 +25,7 @@ O personagem e a câmera param enquanto um desses menus está aberto.
 | TV | Z abre a seleção. Cima: previsão; direita: programa diário; esquerda: entretenimento do dia; baixo: educação. Direções trocam o canal enquanto assiste. X fecha. |
 | Calendário | Abre no dia atual. Setas movem com as regras originais de retorno; Z ou V/Triangle mostra o evento, ou a mensagem padrão. X/Start fecha. |
 | Baú | A tampa gira antes de abrir a interface original. Setas escolhem uma célula; Z marca origem e depois destino para mover/trocar ferramentas. X cancela a marcação ou fecha; Start fecha. Q/E muda a página; Tab organiza; V mostra a descrição. |
-| Livro/estante | Mostra a mensagem original `0x246`, com rolagem contínua; Z/X avança e fecha. |
+| Livro/estante | Mostra a mensagem original `0x246` do banco 2, com rolagem contínua; Z/X avança e fecha. |
 | Opções (livro azul ao lado da cama) | Z abre o menu original. Setas e Z navegam/confirma; X retorna; Enter/Start fecha. Manual: Z exibe a descrição do botão. Configuração: V/Triangle exibe a explicação. |
 | Cama | Z, olhando para a esquerda, abre as quatro entradas originais. Setas escolhem; X/Start cancela. As duas primeiras executam a animação de deitar até o limite do pernoite; diário/carregamento e troca de animais ainda não executam os overlays correspondentes. |
 
@@ -34,11 +34,13 @@ O baú começa com foice, machado, enxada, martelo e regador, conforme
 iniciais de ferramentas desbloqueadas. Os valores de id, modificador e
 contagem são movidos/trocados, sem duplicar o item. Alterações permanecem
 entre aberturas do baú **na mesma execução**. Não há save em disco nesta etapa.
-O uso das ferramentas depende do gameplay externo ainda pendente.
+As cinco ferramentas iniciais já podem ser usadas no exterior; consulte
+[FARM_CONTROL.md](FARM_CONTROL.md) para os controles e limites.
 
 As descrições das cinco ferramentas foram conferidas nos recursos locais.
-O insert `0x4010` da descrição do regador mostra zero, correspondente ao
-regador inicial vazio; enchimento/uso e contagens posteriores não estão portados.
+O insert `0x4010` da descrição do regador lê a contagem real da ferramenta
+selecionada. Começa vazio; reabastecer no exterior repõe 100 unidades, e a
+rega desconta dessa contagem, conservada ao mover a ferramenta pelo baú.
 
 O calendário usa o relógio inicial original: ano interno 0, primavera,
 dia interno 1 (dia 2 exibido), segunda-feira às 6:00. Isso é separado do
@@ -77,7 +79,7 @@ com descrições `0x367..0x371`. A configuração apresenta quatro linhas:
 O valor selecionado aparece opaco e as alternativas usam semitransparência.
 As opções e o inventário permanecem apenas na sessão, sem persistência em disco.
 
-## Cama e fronteira do pernoite
+## Cama e pernoite
 
 O menu conserva as quatro entradas de `sleep_menu`, a ajuda `0x1B7`, suas
 posições e sons. “Sleep without making diary entry” e “Make diary entry and
@@ -90,10 +92,11 @@ alternando as entradas LINK 0/1. O renderizador interpola os vértices do primei
 objeto entre as chaves originais e desenha a topologia de saída, sem alterar os
 bytes importados ou converter endereços PS1 em ponteiros host.
 
-Ao terminar o fade, a tela permanece preta e o terminal informa **Overnight
-boundary**. Antes de trocar a data ou salvar, faltam `field_daily_tick`,
-`farm_end_of_day`, clima, animais, eventos e a preparação da manhã.
-Não há avanço fictício da data nem arquivo de save nesta etapa. Escape fecha.
+Ao terminar o fade, o relógio avança pelas regras de sono do original e o
+jogador desperta na entrada da casa, com calendário e horário atualizados.
+Stamina/fadiga, secagem do solo e mudanças de estação estão ligadas ao trecho
+implementado. Clima, cultivos, animais e outros callbacks diários continuam
+pendentes; o pedido de diário não grava arquivo. Veja [CLOCK.md](CLOCK.md).
 “Read diary” e “Exchange animals” emitem o som de recusa e identificam o overlay
 pendente no terminal, mantendo o menu utilizável. A interface de memory card e
 o carregamento não estão portados.
@@ -124,20 +127,24 @@ Origem: `people/player.c`, `event/messages.c`, `menu/calendar.c`,
 | `00_gf.bin` | TV: grupo `g` em `0x3D5A800 + g * 0x1800`, três setores por grupo |
 | `00_gf.bin` | Imagem de item `id`: setor em `0x3C19000 + id * 0x800` |
 | `00_gf.bin` | Ação de dormir `[0x3CED000,0x3CF0800)`, ANI alinhada em 312 bytes |
-| `05_messege3.bin` | Um registro de 8192 bytes por mensagem |
+| `04_messege2.bin` | Estante e placas externas; um registro de 8192 bytes por mensagem |
+| `05_messege3.bin` | TV e demais menus da casa; um registro de 8192 bytes por mensagem |
 
 O passo usa o SoundDef 72: VAB da fazenda, programa 8, tom 0, nota 68,
 volume 20; intervalos seguem os limites 12/8 do original para andar/correr.
 O tema da casa ensolarada é a música da estação (primavera: música 1),
-conforme `farm_track_id`, com subida de volume por 100 ticks.
+conforme `farm_track_id`, com subida de volume por 100 ticks. O volume segue
+`farm_set_message_timing`: 80 dentro da casa e 100 no exterior, aplicado também
+durante a troca de área; a música não reinicia e os efeitos mantêm seu volume.
 Não há CD/MIPS ou recursos proprietários no Git; as leituras continuam limitadas.
 
 ## Limites e validação
 
-Avanço do pernoite e manhã seguinte, diário/save/load, outros armários de casas
-ampliadas, casamento, receitas e saída para a fazenda ainda estão pendentes.
+Diário/save/load, outros armários de casas
+ampliadas, casamento e receitas ainda estão pendentes.
 Essas operações não são substituídas por diálogos que aparentem completá-las.
-A porta continua pausando na fronteira documentada em [HOUSE_CONTROL.md](HOUSE_CONTROL.md).
+A saída e o retorno pela porta estão integrados; limites atuais em
+[FARM_CONTROL.md](FARM_CONTROL.md).
 A casa ainda não comprova paridade 1:1 com PS1: ritmo de abertura/fechamento,
 câmera, reverb/interpolação SPU e entradas completas precisam de comparação.
 Em particular, fechar o baú ainda reverte a tampa junto do fechamento do menu.

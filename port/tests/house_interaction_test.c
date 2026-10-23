@@ -27,7 +27,7 @@ int main(void)
     HmbtnIntroActor p={0}; p.position[2]=992; p.facing=1;
     CHECK(!hmbtn_house_interact(&h,section,sizeof(section),&p));
     p.facing=2; CHECK(hmbtn_house_interact(&h,section,sizeof(section),&p));
-    CHECK(h.mode==HMBTN_HOUSE_TV_SELECT && h.request==0x3a1);
+    CHECK(h.mode==HMBTN_HOUSE_TV_SELECT && h.request==0x3a1 && h.message_bank==3);
     ready(&h); hmbtn_house_interaction_tick(&h,HMBTN_PAD_LEFT,0);
     CHECK(h.mode==HMBTN_HOUSE_TV && h.request==0x263 && h.tv_group==10 && h.tv_dirty);
     hmbtn_house_interaction_tick(&h,HMBTN_PAD_CIRCLE,0);
@@ -138,6 +138,57 @@ int main(void)
     hmbtn_house_interaction_init(&h); hmbtn_write_le16(z,0);
     CHECK(!hmbtn_house_interact(&h,section,sizeof(section),&p));
     CHECK(!hmbtn_house_interact(&h,section,10,&p));
+    /* The book and farm signs use bank 2, including FACING_ANY signs. */
+    hmbtn_write_le16(z,0x4000); hmbtn_write_le16(z+2,16);
+    hmbtn_write_le16(z+4,0x19e); hmbtn_write_le16(z+8,5);
+    p.position[0]=0; p.position[1]=0; p.position[2]=1224; p.facing=0;
+    CHECK(!hmbtn_house_interact(&h,section,sizeof(section),&p)); /* Strict front edge. */
+    p.position[2]=1300;
+    CHECK(hmbtn_house_interact(&h,section,sizeof(section),&p));
+    CHECK(h.mode==HMBTN_HOUSE_BOOK && h.message_bank==2 && h.request==0x19e);
+    ready(&h); hmbtn_house_interaction_tick(&h,HMBTN_PAD_CROSS,0);
+    CHECK(h.message.phase==HMBTN_MESSAGE_CLOSING);
+    for(unsigned i=0;i<12;++i) {
+        hmbtn_house_interaction_tick(&h,0,0);
+        CHECK(h.message.phase!=HMBTN_MESSAGE_OPENING);
+        if(i<11) CHECK(h.message.box_frame==i+1);
+    }
+    CHECK(h.message.phase==HMBTN_MESSAGE_CLOSED && h.mode==HMBTN_HOUSE_FREE);
+    for(unsigned i=0;i<15;++i) {
+        hmbtn_house_interaction_tick(&h,0,0);
+        int x,y,w,height; CHECK(!hmbtn_message_box(&h.message,&x,&y,&w,&height));
+    }
+    hmbtn_house_interaction_init(&h); hmbtn_write_le16(z+2,3);
+    CHECK(!hmbtn_house_interact(&h,section,sizeof(section),&p)); /* TV has no wildcard. */
+    uint8_t record[8192]={0}; record[0]=0xa5;
+    uint16_t dog[HMBTN_NAME_CHARS+1]={1,14,1,0xffff};
+    const uint16_t source[]={0x400c,0xffd,0x4012,0xffd,0x4013,0xffd,0x4014,0xffd,0x4015,0xffff};
+    const uint16_t expected[]={1,14,1,0xffd,0x40,0xffd,0x44,0x42,0xffd,
+        0x49,0x49,0x49,0x49,0xffd,0x41,0x40,0x40,0xffff};
+    h.supplies[1]=42; h.supplies[2]=9999; h.supplies[3]=100;
+    for(unsigned i=0;i<sizeof(source)/sizeof(*source);++i) hmbtn_write_le16(record+0x1800+i*2,source[i]);
+    CHECK(hmbtn_house_expand_reading(&h,record,sizeof(record),dog,dog));
+    CHECK(record[0]==0xa5); /* Preserve the portrait/image section. */
+    for(unsigned i=0;i<sizeof(expected)/sizeof(*expected);++i)
+        CHECK(hmbtn_read_le16(record+0x1800+i*2)==expected[i]);
+    HmbtnMessage expanded; char error[256]={0};
+    CHECK(hmbtn_message_open(&expanded,record,sizeof(record),error,sizeof(error)));
+    CHECK(!hmbtn_house_expand_reading(&h,record,8191,dog,dog));
+    for(unsigned i=0;i<HMBTN_MESSAGE_WORDS;++i) hmbtn_write_le16(record+0x1800+i*2,0x400c);
+    CHECK(!hmbtn_house_expand_reading(&h,record,sizeof(record),dog,dog)); /* No terminator/capacity. */
+    hmbtn_write_le16(record+0x1800,0x4012); hmbtn_write_le16(record+0x1802,0xffff);
+    h.supplies[0]=10000;
+    CHECK(!hmbtn_house_expand_reading(&h,record,sizeof(record),dog,dog));
+    hmbtn_write_le16(record+0x1800,0x4010);hmbtn_write_le16(record+0x1802,0xffff);
+    h.cursor=0;h.equipped=(HmbtnStoredTool){21,0,100};
+    CHECK(hmbtn_house_expand_reading(&h,record,sizeof(record),dog,dog));
+    CHECK(hmbtn_read_le16(record+0x1800)==0x41 && hmbtn_read_le16(record+0x1802)==0x40
+        && hmbtn_read_le16(record+0x1804)==0x40 && hmbtn_read_le16(record+0x1806)==0xffff);
+    uint16_t farm[HMBTN_NAME_CHARS+1]={2,3,4,5,6,7,8,9,0xffff};
+    hmbtn_write_le16(record+0x1800,0x400d);hmbtn_write_le16(record+0x1802,0xffff);
+    CHECK(hmbtn_house_expand_reading(&h,record,sizeof(record),dog,farm));
+    for(unsigned i=0;i<8;++i) CHECK(hmbtn_read_le16(record+0x1800+i*2)==farm[i]);
+    CHECK(hmbtn_read_le16(record+0x1810)==0xffff);
     puts("House objects, options, controller layouts, bed/diary boundaries and original sleep sequence passed.");
     return 0;
 }

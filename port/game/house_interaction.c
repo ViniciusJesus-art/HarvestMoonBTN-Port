@@ -17,6 +17,43 @@ void hmbtn_house_interaction_init(HmbtnHouseInteraction *h)
     const uint16_t tools[5]={1,11,6,16,21};
     for(unsigned i=0;i<5;++i) h->toolbox[i].id=tools[i];
 }
+bool hmbtn_house_expand_reading(const HmbtnHouseInteraction *h, uint8_t *record,
+    size_t size, const uint16_t dog_name[HMBTN_NAME_CHARS+1],
+    const uint16_t farm_name[HMBTN_NAME_CHARS+1])
+{
+    /* text_insert_source: dog/farm names and estate stocks in bank-2 signs.
+     * Unsupported inserts stay intact for the message parser to reject. */
+    if(!h || !record || size!=8192 || !dog_name || !farm_name) return false;
+    uint16_t words[HMBTN_MESSAGE_WORDS]; unsigned count=0;
+    for(unsigned i=0;i<HMBTN_MESSAGE_WORDS;++i) {
+        const uint16_t c=hmbtn_read_le16(record+0x1800+i*2);
+        uint16_t insert[HMBTN_NAME_CHARS+1]; unsigned n=0;
+        if(c==0x400c || c==0x400d) {
+            const uint16_t *name=c==0x400c ? dog_name : farm_name;
+            while(n<HMBTN_NAME_CHARS && name[n]!=0xffff) {
+                insert[n]=name[n]; ++n;
+            }
+        } else if(c==0x4010 || (c>=0x4012 && c<=0x4015)) {
+            if(c==0x4010 && (h->cursor>16 || h->page>=8)) return false;
+            unsigned value=c==0x4010 ? (h->cursor==0 ? h->equipped.count : h->cursor<9 ?
+                h->bag[h->cursor-1].count : h->toolbox[h->page*8+h->cursor-9].count) : h->supplies[c-0x4012];
+            unsigned divisor=1000;
+            if(value>9999) return false;
+            while(divisor>1 && value<divisor) divisor/=10;
+            do {
+                insert[n++]=(uint16_t)(0x40+value/divisor);
+                value%=divisor; divisor/=10;
+            } while(divisor);
+        } else insert[n++]=c;
+        if(n>HMBTN_MESSAGE_WORDS-count) return false;
+        memcpy(words+count,insert,n*sizeof(*insert)); count+=n;
+        if(c==0xffff) {
+            for(unsigned j=0;j<count;++j) hmbtn_write_le16(record+0x1800+j*2,words[j]);
+            return true;
+        }
+    }
+    return false;
+}
 unsigned hmbtn_house_calendar_message(unsigned season, unsigned day)
 {
     static const unsigned events[18][3]={
@@ -69,8 +106,8 @@ bool hmbtn_house_interact(HmbtnHouseInteraction *h,const uint8_t *section,
         const uint8_t *p=section+16+i*44;
         if(!(hmbtn_read_le16(p)&0x4000) || x<=half(p+14) || x>=half(p+20)
                 || z<=half(p+18) || z>=half(p+24) || y<=half(p+16)-128 || y>=half(p+22)+120) continue;
-        if(half(p+8)!=(int32_t)player->facing) return false;
         const unsigned id=hmbtn_read_le16(p+2);
+        if(half(p+8)!=(int32_t)player->facing && !(id==16 && half(p+8)==5)) return false;
         h->closing=h->detail=false; h->sound=3; h->steps=0; h->message_bank=3;
         switch(id) {
         case 1:
@@ -95,7 +132,13 @@ static HmbtnStoredTool *tool(HmbtnHouseInteraction *h,unsigned cell,unsigned pag
 }
 static void close_menu(HmbtnHouseInteraction *h)
 {
-    h->closing=true; h->message.phase=HMBTN_MESSAGE_CLOSING; h->message.box_frame=0; h->sound=3;
+    h->closing=true;
+    /* The text engine may have already completed its closing animation.
+     * Starting it again flashes a full-size box for one more cycle. */
+    if(h->message.phase!=HMBTN_MESSAGE_CLOSED && h->message.phase!=HMBTN_MESSAGE_CLOSING) {
+        h->message.phase=HMBTN_MESSAGE_CLOSING; h->message.box_frame=0; h->sound=3;
+    }
+    if(h->message.phase==HMBTN_MESSAGE_CLOSED && !h->pan) h->mode=HMBTN_HOUSE_FREE;
     if(h->mode==HMBTN_HOUSE_TV || h->mode==HMBTN_HOUSE_TV_SELECT) { h->tv_group=18; h->tv_dirty=true; }
 }
 uint32_t hmbtn_house_world_buttons(const HmbtnHouseOptions *o,uint32_t held)

@@ -1,9 +1,11 @@
-/* Native event_commands.c subset for events 0x74..0x79. Resource requests keep
+/* Native event_commands.c subset for events 12 and 0x74..0x79. Resource requests keep
  * the cursor pending until the host loads them; unsupported scenes stop. */
 #include "farm_intro.h"
+#include "ground.h"
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+#include <stdlib.h>
 
 static void select_sprite(HmbtnIntroActor *a, unsigned animation)
 {
@@ -15,6 +17,9 @@ static void select_sprite(HmbtnIntroActor *a, unsigned animation)
 HmbtnIntroActor *hmbtn_farm_intro_actor(HmbtnFarmIntro *s, int32_t id)
 {
     if (id == 17) return &s->mayor;
+    if (id == 23) return &s->ellen;
+    if (id == 26) return &s->zack;
+    if (id == 41) return &s->player;
     if (id >= 1 && id <= 4) return &s->childhood[id-1];
     if (id == 27) return &s->boy;
     if (id == 33) return &s->girl;
@@ -29,6 +34,19 @@ static int compare(int32_t a, int32_t b, int32_t op)
     default: return -1;
     }
 }
+static HmbtnEventResult camera_glide(HmbtnFarmIntro *s,const int32_t target[3],unsigned speed)
+{
+    const int32_t dx=target[0]-s->camera[0],dz=target[2]-s->camera[2];
+    int32_t distance=(int32_t)sqrt((double)dx*dx+(double)dz*dz);
+    if(abs(target[1]-s->camera[1])>distance) distance=abs(target[1]-s->camera[1]);
+    const int32_t speeds[4]={24,36,48,72},steps=distance/speeds[speed];
+    bool arrived=true;s->camera_actor=0;s->camera_gliding=true;
+    for(unsigned axis=0;axis<3;++axis) {
+        arrived &= s->camera[axis]==target[axis];
+        s->camera[axis]+=steps ? (target[axis]-s->camera[axis])/steps : target[axis]-s->camera[axis];
+    }
+    return arrived ? HMBTN_EVENT_DONE : HMBTN_EVENT_WAIT;
+}
 static HmbtnEventResult command(void *ctx, const HmbtnEventCommand *c,
     char *error, size_t error_size)
 {
@@ -37,6 +55,15 @@ static HmbtnEventResult command(void *ctx, const HmbtnEventCommand *c,
     HmbtnIntroActor *actor = hmbtn_farm_intro_actor(s,a);
     switch (c->type) {
     case 0x23: {
+        if(s->event==12 && a==42) {
+            HmbtnIntroActor *actors[]={&s->mayor,&s->ellen,&s->zack};
+            for(unsigned i=0;i<3;++i) {
+                memset(actors[i]->velocity,0,sizeof(actors[i]->velocity));
+                actors[i]->sprite=(HmbtnAnimationPlayer){0};
+                actors[i]->animation_done=false;
+            }
+            return HMBTN_EVENT_DONE;
+        }
         const int32_t ids[4] = {a,b,x,y};
         for (unsigned i = 0; i < 4; ++i) {
             if (ids[i] == -1) continue;
@@ -55,6 +82,8 @@ static HmbtnEventResult command(void *ctx, const HmbtnEventCommand *c,
             /* house_door_positions[0]: initial, unexpanded house. */
             s->player.position[0] = -90; s->player.position[1] = 0; s->player.position[2] = 541;
             s->player.facing = 0;
+        } else if (a==1 && slot(b) && slot(x) && slot(y)) {
+            s->player.position[0]=s->slots[x];s->player.position[1]=s->slots[b];s->player.position[2]=s->slots[y];
         } else if (!a && x >= -32768 && x <= 32767 && y >= -32768 && y <= 32767) {
             s->player.position[0] = x; s->player.position[1] = b; s->player.position[2] = y;
         } else break;
@@ -130,12 +159,25 @@ static HmbtnEventResult command(void *ctx, const HmbtnEventCommand *c,
         select_sprite(actor,(unsigned)b);
         actor->sprite.frame = (uint16_t)x;
         return HMBTN_EVENT_DONE;
+    case 0x53: {
+        if(!actor || b<0 || b>255 || x<0 || x>255 || y<1 || y>2) break;
+        unsigned frame=(unsigned)x;
+        if(y==2) {
+            if(actor->velocity[2]<0) frame=0;
+            else if(actor->velocity[0]<0) frame=1;
+            else if(actor->velocity[2]>0) frame=2;
+            else if(actor->velocity[0]>0) frame=3;
+        }
+        memset(actor->velocity,0,sizeof(actor->velocity));
+        select_sprite(actor,(unsigned)b);actor->sprite.frame=(uint16_t)frame;
+        return HMBTN_EVENT_DONE;
+    }
     case 0x49:
         if (!actor || !slot(b) || !slot(x) || !slot(y)) break;
-        s->slots[b] = actor->position[0]; s->slots[x] = actor->position[1]; s->slots[y] = actor->position[2];
+        s->slots[b] = actor->position[1]; s->slots[x] = actor->position[0]; s->slots[y] = actor->position[2];
         return HMBTN_EVENT_DONE;
     case 2:
-        if (a != 1 || b < 0 || x != -1 || y) break;
+        if (a != 1 || b < 0 || (x != -1 && !(s->event==12 && x==0)) || y) break;
         if (s->message_done && s->message == (unsigned)b) {
             s->message = 0; s->message_done = false; return HMBTN_EVENT_DONE;
         }
@@ -171,7 +213,8 @@ static HmbtnEventResult command(void *ctx, const HmbtnEventCommand *c,
         }
         return s->music_time >= s->music_length ? HMBTN_EVENT_DONE : HMBTN_EVENT_WAIT;
     case 0x33: { /* event_cmd_load_record: follow an actor, optionally glide first. */
-        if (a == -2 && !b && !x && !y) {
+        if (a == -2 && !b && x>=0 && x<=1 && y>=0 && y<=3) {
+            if(x && camera_glide(s,s->player.position,(unsigned)y)!=HMBTN_EVENT_DONE) return HMBTN_EVENT_WAIT;
             s->camera_actor = 0; s->camera_gliding = false;
             memcpy(s->camera,s->player.position,sizeof(s->camera)); return HMBTN_EVENT_DONE;
         }
@@ -180,24 +223,14 @@ static HmbtnEventResult command(void *ctx, const HmbtnEventCommand *c,
             s->camera_actor = (unsigned)a; s->camera_gliding = false;
             memcpy(s->camera,actor->position,sizeof(s->camera)); return HMBTN_EVENT_DONE;
         }
-        s->camera_gliding = true;
-        const int32_t dx = actor->position[0]-s->camera[0], dz = actor->position[2]-s->camera[2];
-        int32_t distance = (int32_t)sqrt((double)dx*dx+(double)dz*dz);
-        int32_t dy = actor->position[1]-s->camera[1]; if (dy < 0) dy = -dy;
-        if (dy > distance) distance = dy;
-        const int32_t speeds[4] = {24,36,48,72};
-        const int32_t steps = distance/speeds[y];
-        bool arrived = true;
-        for (unsigned axis = 0; axis < 3; ++axis) {
-            arrived &= s->camera[axis] == actor->position[axis];
-            if (steps) s->camera[axis] += (actor->position[axis]-s->camera[axis])/steps;
-            else s->camera[axis] = actor->position[axis];
+        if (camera_glide(s,actor->position,(unsigned)y)==HMBTN_EVENT_DONE) {
+            s->camera_actor=(unsigned)a;s->camera_gliding=false;return HMBTN_EVENT_DONE;
         }
-        if (arrived) { s->camera_actor = (unsigned)a; s->camera_gliding = false; return HMBTN_EVENT_DONE; }
         return HMBTN_EVENT_WAIT;
     }
     case 8:
         if ((((a == 0 || a == 230 || a == 231 || a == 232) && b == 1)
+                || (s->event==12 && (a==0 || a==32 || a==36 || a==40 || a==48 || a==52) && !b)
                 || (a == -2 && !b)) && !x && !y) {
             /* EVENT_TARGET_HOUSE, spring and house level zero only. */
             const unsigned target = a == -2 ? 80u : (unsigned)a;
@@ -210,7 +243,8 @@ static HmbtnEventResult command(void *ctx, const HmbtnEventCommand *c,
             s->target_area,a == -2 ? "farmhouse interior" : "next scene");
         return HMBTN_EVENT_BOUNDARY;
     case 0x25: /* event_cmd_enter_mode(0,0,0,0): finish the opening event. */
-        if (a || b || x || y || s->event != 121 || s->area != 80 || s->area_pending) break;
+        if (a || b || x || y || s->area_pending
+                || !((s->event==121 && s->area==80) || (s->event==12 && s->area==0))) break;
         s->event_active = false; s->finish_requested = true;
         return HMBTN_EVENT_DONE;
     case 0x32:
@@ -241,6 +275,42 @@ static HmbtnEventResult command(void *ctx, const HmbtnEventCommand *c,
     case 0x1C: /* event bracket; this subset opens it during the song. */
         if (a || b || x || y) break;
         s->event_active = true; return HMBTN_EVENT_WAIT;
+    case 0x4F: /* Original one-slot subroutine call, without patching resource bytes. */
+        if(!slot(a) || b || x || y) break;
+        s->slots[a]=c->next_other==0xff ? (int32_t)s->script.pc+1 : c->next_other;
+        return HMBTN_EVENT_DONE;
+    case 0x50:
+        if(!slot(a) || b || x || y || s->slots[a]<0 || (unsigned)s->slots[a]>=s->script.count) break;
+        s->script.pc=(unsigned)s->slots[a];return HMBTN_EVENT_JUMP;
+    case 0x38:
+        if(a || b || x || y) break;
+        return s->zone_exited ? HMBTN_EVENT_DONE : HMBTN_EVENT_WAIT;
+    case 0x3B:
+        if(a<0 || b || x || y) break;
+        return s->text_bank==(unsigned)a ? HMBTN_EVENT_DONE : HMBTN_EVENT_WAIT;
+    case 0x4C: /* clock_fast_forward_unflagged: the tour advances two hours. */
+        if(s->event!=12 || a!=2 || b || x!=1 || y) break;
+        s->advanced_minutes+=120;
+        return HMBTN_EVENT_DONE;
+    case 0x67: {
+        HmbtnIntroActor *target=hmbtn_farm_intro_actor(s,y);
+        if(!actor || !target || b || x) break;
+        const int32_t dx=target->position[0]-actor->position[0],dz=target->position[2]-actor->position[2];
+        actor->facing=(unsigned)(abs(dx)>abs(dz) ? (dx<0 ? 1 : 3) : (dz<0 ? 0 : 2));
+        actor->sprite=(HmbtnAnimationPlayer){0,(uint16_t)actor->facing,0};
+        return HMBTN_EVENT_DONE;
+    }
+    case 0x0C: /* No outstanding talk/delivery during this scripted encounter. */
+        if(s->event!=12 || a!=26 || b || x || y) break;
+        return HMBTN_EVENT_WAIT;
+    case 0x45:
+        if(a || (b!=0 && b!=1) || x!=4 || y!=1) break;
+        s->player_marker=b!=0;return HMBTN_EVENT_DONE;
+    case 9: {
+        if(a<0 || a>3 || x<INT16_MIN || x>INT16_MAX || y<INT16_MIN || y>INT16_MAX) break;
+        const int32_t target[3]={x,b,y};
+        return camera_glide(s,target,(unsigned)a);
+    }
     case 0x59:
         if (!actor || b < 0 || b > 2 || x || y) break;
         actor->marker = b == 0 ? 1u : b == 2 ? 2u : 0u; return HMBTN_EVENT_DONE;
@@ -297,10 +367,44 @@ bool hmbtn_farm_intro_tick(HmbtnFarmIntro *s, char *error, size_t error_size)
         s->music_volume = (s->music_from*(s->music_length-s->music_time)+s->music_to*s->music_time)/s->music_length;
     }
     memset(s->player.velocity,0,sizeof(s->player.velocity));
-    if (s->message && !s->message_done) return true;
+    if(s->visit_approach) {
+        /* Use the event's north-gate lane and walking cue before opening its
+         * first conversation. The script's near-house placement is its goal. */
+        s->mayor.visible=true;
+        memset(s->mayor.velocity,0,sizeof(s->mayor.velocity));
+        if(s->mayor.position[2]>3959) {
+            s->mayor.position[2]-=24;
+            if(s->mayor.position[2]<3959) s->mayor.position[2]=3959;
+            select_sprite(&s->mayor,1);
+        } else {
+            s->mayor.sprite=(HmbtnAnimationPlayer){0,1,0};s->visit_approach=false;
+        }
+        const int32_t target[3]={-4257,0,3959};
+        for(unsigned axis=0;axis<3;axis+=2) {
+            int32_t delta=target[axis]-s->player.position[axis];
+            if(delta) {
+                const unsigned face=axis==0 ? (delta<0 ? 1u : 3u) : (delta<0 ? 0u : 2u);
+                s->player.facing=face;select_sprite(&s->player,face+1);
+                s->player.position[axis]+=delta>41 ? 41 : delta< -41 ? -41 : delta;
+                break;
+            }
+        }
+        if(s->player.position[0]==target[0] && s->player.position[2]==target[2]) {
+            const int32_t dx=s->mayor.position[0]-s->player.position[0];
+            const int32_t dz=s->mayor.position[2]-s->player.position[2];
+            s->player.facing=abs(dx)>abs(dz) ? (dx<0 ? 1u : 3u) : (dz<0 ? 0u : 2u);
+            s->player.sprite=(HmbtnAnimationPlayer){0,(uint16_t)s->player.facing,0};
+        }
+        HmbtnGroundHit hit;
+        if(hmbtn_ground_find(s->ground,s->mayor.position,0xC000,200,&hit)) s->mayor.position[1]=hit.height;
+        if(hmbtn_ground_find(s->ground,s->player.position,0xC080,200,&hit)) s->player.position[1]=hit.height;
+        memcpy(s->camera,s->player.position,sizeof(s->camera));
+        return true;
+    }
+    if (s->event!=12 && s->message && !s->message_done) return true;
     if (!hmbtn_event_tick(&s->script,command,s,error,error_size)) return false;
     if (!s->message) {
-        const unsigned ids[] = {1,2,3,4,17,27,33};
+        const unsigned ids[] = {1,2,3,4,17,23,26,27,33};
         for (unsigned a = 0; a < sizeof(ids)/sizeof(ids[0]); ++a) {
             HmbtnIntroActor *actor = hmbtn_farm_intro_actor(s,(int32_t)ids[a]);
             for (unsigned axis = 0; axis < 3; ++axis) {
@@ -310,6 +414,9 @@ bool hmbtn_farm_intro_tick(HmbtnFarmIntro *s, char *error, size_t error_size)
                 }
                 actor->position[axis] = (int32_t)value;
             }
+            HmbtnGroundHit hit;
+            if((actor->velocity[0] || actor->velocity[1] || actor->velocity[2])
+                    && hmbtn_ground_find(s->ground,actor->position,0xC000,200,&hit)) actor->position[1]=hit.height;
         }
         bool moving = false;
         for (unsigned i = 0; i < 3; ++i) {
@@ -321,6 +428,8 @@ bool hmbtn_farm_intro_tick(HmbtnFarmIntro *s, char *error, size_t error_size)
             moving |= s->player.velocity[i] != 0;
         }
         if (!moving && !s->player.pose) s->player.sprite = (HmbtnAnimationPlayer){0,(uint16_t)s->player.facing,0};
+        HmbtnGroundHit hit;
+        if(moving && hmbtn_ground_find(s->ground,s->player.position,0xC080,200,&hit)) s->player.position[1]=hit.height;
     }
     if (!s->camera_gliding) {
         const HmbtnIntroActor *follow = s->camera_actor ? hmbtn_farm_intro_actor(s,(int32_t)s->camera_actor) : &s->player;

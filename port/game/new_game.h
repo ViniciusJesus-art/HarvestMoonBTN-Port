@@ -19,6 +19,7 @@ typedef struct HmbtnMessage {
     unsigned choices;
     unsigned lines, scroll_y;
     bool scroll_hold, suppress_cursor;
+    unsigned face_bank, bank; /* Last selected face and active text/portrait bank. */
 } HmbtnMessage;
 typedef struct HmbtnNewGame {
     unsigned step; /* Original title steps 11..28; 100 is the host scene boundary. */

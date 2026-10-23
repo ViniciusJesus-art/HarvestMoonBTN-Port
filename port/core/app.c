@@ -58,7 +58,9 @@ int hmbtn_app_run(const HmbtnAppOptions *options)
         }
         if (data_root) {
             printf("Game data directory: %s\n", data_root);
-            if (options->house_preview)
+            if (options->area_preview)
+                scene = hmbtn_scene_area_create(host.renderer,data_root,options->preview_area,error,sizeof(error));
+            else if (options->house_preview)
                 scene = hmbtn_scene_house_create(host.renderer, data_root, error, sizeof(error));
             else if (options->childhood_preview)
                 scene = hmbtn_scene_childhood_create(host.renderer, data_root, error, sizeof(error));
@@ -79,7 +81,8 @@ int hmbtn_app_run(const HmbtnAppOptions *options)
             hmbtn_host_close(&host);
             return 1;
         }
-        if (!SDL_SetWindowTitle(host.window, options->house_preview ? "Harvest Moon BTN - House movement preview"
+        if (!SDL_SetWindowTitle(host.window, options->area_preview ? "Harvest Moon BTN - Region gameplay preview"
+                : options->house_preview ? "Harvest Moon BTN - House movement preview"
                 : options->intro_preview || options->childhood_preview ? "Harvest Moon BTN - Opening event preview"
                 : scene ? "Harvest Moon BTN - Farm geometry preview" : "Harvest Moon: Back to Nature")) {
             SDL_Log("Cannot update window title: %s", SDL_GetError());

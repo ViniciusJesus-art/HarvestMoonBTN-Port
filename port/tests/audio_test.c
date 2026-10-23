@@ -85,6 +85,43 @@ int main(int argc, char **argv)
         0,0xc0,0, 0,0xb0,99,20, 0,0xb0,6,127, 0,0xb0,7,100,
         0,0xb0,10,0, 0,0x90,60,100, 16,60,0, 80,0xb0,99,30, 0,255,47,0};
     CHECK(hmbtn_sound_sequence(s, seq, sizeof(seq), error, sizeof(error)));
+    /* Same waveform and sequencer position: interior amplitude is 80% of
+     * exterior, with only S16 quantization error. Effects use separate gain. */
+    HmbtnSound *inside=hmbtn_sound_create(); CHECK(inside);
+    CHECK(hmbtn_sound_bank(inside,1,vh,sizeof(vh),vb,sizeof(vb),error,sizeof(error)));
+    CHECK(hmbtn_sound_sequence(inside,seq,sizeof(seq),error,sizeof(error)));
+    hmbtn_sound_music_volume(s,100);hmbtn_sound_music_volume(inside,80);
+    hmbtn_sound_start(s);hmbtn_sound_start(inside);
+    int16_t outdoor_pcm[1024], indoor_pcm[1024];
+    hmbtn_sound_render(s,outdoor_pcm,512);hmbtn_sound_render(inside,indoor_pcm,512);
+    bool volume_audible=false;
+    for(unsigned i=0;i<1024;++i) {
+        CHECK(abs(5*(int)indoor_pcm[i]-4*(int)outdoor_pcm[i])<=5);
+        if(outdoor_pcm[i]) volume_audible=true;
+    }
+    CHECK(volume_audible);hmbtn_sound_destroy(inside);
+    /* Pitch wheel obeys each VAB tone's down/up ranges, before note-on and
+     * while a voice is sounding. Both bends below must equal middle C. */
+    vh[0x82c]=12;vh[0x82d]=24;
+    for(unsigned direction=0;direction<2;++direction) {
+        uint8_t bent_seq[]={'p','Q','E','S',0,0,0,1,0,96,7,161,32,4,2,
+            0,0xe0,0,0, 0,0x90,72,100, 4,0xe0,0,64, 92,255,47,0};
+        const uint8_t reference_seq[]={'p','Q','E','S',0,0,0,1,0,96,7,161,32,4,2,
+            0,0x90,60,100, 96,255,47,0};
+        if(direction) { bent_seq[18]=96;bent_seq[21]=48; }
+        HmbtnSound *bent=hmbtn_sound_create(),*reference=hmbtn_sound_create();CHECK(bent && reference);
+        CHECK(hmbtn_sound_bank(bent,1,vh,sizeof(vh),vb,sizeof(vb),error,sizeof(error)));
+        CHECK(hmbtn_sound_bank(reference,1,vh,sizeof(vh),vb,sizeof(vb),error,sizeof(error)));
+        CHECK(hmbtn_sound_sequence(bent,bent_seq,sizeof(bent_seq),error,sizeof(error)));
+        CHECK(hmbtn_sound_sequence(reference,reference_seq,sizeof(reference_seq),error,sizeof(error)));
+        hmbtn_sound_start(bent);hmbtn_sound_start(reference);
+        hmbtn_sound_render(bent,indoor_pcm,512);hmbtn_sound_render(reference,outdoor_pcm,512);
+        CHECK(memcmp(indoor_pcm,outdoor_pcm,sizeof(indoor_pcm))==0);
+        hmbtn_sound_render(bent,indoor_pcm,512);hmbtn_sound_render(reference,outdoor_pcm,512);
+        CHECK(memcmp(indoor_pcm,outdoor_pcm,sizeof(indoor_pcm))!=0);
+        hmbtn_sound_destroy(bent);hmbtn_sound_destroy(reference);
+    }
+    hmbtn_sound_music_volume(s,127);
     hmbtn_sound_start(s);
     int16_t pcm[1024];
     hmbtn_sound_render(s, pcm, 512);
@@ -116,6 +153,23 @@ int main(int argc, char **argv)
         CHECK(pcm[i*2] == pcm[i*2+1]); /* Effect remains audible while music fades. */
     }
     CHECK(audible);
+    /* A looping farm effect must enter ADSR release.
+     * Stale handles must not release later effects reusing the same channel. */
+    HmbtnSound *effects=hmbtn_sound_create();CHECK(effects);
+    CHECK(hmbtn_sound_bank(effects,2,vh,sizeof(vh),vb,sizeof(vb),error,sizeof(error)));
+    const uint64_t loop_voice=hmbtn_sound_effect_start(effects,2,0,0,68,100);
+    CHECK(loop_voice);
+    hmbtn_sound_render(effects,pcm,512);
+    hmbtn_sound_release_voice(effects,loop_voice);
+    for(unsigned i=0;i<20;++i) hmbtn_sound_render(effects,pcm,512);
+    for(unsigned i=0;i<1024;++i) CHECK(pcm[i]==0);
+    const uint64_t next_voice=hmbtn_sound_effect_start(effects,2,0,0,68,100);
+    CHECK(next_voice && next_voice!=loop_voice);
+    hmbtn_sound_release_voice(effects,loop_voice);
+    hmbtn_sound_render(effects,pcm,512);
+    audible=false;for(unsigned i=0;i<1024;++i) if(pcm[i]) audible=true;
+    CHECK(audible);
+    hmbtn_sound_release_voice(effects,next_voice);hmbtn_sound_destroy(effects);
     /* Use a fresh mixer so the preceding looping effect cannot mask silence. */
     hmbtn_sound_destroy(s); s=hmbtn_sound_create(); CHECK(s);
     CHECK(hmbtn_sound_bank(s,0,vh,sizeof(vh),vb,sizeof(vb),error,sizeof(error)));

@@ -58,6 +58,18 @@ int main(void)
     CHECK(hmbtn_model_open(&model,bytes,size,error,sizeof(error)));
     pos[0]=-300; pos[1]=0; pos[2]=0;
     CHECK(hmbtn_ground_find(&model,pos,0xE080,200,&hit) && hit.height==-30);
+    /* Scripted NPC movement uses the same inclined ground as free movement. */
+    uint8_t script[48]={0};script[0]=4;script[1]=script[2]=255;
+    hmbtn_write_le16(script+4,17);hmbtn_write_le32(script+8,(uint32_t)-400);
+    script[16]=0x52;script[17]=2;script[18]=1;script[19]=1;
+    hmbtn_write_le16(script+20,17);hmbtn_write_le16(script+22,3);
+    hmbtn_write_le32(script+24,(uint32_t)-200);hmbtn_write_le32(script+28,4);script[32]=255;
+    HmbtnFarmIntro event;CHECK(hmbtn_farm_intro_open(&event,script,sizeof(script),error,sizeof(error)));
+    event.ground=&model;
+    CHECK(hmbtn_farm_intro_tick(&event,error,sizeof(error)));
+    CHECK(event.mayor.position[0]==-360 && event.mayor.position[1]==-36);
+    CHECK(hmbtn_farm_intro_tick(&event,error,sizeof(error)));
+    CHECK(event.mayor.position[0]==-320 && event.mayor.position[1]==-32);
     size=make_floor(bytes,true);
     CHECK(hmbtn_model_open(&model,bytes,size,error,sizeof(error)));
     CHECK(hmbtn_ground_find(&model,pos,0xE080,200,&hit) && hit.object==1);
@@ -88,6 +100,12 @@ int main(void)
     CHECK(p.position[0]<=500 && p.position[2]>=-500 && p.position[1]==0);
     /* Strict zone edges and flag filtering; destination coordinates stay integers. */
     uint8_t section[16+50*44]={0}; HmbtnHouseExit exit;
+    CHECK(hmbtn_farm_music_volume(section,sizeof(section))==100);
+    hmbtn_write_le16(section+8,0x9000);
+    CHECK(hmbtn_farm_music_volume(section,sizeof(section))==80);
+    CHECK(hmbtn_farm_music_volume(NULL,0)==100);
+    CHECK(hmbtn_farm_music_volume(section,8)==100);
+    hmbtn_write_le16(section+8,0);
     for(unsigned i=0;i<50;++i) hmbtn_write_le16(section+16+i*44+2,0xFFFF);
     uint8_t *z=section+16;
     hmbtn_write_le16(z+2,0); hmbtn_write_le16(z+10,99);
@@ -112,7 +130,16 @@ int main(void)
     p.facing=3;CHECK(!hmbtn_farm_house_door_at(section,sizeof(section),&p,&exit,&door_model));
     p.facing=1;p.position[0]=100;
     CHECK(!hmbtn_farm_house_door_at(section,sizeof(section),&p,&exit,&door_model));
-    p.position[0]=150;hmbtn_write_le16(z+12,15);
+    p.position[0]=150;hmbtn_write_le16(z+12,0);
+    const unsigned interiors[]={92,96,112};
+    for(unsigned i=0;i<3;++i) {
+        hmbtn_write_le16(z+2,(uint16_t)interiors[i]);hmbtn_write_le16(z+10,(uint16_t)(i+1));
+        CHECK(hmbtn_world_door_at(section,sizeof(section),&p,&exit,&door_model) && exit.target==interiors[i]);
+        p.position[1]=201;CHECK(!hmbtn_world_door_at(section,sizeof(section),&p,&exit,&door_model));p.position[1]=0;
+    }
+    hmbtn_write_le16(z+2,234); /* Mine floors remain outside this recut. */
+    CHECK(!hmbtn_world_door_at(section,sizeof(section),&p,&exit,&door_model));
+    hmbtn_write_le16(z+2,80);hmbtn_write_le16(z+10,0);hmbtn_write_le16(z+12,15);
     CHECK(!hmbtn_farm_house_door_at(section,sizeof(section),&p,&exit,&door_model));
     puts("Ground flags, furniture footprints, slopes, object clips, house movement and exit detection passed.");
     return 0;

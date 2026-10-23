@@ -84,6 +84,11 @@ bool hmbtn_event_tick(HmbtnEventScript *s, HmbtnEventHandler handler, void *ctx,
         if (result == HMBTN_EVENT_ERROR) return false;
         if (result == HMBTN_EVENT_PENDING) return true;
         if (result == HMBTN_EVENT_BOUNDARY) { s->boundary = true; return true; }
+        if (result == HMBTN_EVENT_JUMP) {
+            if (s->pc >= s->count) goto invalid;
+            if (c.flags & 1u) return true;
+            continue;
+        }
         const unsigned jump = result == HMBTN_EVENT_DONE ? c.next_done : c.next_other;
         s->pc = jump == 0xFF ? s->pc+1 : jump;
         if (c.flags & 1u) return true;

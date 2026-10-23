@@ -13,10 +13,7 @@ bool hmbtn_title_audio_open_song(HmbtnTitleAudio *a, const char *root, unsigned 
     char *error, size_t error_size)
 {
     static const struct { unsigned song; uint32_t start, header, seq, end; } songs[] = {
-        {1,468992,8192,608256,618496},
-        {26,4411392,6144,4517888,4528128}, {31,5058560,8192,5224448,5230592},
-        {32,5230592,8192,5376000,5380096}, {33,5380096,8192,5525504,5527552},
-        {34,5527552,8192,5689344,5701632}
+#include "music_rows.inc"
     };
     unsigned index = 0;
     while (index < sizeof(songs)/sizeof(songs[0]) && songs[index].song != song) ++index;

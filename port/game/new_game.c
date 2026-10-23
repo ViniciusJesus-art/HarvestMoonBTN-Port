@@ -18,6 +18,7 @@ bool hmbtn_message_open(HmbtnMessage *m, const uint8_t *record, size_t size,
 {
     if (!record || size != 8192) FAIL("Invalid message record size");
     memset(m, 0, sizeof(*m));
+    m->face_bank=m->bank=hmbtn_read_le32(record);
     unsigned lines = 0;
     bool page_leading = false;
     for (unsigned i = 0; i < HMBTN_MESSAGE_WORDS; ++i) {
@@ -33,8 +34,6 @@ bool hmbtn_message_open(HmbtnMessage *m, const uint8_t *record, size_t size,
             page_leading = false;
         }
         if (c < 256 || c == 0xffd) page_leading = false;
-        if (c >= 0xe38 && c <= 0xfef && hmbtn_read_le32(record) != 0xfefu - c)
-            FAIL("External portrait-bank switch is not ported in this slice");
         if (c < 256 || c == 0xfffe || c == 0xffd || c == 0xffc || c == 0xffb
                 || c == 0xffa || c == 0xff1 || c == 0xff2 || c == 0xff3 || c == 0xff7 || c == 0xff4 || c == 0xff6 || c == 0xff5
                 || (c >= 0xe25 && c <= 0xe2f)
@@ -47,8 +46,8 @@ bool hmbtn_message_open(HmbtnMessage *m, const uint8_t *record, size_t size,
  * without typing or blips. Used by editor help and confirmation prompts. */
 static void fixed_page(HmbtnMessage *m)
 {
-    if (m->words[0] == 0xffa) {
-        m->choices = 2; m->cursor = 1;
+    if (m->words[m->page] == 0xffa) {
+        m->choices = 2; m->cursor = m->page+1;
         if (m->words[m->cursor] == 0xfffe) ++m->cursor;
         m->page = m->cursor;
     }
@@ -56,6 +55,8 @@ static void fixed_page(HmbtnMessage *m)
         const uint16_t c = m->words[m->cursor++];
         if (c == 0xff4) m->face = true;
         if (c == 0xff6) m->face = false;
+        if (c >= 0xe38 && c <= 0xfef) m->face_bank=0xfefu-c;
+        if (c == 0xff7) m->bank=m->face_bank;
         if (c == 0xffff) { m->phase = HMBTN_MESSAGE_WAIT_END; break; }
         if (c == 0xffc) { m->phase = HMBTN_MESSAGE_WAIT_PAGE; break; }
     }
@@ -100,7 +101,10 @@ int hmbtn_message_tick(HmbtnMessage *m, uint32_t pressed, uint32_t held)
         else if (code == 0xffc) m->phase = HMBTN_MESSAGE_WAIT_PAGE;
         else if (code == 0xff4) m->face = true;
         else if (code == 0xff6) m->face = false;
+        else if (code >= 0xe38 && code <= 0xfef) m->face_bank=0xfefu-code;
+        else if (code == 0xff7) m->bank=m->face_bank;
         else if (code == 0xff3) m->no_scroll = true;
+        else if (code == 0xffa) { m->no_scroll=true;m->page=m->cursor-1;fixed_page(m); }
         else if(code==0xfffe && m->scroll_hold && ++m->lines>=4) m->phase=HMBTN_MESSAGE_SCROLLING;
         else if (code >= 0xe25 && code <= 0xe2f) m->wait_frames = (0xe2f-code+1)/2;
         /* The source alternates its text blip per typing timer. */

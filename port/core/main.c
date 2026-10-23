@@ -11,7 +11,7 @@
 
 static void usage(const char *program)
 {
-    printf("Usage: %s --diagnostics | [--data DIR] [--window-test | --scene-preview | --intro-preview | --childhood-preview | --house-preview] [--window-size WIDTHxHEIGHT] [--frames N] [--screenshot file.bmp]\n", program);
+    printf("Usage: %s --diagnostics | [--data DIR] [--window-test | --scene-preview | --intro-preview | --childhood-preview | --house-preview | --farm-preview | --area-preview ID] [--window-size WIDTHxHEIGHT] [--frames N] [--screenshot file.bmp]\n", program);
     puts("Default: title, registration and the first farm event. Enter=Start, arrows=select, Z=confirm.");
     puts("Data: --data DIR, user resources, executable/project. First launch can import a .bin.");
     puts("--setup: select a .bin and prepare user resources. First launch offers this automatically.");
@@ -19,7 +19,9 @@ static void usage(const char *program)
     puts("--scene-preview: farm geometry development view; arrows pan camera, Enter resets. No gameplay.");
     puts("--intro-preview: native arrival and childhood sequence; Z/X advance dialogue.");
     puts("--childhood-preview: development entry at the childhood meeting and song.");
-    puts("--house-preview: initial house; arrows walk, X runs, Z interacts with TV, toolbox, calendar and bookshelf. Farm exit pending.");
+    puts("--house-preview: house/farm; arrows walk, X runs, Z interacts, C uses tools, Enter opens farm status, V opens rucksack, E cycles tools, 2 cycles items. Native gameplay remains partial.");
+    puts("--farm-preview: start outside the house, skipping Thomas's visit.");
+    puts("--area-preview ID: start in region 0, 24..76 or 128..212 (steps of 4), 92, 96 or 112; fresh test session.");
 }
 
 int main(int argc, char **argv)
@@ -48,6 +50,17 @@ int main(int argc, char **argv)
             options.childhood_preview = true;
         } else if (strcmp(argv[i], "--house-preview") == 0) {
             options.house_preview = true;
+        } else if (strcmp(argv[i], "--farm-preview") == 0) {
+            options.area_preview=true;options.preview_area=0;
+        } else if (strcmp(argv[i], "--area-preview") == 0 && i+1<argc) {
+            const char *value=argv[++i];char *end;errno=0;
+            const unsigned long area=strtoul(value,&end,10);
+            if(errno || value[0]<'0' || value[0]>'9' || *end
+                    || (area!=0 && area!=92 && area!=96 && area!=112
+                        && !((area>=24 && area<=76 && area%4==0) || (area>=128 && area<=212 && area%4==0)))) {
+                fputs("--area-preview requires 0, 24..76/128..212 in steps of 4, or 92/96/112.\n",stderr);return 2;
+            }
+            options.area_preview=true;options.preview_area=(unsigned)area;
         } else if (strcmp(argv[i], "--data") == 0 && i + 1 < argc) {
             options.data_root = argv[++i];
             data_requested = true;
@@ -85,12 +98,12 @@ int main(int argc, char **argv)
             return 2;
         }
     }
-    if (diagnostics && (options.frame_limit || options.screenshot_path || data_requested || options.window_test || options.scene_preview || options.intro_preview || options.childhood_preview || options.house_preview || options.window_width)) {
+    if (diagnostics && (options.frame_limit || options.screenshot_path || data_requested || options.window_test || options.scene_preview || options.intro_preview || options.childhood_preview || options.house_preview || options.area_preview || options.window_width)) {
         fputs("--diagnostics cannot be combined with window options.\n", stderr);
         return 2;
     }
     const unsigned modes = (unsigned)options.window_test+(unsigned)options.scene_preview
-        +(unsigned)options.intro_preview+(unsigned)options.childhood_preview+(unsigned)options.house_preview;
+        +(unsigned)options.intro_preview+(unsigned)options.childhood_preview+(unsigned)options.house_preview+(unsigned)options.area_preview;
     if((import_image || options.setup) && (modes || diagnostics || options.frame_limit
             || options.screenshot_path || options.window_width || (import_image && options.setup))) {
         fputs("Data setup cannot be combined with game/diagnostic options.\n",stderr);return 2;
@@ -115,6 +128,6 @@ int main(int argc, char **argv)
     puts("Harvest Moon: Back to Nature - PC port");
     puts("Native foundation ready (Linux / Windows target).");
     printf("Host pointer width: %u bits\n", (unsigned)(sizeof(void *) * CHAR_BIT));
-    puts("Partial native port: title, opening, house movement, music, TV, toolbox, calendar and bookshelf. Farm exit, remaining interactions, full gameplay and saves remain pending.");
+    puts("Partial native port: title, opening, house/farm, outdoor regions, clock, tools and inventory. Interiors, remaining world systems and saves remain pending.");
     return diagnostics ? 0 : hmbtn_app_run(&options);
 }

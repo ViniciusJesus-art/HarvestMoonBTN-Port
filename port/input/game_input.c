@@ -14,8 +14,10 @@ static uint32_t key_button(SDL_Scancode code)
     case SDL_SCANCODE_X: case SDL_SCANCODE_BACKSPACE: return HMBTN_PAD_CIRCLE;
     case SDL_SCANCODE_C: return HMBTN_PAD_SQUARE;
     case SDL_SCANCODE_V: return HMBTN_PAD_TRIANGLE;
-    case SDL_SCANCODE_Q: return HMBTN_PAD_L1 | HMBTN_PAD_L2;
-    case SDL_SCANCODE_E: return HMBTN_PAD_R1 | HMBTN_PAD_R2;
+    case SDL_SCANCODE_Q: return HMBTN_PAD_L1;
+    case SDL_SCANCODE_E: return HMBTN_PAD_R1;
+    case SDL_SCANCODE_1: return HMBTN_PAD_L2;
+    case SDL_SCANCODE_2: return HMBTN_PAD_R2;
     default: return 0;
     }
 }

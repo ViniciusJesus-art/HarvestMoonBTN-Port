@@ -18,10 +18,13 @@ typedef struct HmbtnHouseInteraction {
     HmbtnHouseMode mode;
     HmbtnMessage message;
     unsigned request, loaded, message_bank, tv_channel, tv_group, tv_ticks;
-    unsigned year, season, day, weekday, hour, weather, tomorrow;
+    unsigned year, season, day, weekday, hour, minute, weather, tomorrow;
     unsigned calendar_day, cursor, page, picked, picked_page, pan;
     unsigned steps;
+    unsigned supplies[4]; /* Fodder, lumber, chicken feed, fish food. */
     HmbtnStoredTool equipped, bag[8], toolbox[64];
+    HmbtnStoredTool held_item, items[8];
+    unsigned rucksack_level;
     HmbtnHouseOptions options;
     unsigned bed_choice, boundary; /* 1 overnight, 2 diary/load, 3 livestock. */
     bool save_requested;
@@ -29,6 +32,9 @@ typedef struct HmbtnHouseInteraction {
     bool detail, closing, tv_dirty;
 } HmbtnHouseInteraction;
 void hmbtn_house_interaction_init(HmbtnHouseInteraction *house);
+bool hmbtn_house_expand_reading(const HmbtnHouseInteraction *house, uint8_t *record,
+    size_t size, const uint16_t dog_name[HMBTN_NAME_CHARS+1],
+    const uint16_t farm_name[HMBTN_NAME_CHARS+1]);
 bool hmbtn_house_interact(HmbtnHouseInteraction *house, const uint8_t *section,
     size_t size, const HmbtnIntroActor *player);
 void hmbtn_house_interaction_tick(HmbtnHouseInteraction *house, uint32_t pressed, uint32_t held);

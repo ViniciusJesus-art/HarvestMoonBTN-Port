@@ -33,12 +33,32 @@ O áudio XA é decodificado em fluxo; detalhes em [XA_AUDIO.md](../docs/port/XA_
 `--house-preview` abre diretamente esse trecho: setas caminham, X/Circle corre.
 Z/Cross interage com TV, calendário, baú, livro, opções e cama. As configurações
 alteram controle, vibração SDL, estéreo/mono e relógio. A cama executa a animação,
-coberta e fade; para antes das atualizações diárias e não salva.
+coberta e fade, avança o relógio/calendário e prepara a manhã seguinte.
+O exterior tem passagem de tempo, amanhecer/entardecer/noite e áudio por
+período/estação; casa, menus e eventos pausam o relógio. Veja
+[CLOCK.md](../docs/port/CLOCK.md). Saves e sistemas diários completos continuam pendentes.
 Veja [HOUSE_INTERACTIONS.md](../docs/port/HOUSE_INTERACTIONS.md).
-Chão e bloqueios usam a geometria original; a saída pela porta pausa no limite
-da etapa. Veja [HOUSE_CONTROL.md](../docs/port/HOUSE_CONTROL.md).
-Saves e fazenda com controle livre ainda não estão portados. Veja
-[FARM_INTRO.md](../docs/port/FARM_INTRO.md).
+Chão e bloqueios usam a geometria original. A saída da casa libera controle na
+fazenda, com ferramentas iniciais, mochila e coleta. Na primeira saída, Thomas
+oferece o passeio completo ao vilarejo; aceitar ou recusar leva à apresentação
+de Zack antes de devolver o controle. Inventário e terreno são preservados.
+Depois da visita, as passagens liberam exploração das 14 outras regiões
+externas, com versões sazonais, chão, placas e música originais. Veja
+[WORLD_MAP.md](../docs/port/WORLD_MAP.md). Interiores da vila e rotinas de moradores
+continuam pendentes.
+Estábulo, celeiro e galinheiro já permitem entrar e sair pelas portas reais.
+Os atalhos `--area-preview 92`, `96` e `112` abrem esses interiores diretamente.
+Detalhes e limites em [FARM_INTERIORS.md](../docs/port/FARM_INTERIORS.md).
+Para testar diretamente fora da casa, use `--farm-preview`. Para outra região,
+use `--area-preview ID` (por exemplo, 52 para a praça e 56 para a praia).
+Ambos iniciam uma sessão nova com controle livre e sem a visita de Thomas.
+Veja [FIRST_MORNING.md](../docs/port/FIRST_MORNING.md) e
+[FARM_CONTROL.md](../docs/port/FARM_CONTROL.md).
+A caixa de venda reconhece o terreno original, registra produtos vendáveis
+e paga às 17h58, incluindo o avanço durante o sono e as datas sem coleta.
+Veja [SHIPPING.md](../docs/port/SHIPPING.md). Cultivos, geração de produtos,
+saves, clima e gameplay completo continuam pendentes.
+O bootstrap `--diagnostics` não executa o jogo.
 Depende de SDL3, sem SDK PSY-Q nem emulador. Veja os marcos no
 [roteiro](../docs/port/ROADMAP.md).
 

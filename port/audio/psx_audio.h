@@ -21,6 +21,10 @@ void hmbtn_sound_stereo(HmbtnSound *sound, bool stereo);
 void hmbtn_sound_effect(HmbtnSound *sound, unsigned tone); /* bank 0, prog 0, note 60, vol 60 */
 bool hmbtn_sound_key_on(HmbtnSound *sound, unsigned bank, unsigned program,
     unsigned tone, unsigned note, unsigned volume);
+/* Generation handle: releasing an old handle never stops a reused voice. */
+uint64_t hmbtn_sound_effect_start(HmbtnSound *sound,unsigned bank,unsigned program,
+    unsigned tone,unsigned note,unsigned volume);
+void hmbtn_sound_release_voice(HmbtnSound *sound,uint64_t handle);
 void hmbtn_sound_render(HmbtnSound *sound, int16_t *stereo, size_t frames);
 uint32_t hmbtn_sound_loop_count(const HmbtnSound *sound);
 #endif

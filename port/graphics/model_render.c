@@ -110,6 +110,12 @@ static bool project(const ViewMatrix *v, uint16_t h, const int32_t p[3], ScreenV
     return true;
 }
 
+bool hmbtn_model_project_point(const HmbtnCamera *camera,const int32_t pos[3],int *x,int *y)
+{
+    ViewMatrix view;ScreenVertex screen;
+    if(!pos || !x || !y || !build_view(camera,&view) || !project(&view,camera->projection,pos,&screen)) return false;
+    *x=screen.x;*y=screen.y;return true;
+}
 static int compare_polygon(const void *left, const void *right)
 {
     const DrawPolygon *a = left, *b = right;
@@ -312,7 +318,8 @@ bool hmbtn_model_render_instances(HmbtnModelRenderer *r,
         }
         if (!draw_triangle(p,0,1,2,atlas,rgba)
                 || (p->primitive.count == 4 && !draw_triangle(p,1,3,2,atlas,rgba))) {
-            snprintf(error,error_size,"Model polygon reads a missing texture or palette"); return false;
+            snprintf(error,error_size,"Model polygon reads a missing texture or palette (page %x, clut %x, uv %u,%u)",
+                p->primitive.page,p->primitive.clut,p->primitive.uv[0][0],p->primitive.uv[0][1]); return false;
         }
     }
     while (next_actor < actors) {

@@ -100,11 +100,12 @@ lógica C nativa e lendo arquivos extraídos, sem executar instruções MIPS.
 - [x] Usar o banco de ação correto para a confirmação com a cabeça e restaurar o sprite básico.
 - [x] Carregar o interior da casa/área 80 e encerrar o roteiro da abertura.
 - [x] Integrar o término da abertura ao controle na casa, com chão e colisões estáticas originais.
-- [ ] Integrar a transição da porta e os eventos da fazenda.
+- [x] Integrar a transição inicial casa↔fazenda e interação com a porta externa.
+- [ ] Completar o ciclo original de portas e os eventos da fazenda.
 - [ ] Adaptar operações de geometria/GTE e ponto fixo usadas pelo cenário escolhido.
 - [ ] Implementar as primitivas e ordenação gráfica exigidas nesse recorte.
-- [ ] Carregar um cenário, posicionar câmera e desenhar chão/objetos/personagem.
-- [ ] Integrar movimento original, animação, colisões e uma transição de porta.
+- [x] Carregar um cenário, posicionar câmera e desenhar chão/objetos/personagem.
+- [x] Integrar movimento, animação, colisões estáticas e uma transição de porta.
 - [ ] Comparar posição, câmera e colisões em uma sequência reproduzível de entradas.
 
 Entrega: personagem controlável em um cenário real. Não ampliar para todo o jogo
@@ -114,13 +115,15 @@ A prévia já adapta projeção/matrizes inteiras, mas a paridade GTE/GPU perman
 pendente. New Game inicia a chegada com os atores e as mensagens do primeiro
 evento, encontro, canção, despedida e retorno ao presente. A sequência entra
 na casa/área 80, posiciona o jogador na porta e encerra o roteiro original.
-Já há caminhada/corrida na casa inicial. Saída para a fazenda, colisões gerais
-e gameplay completo permanecem pendentes. Detalhes em
+Já há caminhada/corrida na casa inicial e na fazenda, saída/retorno pela porta
+e leitura das placas. Colisões dos ocupantes do campo, ferramentas, eventos
+externos e gameplay completo permanecem pendentes. Detalhes em
 [SCENE_RENDERER.md](SCENE_RENDERER.md) e [FARM_INTRO.md](FARM_INTRO.md).
 
 ## M5 — Sistemas do jogo
 
-- [ ] Relógio, calendário, clima e transições de dia.
+- [x] Relógio/calendário, ciclo visual dia/noite e transições de dia no recorte casa/fazenda.
+- [ ] Clima e conjunto completo de atualizações/eventos diários.
 - [ ] Ferramentas, inventário, plantação e economia.
 - [ ] Animais, moradores, família e rotinas.
 - [ ] Scripts, diálogos, festivais e minijogos.
@@ -354,7 +357,8 @@ Android, melhorias e mods terão roteiro próprio após esses marcos.
 - [ ] Avanço do pernoite/manhã: plantações, animais, clima e eventos diários.
 - [ ] Diário/save/load e troca de animais; entradas identificam seus limites.
 - [ ] Comparação sistemática da apresentação e áudio com o PS1.
-- [ ] Transição para a fazenda e eventos externos (permanece etapa seguinte).
+- [x] Transição inicial casa↔fazenda e leitura das placas externas.
+- [ ] Paridade completa das portas e eventos externos.
 
 Detalhes e controles em [HOUSE_INTERACTIONS.md](HOUSE_INTERACTIONS.md).
 A meta do porte 1:1 permanece aberta; o jogo completo ainda não executa no host.
@@ -401,3 +405,177 @@ O exterior ainda é um recorte parcial. Limites e evidências em
 - Placas externas de tipo 16 usam seus textos importados.
 - Próximo recorte: colisões dos ocupantes do campo e uso de ferramentas.
 - O ciclo completo de portas (hold, fechamento e autowalk) ainda requer paridade.
+
+### Correções das placas, espera da porta e volume
+
+- [x] Banco 2 para placas/estante; TV e menus continuam usando o banco 3.
+- [x] Nome do cachorro cadastrado e estoques da sessão nos textos das placas.
+- [x] Respeitar direção livre nas placas cujas zonas usam `FACING_ANY`.
+- [x] Jogador parado durante a abertura da porta; caminhar somente após abrir.
+- [x] Música com volume 80 dentro e 100 fora, inclusive no tick da troca de área.
+- [x] 21 CTests Linux, probe com as cinco placas/estante/porta e build Windows x64.
+- [ ] Colisões dos ocupantes do campo, uso de ferramentas e atualizações diárias.
+
+Recursos importados permanecem fora do Git. O porte continua parcial e não
+substitui o build PS1 nem sua validação SHA-1. Evidências e diferenças de
+apresentação restantes em [FARM_CONTROL.md](FARM_CONTROL.md).
+
+### Fazenda — conclusão funcional solicitada
+
+- [x] Fechamento de diálogos em um único ciclo, sem reexibir a moldura.
+- [x] Validar a proporção real de amplitude da música: casa 80% do exterior.
+- [x] Consultas originais de chão, retângulos FarmChoice e regras dos ocupantes do campo.
+- [x] Bloqueio/deslizamento e salto conforme o tipo do obstáculo.
+- [x] Estado mutável dos 1125 terrenos, conservado nas entradas/saídas.
+- [x] Cinco ferramentas iniciais: ANI/sons, efeito após a animação, arar, regar e limpar.
+- [x] Abastecer o regador com 100 unidades e mostrar a contagem real na descrição.
+- [x] Stamina/fadiga/experiência na sessão e animação original por sobrecarga.
+- [x] Efeitos de quebra originais no campo (fila limitada e pausa).
+- [ ] Ferramentas melhoradas e áreas ampliadas.
+- [x] Pegar/carregar/lançar objetos soltos, guardar itens e caixa da fazenda.
+- [ ] Portas e interiores das instalações da fazenda.
+- [ ] Relógio, animais, eventos e atualizações diárias ligados ao estado da fazenda.
+- [ ] Comparação reproduzível com PS1 e execução em Windows real.
+
+Esta lista descreve a conclusão solicitada; itens pendentes não são considerados
+implementados apenas por terem representação visual no cenário.
+
+Validação: 22 CTests Linux, comparação do PCM 80/100, probe com dados locais
+para 1125 quads/ferramentas/refil/sobrecarga/ida e volta, e build MinGW x64.
+Detalhes e limites da fazenda em [FARM_CONTROL.md](FARM_CONTROL.md).
+
+### Menus da fazenda, mochila e áudio de ferramentas
+
+- [x] Regador libera sua própria voz no fim da ação e ao abrir menus.
+- [x] Identificadores de áudio impedem que um release antigo interrompa outra voz.
+- [x] Animações de quebra para pedras, galhos, madeira e mato; fila de 25 efeitos.
+- [x] Start: resumo, envios, ajudantes, contas e experiência, com o pack original.
+- [x] Pausa congela o mundo e efeitos; música continua.
+- [x] Triângulo: mochila com os slots desbloqueados, ajuda e descrições originais.
+- [x] Mover/trocar/equipar e empilhar sementes, preservando o inventário do baú.
+- [x] R1 troca ferramentas; R2 guarda/retira itens; teclado com R1/R2 separados.
+- [x] Imagens de itens com cache limitado e centralização pelos recortes originais.
+- [x] Coleta de objetos soltos, carregamento, lançamento e caixa da fazenda.
+- [ ] Colocação de instalações e colheita.
+- [ ] Dados vivos de animais, ajudantes contratados e economia diária.
+- [ ] Paridade visual completa de todos os menus e testes em Windows real.
+
+Controles, fontes e validação em [FARM_MENUS.md](FARM_MENUS.md).
+Objetos soltos já usam a mão/mochila compartilhadas e o fluxo de lançamento.
+Entrega e contabilização descritas em [SHIPPING.md](SHIPPING.md).
+
+### Coleta, mochila e descarte
+
+- [x] Recolher pedra pequena, galho e mato do campo, removendo imagem/colisão.
+- [x] Carregar com as ANIs originais de coleta, repouso, caminhada e corrida.
+- [x] Guardar/retirar pela mochila compartilhada, respeitando capacidade.
+- [x] Lançar e descartar objetos soltos, com animação, som e três slots de voo.
+- [x] Bloquear comandos durante a ação e congelar o voo nos menus.
+- [x] 24 CTests e probe de coleta → mochila → retirada → lançamento.
+- [x] Consulta real do chão no voo e entrega à caixa da fazenda.
+- [ ] Colocação de instalações, colheitas e demais reações de aterrissagem.
+
+Limites e controles em [FARM_CARRY.md](FARM_CARRY.md).
+Entrega e economia em [SHIPPING.md](SHIPPING.md).
+
+### Ajustes de carregamento e primeiro encontro matinal
+
+- [x] Deslocamentos originais de itens carregados por direção e corrida.
+- [x] Pedra/galho/madeira com classe de campo retornam a célula livre no plantio.
+- [x] Preservar solo, ocupantes e colisão; mato segue o descarte.
+- [x] Primeiro trecho do evento 12: Thomas, textos, nome e escolha Sim/Não.
+- [x] Gatilho uma vez por sessão.
+- [x] Continuar o passeio aceito a partir do cursor 15 e Zack a partir do 147.
+
+### Passeio de Thomas e apresentação de Zack — 2026-10-23
+
+- [x] Passeio aceito completo: estrada 32, áreas 36/40/48/52 e retorno à fazenda.
+- [x] Geometria/texturas reais, caminhadas, poses, Ellen e mensagens 64..77.
+- [x] Recusa com falas 78/79 e continuação comum com Zack.
+- [x] Subrotinas do roteiro sem modificar os bytes importados; retorno validado.
+- [x] Trocas de retrato na mesma mensagem e esperas pelos bancos 105/159.
+- [x] Apresentação de Zack, câmera da caixa, marcador e saída original.
+- [x] Controle liberado no término do evento; mochila/terreno conservados.
+- [x] Acréscimo das duas horas do passeio ao horário da sessão.
+- [x] 24 CTests Linux, percurso Sim/Não com dados locais, janela X11/software e cross-build MinGW x64.
+- [x] Exploração livre das regiões externas da cidade.
+- [ ] Rotinas de moradores e interiores.
+- [x] Entrega à caixa da fazenda e pagamento; produtores e demais caixas ainda pendentes.
+- [ ] Persistência em saves, comparação com PS1 e execução em Windows real.
+
+Fontes, reprodução e limites em [FIRST_MORNING.md](FIRST_MORNING.md).
+Entrega à caixa e integração da economia descritas em [SHIPPING.md](SHIPPING.md).
+Próximo recorte: cultivos e demais atualizações diárias.
+O bootstrap nativo de diagnóstico não executa o jogo; o porte continua parcial.
+
+### Aproximação de Thomas, escadas e relógio — 2026-10-23
+
+- [x] Aproximação de Thomas pela entrada norte antes da primeira conversa.
+- [x] Jogador/atores assentados no chão durante os eventos, incluindo as escadas da estrada 32.
+- [x] Relógio de 15 ticks por minuto; pausa em interiores, menus, eventos e fades.
+- [x] Virada da data às 06:00, semana, 30 dias/estação e limite de ano original.
+- [x] Amanhecer/dia/entardecer/noite com tabelas originais, blend subtrativo e interpolação de 256 ticks.
+- [x] Faixas sazonais e noturna, proporção de volume e silêncio no inverno à noite.
+- [x] Hora/minutos, calendário e TV atualizados pelo mesmo estado de tempo.
+- [x] Sono até a manhã, recuperação de stamina/fadiga e retorno ao controle.
+- [x] Seções sazonais da casa/fazenda, solo de inverno e uploads de textura persistentes.
+- [x] Secagem do terreno, mato de inverno e conservação de mochila/experiência/descartes.
+- [x] 25 CTests, dois percursos com dados locais, janela X11/software e compilação MinGW x64.
+- [ ] Clima, cultivos, animais, festivais e demais callbacks diários.
+- [ ] Saves, comparação de paridade com PS1 e execução em Windows real.
+
+Regras, reprodução e limites em [CLOCK.md](CLOCK.md). A aproximação antes
+do bloco do evento 12 é uma preparação nativa solicitada para a visita;
+o script importado continua intacto. O bootstrap de diagnóstico não executa o jogo.
+
+### Direção na conversa e caixa de venda — 2026-10-23
+
+- [x] Jogador vira para Thomas ao terminar o deslocamento da porta e permanece assim na primeira fala.
+- [x] Altura dos objetos lançados consultada no terreno real.
+- [x] Entrega reconhecida pelo bit 0x80 da superfície original, nas quatro estações.
+- [x] Preços originais, 25 grupos de produtos, limite de 999 e total de peixes enviados separado.
+- [x] Valor pendente, pagamento único às 17h58, datas sem coleta e entregas após o horário.
+- [x] Saldo/receitas no estado compartilhado do menu; limite de carteira original.
+- [x] Eventos de economia em ordem durante sono; histórico de contas às 05h59 do último dia da estação.
+- [x] 26 CTests Linux, três percursos com dados locais, passeio X11 e cross-build MinGW x64.
+- [ ] Cultivos, crescimento diário e geração dos produtos; cesta, cavalo e caixas de interiores.
+- [ ] Rotina de Zack, demais moradores, clima e saves.
+
+Reprodução e limites em [SHIPPING.md](SHIPPING.md). O campo inicial continua
+com os objetos soltos já suportados; os produtos do teste não são concedidos
+em jogo. O pedido seguinte priorizou as demais regiões do mapa.
+
+### Regiões externas do mapa — 2026-10-23
+
+- [x] Fazenda e 14 outras regiões externas conectadas por zonas originais.
+- [x] 34 passagens direcionais, fade e retorno ao controle na chegada.
+- [x] Resolução das quatro seções sazonais de cada região.
+- [x] Caminhada/corrida no terreno real; altura de chegada, escadas e encostas.
+- [x] Limites originais da câmera em exploração livre.
+- [x] Leitura das placas do vilarejo/trilhas, incluindo nome cadastrado da fazenda.
+- [x] Música regional, exceções de volume e pitch wheel real das SEQs da praia.
+- [x] Inventário, terreno e remessas conservados; retorno sem repetir Thomas.
+- [x] 27 CTests e quatro percursos de integração com dados locais no Linux.
+- [ ] Interiores, horários, moradores e eventos dos estabelecimentos.
+- [ ] Minas, coleta silvestre, pesca, banhos e blits de textura animada.
+
+Detalhes e reprodução em [WORLD_MAP.md](WORLD_MAP.md). Nesta etapa, por pedido
+do usuário, validar somente no Linux local; manter o código compartilhado
+compatível com Windows, sem cross-build a cada entrega. Próximo recorte do
+mapa: interiores e suas regras de entrada, antes dos sistemas próprios de cada local.
+
+### Interiores iniciais da fazenda — 2026-10-23
+
+- [x] Estábulo 92, celeiro 96 e galinheiro 112, nas quatro estações.
+- [x] Entrada por Z/Cross, direção e altura da zona; saída interna ao caminhar.
+- [x] Giro por direção, rotação inicial e suporte a modelos de portas duplas.
+- [x] Relógio pausado nos interiores e estado conservado no retorno.
+- [x] Atalhos de teste `--area-preview 92/96/112`.
+- [x] 27 CTests e cinco percursos de integração revalidados no Linux local.
+- [ ] Alimentação, animais e demais operações internas.
+- [ ] Portas da vila: regras de presença, afinidade, calendário e horário.
+
+Fontes, reprodução e limites em [FARM_INTERIORS.md](FARM_INTERIORS.md).
+As portas da fazenda não têm bloqueios de horário na tabela original; as
+regras dos estabelecimentos da vila precisam de seus estados reais antes
+da liberação. Windows continua como alvo do código, sem recompilação nesta etapa.

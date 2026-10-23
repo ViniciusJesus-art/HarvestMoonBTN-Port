@@ -20,6 +20,8 @@ bool hmbtn_new_game_ui_message(HmbtnNewGameUI *ui, const char *root,
     const char *archive, unsigned id, HmbtnMessage *message, char *error, size_t error_size);
 bool hmbtn_ui_message_record(HmbtnNewGameUI *ui,const uint8_t *record,size_t size,
     HmbtnMessage *message,char *error,size_t error_size);
+bool hmbtn_ui_message_portrait(HmbtnNewGameUI *ui,const HmbtnMessage *message,
+    char *error,size_t error_size);
 bool hmbtn_new_game_ui_load(HmbtnNewGameUI *ui, const char *root, HmbtnNewGame *game,
     char *error, size_t error_size);
 bool hmbtn_new_game_ui_draw(HmbtnNewGameUI *ui, const HmbtnNewGame *game,

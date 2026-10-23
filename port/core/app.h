@@ -15,6 +15,8 @@ typedef struct HmbtnAppOptions {
     bool intro_preview; /* Original opening, including the childhood sequence. */
     bool childhood_preview; /* Development entry at the childhood meeting. */
     bool house_preview; /* Initial house, with the implemented walking subset. */
+    bool area_preview; /* Development entry with free control and consumed visit. */
+    unsigned preview_area;
 } HmbtnAppOptions;
 
 int hmbtn_app_run(const HmbtnAppOptions *options);

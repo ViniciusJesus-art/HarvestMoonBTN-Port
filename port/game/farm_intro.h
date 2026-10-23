@@ -2,6 +2,7 @@
 #define HMBTN_FARM_INTRO_H
 #include "event_script.h"
 #include "asset_decode.h"
+#include "model_decode.h"
 
 typedef struct HmbtnIntroActor {
     int32_t position[3], velocity[3];
@@ -14,6 +15,7 @@ typedef struct HmbtnFarmIntro {
     HmbtnEventScript script;
     HmbtnIntroActor player, mayor;
     HmbtnIntroActor childhood[4], boy, girl; /* Event actors, not NPC gameplay state. */
+    HmbtnIntroActor ellen, zack;
     int32_t slots[32];
     unsigned message, target_area;
     unsigned area, event, queued_event, camera_actor;
@@ -32,6 +34,11 @@ typedef struct HmbtnFarmIntro {
     unsigned music_mode;
     bool song_pending, start_music;
     bool action_pending, action_ready, action_active, action_finished;
+    unsigned text_bank;
+    unsigned advanced_minutes;
+    bool zone_exited, player_marker;
+    const HmbtnModel *ground; /* Borrowed native model, updated by the scene loader. */
+    bool visit_approach;
 } HmbtnFarmIntro;
 
 bool hmbtn_farm_intro_open(HmbtnFarmIntro *intro, const uint8_t *script, size_t size,

@@ -154,6 +154,25 @@ int main(void)
     CHECK(g.message.scroll_y==0 && g.message.page==3 && g.message.phase==HMBTN_MESSAGE_PRINTING);
     for(unsigned i=0;i<100;++i) hmbtn_message_tick(&g.message,0,HMBTN_PAD_CROSS);
     CHECK(g.message.phase==HMBTN_MESSAGE_WAIT_END && g.message.page>3);
+    const uint16_t question[]={0,0xffc,0xffa,0xfffe,1,0xfffe,2,0xffff};
+    record(data,question,sizeof(question)/2);
+    CHECK(hmbtn_message_open(&g.message,data,sizeof(data),error,sizeof(error)));
+    for(unsigned i=0;i<30;++i) hmbtn_message_tick(&g.message,0,HMBTN_PAD_CROSS);
+    CHECK(g.message.phase==HMBTN_MESSAGE_WAIT_PAGE);
+    hmbtn_message_tick(&g.message,HMBTN_PAD_CROSS,0);
+    for(unsigned i=0;i<10;++i) hmbtn_message_tick(&g.message,0,HMBTN_PAD_CROSS);
+    CHECK(g.message.phase==HMBTN_MESSAGE_WAIT_END && g.message.choices==2 && g.message.page==4);
+    /* FACE selects a portrait independently of FACE_BANK. Multi-speaker
+     * event scripts wait on the bank at specific points in the same text. */
+    const uint16_t speakers[]={0xf61,0xff7,0xff4,0xf86,0,0xffc,0xffb,
+        0xf86,0xff7,0xf87,1,0xffff};
+    record(data,speakers,sizeof(speakers)/2);hmbtn_write_le32(data,142);
+    CHECK(hmbtn_message_open(&g.message,data,sizeof(data),error,sizeof(error)));
+    for(unsigned i=0;i<30;++i) hmbtn_message_tick(&g.message,0,HMBTN_PAD_CROSS);
+    CHECK(g.message.phase==HMBTN_MESSAGE_WAIT_PAGE && g.message.face_bank==105 && g.message.bank==142);
+    hmbtn_message_tick(&g.message,HMBTN_PAD_CROSS,HMBTN_PAD_CROSS);
+    for(unsigned i=0;i<10;++i) hmbtn_message_tick(&g.message,0,HMBTN_PAD_CROSS);
+    CHECK(g.message.phase==HMBTN_MESSAGE_WAIT_END && g.message.face_bank==104 && g.message.bank==105);
     const uint16_t invalid[]={0x400a,0xffff};record(data,invalid,2);
     CHECK(!hmbtn_message_open(&g.message,data,sizeof(data),error,sizeof(error)));
     memset(data+0x1800,0,0x800);

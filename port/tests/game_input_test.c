@@ -48,5 +48,19 @@ int main(void)
     event.key.scancode = SDL_SCANCODE_BACKSPACE;
     hmbtn_game_input_event(&input, &event, 1);
     CHECK(hmbtn_game_input_take_pressed(&input) == HMBTN_PAD_CIRCLE);
+    const SDL_Scancode shoulder_keys[] = {SDL_SCANCODE_E, SDL_SCANCODE_2, SDL_SCANCODE_Q, SDL_SCANCODE_1};
+    const uint32_t shoulder_buttons[] = {HMBTN_PAD_R1, HMBTN_PAD_R2, HMBTN_PAD_L1, HMBTN_PAD_L2};
+    event.type = SDL_EVENT_KEY_UP;
+    hmbtn_game_input_event(&input, &event, 1);
+    for (unsigned i = 0; i < 4; ++i) {
+        event.type = SDL_EVENT_KEY_DOWN;
+        event.key.scancode = shoulder_keys[i];
+        hmbtn_game_input_event(&input, &event, 1);
+        CHECK(hmbtn_game_input_take_pressed(&input) == shoulder_buttons[i]);
+        CHECK(hmbtn_game_input_held(&input) == shoulder_buttons[i]);
+        event.type = SDL_EVENT_KEY_UP;
+        hmbtn_game_input_event(&input, &event, 1);
+        CHECK(hmbtn_game_input_held(&input) == 0);
+    }
     return 0;
 }

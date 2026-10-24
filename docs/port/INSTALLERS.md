@@ -34,6 +34,12 @@ O ícone do executável, da janela, dos pacotes e dos atalhos é gerado a partir
 do menu Iniciar e da área de trabalho. No AppImage, os atalhos criados no primeiro
 uso apontam para a cópia estável e usam o mesmo logo. Para substituir o ícone,
 troque esse PNG quadrado (RGBA, 8 bits por canal) e gere novamente os pacotes.
+O PNG original permanece no lugar, inclusive para as janelas. O configure gera
+variantes de 16, 24, 32, 48, 64, 128 e 256 pixels: o ICO Windows contém todos
+esses tamanhos e os pacotes Linux instalam as variantes em `hicolor`. AppImage
+inclui também o PNG de 256 pixels na raiz e em `.DirIcon`. EXE, instalador,
+desinstalador e atalhos compartilham o mesmo logo; não é necessário manter
+cópias manuais do arquivo fonte em outras pastas.
 
 ## Destino dos dados
 

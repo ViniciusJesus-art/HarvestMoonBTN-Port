@@ -4,7 +4,7 @@
 #include <string.h>
 void hmbtn_farm_action_init(HmbtnFarmAction *a)
 {
-    memset(a,0,sizeof(*a));a->stamina=100;a->sound=a->bank=-1;a->target=HMBTN_FIELD_CELLS;
+    memset(a,0,sizeof(*a));a->stamina=a->max_stamina=100;a->sound=a->bank=-1;a->target=HMBTN_FIELD_CELLS;
 }
 static void idle(HmbtnFarmAction *a,HmbtnIntroActor *p)
 {

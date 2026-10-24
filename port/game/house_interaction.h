@@ -21,6 +21,7 @@ typedef struct HmbtnHouseInteraction {
     unsigned year, season, day, weekday, hour, minute, weather, tomorrow;
     unsigned calendar_day, cursor, page, picked, picked_page, pan;
     unsigned steps;
+    unsigned event_count1; /* Original player.counts70[1], capped at 15. */
     unsigned supplies[4]; /* Fodder, lumber, chicken feed, fish food. */
     HmbtnStoredTool equipped, bag[8], toolbox[64];
     HmbtnStoredTool held_item, items[8];

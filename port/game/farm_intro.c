@@ -1,4 +1,4 @@
-/* Native event_commands.c subset for events 12 and 0x74..0x79. Resource requests keep
+/* Native event_commands.c subset for the opening, poultry and story events. Resource requests keep
  * the cursor pending until the host loads them; unsupported scenes stop. */
 #include "farm_intro.h"
 #include "ground.h"
@@ -18,6 +18,8 @@ HmbtnIntroActor *hmbtn_farm_intro_actor(HmbtnFarmIntro *s, int32_t id)
 {
     if (id == 17) return &s->mayor;
     if (id == 23) return &s->ellen;
+    if (id == 9) return &s->elli;
+    if (id == 34) return &s->stu;
     if (id == 26) return &s->zack;
     if (id == 10) return &s->carter;
     if (id == 15) return &s->barley;
@@ -55,9 +57,13 @@ static HmbtnEventResult command(void *ctx, const HmbtnEventCommand *c,
 {
     HmbtnFarmIntro *s = ctx;
     const int32_t a = c->command, b = c->operand, x = c->x, y = c->y;
+    const bool visit=(s->event>=128 && s->event<=133) || s->event==288;
     HmbtnIntroActor *actor = hmbtn_farm_intro_actor(s,a);
     switch (c->type) {
     case 0x23: {
+        if(visit && a==42 && b==0 && x==0 && y==0) {
+            memset(&s->mayor,0,sizeof(s->mayor));return HMBTN_EVENT_DONE;
+        }
         if((s->event==12 || s->event==172) && a==42) {
             HmbtnIntroActor *actors[]={s->event==12 ? &s->mayor : &s->carter,
                 s->event==12 ? &s->ellen : &s->barley,s->event==12 ? &s->zack : &s->rick};
@@ -164,6 +170,13 @@ static HmbtnEventResult command(void *ctx, const HmbtnEventCommand *c,
         actor->sprite.frame = (uint16_t)x;
         return HMBTN_EVENT_DONE;
     case 0x53: {
+        if(visit && actor && b==0 && x==0 && (y==-1 || y==3)) {
+            memset(actor->velocity,0,sizeof(actor->velocity));
+            if(y==-1) return HMBTN_EVENT_DONE; /* Unrecognized mode still stops speed in original. */
+            const int32_t dx=s->player.position[0]-actor->position[0],dz=s->player.position[2]-actor->position[2];
+            actor->facing=(unsigned)(abs(dx)>abs(dz) ? (dx<0 ? 1 : 3) : (dz<0 ? 0 : 2));
+            actor->sprite=(HmbtnAnimationPlayer){0,(uint16_t)actor->facing,0};return HMBTN_EVENT_DONE;
+        }
         if(!actor || b<0 || b>255 || x<0 || x>255 || y<1 || y>2) break;
         unsigned frame=(unsigned)x;
         if(y==2) {
@@ -177,15 +190,18 @@ static HmbtnEventResult command(void *ctx, const HmbtnEventCommand *c,
         return HMBTN_EVENT_DONE;
     }
     case 0x49:
+        if(visit && actor && b==-1 && x==-1 && slot(y)) {
+            s->slots[y]=actor->position[2];return HMBTN_EVENT_DONE;
+        }
         if (!actor || !slot(b) || !slot(x) || !slot(y)) break;
         s->slots[b] = actor->position[1]; s->slots[x] = actor->position[0]; s->slots[y] = actor->position[2];
         return HMBTN_EVENT_DONE;
     case 2:
-        if (a != 1 || b < 0 || (x != -1 && !(s->event==12 && x==0)) || y) break;
+        if (a != 1 || b < 0 || (x != -1 && !(s->event==12 && x==0) && !(visit && slot(x))) || y) break;
         if (s->message_done && s->message == (unsigned)b) {
             s->message = 0; s->message_done = false; return HMBTN_EVENT_DONE;
         }
-        s->message = (unsigned)b; return HMBTN_EVENT_WAIT;
+        s->message_result_slot=x;s->message = (unsigned)b; return HMBTN_EVENT_WAIT;
     case 0x3F:
         /* Queued records are (player mode, animation, action-bank flag), not
          * (animation, frame). Mode 0x47 loads sector row 12 for the nod. */
@@ -256,6 +272,9 @@ static HmbtnEventResult command(void *ctx, const HmbtnEventCommand *c,
             s->target_area,a == -2 ? "farmhouse interior" : "next scene");
         return HMBTN_EVENT_BOUNDARY;
     case 0x25: /* event_cmd_enter_mode(0,0,0,0): finish the opening event. */
+        if(visit && !a && !b && !x && (y==1 || y==2)) {
+            s->event_active=false;s->finish_requested=true;return HMBTN_EVENT_DONE;
+        }
         if((s->event==172 || s->event==299) && s->area==80 && !s->area_pending && !x && !y
                 && ((s->event==299 && !a && !b) || (s->event==172 && a==2 && b==1))) {
             if(s->event==172) s->advanced_minutes+=60;
@@ -291,6 +310,7 @@ static HmbtnEventResult command(void *ctx, const HmbtnEventCommand *c,
         }
         return s->xa_active ? HMBTN_EVENT_WAIT : HMBTN_EVENT_DONE;
     case 0x1C: /* event bracket; this subset opens it during the song. */
+        if(visit && s->game_command) return s->game_command(s->game_context,c,error,error_size);
         if (a || b || x || y) break;
         s->event_active = true; return HMBTN_EVENT_WAIT;
     case 0x4F: /* Original one-slot subroutine call, without patching resource bytes. */
@@ -323,9 +343,16 @@ static HmbtnEventResult command(void *ctx, const HmbtnEventCommand *c,
         return HMBTN_EVENT_DONE;
     }
     case 0x0C: /* No outstanding talk/delivery during this scripted encounter. */
+        if(visit && actor && !b && !x && !y) {
+            const int32_t dx=s->player.position[0]-actor->position[0],dz=s->player.position[2]-actor->position[2];
+            actor->facing=(unsigned)(abs(dx)>abs(dz) ? (dx<0 ? 1 : 3) : (dz<0 ? 0 : 2));
+            actor->sprite=(HmbtnAnimationPlayer){0,(uint16_t)actor->facing,0};actor->visible=true;
+            return HMBTN_EVENT_DONE;
+        }
         if(s->event!=12 || a!=26 || b || x || y) break;
         return HMBTN_EVENT_WAIT;
     case 0x45:
+        if(visit && s->game_command) return s->game_command(s->game_context,c,error,error_size);
         if(a || (b!=0 && b!=1) || x!=4 || y!=1) break;
         s->player_marker=b!=0;return HMBTN_EVENT_DONE;
     case 9: {
@@ -358,6 +385,7 @@ static HmbtnEventResult command(void *ctx, const HmbtnEventCommand *c,
         s->cell_actor = (unsigned)a; select_sprite(actor,(unsigned)s->slots[b]);
         return HMBTN_EVENT_DONE;
     default:
+        if(visit && s->game_command) return s->game_command(s->game_context,c,error,error_size);
         snprintf(error,error_size,"Native intro command 0x%02x at step %u is not ported",c->type,s->script.pc);
         return HMBTN_EVENT_BOUNDARY;
     }
@@ -423,10 +451,10 @@ bool hmbtn_farm_intro_tick(HmbtnFarmIntro *s, char *error, size_t error_size)
         memcpy(s->camera,s->player.position,sizeof(s->camera));
         return true;
     }
-    if (s->event!=12 && s->message && !s->message_done) return true;
+    if (s->event!=12 && s->event!=130 && s->message && !s->message_done) return true;
     if (!hmbtn_event_tick(&s->script,command,s,error,error_size)) return false;
     if (!s->message) {
-        const unsigned ids[] = {1,2,3,4,10,15,17,19,23,26,27,33};
+        const unsigned ids[] = {1,2,3,4,9,10,15,17,19,23,26,27,33,34};
         for (unsigned a = 0; a < sizeof(ids)/sizeof(ids[0]); ++a) {
             HmbtnIntroActor *actor = hmbtn_farm_intro_actor(s,(int32_t)ids[a]);
             for (unsigned axis = 0; axis < 3; ++axis) {
@@ -449,7 +477,7 @@ bool hmbtn_farm_intro_tick(HmbtnFarmIntro *s, char *error, size_t error_size)
             s->player.position[i] = (int32_t)player;
             moving |= s->player.velocity[i] != 0;
         }
-        if (!moving && !s->player.pose) s->player.sprite = (HmbtnAnimationPlayer){0,(uint16_t)s->player.facing,0};
+        if (!moving && !s->player.pose && !s->player_free) s->player.sprite = (HmbtnAnimationPlayer){0,(uint16_t)s->player.facing,0};
         HmbtnGroundHit hit;
         if(moving && hmbtn_ground_find(s->ground,s->player.position,0xC080,200,&hit)) s->player.position[1]=hit.height;
     }

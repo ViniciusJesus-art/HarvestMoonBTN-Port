@@ -16,6 +16,7 @@ typedef struct HmbtnFarmCarry {
     HmbtnThrownItem thrown[3];
     unsigned discarded;
     unsigned area; /* Current scene; flights retain the scene in which they began. */
+    bool small_fish_placed; /* Original beach throw prerequisite for squid. */
 } HmbtnFarmCarry;
 /* The field path currently accepts loose pickups, not crops or estate objects. */
 bool hmbtn_farm_carry_tick(HmbtnFarmCarry *state,HmbtnHouseInteraction *inventory,

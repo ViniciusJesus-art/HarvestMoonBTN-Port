@@ -8,7 +8,7 @@ typedef enum HmbtnFarmActionPhase {
 typedef struct HmbtnFarmAction {
     HmbtnFarmActionPhase phase;
     unsigned kind, charge_frames, overcharge_frames, strikes, target;
-    unsigned stamina, fatigue, experience[5];
+    unsigned stamina, max_stamina, fatigue, experience[5];
     int sound, bank;
     bool bank_pending, finished_bank, changed;
     bool release_sound;

@@ -46,7 +46,8 @@ Depois da visita, as passagens liberam exploração das 14 outras regiões
 externas, com versões sazonais, chão, placas e música originais. Veja
 [WORLD_MAP.md](../docs/port/WORLD_MAP.md). Os 22 interiores da vila já têm
 entradas, regras de horário/presença, escadas e rotas iniciais de moradores.
-Conversas, presentes e demais serviços de lojas continuam pendentes. Veja
+Conversas/presentes estão integrados no recorte descrito abaixo; demais
+serviços de lojas continuam pendentes. Veja
 [VILLAGE.md](../docs/port/VILLAGE.md).
 Estábulo, celeiro e galinheiro já permitem entrar e sair pelas portas reais.
 Os atalhos `--area-preview 92`, `96` e `112` abrem esses interiores diretamente.
@@ -120,9 +121,10 @@ O recorte do cadastro e a apresentação em janelas 16:9 estão em [NEW_GAME.md]
 Música, passos, TV, calendário, baú de ferramentas e livro/estante estão descritos em [HOUSE_INTERACTIONS.md](../docs/port/HOUSE_INTERACTIONS.md).
 
 
-Conversas comuns com moradores (Z/Cross, mãos vazias) e colisão com o jogador
+Conversas comuns com moradores (Z/Cross) e colisão com o jogador
 estão em [NPC_INTERACTION.md](../docs/port/NPC_INTERACTION.md), com os limites de
-história/presentes ainda pendentes. A lista de compras agora mostra preços ao
+história ainda pendente. Presentes/aniversários estão em
+[VILLAGER_GIFTS.md](../docs/port/VILLAGER_GIFTS.md). A lista de compras agora mostra preços ao
 lado dos itens; a recusa de saldo insuficiente preserva o texto do `.bin` instalado.
 Veja [FEED_SHOPS.md](../docs/port/FEED_SHOPS.md) para testar a granja.
 
@@ -136,3 +138,28 @@ Os contadores de dias dos scripts agora avançam com o relógio da sessão,
 inclusive no sono. As rotas de moradores acumulam atraso ao serem bloqueadas
 pelo jogador e são liberadas após 30 minutos do jogo, com a agenda e retomada
 compensadas. Fontes e limites em [EVENT_DAYS.md](../docs/port/EVENT_DAYS.md).
+
+As flags dos diálogos também atualizam amizade/afeição na manhã seguinte,
+incluindo ganho único diário, limites, negligência e exceções originais. Veja
+[VILLAGER_AFFINITY.md](../docs/port/VILLAGER_AFFINITY.md). Família,
+sequência aleatória global e saves continuam pendentes.
+
+Greg já pode entregar a vara pelo roteiro original, com verificação de espaço,
+resposta, item no inventário e animação de apresentação. Reprodução na praia em
+[GREG_ROD.md](../docs/port/GREG_ROD.md). Com a vara equipada, segure C/Quadrado
+para pescar e solte durante a fisgada. Captura, inventário/venda, berry e estampas
+estão em [FISHING.md](../docs/port/FISHING.md), com os limites de paridade atuais.
+
+Presentes, primeiro presente/repetição e aniversários usam as preferências e
+scripts originais. Leve um produto na mão e aperte Z/Cross diante do morador.
+Ganhos, perdas e consumo seguem o bytecode instalado; limites e validação em
+[VILLAGER_GIFTS.md](../docs/port/VILLAGER_GIFTS.md).
+
+Thomas já faz as visitas que apresentam o favor da torta para Ellen e o pedido
+de ingredientes para o Festival de Culinária. Gatilhos, falas, escolhas e
+efeitos seguem os BINs originais, incluindo as nove variantes anuais do
+festival e a saída por tempo esgotado. Veja as condições em
+[FARM_VISITS.md](../docs/port/FARM_VISITS.md). A torta já pode ser buscada com
+Doug e entregue a Ellen, incluindo as duas escolhas, a sequência com Elli,
+300G e a visita seguinte de Thomas com bolo ou cobrança. A entrega dos
+ingredientes e o festival completo continuam pendentes.

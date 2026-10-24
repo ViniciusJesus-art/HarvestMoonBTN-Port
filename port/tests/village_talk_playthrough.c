@@ -78,7 +78,20 @@ int main(int argc,char **argv)
     }
     for(unsigned i=0;i<2000 && s->talk.active;++i) CHECK(step(s,HMBTN_PAD_CROSS,0,error,sizeof(error)));
     CHECK(!s->talk.active && !s->talk.script.boundary && s->house.mode==HMBTN_HOUSE_FREE);
-    printf("%u original message requests: first/repeat/affinity dialogue, portraits, return and paused controls passed.\n",messages);
+    /* Complete BIN dialogue, repeat the same day, then actually sleep. The
+     * original daily flags determine the gain, which is credited only once. */
+    CHECK(s->village.people[18].talk_flags&HMBTN_VILLAGER_DAILY_GAIN);
+    const unsigned friendship=s->village.people[18].friendship;
+    CHECK(step(s,HMBTN_PAD_CROSS,0,error,sizeof(error)) && s->talk.active);
+    for(unsigned i=0;i<2000 && s->talk.active;++i) CHECK(step(s,HMBTN_PAD_CROSS,0,error,sizeof(error)));
+    CHECK(!s->talk.active && !s->talk.script.boundary && s->village.people[18].friendship==friendship);
+    CHECK(load_area(s,s->data_root,80,error,sizeof(error)));s->intro.area=80;
+    const unsigned yesterday=s->clock.day;
+    s->house.mode=HMBTN_HOUSE_SLEEP;
+    for(unsigned i=0;i<1500 && (s->clock.day==yesterday || s->morning_fade);++i) CHECK(step(s,0,0,error,sizeof(error)));
+    CHECK(s->clock.day==yesterday+1 && !s->sleep.active && !s->morning_fade && s->area==80);
+    CHECK(s->village.people[18].friendship==friendship+1 && s->village.people[18].talk_flags==0x10);
+    printf("%u original message requests: first/repeat/affinity dialogue, portraits, paused controls and conversation-to-sleep friendship passed.\n",messages);
     hmbtn_scene_preview_destroy(s);hmbtn_host_close(&host);return 0;
 fail:
     hmbtn_scene_preview_destroy(s);hmbtn_host_close(&host);return 1;

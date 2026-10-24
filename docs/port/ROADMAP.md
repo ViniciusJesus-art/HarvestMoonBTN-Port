@@ -819,3 +819,192 @@ cumprimento, bloqueios entre moradores, casamento/clima completos, presentes,
 vara de Greg, demais lojas/eventos e saves continuam pendentes. Leitores,
 decodificadores e falas originais preservados; nenhum novo carregador gráfico.
 Bootstrap não executa o jogo; testes Linux não substituem Windows real/PS1/SHA-1.
+
+
+### Amizade e afeição na manhã seguinte
+
+- Portada a rotina `family_flags_update`: flags dos scripts de conversa agora
+  geram +200 de afeição para as cinco candidatas ou +1 de amizade para os
+  demais moradores na manhã seguinte, conforme a flag original. Repetir uma
+  conversa no mesmo dia não multiplica esse ganho.
+- Proteção por conversa, perda por negligência de 1 em 10, seis exceções,
+  limites 0..65535/0..255 e flags de afeição estritamente acima de 1500 seguem
+  o código original. Flags de apresentação são conservadas.
+- Adaptado `rand_range` com estado e overflow explícitos de 32 bits. O estado
+  dos moradores permanece na sessão; a sequência global compartilhada com
+  título/áudio/animais ainda não foi portada.
+- A mudança de dia consome as flags antes de reconstruir a agenda. Sono,
+  virada do ano e chegada às 06h sem dormir atualizam os pontos uma vez;
+  recarregar uma área não concede nem descarta o ganho.
+- Configure/build e 52 CTests Linux aprovados: 37 da base e 15 percursos com
+  BINs reais. Incluem vetores do gerador, limites/exceções, rollback, repetição
+  da conversa real com Lillia e ganho único após a animação/transição de sono.
+  A comparação das 93 solicitações de mensagem com os BINs continua passando.
+
+Fontes e limites em [VILLAGER_AFFINITY.md](VILLAGER_AFFINITY.md). Presentes,
+família/casamento, cenas românticas, vara de Greg, demais lojas/eventos e saves
+continuam pendentes. Corrida, falas dos BINs e leitores/decodificadores atuais
+preservados; nenhum novo carregador gráfico. Bootstrap diagnóstico não executa
+o jogo; validação Linux SDL dummy/software não substitui Windows real/PS1/SHA-1.
+
+
+### Vara de Greg e entrega de ferramentas por script
+
+- O comando 32 agora armazena ferramentas na mão, no primeiro espaço da
+  mochila ou, quando permitido pelo argumento original, na caixa. Capacidades
+  2/4/8, modificadores, quantidade, falta de espaço e variáveis de 16 bits
+  seguem `event_item_store`. Interrupções por ação ausente restauram os itens.
+- Greg executa o roteiro 382 do BIN instalado: verifica espaço, registra a
+  oferta, recebe a resposta e entrega a vara `0x38`. A flag é ativada antes
+  da resposta, inclusive na recusa, como no original. Com mochila cheia a
+  oferta não é registrada; liberar espaço permite o ramo de entrega.
+- A apresentação reutiliza a ANI base `0x47`, imagem pelo id do item, efeito 7
+  e o mecanismo de pose breve existente. Movimento/menus aguardam o contador;
+  nenhuma nova tabela de offsets nem carregador gráfico foi introduzido.
+- Novo teste sintético do armazenamento e percurso com cenário/agenda reais
+  da praia, textos comparados com os BINs, mão livre, mochila, recusa, falta
+  de espaço, ciclo de ferramentas, retorno entre áreas e ausência de duplicação.
+- Configure/build e 54 CTests Linux aprovados: 38 da base e 16 percursos com
+  BINs reais. Captura local da entrega conferida em SDL dummy/software;
+  artefatos em `/tmp/hmbtn-greg-presentation.*`, fora do Git.
+
+Reprodução e fontes em [GREG_ROD.md](GREG_ROD.md). A vara pode ser recebida e
+selecionada; a pesca continua pendente, assim como presentes, família, demais
+lojas/eventos e saves. Leitores, decodificadores, falas originais e travessia
+dos NPCs ao correr preservados. O bootstrap não executa o jogo; validação host
+não substitui Windows real nem o build PS1/SHA-1.
+
+
+### Presentes e aniversários dos moradores
+
+- Consulta de preferências adaptada de `item_villager_reaction`, com a tabela
+  C original gerada no configure: códigos de três bits em palavras de 32 bits,
+  ausência de imagem, ferramentas e reações de animais carregados.
+- Comandos 57/58/30 agora consultam o presente, resolvem conteúdo embrulhado
+  e removem os registros solicitados pelo roteiro. Comando 81/22 mantém o
+  contador original limitado a 15. Indireção de item conserva a metade inferior
+  assinada de 16 bits, sem ponteiros serializados.
+- Z/Cross entrega ao morador antes de arremessar/coletar. Atendimento de lojas
+  com mãos vazias mantém prioridade; presentes durante o expediente seguem
+  o diálogo do próprio morador. Pausa de controles/rotas/relógio e representação
+  do item carregado acompanham o consumo real.
+- Primeiro presente, repetição, perdas, mensagens de aniversário e aniversário
+  alternativo das candidatas executam os operandos do BIN instalado. Diferenças
+  verificadas entre ramos de embrulho/aniversário são preservadas, sem fórmula
+  global substituta nem alteração de falas.
+- Uma ação ausente restaura os depósitos de produtos/ferramentas, contadores,
+  flags e afinidade de todos os moradores, incluindo registros diferentes do alvo.
+- Configure/build e 56 CTests Linux aprovados: 39 da base e 17 percursos com
+  BINs reais. O novo percurso confere 186 casos em 31 moradores e 197 solicitações
+  de mensagem, além de coleta real no bosque → presente para Lillia com loja
+  aberta. Captura local em `/tmp/hmbtn-gifts-lillia.*`, fora do Git.
+
+Fontes, reprodução e limites em [VILLAGER_GIFTS.md](VILLAGER_GIFTS.md).
+Loja de embrulho, ajudantes, família, festivais e outros comandos de história
+continuam pendentes. A entrega da vara de Greg permanece integrada; pescar
+requer portar conjuntamente boia, animações e captura/eventos. Nenhum novo
+carregador gráfico, offset ou decodificador foi introduzido. Bootstrap não
+executa o jogo; testes host não substituem Windows real ou build PS1/SHA-1.
+
+
+### Pesca, resultados e recursos de ação compartilhados
+
+- Ciclo nativo de lançamento, contato com água, espera, fisgada, cancelamento,
+  recolhimento e recebimento. Boia consulta o chão decodificado; tabelas de
+  horário/local/estação e compensação vêm do C original. Quadrado/C controla
+  a pesca; movimento/menus aguardam a ação e o relógio externo continua ativo.
+- Capturas normais entram na mão e usam inventário, presentes e venda existentes.
+  Receita em garrafa, Power Berry, condições/flags das seis capturas especiais
+  e soltura/apresentação de estampa foram adaptadas. A berry aumenta a energia
+  máxima real e o sono respeita o máximo adquirido.
+- Peixe pequeno lançado na água da praia e meta de 200 peixes vendidos alimentam
+  as condições originais. A troca de cena limpa isca/sequência de resultados;
+  às 06h a ação é encerrada e o retorno à casa conserva as aquisições.
+- `filesystem/action_resources.*` identifica bancos pela linha original de
+  `farm_load_sector_row`, com intervalos/limites ANI gerados das fontes C.
+  Pesca, confirmação, funeral, sono, sobrecarga, medicina e reabastecimento
+  reutilizam a interface. Leitor BIN, decodificadores, atlas e imagens por id
+  permanecem os atuais; não foi criado caminho PNG nem tabela física no gameplay.
+- Configure/build e 59 CTests Linux aprovados: 41 da base e 18 percursos com
+  BINs reais. O novo percurso recebe a vara de Greg, lança na água real da
+  praia, cancela, fisga, recebe um peixe e confere pagamento pela venda. Fixtures
+  de resultados especiais executam as ANIs de consumo/estampa, a passagem das
+  06h e o sono com energia máxima ampliada. Capturas locais conferidas em
+  `/tmp/hmbtn-fishing-check/`, fora do Git.
+
+Reprodução, fontes e limites em [FISHING.md](FISHING.md). Respingo/espera do
+efeito de pouso, vibração da pesca, alvos dinâmicos de eventos, galeria,
+obtenção da vara melhorada, cozinha e acesso ao conjunto completo de locais
+continuam pendentes. Nem todos os pré-requisitos especiais podem ser obtidos
+no gameplay atual. Paridade visual/temporal PS1, Windows real e saves também
+permanecem pendentes; bootstrap diagnóstico não executa o jogo.
+
+### Visitas de Thomas: pedidos da torta e do festival
+
+- Eventos 128 e 288 integrados pelo bytecode original: chegada pela entrada
+  norte, espera por interação, saudação, escolhas, caminhada e despedida.
+  Ignorar a visita até o prazo original de uma hora ou sair da fazenda
+  também encerra o roteiro e devolve controle/agenda.
+- Tabelas sazonais de gatilhos lidas do `00_gf.bin`, com limite de 100
+  entradas, campos LE de 36 bytes e avaliação das condições originais do
+  recorte. Incluem intervalo invertido dos contadores, amizade mínima,
+  calendário, horário, clima, local anterior, flags e modo de disparo.
+  Eventos sem implementação continuam inelegíveis.
+- Aceitar/recusar a torta altera amizade de Thomas e a flag do pedido.
+  O festival escolhe uma entre nove perguntas conforme o ano módulo 9;
+  a recusa aplica a perda original de amizade/afeição e dos ajudantes.
+  Slots de resposta, contadores e política de repetição vêm dos scripts.
+  A visita do festival pode voltar em outro ano; o favor da torta usa sua
+  marca própria. Flags ampliadas para as 37 palavras originais de 32 bits.
+- O jogador conserva movimento, animação, trabalho e menus enquanto Thomas
+  espera. Conversar pausa relógio/controle. O ator da visita usa a seleção
+  e colisão existentes, sem uma cópia extra da agenda: corrida atravessa,
+  caminhada bloqueia. O menu de escolha reutiliza a interface original.
+- `filesystem/event_resources.*` resolve roteiro/banco/atores por ID de
+  evento e gatilhos por seção sazonal. Intervalos gerados das tabelas C;
+  abertura, primeira manhã, funeral e nascimento migrados para a mesma
+  interface. Leitor BIN e decodificadores de bloco/ANI/banco preservados.
+  Mensagens desse fluxo usam o identificador lógico banco/registro.
+- Configure/build e 61 CTests Linux aprovados: 42 da base e 19 percursos
+  com BINs reais. Novos testes cobrem gates, truncamento, limite de tabela,
+  efeitos, nove variantes anuais, aceitação/recusa, tempo esgotado, saída,
+  ausência de repetição, glifos/controles idênticos aos BINs e colisão/corrida.
+  Capturas conferidas em `/tmp/hmbtn-visits-check/`, fora do Git.
+
+Reprodução e condições em [FARM_VISITS.md](FARM_VISITS.md). A sequência da
+torta, inicialmente prevista como próximo recorte, está descrita abaixo. Esta etapa
+implementa as visitas que iniciam os pedidos; não concede itens/recompensas
+antecipadamente. Festivais completos, demais eventos, PNGs extraídos,
+save/load, paridade PS1 e execução Windows real continuam pendentes. O
+bootstrap diagnóstico não executa o jogo e os testes host não substituem
+o build PS1/toolchain/SHA-1.
+
+### Torta para Ellen: coleta, entrega, recompensa e cobrança
+
+- Eventos originais 129..133 integrados ao pedido 128. O balcão de Doug na
+  Hospedaria usa sua zona original e o modo de disparo 10; mão ocupada bloqueia
+  a coleta. A torta vem do roteiro e não pode ser recebida duas vezes.
+- A entrega exige o item original na mão e o mesmo dia do pedido. As duas
+  escolhas de Ellen, a sequência de Elli e os agradecimentos usam os registros
+  390..394/2045, incluindo a mudança de olhares durante o banco de retrato 145.
+  O roteiro paga 300G/livro-caixa e altera amizade com Doug/Ellen em +20.
+- No dia seguinte, a tabela da fazenda seleciona retorno 131 (entrega feita),
+  132 (buscada sem entrega) ou 133 (não buscada). O sucesso apresenta e consome
+  o bolo com a ANI base 5 e o efeito real de fadiga da linha do item, restaurando
+  o que estava na mão. As falhas aplicam as perdas de amizade na chegada,
+  mesmo que Thomas seja ignorado; as marcas impedem repetição.
+- Atores de Ellen/Elli/Stu usam o carregador `village_art` existente por ID,
+  com cópias temporárias para o evento e devolução às agendas. A apresentação
+  de itens usa ANI base/imagem por ID e continua até terminar após o roteiro.
+  Leitores/decodificadores preservados; nenhum offset gráfico novo ou PNG.
+- Configure/build e 63 CTests Linux aprovados: 43 da base e 20 percursos com
+  BINs reais. O percurso da torta não concede itens/flags de missão por fixture:
+  testa ambos os caminhos, dinheiro, caixa, inventário, consumo, retrato,
+  falhas, prazo, ausência de duplicação e mensagens idênticas aos BINs.
+  Capturas de Elli e do bolo em `/tmp/hmbtn-pie-check/`, fora do Git.
+
+Condições e reprodução em [FARM_VISITS.md](FARM_VISITS.md). Próximo recorte de
+eventos: entrega dos ingredientes solicitados por Thomas. Menu geral da
+Hospedaria, festivais completos, outros eventos, PNGs, saves e validação real
+Windows/PS1 continuam pendentes. O bootstrap diagnóstico não executa o jogo;
+os testes host não substituem a toolchain PS1 nem sua validação SHA-1.

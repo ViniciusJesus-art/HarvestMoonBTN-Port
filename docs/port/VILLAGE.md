@@ -57,7 +57,12 @@ horários, presença, datas especiais, retomada e avanço das rotas.
 
 A compra de forragem/ração está em [FEED_SHOPS.md](FEED_SHOPS.md).
 Conversas comuns e colisão com o jogador estão em [NPC_INTERACTION.md](NPC_INTERACTION.md).
-Ainda faltam presentes, progressão completa de afinidade, demais lojas,
+A entrega da vara por Greg está em [GREG_ROD.md](GREG_ROD.md); seu uso está em
+[FISHING.md](FISHING.md).
+A atualização diária de amizade/afeição está em
+[VILLAGER_AFFINITY.md](VILLAGER_AFFINITY.md). Presentes e aniversários estão em
+[VILLAGER_GIFTS.md](VILLAGER_GIFTS.md). Ainda faltam progressão completa de
+afinidade, demais lojas,
 festivais, eventos familiares e o conjunto completo de scripts dos moradores.
 As células de porta das rotas retomam no ponto seguinte; suas animações de
 porta e cues de evento ainda não são executados. O atraso das rotas e os contadores diários estão em [EVENT_DAYS.md](EVENT_DAYS.md).

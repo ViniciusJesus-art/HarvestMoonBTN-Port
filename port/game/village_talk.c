@@ -1,5 +1,6 @@
 /* event_commands.c: comparisons deliberately return 1 when the rule FAILS. */
 #include "village_talk.h"
+#include "item_reaction.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -52,7 +53,7 @@ static bool value(HmbtnVillageTalk *t,int var,int element,int32_t *out)
     case 42:if(element<0 || element>=128) return false;*out=v->days.values[element];break;
     case 44:case 45:case 46:
         if(!p) return false;
-        *out=(p->talk_flags&(var==44 ? 0x400u : var==45 ? 0x200u : 0x10u))!=0;break;
+        *out=(p->talk_flags&(var==44 ? HMBTN_VILLAGER_DAILY_GAIN : var==45 ? HMBTN_VILLAGER_TALKED_TODAY : 0x10u))!=0;break;
     default:return false;
     }
     return true;
@@ -64,7 +65,7 @@ static bool update(HmbtnVillageTalk *t,int var,int element,int32_t operand,int o
     if(var>=49) { t->village->flags[var-48]=operand!=0;return true; }
     HmbtnVillager *p=person(element) ? &t->village->people[element] : NULL;
     if(var>=44 && var<=46 && p) {
-        const uint16_t mask=var==44 ? 0x400 : var==45 ? 0x200 : 0x10;
+        const uint16_t mask=var==44 ? HMBTN_VILLAGER_DAILY_GAIN : var==45 ? HMBTN_VILLAGER_TALKED_TODAY : 0x10;
         if(operand) p->talk_flags |= mask;else p->talk_flags &= (uint16_t)~mask;
         return true;
     }
@@ -143,18 +144,43 @@ static HmbtnEventResult command(void *context,const HmbtnEventCommand *c,char *e
     case 29:case 30: {
         if(!t->inventory) goto invalid;
         int item=c->type==29 ? 0 : v,where=c->type==29 ? v : e,which=c->type==29 ? e : x;
-        if(c->type==30 && (y&2)) { if(!slot(item)) goto invalid;item=t->slots[item]; }
-        if(c->type==30 && (y&1)) goto boundary; /* Gift removal is outside empty-handed talk. */
+        if(c->type==30 && (y&2)) {
+            if(!slot(item)) goto invalid;
+            item=(int)((uint32_t)t->slots[item]&0xFFFFu);
+            if(item>=32768) item-=65536;
+        }
         done=false;
         if((where!=0 && where!=1) || which<0 || which>2) goto boundary;
         for(int kind=0;kind<=which;++kind) {
-            const HmbtnStoredTool *items=NULL;unsigned count=0;
+            HmbtnStoredTool *items=NULL;unsigned count=0;
             if(kind==0) { items=where ? &t->inventory->held_item : &t->inventory->equipped;count=1; }
             if(kind==1) { items=where ? t->inventory->items : t->inventory->bag;
                 count=t->inventory->rucksack_level<=2 ? 2u<<t->inventory->rucksack_level : 0; }
             if(kind==2 && where==0) { items=t->inventory->toolbox;count=64; }
             if(kind==2 && where==1) goto boundary; /* Fridge not represented in this session. */
-            for(unsigned i=0;i<count;++i) if(items[i].id==item) done=true;
+            for(unsigned i=0;i<count;++i) if(items[i].id==item) {
+                done=true;
+                if(c->type==30 && (y&1)) items[i]=(HmbtnStoredTool){0};
+            }
+        }
+        break;
+    }
+    case 32: { /* event_item_store: equipped, rucksack, then optional toolbox. */
+        if(t->inventory->rucksack_level>2 || (e && !slot(v))) goto invalid;
+        int item=e ? (int)((uint32_t)t->slots[v]&0xFFFFu) : v;
+        if(item>=32768) item-=65536; /* script_vars[item].half */
+        if(item<=0 || item>=380) goto boundary;
+        HmbtnStoredTool *destination=NULL;bool spilled=false;
+        if(!t->inventory->equipped.id) destination=&t->inventory->equipped;
+        const unsigned capacity=2u<<t->inventory->rucksack_level;
+        for(unsigned i=0;!destination && i<capacity;++i)
+            if(!t->inventory->bag[i].id) destination=&t->inventory->bag[i];
+        if(!x) for(unsigned i=0;!destination && i<64;++i)
+            if(!t->inventory->toolbox[i].id) { destination=&t->inventory->toolbox[i];spilled=true; }
+        done=destination!=NULL;
+        if(destination) {
+            *destination=(HmbtnStoredTool){(uint16_t)item,(uint16_t)(item<=25 ? (item-1)%5 : 0),1};
+            if(y && !spilled) { t->show_tool=(unsigned)item;t->show_frames=y==1 ? 11 : 61; }
         }
         break;
     }
@@ -164,10 +190,21 @@ static HmbtnEventResult command(void *context,const HmbtnEventCommand *c,char *e
     case 37:
         if(v || e || x || y) goto boundary;
         t->script.finished=true;break;
-    case 57:done=false;break; /* Empty hands: original leaves the reaction slot unchanged. */
+    case 57: {
+        if(!t->inventory->held_item.id) { done=false;break; }
+        if(!slot(e) || (x && !slot(v))) goto invalid;
+        const int id=x ? t->slots[v] : v;
+        if(!person(id)) goto invalid;
+        const HmbtnStoredTool *gift=&t->inventory->held_item;
+        const unsigned item=gift->id==164 && gift->modifier ? gift->modifier : gift->id;
+        const int reaction=hmbtn_item_villager_reaction(item,(unsigned)id);
+        t->slots[e]=reaction>=0 && reaction<7 ? reaction+1 : 0;
+        break;
+    }
     case 58: {
         if(e!=0 && e!=1) goto invalid;
-        const unsigned item=e ? t->inventory->held_item.id : t->inventory->equipped.id;
+        const HmbtnStoredTool *entry=e ? &t->inventory->held_item : &t->inventory->equipped;
+        const unsigned item=x && entry->id==164 ? entry->modifier : entry->id;
         done=item!=0;
         if(done && v!=-1) { if(!slot(v)) goto invalid;t->slots[v]=(int32_t)item; }
         break;
@@ -185,6 +222,10 @@ static HmbtnEventResult command(void *context,const HmbtnEventCommand *c,char *e
         if(!slot(v) || t->slots[v]<0 || (unsigned)t->slots[v]>=t->script.count) goto invalid;
         t->script.pc=(unsigned)t->slots[v];return HMBTN_EVENT_JUMP;
     case 81:
+        if(v==22) {
+            if(t->inventory->event_count1<15) ++t->inventory->event_count1;
+            break;
+        }
         /* Only queries of initial-state systems; shops/story mutations are boundaries. */
         if(v==2 && e==1) { done=false;break; } /* No weddings in this session. */
         if(v==18 && x==0) { done=false;break; } /* No livestock spawn gate armed. */
@@ -218,18 +259,26 @@ bool hmbtn_village_talk_range(unsigned id,uint32_t *offset,size_t *size)
 }
 bool hmbtn_village_talk_open(HmbtnVillageTalk *t,unsigned id,const uint8_t *data,size_t size,
     HmbtnVillage *v,const HmbtnIntroActor *player,const HmbtnFarmClock *clock,
-    const HmbtnNewGame *registration,const HmbtnHouseInteraction *inventory,char *error,size_t error_size)
+    const HmbtnNewGame *registration,HmbtnHouseInteraction *inventory,char *error,size_t error_size)
 {
     HmbtnEventBlock block;const uint8_t *code;size_t length;
-    if(!t || !person((int)id) || !v || !player || !clock || !registration || !inventory || inventory->held_item.id
+    if(!t || !person((int)id) || !v || !player || !clock || !registration || !inventory || inventory->held_item.id>=380
             || !hmbtn_event_block_open(&block,data,size,error,error_size)
             || !hmbtn_event_block_entry(&block,block.script,&code,&length,NULL)) return false;
     if(length>sizeof(t->code)) { snprintf(error,error_size,"NPC conversation exceeds native script bound");return false; }
     memset(t,0,sizeof(*t));memcpy(t->code,code,length);
     if(!hmbtn_event_script_open(&t->script,t->code,length,error,error_size)) return false;
     memcpy(t->saved_flags,v->flags,sizeof(t->saved_flags));t->saved_days=v->days;
-    t->saved_talk_flags=v->people[id].talk_flags;t->saved_affection=v->people[id].affection;
-    t->saved_friendship=v->people[id].friendship;
+    t->saved_equipped=inventory->equipped;
+    memcpy(t->saved_bag,inventory->bag,sizeof(t->saved_bag));
+    memcpy(t->saved_toolbox,inventory->toolbox,sizeof(t->saved_toolbox));
+    t->saved_held_item=inventory->held_item;
+    t->saved_event_count1=inventory->event_count1;
+    memcpy(t->saved_items,inventory->items,sizeof(t->saved_items));
+    for(unsigned i=0;i<HMBTN_VILLAGERS;++i) {
+        t->saved_people[i].flags=v->people[i].talk_flags;t->saved_people[i].affection=v->people[i].affection;
+        t->saved_people[i].friendship=v->people[i].friendship;
+    }
     t->target=id;t->saved_facing=v->people[id].actor.facing;t->village=v;t->player=player;
     t->clock=clock;t->registration=registration;t->inventory=inventory;t->active=true;return true;
 }
@@ -241,9 +290,18 @@ bool hmbtn_village_talk_tick(HmbtnVillageTalk *t,char *error,size_t size)
         if(t->script.boundary) {
             /* An unported action must not claim story/item progress. */
             memcpy(t->village->flags,t->saved_flags,sizeof(t->saved_flags));t->village->days=t->saved_days;
-            t->village->people[t->target].talk_flags=t->saved_talk_flags;
-            t->village->people[t->target].affection=t->saved_affection;
-            t->village->people[t->target].friendship=t->saved_friendship;
+            for(unsigned i=0;i<HMBTN_VILLAGERS;++i) {
+                t->village->people[i].talk_flags=t->saved_people[i].flags;
+                t->village->people[i].affection=t->saved_people[i].affection;
+                t->village->people[i].friendship=t->saved_people[i].friendship;
+            }
+            t->inventory->equipped=t->saved_equipped;
+            memcpy(t->inventory->bag,t->saved_bag,sizeof(t->saved_bag));
+            memcpy(t->inventory->toolbox,t->saved_toolbox,sizeof(t->saved_toolbox));
+            t->inventory->held_item=t->saved_held_item;
+            t->inventory->event_count1=t->saved_event_count1;
+            memcpy(t->inventory->items,t->saved_items,sizeof(t->saved_items));
+            t->show_tool=t->show_frames=0;
         }
         HmbtnIntroActor *a=&t->village->people[t->target].actor;
         a->facing=t->saved_facing;a->sprite=(HmbtnAnimationPlayer){0,(uint16_t)a->facing,0};

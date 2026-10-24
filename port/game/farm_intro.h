@@ -16,13 +16,16 @@ typedef struct HmbtnFarmIntro {
     HmbtnIntroActor player, mayor;
     HmbtnIntroActor childhood[4], boy, girl; /* Event actors, not NPC gameplay state. */
     HmbtnIntroActor ellen, zack;
+    HmbtnIntroActor elli,stu;
     HmbtnIntroActor carter,barley,rick;
     int32_t slots[32];
     unsigned message, target_area;
+    int message_result_slot; /* Original show-message result destination, -1 discards. */
     unsigned area, event, queued_event, camera_actor;
     int32_t camera[3];
     bool area_pending, event_pending, camera_gliding;
-    bool finish_requested; /* Original FARM_REQUEST_FINISH; gameplay is not implemented. */
+    bool finish_requested; /* Original FARM_REQUEST_FINISH. */
+    bool player_free; /* A waiting visitor yields player animation/movement to house_control. */
     int32_t camera_height, camera_distance, camera_from[3];
     unsigned xa_track;
     bool xa_pending, xa_started, xa_active, event_active;

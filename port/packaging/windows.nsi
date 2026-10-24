@@ -17,8 +17,8 @@ Name "Harvest Moon BTN (PC)"
 OutFile "${OUTPUT}"
 InstallDir "$LOCALAPPDATA\Programs\HarvestMoonBTN"
 InstallDirRegKey HKCU "Software\HarvestMoonBTN" "InstallDir"
-Icon "${PAYLOAD}\hmbtn-native.ico"
-UninstallIcon "${PAYLOAD}\hmbtn-native.ico"
+!define MUI_ICON "${PAYLOAD}\hmbtn-native.ico"
+!define MUI_UNICON "${PAYLOAD}\hmbtn-native.ico"
 !define MUI_ABORTWARNING
 !define MUI_FINISHPAGE_RUN
 !define MUI_FINISHPAGE_RUN_FUNCTION LaunchGame

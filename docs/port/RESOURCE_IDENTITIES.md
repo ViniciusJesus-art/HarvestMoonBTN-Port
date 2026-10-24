@@ -20,6 +20,9 @@ bancos ao atlas usado pela interface; não há outro caminho de renderização.
 |---|---|---|
 | Mensagem | banco original 0..4 + número do registro | `02_messege0.bin` até `06_messege4.bin` |
 | Retrato | número do banco de rosto original | `01_face.bin` |
+| Ação do jogador | índice original de `farm_load_sector_row` | `00_gf.bin` |
+| Evento (roteiro, atores e banco) | número original do evento | `12_event_s.bin` |
+| Tabela de gatilhos | número original da seção sazonal | `00_gf.bin` |
 
 A resolução de mensagens usa o mapa de `menu_result_file` em `menu_window.c` e
 registros de 8.192 bytes. Retratos usam o passo de 6.144 bytes de `text.c`.
@@ -36,6 +39,14 @@ usando o banco original. A seleção de arte de moradores continua usando os pac
 e ids de personagens originais através de `village_art` e das tabelas extraídas
 no configure; não foi duplicada uma tabela de offsets em novos carregadores.
 
+`filesystem/action_resources.*` resolve as linhas de ação do jogador pela tabela
+`player_anim_banks` e pela base original de `farm_load_sector_row`, geradas no
+configure. O chamador recebe intervalo e limite ANI, reutilizando o leitor e os
+decodificadores atuais. Pesca, confirmação, funeral, sono, medicina e ações do
+campo usam a mesma interface; gameplay não calcula o offset de uma linha.
+A linha 27 sem ANI, ids fora da tabela e tamanhos incorretos são recusados.
+Detalhes em [FISHING.md](FISHING.md).
+
 ## Diretriz para os próximos carregadores
 
 1. Procurar primeiro os leitores e interfaces de animação, atlas e mensagem já
@@ -51,6 +62,21 @@ no configure; não foi duplicada uma tabela de offsets em novos carregadores.
    os BINs originais. Não adicionar recursos proprietários ao Git.
 
 ## Futuro uso de PNGs extraídos
+
+`filesystem/event_resources.*` centraliza os intervalos gerados de
+`event_script_offsets` e `section_table`. As visitas de Thomas e os eventos
+já integrados de abertura, primeira manhã, funeral e nascimento solicitam o
+ID original, preservando o decodificador de blocos, ANI/banco e atlas atuais.
+Não há offsets novos de eventos no coordenador de gameplay. As condições
+de disparo continuam nos BINs; o gerador contém somente os intervalos das
+tabelas C originais. A prévia geométrica não depende da tabela de eventos.
+
+Os eventos 129/130 não trazem banco de atores no bloco. A entrega da torta
+reutiliza `village_art` por IDs 9/23/34 (Elli, Ellen e Stu), inclusive no
+renderizador e na animação durante o evento. A torta e o bolo usam a ANI base
+do jogador e a imagem original do item por ID. Não há novo leitor gráfico
+para essas sequências; uma fonte PNG futura pode continuar atendendo às
+interfaces de arte já existentes.
 
 Não há carregador nem exportador de PNG de recursos do jogo implementado nesta
 etapa. A identificação acima permite relacionar uma extração futura aos mesmos

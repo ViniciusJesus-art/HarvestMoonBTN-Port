@@ -65,9 +65,9 @@ foreach(label money_title gold_unit units fodder chicken_feed buy_chicken sell_c
     string(APPEND shop_labels "${shop_label};\n")
 endforeach()
 file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/generated/feed_shop_labels.inc" "${shop_labels}")
-add_library(hmbtn_port_core STATIC core/psx_data.c graphics/asset_decode.c graphics/window_frame.c
+add_library(hmbtn_port_core STATIC core/psx_data.c core/psx_random.c graphics/asset_decode.c graphics/window_frame.c
     graphics/model_decode.c graphics/model_render.c graphics/scene_decode.c game/title_flow.c game/new_game.c
-    game/event_script.c game/farm_intro.c game/ground.c game/house_control.c game/house_interaction.c
+    game/event_script.c game/event_item.c game/farm_visit.c game/fishing.c game/item_reaction.c game/farm_intro.c game/ground.c game/house_control.c game/house_interaction.c
     game/house_sleep.c game/farm_field.c game/farm_action.c game/field_effects.c game/farm_menu.c game/farm_carry.c game/farm_feed.c game/farm_gather.c game/poultry.c game/poultry_carry.c game/feed_shop.c game/event_days.c game/farm_clock.c game/farm_shipping.c game/world_map.c game/village.c game/village_talk.c audio/psx_audio.c audio/xa_decode.c)
 target_include_directories(hmbtn_port_core PUBLIC core graphics game input audio)
 if(NOT MSVC)
@@ -83,6 +83,8 @@ set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
     "${CMAKE_SOURCE_DIR}/src/overlay/11_GF_FARM/event/event_commands.c"
     "${CMAKE_SOURCE_DIR}/src/overlay/11_GF_FARM/event/event_request.c"
     "${CMAKE_SOURCE_DIR}/src/main/game/farm_tables.c"
+    "${CMAKE_SOURCE_DIR}/src/main/game/picture_codes.c"
+    "${CMAKE_SOURCE_DIR}/src/overlay/11_GF_FARM/field/fishing.c"
     "${CMAKE_SOURCE_DIR}/src/main/game/farm_tables.h"
     "${CMAKE_SOURCE_DIR}/src/include/items.h"
     "${CMAKE_SOURCE_DIR}/src/overlay/11_GF_FARM/farm_probe.c"
@@ -114,7 +116,7 @@ include(cmake/import_table.cmake)
 add_library(hmbtn_host STATIC core/app.c platform/sdl_host.c platform/app_icon.c
     installer/disc_import.c installer/sha256.c installer/setup.c
     graphics/diagnostic_screen.c graphics/title_preview.c input/window_input.c
-    input/game_input.c filesystem/resource_file.c filesystem/text_resources.c filesystem/data_directory.c audio/title_audio.c audio/xa_stream.c
+    input/game_input.c filesystem/resource_file.c filesystem/event_resources.c filesystem/action_resources.c filesystem/text_resources.c filesystem/data_directory.c audio/title_audio.c audio/xa_stream.c
     graphics/new_game_ui.c graphics/house_ui.c graphics/farm_menu_ui.c graphics/feed_shop_ui.c graphics/village_art.c graphics/estate_art.c graphics/poultry_art.c graphics/scene_preview.c)
 target_include_directories(hmbtn_host PUBLIC core platform graphics input filesystem game installer)
 target_include_directories(hmbtn_host PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated")
@@ -192,9 +194,21 @@ if(BUILD_TESTING)
     add_executable(hmbtn_event_script_test tests/event_script_test.c)
     target_link_libraries(hmbtn_event_script_test PRIVATE hmbtn_port_core)
     add_test(NAME native_event_runtime COMMAND hmbtn_event_script_test)
+    add_executable(hmbtn_farm_visit_test tests/farm_visit_test.c)
+    target_link_libraries(hmbtn_farm_visit_test PRIVATE hmbtn_host)
+    add_test(NAME native_farm_visit COMMAND hmbtn_farm_visit_test)
+    add_executable(hmbtn_event_item_test tests/event_item_test.c)
+    target_link_libraries(hmbtn_event_item_test PRIVATE hmbtn_port_core)
+    add_test(NAME native_event_item COMMAND hmbtn_event_item_test)
     add_executable(hmbtn_event_days_test tests/event_days_test.c)
     target_link_libraries(hmbtn_event_days_test PRIVATE hmbtn_port_core)
     add_test(NAME native_event_days COMMAND hmbtn_event_days_test)
+    add_executable(hmbtn_fishing_test tests/fishing_test.c)
+    target_link_libraries(hmbtn_fishing_test PRIVATE hmbtn_port_core)
+    add_test(NAME native_fishing COMMAND hmbtn_fishing_test)
+    add_executable(hmbtn_action_resources_test tests/action_resources_test.c)
+    target_link_libraries(hmbtn_action_resources_test PRIVATE hmbtn_host)
+    add_test(NAME native_action_resources COMMAND hmbtn_action_resources_test)
     add_executable(hmbtn_farm_clock_test tests/farm_clock_test.c)
     target_link_libraries(hmbtn_farm_clock_test PRIVATE hmbtn_port_core)
     add_test(NAME native_farm_clock COMMAND hmbtn_farm_clock_test)
@@ -204,9 +218,18 @@ if(BUILD_TESTING)
     add_executable(hmbtn_village_talk_test tests/village_talk_test.c)
     target_link_libraries(hmbtn_village_talk_test PRIVATE hmbtn_port_core)
     add_test(NAME native_village_talk COMMAND hmbtn_village_talk_test)
+    add_executable(hmbtn_item_reaction_test tests/item_reaction_test.c)
+    target_link_libraries(hmbtn_item_reaction_test PRIVATE hmbtn_port_core)
+    add_test(NAME native_item_reaction COMMAND hmbtn_item_reaction_test)
+    add_executable(hmbtn_event_tool_store_test tests/event_tool_store_test.c)
+    target_link_libraries(hmbtn_event_tool_store_test PRIVATE hmbtn_port_core)
+    add_test(NAME native_event_tool_store COMMAND hmbtn_event_tool_store_test)
     add_executable(hmbtn_village_test tests/village_test.c)
     target_link_libraries(hmbtn_village_test PRIVATE hmbtn_port_core)
     add_test(NAME native_village COMMAND hmbtn_village_test)
+    add_executable(hmbtn_village_affinity_test tests/village_affinity_test.c)
+    target_link_libraries(hmbtn_village_affinity_test PRIVATE hmbtn_port_core)
+    add_test(NAME native_village_affinity COMMAND hmbtn_village_affinity_test)
     add_executable(hmbtn_farm_feed_test tests/farm_feed_test.c)
     target_link_libraries(hmbtn_farm_feed_test PRIVATE hmbtn_port_core)
     add_test(NAME native_farm_feed COMMAND hmbtn_farm_feed_test)
@@ -249,6 +272,21 @@ if(BUILD_TESTING)
     add_executable(hmbtn_village_talk_playthrough tests/village_talk_playthrough.c)
     target_include_directories(hmbtn_village_talk_playthrough PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated")
     target_link_libraries(hmbtn_village_talk_playthrough PRIVATE hmbtn_host)
+    add_executable(hmbtn_greg_rod_playthrough tests/greg_rod_playthrough.c)
+    target_include_directories(hmbtn_greg_rod_playthrough PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated")
+    target_link_libraries(hmbtn_greg_rod_playthrough PRIVATE hmbtn_host)
+    add_executable(hmbtn_fishing_playthrough tests/fishing_playthrough.c)
+    target_include_directories(hmbtn_fishing_playthrough PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated")
+    target_link_libraries(hmbtn_fishing_playthrough PRIVATE hmbtn_host)
+    add_executable(hmbtn_farm_visit_playthrough tests/farm_visit_playthrough.c)
+    target_include_directories(hmbtn_farm_visit_playthrough PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated")
+    target_link_libraries(hmbtn_farm_visit_playthrough PRIVATE hmbtn_host)
+    add_executable(hmbtn_pie_quest_playthrough tests/pie_quest_playthrough.c)
+    target_include_directories(hmbtn_pie_quest_playthrough PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated")
+    target_link_libraries(hmbtn_pie_quest_playthrough PRIVATE hmbtn_host)
+    add_executable(hmbtn_village_gifts_playthrough tests/village_gifts_playthrough.c)
+    target_include_directories(hmbtn_village_gifts_playthrough PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated")
+    target_link_libraries(hmbtn_village_gifts_playthrough PRIVATE hmbtn_host)
     add_executable(hmbtn_village_playthrough tests/village_playthrough.c)
     target_include_directories(hmbtn_village_playthrough PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated")
     target_link_libraries(hmbtn_village_playthrough PRIVATE hmbtn_host)
@@ -269,11 +307,26 @@ if(BUILD_TESTING)
     target_link_libraries(hmbtn_farm_interiors_playthrough PRIVATE hmbtn_host)
     set(HMBTN_TEST_GAME_DATA "" CACHE PATH "Optional extracted game data for local integration checks")
     if(HMBTN_TEST_GAME_DATA)
+        add_test(NAME native_pie_quest_playthrough COMMAND hmbtn_pie_quest_playthrough "${HMBTN_TEST_GAME_DATA}")
+        set_tests_properties(native_pie_quest_playthrough PROPERTIES TIMEOUT 120
+            ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_RENDER_DRIVER=software;SDL_AUDIO_DRIVER=dummy")
+        add_test(NAME native_farm_visit_playthrough COMMAND hmbtn_farm_visit_playthrough "${HMBTN_TEST_GAME_DATA}")
+        set_tests_properties(native_farm_visit_playthrough PROPERTIES TIMEOUT 120
+            ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_RENDER_DRIVER=software;SDL_AUDIO_DRIVER=dummy")
         add_test(NAME native_shop_shortage_playthrough COMMAND hmbtn_shop_shortage_playthrough "${HMBTN_TEST_GAME_DATA}")
         set_tests_properties(native_shop_shortage_playthrough PROPERTIES TIMEOUT 60
             ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_RENDER_DRIVER=software;SDL_AUDIO_DRIVER=dummy")
         add_test(NAME native_village_talk_playthrough COMMAND hmbtn_village_talk_playthrough "${HMBTN_TEST_GAME_DATA}")
         set_tests_properties(native_village_talk_playthrough PROPERTIES TIMEOUT 120
+            ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_RENDER_DRIVER=software;SDL_AUDIO_DRIVER=dummy")
+        add_test(NAME native_greg_rod_playthrough COMMAND hmbtn_greg_rod_playthrough "${HMBTN_TEST_GAME_DATA}")
+        set_tests_properties(native_greg_rod_playthrough PROPERTIES TIMEOUT 60
+            ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_RENDER_DRIVER=software;SDL_AUDIO_DRIVER=dummy")
+        add_test(NAME native_fishing_playthrough COMMAND hmbtn_fishing_playthrough "${HMBTN_TEST_GAME_DATA}")
+        set_tests_properties(native_fishing_playthrough PROPERTIES TIMEOUT 120
+            ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_RENDER_DRIVER=software;SDL_AUDIO_DRIVER=dummy")
+        add_test(NAME native_village_gifts_playthrough COMMAND hmbtn_village_gifts_playthrough "${HMBTN_TEST_GAME_DATA}")
+        set_tests_properties(native_village_gifts_playthrough PROPERTIES TIMEOUT 120
             ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_RENDER_DRIVER=software;SDL_AUDIO_DRIVER=dummy")
         add_test(NAME native_poultry_status_playthrough COMMAND hmbtn_poultry_status_playthrough "${HMBTN_TEST_GAME_DATA}")
         set_tests_properties(native_poultry_status_playthrough PROPERTIES TIMEOUT 60

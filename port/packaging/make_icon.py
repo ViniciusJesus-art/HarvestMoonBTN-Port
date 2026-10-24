@@ -77,10 +77,20 @@ def pixels(size):
   for y in range(size) for x in range(size)
  ))
 
+sizes=(16,24,32,48,64,128,256)
+def chunk(tag,data):
+ return struct.pack('>I',len(data))+tag+data+struct.pack('>I',zlib.crc32(tag+data)&0xffffffff)
+for size in sizes:
+ rgba=pixels(size)
+ rows=b''.join(b'\x00'+rgba[y*size*4:(y+1)*size*4] for y in range(size))
+ png=(b'\x89PNG\r\n\x1a\n'+chunk(b'IHDR',struct.pack('>IIBBBBB',size,size,8,6,0,0,0))
+      +chunk(b'IDAT',zlib.compress(rows))+chunk(b'IEND',b''))
+ (out/f'hmbtn-native-{size}.png').write_bytes(png)
+
 entries=[]
 images=[]
-offset=6+16*3
-for size in (32,48,256):
+offset=6+16*len(sizes)
+for size in sizes:
  rgba=pixels(size)
  bgra=bytearray()
  for y in reversed(range(size)):
@@ -92,7 +102,7 @@ for size in (32,48,256):
  entries.append(struct.pack('<BBBBHHII',size%256,size%256,0,0,1,32,len(image),offset))
  images.append(image)
  offset+=len(image)
-(out/'hmbtn-native.ico').write_bytes(struct.pack('<HHH',0,1,3)+b''.join(entries)+b''.join(images))
+(out/'hmbtn-native.ico').write_bytes(struct.pack('<HHH',0,1,len(sizes))+b''.join(entries)+b''.join(images))
 
 with (out/'app_icon.inc').open('w') as f:
  for name,content in [('app_icon_rgba',pixels(48)),('app_icon_png',source.read_bytes())]:

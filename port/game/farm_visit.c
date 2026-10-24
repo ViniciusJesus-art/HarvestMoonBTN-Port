@@ -1,0 +1,179 @@
+/* event_triggers_fire and the Thomas visits, with serialized LE fields, no PS1 pointers. */
+#include "farm_visit.h"
+#include "psx_data.h"
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+bool hmbtn_farm_triggers_open(HmbtnFarmTriggers *t,const uint8_t *data,size_t bytes,char *error,size_t size)
+{
+    if(t) *t=(HmbtnFarmTriggers){0};
+    if(t && data) for(unsigned i=0;i<HMBTN_FARM_TRIGGER_LIMIT && i*36u+2<=bytes;++i) {
+        if(hmbtn_read_le16(data+i*36u)==65535) { *t=(HmbtnFarmTriggers){data,i};return true; }
+        if(i*36u+36>bytes) break;
+    }
+    if(t && data && bytes>=HMBTN_FARM_TRIGGER_LIMIT*36u) {
+        *t=(HmbtnFarmTriggers){data,HMBTN_FARM_TRIGGER_LIMIT};return true;
+    }
+    snprintf(error,size,"Truncated farm trigger table or missing sentinel");return false;
+}
+static bool flags_match(const HmbtnVillage *v,uint32_t packed,unsigned base,bool set,unsigned count)
+{
+    for(unsigned i=0;i<count;++i) {
+        const unsigned id=(packed>>(i*10u))&1023u;
+        if(id!=1023u && (base+id>=HMBTN_VILLAGE_FLAGS || v->flags[base+id]!=set)) return false;
+    }
+    return true;
+}
+static bool window_match(uint32_t packed,const HmbtnFarmClock *c)
+{
+    unsigned w[6];for(unsigned i=0;i<6;++i) w[i]=(packed>>(25-5*i))&31u;
+    const unsigned first_year=w[0]==31 ? 0 : (w[0]+65535u)&65535u;
+    const unsigned last_year=w[1]==31 ? 32766 : (w[1]+65535u)&65535u;
+    if(c->year<first_year || c->year>last_year) return false;
+    /* Preserve the original inclusive span and its unusual day wrap. */
+    if(w[3]!=31) {
+        bool found=false;const unsigned span=w[3]>=30 ? 29 : w[3];
+        for(unsigned i=0;i<=span;++i) { unsigned day=((w[2]+65535u)&65535u)+i;if(day>=31) day-=29;found|=day==c->day; }
+        if(!found) return false;
+    }
+    if(w[4]==31 || w[5]==31) return true;
+    if(!w[5]) return c->hour==w[4] && !c->minute;
+    const unsigned count=w[5]>24 ? 24 : w[5];
+    for(unsigned i=0;i<count;++i) if((w[4]+i)%24==c->hour) return true;
+    return false;
+}
+bool hmbtn_farm_visit_supported(unsigned event) { return (event>=128 && event<=133) || event==288; }
+unsigned hmbtn_farm_visit_trigger(const HmbtnFarmTriggers *t,const HmbtnVillage *v,
+    const HmbtnFarmClock *c,unsigned weather,unsigned previous_place,unsigned mode)
+{
+    return hmbtn_farm_event_trigger(t,v,c,weather,previous_place,mode,0,NULL);
+}
+unsigned hmbtn_farm_event_trigger(const HmbtnFarmTriggers *t,const HmbtnVillage *v,
+    const HmbtnFarmClock *c,unsigned weather,unsigned previous_place,unsigned mode,
+    unsigned target,const HmbtnHouseInteraction *inventory)
+{
+    static const uint32_t weather_bits[5]={0x80000,0x2000,0x40000,0x1000,0x800};
+    if(!t || !t->data || !v || !c || c->season>3 || c->weekday>6 || weather>4) return 0;
+    for(unsigned i=0;i<t->count;++i) {
+        const uint8_t *p=t->data+i*36;const unsigned raw=hmbtn_read_le16(p),id=raw&1023u;
+        if(!hmbtn_farm_visit_supported(id)) continue;
+        const uint32_t flags=hmbtn_read_le32(p+28);
+        if((p[34]!=1 && p[34]!=mode) || p[12]!=247 || v->flags[251+id]) continue;
+        if(p[34]==3 && p[35]!=target) continue;
+        if(p[33]!=255 && !(p[33]==39 && inventory && inventory->held_item.id==204)) continue;
+        if(!window_match(hmbtn_read_le32(p+8),c)) continue;
+        const unsigned place=raw>>10;
+        if(place!=63 && ((place==previous_place)==((flags&0x80000000u)!=0))) continue;
+        bool range=true;
+        if(p[2]!=255 && p[3]!=255) {
+            if(p[2]!=40 || p[3]>=128) continue; /* Unknown variables fail closed. */
+            const unsigned n=v->days.count0[p[3]],lo=hmbtn_read_le16(p+4),hi=hmbtn_read_le16(p+6);
+            range=(lo==255 || n>=lo) && (hi==255 || n<=hi);
+        }
+        if(flags&0x400u) range=!range;
+        if(!range) continue;
+        if(p[13]!=255) {
+            if(p[13]>=HMBTN_VILLAGERS) continue;
+            const unsigned bond=v->people[p[13]].friendship,amount=hmbtn_read_le16(p+14);
+            if((flags&0x4000u) ? bond>amount : bond<amount) continue;
+        }
+        if(!flags_match(v,hmbtn_read_le32(p+16),251,true,3)
+                || !flags_match(v,hmbtn_read_le32(p+20),251,false,3)) continue;
+        const uint32_t prerequisites=hmbtn_read_le32(p+24);
+        if(!flags_match(v,prerequisites&1023u,200,true,1)
+                || !flags_match(v,(prerequisites>>10)&1023u,200,false,1)) continue;
+        if(!(flags&(0x40000000u>>c->season)) || !(flags&(0x4000000u>>c->weekday))) continue;
+        if((flags&0xC3800u)!=0xC3800u && !(flags&weather_bits[weather])) continue;
+        if((flags&0x10000u) && (!inventory || inventory->held_item.id)) continue;
+        if(flags&0x20000u) continue; /* No integrated event requires a tool-room gate. */
+        return id;
+    }
+    return 0;
+}
+bool hmbtn_farm_visit_begin(HmbtnFarmVisit *visit,const HmbtnFarmTriggers *t,unsigned event,HmbtnVillage *v)
+{
+    if(!visit || !t || !t->data || !v || !hmbtn_farm_visit_supported(event)) return false;
+    for(unsigned i=0;i<t->count;++i) {
+        const uint8_t *p=t->data+i*36;
+        if((hmbtn_read_le16(p)&1023u)!=event) continue;
+        /* Request args[2] suppresses the done flag for repeatable visits. */
+        if(!(hmbtn_read_le32(p+28)&0x8000u)) v->flags[251+event]=true;
+        *visit=(HmbtnFarmVisit){.event=event,.active=true};return true;
+    }
+    return false;
+}
+static void face(HmbtnIntroActor *actor,const HmbtnIntroActor *player)
+{
+    const int32_t dx=player->position[0]-actor->position[0],dz=player->position[2]-actor->position[2];
+    actor->facing=(unsigned)(abs(dx)>abs(dz) ? (dx<0 ? 1 : 3) : (dz<0 ? 0 : 2));
+    actor->sprite=(HmbtnAnimationPlayer){0,(uint16_t)actor->facing,0};actor->visible=true;
+}
+HmbtnEventResult hmbtn_farm_visit_command(HmbtnFarmVisit *visit,HmbtnFarmIntro *s,
+    HmbtnVillage *v,const HmbtnFarmClock *clock,const HmbtnEventCommand *c,char *error,size_t size)
+{
+    const int a=c->command,b=c->operand,x=c->x,y=c->y;
+    if(!visit->active) goto unsupported;
+    switch(c->type) {
+    case 28:
+        if((a!=0 && a!=1) || (b!=0 && b!=-1) || x || y) break;
+        s->event_active=a==0;v->flags[3]=s->event_active;
+        if(b!=-1) { v->flags[4]=false;v->flags[5]=a==0;v->flags[0xB0]=a==0; }
+        return a ? HMBTN_EVENT_DONE : HMBTN_EVENT_WAIT;
+    case 10:
+        if(a<0 || a>1 || b || x || y) break;
+        visit->free=s->player_free=a!=0;return HMBTN_EVENT_DONE;
+    case 11: {
+        if((a!=-1 && (a<0 || a>=32)) || (b!=0 && b!=1) || x!=1 || y) break;
+        const bool talked=visit->talk;visit->talk=false;visit->free=s->player_free=!talked;
+        if(talked) {
+            const unsigned target=visit->event==130 ? visit->talk_target : 17;
+            if(target>=HMBTN_VILLAGERS || !target) break;
+            if(a!=-1) s->slots[a]=(int32_t)target;
+            HmbtnIntroActor *actor=hmbtn_farm_intro_actor(s,(int32_t)target);
+            if(b && actor) face(actor,&s->player);
+            v->people[target].talk_flags|=HMBTN_VILLAGER_DAILY_GAIN;
+        }
+        return talked ? HMBTN_EVENT_DONE : HMBTN_EVENT_WAIT;
+    }
+    case 19:
+        if(a==40 && b>=0 && b<128 && !y && x>=0 && x<=255) v->days.count0[b]=(uint8_t)x;
+        else if(a>=49 && a-48<HMBTN_VILLAGE_FLAGS && !b && !y) v->flags[a-48]=x!=0;
+        else if(a==32 && b>0 && b<HMBTN_VILLAGERS && y==1) {
+            int n=(int)v->people[b].friendship+x;v->people[b].friendship=(unsigned)(n<0 ? 0 : n>255 ? 255 : n);
+        } else break;
+        return HMBTN_EVENT_DONE;
+    case 22:
+        if(b || x<0 || x>=32 || y) break;
+        if(a==10) s->slots[x]=(int32_t)clock->hour;
+        else if(a==26) s->slots[x]=(int32_t)clock->minute;
+        else if(a==12) s->slots[x]=(int32_t)clock->year+1;
+        else break;
+        return HMBTN_EVENT_DONE;
+    case 36: {
+        if(a<0 || a>=32 || b<0 || b>=32 || x!=3 || y) break;
+        int target=s->slots[a],now=(int)clock->hour;
+        if(target<6) target+=24;
+        if(now<6) now+=24;
+        const bool reached=now>target || (now==target && (int)clock->minute>=s->slots[b]);
+        if(reached) visit->talk=false;
+        return reached ? HMBTN_EVENT_DONE : HMBTN_EVENT_WAIT;
+    }
+    case 78:
+        if(a!=17 || b || x || y) break;
+        /* Hand back through the normal current-time route on completion. */
+        v->people[17].placed=false;return HMBTN_EVENT_DONE;
+    case 84:
+        if(a!=2 || b || x || y) break;
+        v->flags[4]=v->flags[5]=v->flags[0xB0]=false;return HMBTN_EVENT_DONE;
+    case 91:
+        if(a!=32 || b!=1 || x!=-20 || y!=-1000) break;
+        for(unsigned id=1;id<HMBTN_VILLAGERS;++id) if(id!=27 && id!=33) {
+            HmbtnVillager *p=&v->people[id];
+            if(id==3 || id==7 || id==9 || id==14 || id==20) p->affection=p->affection>1000 ? p->affection-1000 : 0;
+            else p->friendship=p->friendship>20 ? p->friendship-20 : 0;
+        }
+        return HMBTN_EVENT_DONE;
+    }
+unsupported:
+    snprintf(error,size,"Unsupported farm visit command %u/%d/%d",c->type,a,b);return HMBTN_EVENT_ERROR;
+}

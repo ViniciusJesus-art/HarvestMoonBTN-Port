@@ -104,6 +104,16 @@ def main(root, output):
     farm_data=clean((src / "overlay/11_GF_FARM/farm_data.c").read_text())
     places=fields(body(farm_data,"place_entries"))[:78]
     player=clean((src / "overlay/11_GF_FARM/people/player.c").read_text())
+    load=clean((src / "overlay/11_GF_FARM/farm_load.c").read_text())
+    action_base=re.search(r"#define FARM_SECTOR_ROW_BASE\s+(0x[0-9A-Fa-f]+)",load)
+    action_sectors=re.search(r"#define FARM_SECTOR_ROW_SECTORS\s+(\d+)",load)
+    action_banks=fields(body(player,"player_anim_banks"))
+    if not action_base or not action_sectors or int(action_sectors[1])!=7 or len(action_banks)!=28:
+        raise ValueError("Unexpected original player action bank layout")
+    Path(output).with_name("action_resources.inc").write_text(
+        "/* Original farm_load_sector_row and player_anim_banks; logical row ids. */\n"
+        f"static const uint32_t player_action_base={action_base[1]};\n"
+        "static const uint16_t player_action_banks[28]={"+",".join(action_banks)+"};\n")
     Path(output).with_name("clock_tables.inc").write_text(
         "/* Original clock/weather data; generated, never PS1 pointers. */\n"
         "static const int32_t drift_by_hour[4][3]={"+body(farm_data,"drift_by_hour")+"};\n"
@@ -191,12 +201,12 @@ def main(root, output):
         "static const uint32_t estate_art_offsets[11]={"+body(clean((src / "overlay/11_GF_FARM/farm_load.c").read_text()),"farm_item_file_offsets")+"};\n"
         "static const HmbtnEstateArtToc estate_art_tocs[10]={"+",".join(art)+"};\n")
     sections=clean((src / "overlay/common/farm_section_table.h").read_text())
-    offsets=[int(v,0) for v in fields(body(sections,"section_table"))]
-    if len(offsets)!=1021:
+    section_offsets=[int(v,0) for v in fields(body(sections,"section_table"))]
+    if len(section_offsets)!=1021:
         raise ValueError("Unexpected scene section count")
     Path(output).with_name("scene_sections.inc").write_text(
         "/* Original seasonal section offsets. */\nstatic const uint32_t scene_sections[255][3]={\n"+
-        "\n".join("{%d,%d,%d}," % tuple(offsets[i*4:i*4+3]) for i in range(255))+"\n};\n")
+        "\n".join("{%d,%d,%d}," % tuple(section_offsets[i*4:i*4+3]) for i in range(255))+"\n};\n")
     sound_offsets=[int(v,0) for v in fields(body(sound,"sound_offsets"))]
     requests=clean((src / "main/sound/sound_request.c").read_text())
     rows=[]
@@ -207,6 +217,20 @@ def main(root, output):
     Path(output).with_name("music_rows.inc").write_text("/* Original VAB/SEQ ranges. */\n"+"\n".join(rows)+"\n")
     flags=clean((src / "main/game/event_flags.h").read_text())
     flag_values={key:int(value,0) for key,value in re.findall(r"(EVENT_FLAG_\w+)\s*=\s*(0x[0-9A-Fa-f]+|\d+)",flags)}
+    fishing=clean((src / "overlay/11_GF_FARM/field/fishing.c").read_text())
+    fish=["/* Original fishing.c numeric tables; no host pointers. */"]
+    for key,value in names.items():
+        if key.startswith("ITEM_"): fish.append(f"#define {key} {value}")
+    for key,value in flag_values.items(): fish.append(f"#define {key} {value}")
+    waits=fields(body(fishing,"fishing_bite_ranges"))
+    if len(waits)!=28: raise ValueError("Unexpected fishing time ranges")
+    fish.append("static const unsigned bite_ranges[4][7]={"+",".join("{"+",".join(waits[i:i+7])+"}" for i in range(0,28,7))+"};")
+    for name in ["fishing_bite_amounts","fishing_spot_catches_1","fishing_spot_catches_2","fishing_spot_catches_3","fishing_spot_catches_4","fishing_fallback_catch"]:
+        fish.append(f"static const uint16_t {name}[]={{"+",".join(str(number(x)) for x in fields(body(fishing,name)))+"};")
+    season_offsets=re.findall(r"&fishing_bite_amounts\[(\d+)\]",body(fishing,"fishing_season_catches"))
+    if len(season_offsets)!=4: raise ValueError("Unexpected seasonal fishing catches")
+    fish.append("static const unsigned season_catches[4]={"+",".join(season_offsets)+"};")
+    Path(output).with_name("fishing_tables.inc").write_text("\n".join(fish)+"\n")
     history=clean((src / "overlay/11_GF_FARM/event/cue_history.c").read_text())
     village=["/* Generated original conditions, schedules and animation packs. */"]
     for key,value in flag_values.items(): village.append(f"#define {key} {value}")
@@ -235,9 +259,21 @@ def main(root, output):
         tocs.append("{"+match[1]+",{"+match[2]+"}}")
     village.append("static const HmbtnVillagePack village_packs[35]={"+",".join(tocs)+"};")
     Path(output).with_name("village_tables.inc").write_text("\n".join(village)+"\n")
+    reactions=clean((src / "main/game/picture_codes.c").read_text())
+    reaction_rows=fields(body(reactions,"picture_codes"))
+    if len(reaction_rows)!=174 or any(len(fields(row[1:-1]))!=4 for row in reaction_rows):
+        raise ValueError("Unexpected original picture reaction table")
+    Path(output).with_name("item_reactions.inc").write_text(
+        "/* Original picture_codes.c: preserve C octal literals, four 32-bit words per row. */\n"
+        "static const uint32_t picture_codes[174][4]={"+",".join(reaction_rows)+"};\n")
     event=clean((src / "overlay/11_GF_FARM/event/event_script.c").read_text())
     commands=clean((src / "overlay/11_GF_FARM/event/event_commands.c").read_text())
     offsets=fields(body(event,"event_script_offsets"))
+    Path(output).with_name("event_resources.inc").write_text(
+        "/* Original event_script_offsets and section_table event-table ranges. */\n"
+        "static const uint32_t event_offsets[]={"+",".join(offsets)+"};\n"
+        "static const uint32_t event_tables[255][2]={"+",".join(
+            "{%d,%d}" % (section_offsets[i*4+2],section_offsets[i*4+3]) for i in range(255))+"};\n")
     birthdays=re.search(r"birthday_moves\s*=\s*\{\s*(\{.*?\})\s*,\s*-1",commands,re.S).group(1)
     Path(output).with_name("village_talk_tables.inc").write_text(
         "/* Original conversation ranges and birthday tables. */\n"

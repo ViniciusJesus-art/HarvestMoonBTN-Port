@@ -11,9 +11,10 @@ Posições que já se sobrepõem na chegada podem se afastar; moradores ausentes
 não bloqueiam. A retomada da agenda ao carregar uma área continua independente
 dessa colisão. Galinhas mantêm a regra própria descrita em `POULTRY_TRANSPORT.md`.
 
-Z/Cross, de mãos vazias, consulta o ponto 128 à frente e inicia a conversa do
-morador encontrado. Barley/Lillia têm prioridade para atendimento nos horários
-das lojas; fora do expediente usam o diálogo comum. A conversa suspende
+Z/Cross consulta o ponto 128 à frente e inicia a conversa do morador encontrado,
+incluindo o ramo de presente quando há um produto na mão. Barley/Lillia têm
+prioridade para atendimento com as mãos vazias nos horários das lojas;
+fora do expediente usam o diálogo comum. A conversa suspende
 movimento, menus, rotas e relógio, vira o morador para o jogador e devolve sua
 direção ao terminar. Cima/baixo selecionam respostas quando o texto as oferece.
 
@@ -33,7 +34,8 @@ convenção original de retornar 1 quando a regra falha. O avaliador considera
 horário, local/destino, calendário, amizade/afeição, flags de encontro e
 aniversários originais, incluindo a mudança das cinco candidatas quando seu
 aniversário coincide com o do jogador. A flag de apresentação persiste na
-sessão; as flags diárias são limpas na mudança de data.
+sessão; as flags diárias são consumidas pela atualização de amizade/afeição
+na manhã seguinte, conforme [VILLAGER_AFFINITY.md](VILLAGER_AFFINITY.md).
 
 ## Validação local
 
@@ -52,7 +54,8 @@ repetição e afinidade, compara os glifos/controles com o `.bin`, carrega os
 retratos e confere o retorno. Também verifica
 que Won para no comando de loja ainda ausente, sem registrar progresso.
 Uma conversa com Lillia na área real valida a pausa de controle/relógio/menus,
-fechamento e captura de tela. Os estados de afinidade e introdução da vara de
+fechamento, captura de tela, repetição e ganho único de amizade após dormir.
+Os estados de afinidade e introdução da vara de
 Greg nesse teste são fixtures, não atalhos disponíveis ao jogador.
 
 ```bash
@@ -68,11 +71,14 @@ estão em [RESOURCE_IDENTITIES.md](RESOURCE_IDENTITIES.md).
 
 ## Limites de paridade
 
-O recorte é de conversas comuns com as mãos vazias. Presentes, entrega da vara
-por Greg, lojas adicionais (incluindo Won), cenas familiares, casamentos e
-outros comandos de história continuam pendentes. Ao chegar a um comando não
+O recorte cobre conversas comuns e presentes. A entrega da vara
+por Greg e o armazenamento/apresentação de ferramentas estão descritos em
+[GREG_ROD.md](GREG_ROD.md). Presentes e aniversários estão em
+[VILLAGER_GIFTS.md](VILLAGER_GIFTS.md). Lojas adicionais (incluindo Won), cenas
+familiares, casamentos e outros comandos de história continuam pendentes. Ao chegar a um comando não
 adaptado, o interpretador informa NPC/comando/passo no terminal, devolve o
-controle e restaura flags/afinidade da conversa; não registra a ação como feita.
+controle e restaura flags/afinidade de todos os moradores e os itens da
+conversa; não registra a ação como feita.
 Os sistemas de família/clima/construção ausentes conservam o estado inicial;
 os contadores de história agora têm estado e avanço diário próprios, conforme
 [EVENT_DAYS.md](EVENT_DAYS.md). A existência do contador não implementa o evento

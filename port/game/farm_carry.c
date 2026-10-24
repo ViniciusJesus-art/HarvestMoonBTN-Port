@@ -11,7 +11,7 @@ void hmbtn_farm_carry_flight(HmbtnFarmCarry *s,HmbtnFarmField *field,
     const HmbtnModel *ground,HmbtnFarmShipping *shipping,HmbtnFarmStatistics *stats)
 {
     static const int step[4][2]={{0,-44},{-44,0},{0,44},{44,0}};
-    s->changed=false;s->sound=-1;
+    s->changed=s->small_fish_placed=false;s->sound=-1;
     for(unsigned i=0;i<3;++i) {
         HmbtnThrownItem *t=&s->thrown[i];
         if(!t->item.id || t->area!=s->area) continue;
@@ -28,6 +28,7 @@ void hmbtn_farm_carry_flight(HmbtnFarmCarry *s,HmbtnFarmField *field,
             t->ground=surface ? hit.height : 5001;
         }
         if(t->position[1]>=t->ground) {
+            if(t->area==56 && t->item.id==0xA3 && surface && (hit.flags&2u) && !(hit.flags&0x44u)) s->small_fish_placed=true;
             if(surface && (hit.flags&0x80u) && hmbtn_farm_shipping_add(shipping,stats,t->item.id)) {
                 t->item=(HmbtnStoredTool){0};s->sound=0x13;continue;
             }

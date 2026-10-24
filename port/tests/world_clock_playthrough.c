@@ -68,6 +68,9 @@ int main(int argc,char **argv)
     s->field.cells[400].value=s->field.cells[400].ground=0x169;
     s->menu.stats.ledger[0][0]=456;
     s->village.days.count0[0]=5;s->village.days.count1[0]=10;s->village.days.values[5]=42;
+    for(unsigned i=0;i<HMBTN_VILLAGERS;++i) s->village.people[i].talk_flags=HMBTN_VILLAGER_TALKED_TODAY;
+    s->village.people[18].talk_flags=0x610;s->village.people[18].friendship=50;
+    s->village.people[3].talk_flags=0x610;s->village.people[3].affection=1400;
     s->house.mode=HMBTN_HOUSE_SLEEP;
     for(unsigned i=0;i<1000 && (s->clock.year==0 || s->morning_fade);++i) {
         CHECK(step(s,0,error,sizeof(error)));
@@ -76,6 +79,8 @@ int main(int argc,char **argv)
     CHECK(s->clock.year==1 && s->clock.season==0 && s->clock.day==0 && s->clock.weekday==0);
     CHECK(s->clock.hour==6 && s->clock.minute==0 && s->area==80 && s->house.mode==HMBTN_HOUSE_FREE && !s->sleep.active);
     CHECK(s->village.days.count0[0]==6 && s->village.days.count1[0]==10 && s->village.days.values[5]==42);
+    CHECK(s->village.people[18].friendship==51 && s->village.people[18].talk_flags==0x10
+        && s->village.people[3].affection==1600 && s->village.flags[0xE0]);
     CHECK(s->house.bag[0].id==21 && s->house.bag[0].count==73 && s->carry.discarded==12);
     CHECK(s->farm_action.stamina==100 && s->farm_action.fatigue==0);
     CHECK(s->field.cells[400].ground==0x168 && s->field.cells[400].value==0x168);
@@ -86,10 +91,14 @@ int main(int argc,char **argv)
     CHECK(load_area(s,s->data_root,0,error,sizeof(error)));s->intro.area=0;
     s->intro.player.position[0]=-4257;s->intro.player.position[1]=0;s->intro.player.position[2]=3959;
     s->clock.hour=5;s->clock.minute=59;s->clock.frames=14;
+    for(unsigned i=0;i<HMBTN_VILLAGERS;++i) s->village.people[i].talk_flags|=HMBTN_VILLAGER_TALKED_TODAY;
+    s->village.people[18].talk_flags|=HMBTN_VILLAGER_DAILY_GAIN;
     CHECK(step(s,0,error,sizeof(error)) && s->overnight_tick==1);
     for(unsigned i=0;i<100;++i) CHECK(step(s,0,error,sizeof(error)));
     CHECK(s->clock.day==1 && s->clock.hour==6 && !s->clock.minute && s->area==80 && !s->overnight_tick && !s->morning_fade);
     CHECK(s->village.days.count0[0]==7 && s->village.days.count1[0]==11 && s->village.days.values[5]==42);
+    CHECK(s->village.people[18].friendship==52 && s->village.people[18].talk_flags==0x10
+        && s->village.people[3].affection==1600 && s->village.flags[0xE0]);
     CHECK(s->farm_action.fatigue==20); /* 06:00 hourly callback, then morning reset. */
     puts("Original-resource clock, indoor/menu pauses, sunset/night, seasonal scenes, sleep/year rollover and 06:00 handoff passed.");
     hmbtn_scene_preview_destroy(s);hmbtn_host_close(&host);return 0;

@@ -44,13 +44,19 @@ int main(void)
     CHECK(hmbtn_village_talk_open(&talk,18,bytes,length,&village,&player,&clock,&registration,&inventory,error,sizeof(error)));
     CHECK(hmbtn_village_talk_tick(&talk,error,sizeof(error)) && talk.request==124);
     /* An unsupported shop/story action must roll back preceding script flags. */
-    length=block(bytes,4);
+    length=block(bytes,6);
     step(bytes,0,19,255,255,0,100,0,1,0);
     step(bytes,1,19,255,255,0,46,18,0,0);
-    step(bytes,2,81,3,3,0,8,0,0,0);
+    step(bytes,2,19,255,255,0,44,18,1,0);
+    step(bytes,3,19,255,255,0,45,18,1,0);
+    step(bytes,4,81,5,5,0,8,0,0,0);
     CHECK(hmbtn_village_talk_open(&talk,18,bytes,length,&village,&player,&clock,&registration,&inventory,error,sizeof(error)));
     CHECK(hmbtn_village_talk_tick(&talk,error,sizeof(error)) && !talk.active && talk.script.boundary);
     CHECK(!village.flags[52] && village.people[18].talk_flags==0x10);
+    /* The rolled-back daily gain must never be credited next morning. */
+    village.people[18].talk_flags|=HMBTN_VILLAGER_TALKED_TODAY;
+    hmbtn_village_clock(&village,&clock,HMBTN_CLOCK_DAY,0,false);
+    CHECK(village.people[18].friendship==50 && village.people[18].talk_flags==0x10);
     /* Scripts consult and mutate actual byte-sized story state, not constants.
      * A boundary must roll these counters back with the other script state. */
     length=block(bytes,5);
@@ -79,8 +85,38 @@ int main(void)
     step(bytes,0,19,6,6,0,40,128,1,0);
     CHECK(hmbtn_village_talk_open(&talk,18,bytes,length,&village,&player,&clock,&registration,&inventory,error,sizeof(error)));
     CHECK(hmbtn_village_talk_tick(&talk,error,sizeof(error)) && talk.script.boundary);
-    /* Empty-handed contract, malformed blocks and indirect return bounds. */
-    inventory.held_item.id=1;
+    /* Gift effects are transactional across all villagers and product stores. */
+    length=block(bytes,9);inventory.held_item=(HmbtnStoredTool){161,0,7};inventory.event_count1=14;
+    inventory.items[0]=(HmbtnStoredTool){162,2,3};
+    const HmbtnStoredTool gift=inventory.held_item,bag_item=inventory.items[0];
+    const unsigned lillia=village.people[18].friendship,louis=village.people[31].friendship;
+    const uint16_t louis_flags=village.people[31].talk_flags;
+    step(bytes,0,58,255,255,0,11,1,0,0);
+    step(bytes,1,57,255,255,0,18,10,0,0);
+    step(bytes,2,30,255,255,0,11,1,0,3);
+    step(bytes,3,81,255,255,0,22,0,0,0);
+    step(bytes,4,19,255,255,0,32,18,9,1);
+    step(bytes,5,19,255,255,0,32,31,3,1);
+    step(bytes,6,19,255,255,0,45,31,1,0);
+    step(bytes,7,81,8,8,0,8,0,0,0);
+    CHECK(hmbtn_village_talk_open(&talk,18,bytes,length,&village,&player,&clock,&registration,&inventory,error,sizeof(error)));
+    CHECK(hmbtn_village_talk_tick(&talk,error,sizeof(error)) && talk.script.boundary && talk.slots[10]==1);
+    CHECK(!memcmp(&inventory.held_item,&gift,sizeof(gift)) && inventory.event_count1==14
+        && village.people[18].friendship==lillia && village.people[31].friendship==louis
+        && village.people[31].talk_flags==louis_flags);
+    step(bytes,7,37,8,8,1,0,0,0,0);
+    CHECK(hmbtn_village_talk_open(&talk,18,bytes,length,&village,&player,&clock,&registration,&inventory,error,sizeof(error)));
+    CHECK(hmbtn_village_talk_tick(&talk,error,sizeof(error)) && !talk.active && !talk.script.boundary);
+    CHECK(!inventory.held_item.id && inventory.event_count1==15 && village.people[18].friendship==lillia+9
+        && village.people[31].friendship==louis+3 && (village.people[31].talk_flags&HMBTN_VILLAGER_TALKED_TODAY)
+        && !memcmp(&inventory.items[0],&bag_item,sizeof(bag_item)));
+    inventory.held_item=gift;
+    step(bytes,0,21,255,255,0,11,0,0x100A1,0); /* Indirect item uses only the signed low halfword. */
+    CHECK(hmbtn_village_talk_open(&talk,18,bytes,length,&village,&player,&clock,&registration,&inventory,error,sizeof(error)));
+    CHECK(hmbtn_village_talk_tick(&talk,error,sizeof(error)) && !talk.active && !inventory.held_item.id
+        && inventory.event_count1==15);
+    /* Invalid held item, malformed blocks and indirect return bounds. */
+    inventory.held_item.id=380;
     CHECK(!hmbtn_village_talk_open(&talk,18,bytes,length,&village,&player,&clock,&registration,&inventory,error,sizeof(error)));
     inventory.held_item.id=0;
     CHECK(!hmbtn_village_talk_open(&talk,18,bytes,59,&village,&player,&clock,&registration,&inventory,error,sizeof(error)));

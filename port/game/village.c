@@ -1,6 +1,7 @@
 /* Native views of cue_history.c, event_rules.c and villager.c. */
 #include "village.h"
 #include "psx_data.h"
+#include "psx_random.h"
 #include "ground.h"
 #include <math.h>
 #include <stdio.h>
@@ -52,7 +53,7 @@ bool hmbtn_village_sync(HmbtnVillage *v,const HmbtnFarmClock *c,char *error,size
         for(unsigned id=0;id<HMBTN_VILLAGERS;++id) {
             HmbtnVillager *p=&v->people[id];int at=history(v,id);
             p->step=0;p->placed=false;p->actor.visible=false;
-            p->talk_flags &= (uint16_t)~0x600u;p->delay=0;p->blocked_by_player=false;
+            p->delay=0;p->blocked_by_player=false;
             for(unsigned i=0;i<30;++i) {
                 p->schedule[i][0]=p->schedule[i][1]=0;p->schedule[i][2]=p->schedule[i][3]=54;
                 if(at>=0) {
@@ -97,8 +98,12 @@ bool hmbtn_village_blocked(const void *context,const int32_t from[3],const int32
 {
     const HmbtnVillage *v=context;
     if(!v) return false;
-    for(unsigned id=1;id<HMBTN_VILLAGERS;++id)
-        if(v->people[id].actor.visible && v->people[id].delay<30 && approaching(from,to,v->people[id].actor.position,200)) return true;
+    for(unsigned id=1;id<HMBTN_VILLAGERS;++id) {
+        const bool single=v->event_actor && id==v->event_actor_id;
+        const bool scripted=single || v->event_actors[id];
+        const HmbtnIntroActor *actor=single ? v->event_actor : v->event_actors[id] ? v->event_actors[id] : &v->people[id].actor;
+        if(actor->visible && (scripted || v->people[id].delay<30) && approaching(from,to,actor->position,200)) return true;
+    }
     return false;
 }
 unsigned hmbtn_village_target(const HmbtnVillage *v,const HmbtnIntroActor *p)
@@ -106,14 +111,66 @@ unsigned hmbtn_village_target(const HmbtnVillage *v,const HmbtnIntroActor *p)
     if(!v || !p || p->facing>3) return 0;
     int32_t ahead[3];memcpy(ahead,p->position,sizeof(ahead));
     ahead[p->facing&1u ? 0 : 2]+=p->facing<2 ? -128 : 128;
-    for(unsigned id=1;id<HMBTN_VILLAGERS;++id)
-        if(id!=27 && id!=30 && id!=33 && v->people[id].actor.visible && inside(ahead,v->people[id].actor.position,200)) return id;
+    for(unsigned id=1;id<HMBTN_VILLAGERS;++id) {
+        const HmbtnIntroActor *actor=v->event_actor && id==v->event_actor_id ? v->event_actor
+            : v->event_actors[id] ? v->event_actors[id] : &v->people[id].actor;
+        if(id!=27 && id!=30 && id!=33 && actor->visible && inside(ahead,actor->position,200)) return id;
+    }
     return 0;
+}
+unsigned hmbtn_village_zone_target(const HmbtnVillage *v,const uint8_t *section,size_t size,const HmbtnIntroActor *player)
+{
+    if(!v || !section || size<16+50*44 || !player || player->facing>3) return 0;
+    int32_t point[3];memcpy(point,player->position,sizeof(point));
+    point[player->facing&1u ? 0 : 2]+=player->facing<2 ? -224 : 224;
+    for(unsigned i=0;i<50;++i) {
+        const uint8_t *p=section+16+i*44;
+        const unsigned id=hmbtn_read_le16(p+4),facing=hmbtn_read_le16(p+8);
+        if(!(hmbtn_read_le16(p)&0x4000u) || hmbtn_read_le16(p+2)!=36 || !id || id>=HMBTN_VILLAGERS
+                || (facing!=5 && facing!=player->facing)) continue;
+        if(point[0]<=half(p+14) || point[0]>=half(p+20) || point[2]<=half(p+18) || point[2]>=half(p+24)
+                || point[1]<=half(p+16)-128 || point[1]>=half(p+22)+120) continue;
+        const HmbtnIntroActor *actor=v->event_actors[id] ? v->event_actors[id] : &v->people[id].actor;
+        const int32_t target[3]={half(p+26),half(p+28),half(p+30)};
+        if(actor->visible && inside(target,actor->position,200)) return id;
+    }
+    return 0;
+}
+/* family_flags_update: consume yesterday's flags before rebuilding the agenda.
+ * The session has no spouse; family_daily_update remains a separate boundary. */
+static void daily_affinity(HmbtnVillage *v)
+{
+    for(unsigned id=0;id<HMBTN_VILLAGERS;++id) {
+        HmbtnVillager *p=&v->people[id];
+        int affection=(int)p->affection,friendship=(int)p->friendship;
+        if(p->talk_flags&HMBTN_VILLAGER_DAILY_GAIN) {
+            if(girl(id)) affection+=200;else ++friendship;
+        }
+        switch(id) {
+        case 25:case 29:case 30:case 31:case 32:case 35:break;
+        default:
+            if(!(p->talk_flags&(HMBTN_VILLAGER_TALKED_TODAY|HMBTN_VILLAGER_DAILY_GAIN))
+                    && hmbtn_psx_random_range(&v->random,10)==0) {
+                if(girl(id)) affection-=200;else --friendship;
+            }
+            break;
+        }
+        p->affection=(unsigned)(affection<0 ? 0 : affection>65535 ? 65535 : affection);
+        p->friendship=(unsigned)(friendship<0 ? 0 : friendship>255 ? 255 : friendship);
+        p->talk_flags &= (uint16_t)~(HMBTN_VILLAGER_TALKED_TODAY|HMBTN_VILLAGER_DAILY_GAIN);
+    }
+    static const unsigned girls[]={3,7,9,14,20};
+    static const unsigned flags[]={EVENT_FLAG_KAREN_AFFECTION_1500,EVENT_FLAG_ANN_AFFECTION_1500,
+        EVENT_FLAG_ELLI_AFFECTION_1500,EVENT_FLAG_MARY_AFFECTION_1500,EVENT_FLAG_POPURI_AFFECTION_1500};
+    for(unsigned i=0;i<5;++i) if(v->people[girls[i]].affection>1500) v->flags[flags[i]]=true;
 }
 void hmbtn_village_clock(HmbtnVillage *v,const HmbtnFarmClock *clock,unsigned changes,
     unsigned weather,bool wedding_offer_pending)
 {
-    if(changes&HMBTN_CLOCK_DAY) hmbtn_event_days_advance(&v->days,clock,weather,wedding_offer_pending);
+    if(changes&HMBTN_CLOCK_DAY) {
+        daily_affinity(v);
+        hmbtn_event_days_advance(&v->days,clock,weather,wedding_offer_pending);
+    }
     const bool reset=(changes&HMBTN_CLOCK_DAY) || ((changes&HMBTN_CLOCK_HOUR)
         && (clock->hour==12 || clock->hour==18));
     for(unsigned id=1;id<HMBTN_VILLAGERS;++id) {

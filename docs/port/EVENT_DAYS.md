@@ -33,6 +33,9 @@ de dia às 06h avança o estado uma única vez, inclusive durante sono ou avanç
 tempo de scripts. Abrir menus ou conversar conserva o relógio e os contadores.
 Atalhos de prévia começam uma sessão nova com os valores iniciais; selecionar
 uma data posterior não simula dias anteriores nem concede eventos ao jogador.
+O mesmo observador consome as flags diárias dos moradores para atualizar
+amizade/afeição antes de reconstruir suas agendas; detalhes em
+[VILLAGER_AFFINITY.md](VILLAGER_AFFINITY.md).
 
 O interpretador de conversas lê e escreve esse estado com índices validados e
 valores limitados a 0..255. Operações aritméticas seguem o despachante existente.
@@ -75,8 +78,12 @@ bloqueios entre moradores e cues de eventos continuam pendentes.
 
 Clima e casamento completos ainda não existem no porte. O chamador usa o clima
 atual da sessão e informa ausência de proposta pendente; a condição de proposta
-é testada isoladamente, sem implementar casamentos. Entrega da vara de Greg,
-presentes, demais lojas e eventos especiais continuam pendentes. Não há saves
+é testada isoladamente, sem implementar casamentos. A entrega da vara de Greg
+está em [GREG_ROD.md](GREG_ROD.md), e os presentes/aniversários em
+[VILLAGER_GIFTS.md](VILLAGER_GIFTS.md). A pesca está em [FISHING.md](FISHING.md).
+As visitas de Thomas e a sequência completa da torta agora usam os contadores
+originais e seus gatilhos; veja [FARM_VISITS.md](FARM_VISITS.md). As demais
+lojas e os eventos especiais fora desse recorte continuam pendentes. Não há saves
 para persistir os contadores entre execuções.
 
 Validação em Linux, SDL dummy/software. O bootstrap diagnóstico não executa o

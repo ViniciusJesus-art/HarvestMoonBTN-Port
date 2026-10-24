@@ -63,7 +63,7 @@ static void fixed_page(HmbtnMessage *m)
 }
 bool hmbtn_new_game_name_editor(const HmbtnNewGame *g)
 {
-    return g->step == 15 || g->step == 21 || g->step == 24;
+    return g->step == 15 || g->step == 21 || g->step == 24 || g->step==101;
 }
 int hmbtn_message_tick(HmbtnMessage *m, uint32_t pressed, uint32_t held)
 {
@@ -177,13 +177,21 @@ static void start_name(HmbtnNewGame *g)
     g->length=g->cell=g->grid=g->choice=0;g->dirty=g->confirming=false;
     request(g,0x3a8);
 }
+void hmbtn_name_editor_begin(HmbtnNewGame *g)
+{
+    hmbtn_new_game_init(g);g->step=101;start_name(g);
+}
 static void name_tick(HmbtnNewGame *g,uint32_t pressed,uint32_t triggered)
 {
     if (g->message.phase != HMBTN_MESSAGE_WAIT_END || g->queued) return;
     if (g->confirming) {
         if (pressed == HMBTN_PAD_CROSS && g->choice == 0) {
-            uint16_t *dest=g->step==15?g->player_name:g->step==21?g->farm_name:g->dog_name;
-            memcpy(dest,g->name,sizeof(g->name));++g->step;g->sound=0;
+            if(g->step==101) { g->finished=true;g->choice=0; }
+            else {
+                uint16_t *dest=g->step==15?g->player_name:g->step==21?g->farm_name:g->dog_name;
+                memcpy(dest,g->name,sizeof(g->name));
+            }
+            ++g->step;g->sound=0;
             g->message.phase=HMBTN_MESSAGE_CLOSING;g->message.box_frame=0;
         } else if (pressed==HMBTN_PAD_CROSS || pressed==HMBTN_PAD_CIRCLE) {
             g->confirming=false;g->sound=1;queue(g,0x3a8);
@@ -195,7 +203,9 @@ static void name_tick(HmbtnNewGame *g,uint32_t pressed,uint32_t triggered)
         if (g->length) {g->name[--g->length]=0xffff;g->sound=1;}
         else if (g->step==15) g->sound=2;
         else {
-            g->step=g->step==21?16:19;g->sound=1;
+            if(g->step==101) { g->step=102;g->finished=true;g->choice=1; }
+            else g->step=g->step==21?16:19;
+            g->sound=1;
             g->message.phase=HMBTN_MESSAGE_CLOSING;g->message.box_frame=0;
         }
     } else if (pressed==HMBTN_PAD_CROSS) {
@@ -274,7 +284,7 @@ void hmbtn_new_game_tick(HmbtnNewGame *g,uint32_t pressed,uint32_t held)
     case 12:if(g->message.phase==HMBTN_MESSAGE_CLOSED) g->step=13;break;
     case 13:if(g->message.phase==HMBTN_MESSAGE_CLOSED) {request(g,0x397);g->step=14;} break;
     case 14:if(g->message.phase==HMBTN_MESSAGE_CLOSED) {start_name(g);g->step=15;} break;
-    case 15:case 21:case 24:name_tick(g,pressed,triggered);break;
+    case 15:case 21:case 24:case 101:name_tick(g,pressed,triggered);break;
     case 16:if(g->message.phase==HMBTN_MESSAGE_CLOSED) {request(g,0x3a5);g->step=17;} break;
     case 17:if(g->message.phase==HMBTN_MESSAGE_CLOSED) {
         g->birthday_phase=1;g->birthday_value=0;g->choice=0;request(g,0x3a9);g->step=18;

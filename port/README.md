@@ -44,19 +44,29 @@ oferece o passeio completo ao vilarejo; aceitar ou recusar leva à apresentaçã
 de Zack antes de devolver o controle. Inventário e terreno são preservados.
 Depois da visita, as passagens liberam exploração das 14 outras regiões
 externas, com versões sazonais, chão, placas e música originais. Veja
-[WORLD_MAP.md](../docs/port/WORLD_MAP.md). Interiores da vila e rotinas de moradores
-continuam pendentes.
+[WORLD_MAP.md](../docs/port/WORLD_MAP.md). Os 22 interiores da vila já têm
+entradas, regras de horário/presença, escadas e rotas iniciais de moradores.
+Conversas, presentes e demais serviços de lojas continuam pendentes. Veja
+[VILLAGE.md](../docs/port/VILLAGE.md).
 Estábulo, celeiro e galinheiro já permitem entrar e sair pelas portas reais.
 Os atalhos `--area-preview 92`, `96` e `112` abrem esses interiores diretamente.
+Depósitos/cochos compartilham estoque e animações; forragem e ração podem ser
+compradas de Barley/Lillia. Lillia também vende galinhas adultas com nome; o
+galinheiro tem caminhada, alimentação diária e ovos recolhíveis/vendáveis.
+A coleta silvestre sazonal permite financiar a compra com recursos do mapa.
+Veja [POULTRY.md](../docs/port/POULTRY.md),
+[FARM_FEED.md](../docs/port/FARM_FEED.md) e [FEED_SHOPS.md](../docs/port/FEED_SHOPS.md).
 Detalhes e limites em [FARM_INTERIORS.md](../docs/port/FARM_INTERIORS.md).
 Para testar diretamente fora da casa, use `--farm-preview`. Para outra região,
 use `--area-preview ID` (por exemplo, 52 para a praça e 56 para a praia).
 Ambos iniciam uma sessão nova com controle livre e sem a visita de Thomas.
+Use `--preview-date 0:3 --preview-time 12:00` junto ao atalho de região
+para testar durante o expediente; estações 0..3, dias 1..30.
 Veja [FIRST_MORNING.md](../docs/port/FIRST_MORNING.md) e
 [FARM_CONTROL.md](../docs/port/FARM_CONTROL.md).
 A caixa de venda reconhece o terreno original, registra produtos vendáveis
 e paga às 17h58, incluindo o avanço durante o sono e as datas sem coleta.
-Veja [SHIPPING.md](../docs/port/SHIPPING.md). Cultivos, geração de produtos,
+Veja [SHIPPING.md](../docs/port/SHIPPING.md). Cultivos, demais animais,
 saves, clima e gameplay completo continuam pendentes.
 O bootstrap `--diagnostics` não executa o jogo.
 Depende de SDL3, sem SDK PSY-Q nem emulador. Veja os marcos no

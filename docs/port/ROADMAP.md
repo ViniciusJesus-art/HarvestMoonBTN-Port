@@ -573,9 +573,71 @@ mapa: interiores e suas regras de entrada, antes dos sistemas próprios de cada 
 - [x] Atalhos de teste `--area-preview 92/96/112`.
 - [x] 27 CTests e cinco percursos de integração revalidados no Linux local.
 - [ ] Alimentação, animais e demais operações internas.
-- [ ] Portas da vila: regras de presença, afinidade, calendário e horário.
+- [x] Portas da vila: regras de presença, afinidade, calendário e horário.
 
 Fontes, reprodução e limites em [FARM_INTERIORS.md](FARM_INTERIORS.md).
 As portas da fazenda não têm bloqueios de horário na tabela original; as
 regras dos estabelecimentos da vila precisam de seus estados reais antes
 da liberação. Windows continua como alvo do código, sem recompilação nesta etapa.
+
+### Interiores do vilarejo e infraestrutura de alimentação — 2026-10-24
+
+- [x] 22 interiores de base 128..212 e suas quatro variantes sazonais.
+- [x] Portas, escadas e passagens; recusa com o texto original do banco 2.
+- [x] 31 tabelas originais de acesso e agendas para determinar presença.
+- [x] Sprites dos 35 packs de moradores e rotas com retomada pelo relógio.
+- [x] Atalhos de teste para os 22 interiores.
+- [x] Depósitos e cochos ligados ao estoque/mão, animações e sprites originais.
+- [x] Limpeza diária dos cochos, inclusive no avanço durante o sono.
+- [x] Compra de forragem/ração pelo gameplay normal; demais lojas pendentes.
+- [ ] Conversas, presentes, progressão de afinidade e scripts completos de moradores.
+- [ ] Animais e seu ciclo de alimentação, produção, saúde e reprodução.
+
+Validação Linux: 29 CTests e sete percursos opcionais com os dados locais;
+88 pares interior/estação e todos os packs de moradores importados. O teste de
+sono/virada de ano também cobre packs noturnos com ranges ANI vazios reservados.
+O decodificador aceita importar esses ranges e rejeita tentar reproduzi-los.
+Não houve nova compilação Windows. Os testes host não substituem o build PS1.
+
+Detalhes e limites: [VILLAGE.md](VILLAGE.md) e [FARM_FEED.md](FARM_FEED.md).
+O ciclo de alimentação não é considerado completo enquanto faltarem os
+animais. Este primeiro percurso adiciona estoques somente nas fixtures; o
+recorte seguinte, abaixo, valida a compra pelo fluxo normal sem conceder recursos.
+
+### Compra de alimentos da fazenda — 2026-10-24
+
+- [x] Forragem de Barley e ração de Lillia, com presença e expediente dos scripts originais.
+- [x] Saudação, seleção, descrição, quantidade, compra/recusa, retorno e cancelamento.
+- [x] Preços reais, limite de 999, débito único da carteira e registro de despesas.
+- [x] Crédito nos estoques usados por depósitos/cochos; preservação nas passagens.
+- [x] Pausa de jogador/mundo/relógio e nomes cadastrados nas mensagens.
+- [x] Atalhos de região com `--preview-date` e `--preview-time`, sem conceder recursos.
+- [x] Percurso loja → compra → retorno pelo mapa → depósito → cocho, usando os 500G iniciais.
+- [x] 30 CTests e oito percursos com recursos locais no Linux.
+- [ ] Animais e seu ciclo de produção, saúde, reprodução e comércio.
+- [ ] Grama cultivada, fontes adicionais de alimento e demais operações das lojas.
+
+Detalhes e comandos em [FEED_SHOPS.md](FEED_SHOPS.md). O ciclo completo de
+animais continua pendente; o abastecimento dos depósitos já é possível no
+jogo normal. Não houve nova compilação Windows. O bootstrap não executa o
+jogo e a validação host não substitui o build PS1/SHA-1.
+
+### Galinhas adultas e coleta silvestre — 2026-10-24
+
+- [x] Coleta dos runs originais 11–14: posições, estações, flores/ervas e reposição diária.
+- [x] Venda dos produtos coletados pela mesma caixa, carteira e livro de receitas.
+- [x] Compra de galinha adulta de Lillia por 1.500G, nome de oito glifos e limite inicial de cinco.
+- [x] Recusa por saldo/lotação, cancelamento e débito único após confirmar o nome.
+- [x] Sprites originais, caminhada sobre o terreno, repouso noturno e pausa em menus.
+- [x] Consumo individual antes da limpeza dos cochos e afeição diária.
+- [x] Ovos por alimentação anterior, graus, coleta animada, mochila e venda.
+- [x] 32 CTests e nove percursos com dados locais; ciclo econômico partindo dos 500G iniciais.
+- [ ] Incubação, pintinhos, transporte ao exterior, venda de animais e medicamentos.
+- [ ] Eventos de doença/funeral, liberação das vagas de mortos e colisão física do jogador.
+- [ ] Vacas, ovelhas, cavalo, cachorro, concursos, melhorias e saves.
+
+Detalhes, comandos e limites em [POULTRY.md](POULTRY.md). O primeiro ciclo de
+produção está funcional; o sistema completo de animais continua pendente.
+O PRNG e os intervalos de caminhada são host; não há paridade com todas as cues.
+Somente validação Linux local, sem novo build Windows. O bootstrap não executa
+o jogo; o build host não substitui a validação PS1/SHA-1.

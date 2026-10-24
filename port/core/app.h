@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include "farm_clock.h"
 
 typedef struct HmbtnAppOptions {
     uint32_t frame_limit; /* Zero runs until the user closes the window. */
@@ -17,6 +18,8 @@ typedef struct HmbtnAppOptions {
     bool house_preview; /* Initial house, with the implemented walking subset. */
     bool area_preview; /* Development entry with free control and consumed visit. */
     unsigned preview_area;
+    bool preview_date_set,preview_time_set;
+    HmbtnFarmClock preview_clock;
 } HmbtnAppOptions;
 
 int hmbtn_app_run(const HmbtnAppOptions *options);

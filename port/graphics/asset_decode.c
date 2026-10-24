@@ -147,7 +147,9 @@ bool hmbtn_animation_open(HmbtnAnimation *a, const uint8_t *data, size_t size,
     for (unsigned i = 0; i < a->count[3]; ++i) {
         const uint8_t *range = data + a->section[3] + i * 4;
         const unsigned count = hmbtn_read_le16(range), offset = hmbtn_read_le16(range + 2);
-        if (!count || count > 256 || offset % 10
+        /* Some original NPC files reserve empty animation ranges. They may
+         * be imported, but frame_at still rejects attempts to play them. */
+        if (count > 256 || offset % 10
                 || !span((size_t)a->count[4] * 10, offset, (size_t)count * 10)) FAIL("ANI range outside frames section");
         for (unsigned f = 0; f < count; ++f) {
             const unsigned control = data[a->section[4] + offset + f * 10 + 7];

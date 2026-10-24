@@ -195,7 +195,7 @@ bool hmbtn_new_game_ui_draw(HmbtnNewGameUI *u,const HmbtnNewGame *g,
         /* Original name_entry_step() places a half-intensity black tile behind UI. */
         for(unsigned i=0;i<WIDTH*HEIGHT*4;++i) if(i%4!=3) p[i]=(uint8_t)((p[i]>>4)<<3);
         hmbtn_window_frame_draw(p,WIDTH,HEIGHT,16,16,120,20);
-        const uint16_t *caption=birthday?your_birthday:g->step==21?farms_name:g->step==24?dogs_name:your_name;
+        const uint16_t *caption=birthday?your_birthday:g->step==101?name_label:g->step==21?farms_name:g->step==24?dogs_name:your_name;
         if(!text(u,p,caption,32,20,20,0,3,false,error,error_size)) return false;
         if(birthday) {
             hmbtn_window_frame_draw(p,WIDTH,HEIGHT,171,32,133,18);

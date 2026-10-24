@@ -39,7 +39,8 @@ bool hmbtn_farm_feed_tick(HmbtnFarmFeed *f,HmbtnHouseInteraction *h,HmbtnIntroAc
         const bool bin=kind==40 || kind==41,barn=kind==9 || kind==41;
         const unsigned item=barn ? 0x68 : 0x69,stock=barn ? 0 : 2;
         if(bin && h->held_item.id!=item) { f->request=barn ? 0x1E4 : 0x1E5;return true; }
-        if(p->facing!=facing && !(bin && ((facing==6 && (p->facing&1)) || (facing==7 && !(p->facing&1))))) return true;
+        if(kind!=9 && p->facing!=facing
+                && !(bin && ((facing==6 && (p->facing&1)) || (facing==7 && !(p->facing&1))))) return true;
         if(bin) {
             const unsigned index=hmbtn_read_le16(zone+4);
             if(index>=(barn ? 22u : 10u)) return true;
@@ -49,7 +50,8 @@ bool hmbtn_farm_feed_tick(HmbtnFarmFeed *f,HmbtnHouseInteraction *h,HmbtnIntroAc
         } else if(!h->held_item.id && h->supplies[stock]) {
             --h->supplies[stock];h->held_item=(HmbtnStoredTool){(uint16_t)item,0,1};f->phase=1;
         } else if(h->held_item.id==item) {
-            if(h->supplies[stock]<999) ++h->supplies[stock];f->phase=2;
+            if(h->supplies[stock]<999) ++h->supplies[stock];
+            f->phase=2;
         } else { f->request=barn ? 0x19C : 0x19F;return true; }
         p->sprite=(HmbtnAnimationPlayer){(uint16_t)((f->phase==1 ? 11 : 23)+p->facing),0,0};
         p->animation_done=false;f->sound=7;return true;

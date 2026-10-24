@@ -59,7 +59,8 @@ int hmbtn_app_run(const HmbtnAppOptions *options)
         if (data_root) {
             printf("Game data directory: %s\n", data_root);
             if (options->area_preview)
-                scene = hmbtn_scene_area_create(host.renderer,data_root,options->preview_area,error,sizeof(error));
+                scene = hmbtn_scene_area_create_at(host.renderer,data_root,options->preview_area,
+                    options->preview_date_set || options->preview_time_set ? &options->preview_clock : NULL,error,sizeof(error));
             else if (options->house_preview)
                 scene = hmbtn_scene_house_create(host.renderer, data_root, error, sizeof(error));
             else if (options->childhood_preview)

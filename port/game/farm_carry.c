@@ -14,7 +14,7 @@ void hmbtn_farm_carry_flight(HmbtnFarmCarry *s,HmbtnFarmField *field,
     s->changed=false;s->sound=-1;
     for(unsigned i=0;i<3;++i) {
         HmbtnThrownItem *t=&s->thrown[i];
-        if(!t->item.id) continue;
+        if(!t->item.id || t->area!=s->area) continue;
         t->position[0]+=step[t->facing][0];t->position[2]+=step[t->facing][1];
         t->position[1]+=t->velocity;t->velocity+=9;
         if(t->velocity>45) t->velocity=45;
@@ -54,13 +54,13 @@ bool hmbtn_farm_carry_tick(HmbtnFarmCarry *s,HmbtnHouseInteraction *h,
         if(s->phase>=2) {
             unsigned i=s->phase-2;
             s->thrown[i]=(HmbtnThrownItem){h->held_item,
-                {p->position[0],p->position[1]-300,p->position[2]},p->position[1],0,p->facing};
+                {p->position[0],p->position[1]-300,p->position[2]},p->position[1],0,p->facing,s->area};
             h->held_item=(HmbtnStoredTool){0};s->sound=9;
         }
         s->phase=0;p->sprite=(HmbtnAnimationPlayer){0,(uint16_t)p->facing,0};p->animation_done=false;
         return true;
     }
-    if(!(pressed&HMBTN_PAD_CROSS) || !f || p->facing>3) return false;
+    if(!(pressed&HMBTN_PAD_CROSS) || p->facing>3) return false;
     if(h->held_item.id) {
         const HmbtnFarmItem *item=hmbtn_farm_item(h->held_item.id);
         /* Never discard tools, seeds, livestock or unported estate containers. */
@@ -71,6 +71,7 @@ bool hmbtn_farm_carry_tick(HmbtnFarmCarry *s,HmbtnHouseInteraction *h,
         }
         return true;
     }
+    if(!f) return false;
     int c,r;
     if(!hmbtn_farm_world_cell(p->position,&c,&r)) return false;
     static const int step[4][2]={{0,1},{-1,0},{0,-1},{1,0}};

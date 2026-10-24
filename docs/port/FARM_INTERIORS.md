@@ -58,7 +58,11 @@ e a caixa de venda. Evidências locais ficam em `build/native-debug/interiors-*.
 e `farm-interiors.png`, ignoradas pelo Git. A validação desta etapa usa somente
 Linux local; o código continua compartilhado com Windows.
 
-Animais, alimentação, reprodução, troca de montaria, melhorias dos edifícios,
-caixas de venda internas e saves continuam pendentes. Não há animais ou
-operações simuladas por stubs. O bootstrap `--diagnostics` não executa o jogo;
-os testes host não substituem o build PS1 e sua validação SHA-1.
+Depósitos e cochos já compartilham o estado da sessão, conforme
+[FARM_FEED.md](FARM_FEED.md). A compra de forragem/ração já abastece os estoques
+pelo fluxo de [FEED_SHOPS.md](FEED_SHOPS.md). O primeiro ciclo de galinhas adultas,
+com compra/nome, caminhada, alimentação e ovos, está em [POULTRY.md](POULTRY.md).
+Demais animais, reprodução, troca de montaria, melhorias dos edifícios,
+caixas de venda internas e saves continuam pendentes. O bootstrap
+`--diagnostics` não executa o jogo; os testes host não substituem o build PS1
+e sua validação SHA-1.

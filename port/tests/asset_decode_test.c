@@ -118,6 +118,12 @@ int main(void)
     ani[89] = 0x83;
     CHECK(!hmbtn_animation_open(&animation, ani, sizeof(ani), error, sizeof(error)));
     make_animation(ani);
+    hmbtn_write_le16(ani+68,0); /* Reserved empty range, as in Duke's night pack. */
+    CHECK(hmbtn_animation_open(&animation,ani,sizeof(ani),error,sizeof(error)));
+    CHECK(!hmbtn_animation_tick(&animation,&player,error,sizeof(error)));
+    hmbtn_write_le16(ani+70,30); /* Empty ranges still need a bounded offset. */
+    CHECK(!hmbtn_animation_open(&animation,ani,sizeof(ani),error,sizeof(error)));
+    make_animation(ani);
     hmbtn_write_le16(ani + 56, 99);
     CHECK(!hmbtn_animation_open(&animation, ani, sizeof(ani), error, sizeof(error)));
     make_animation(ani);

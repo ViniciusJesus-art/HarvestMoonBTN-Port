@@ -28,9 +28,14 @@ static bool load(HmbtnVillageArt *a,unsigned slot,const char *root,unsigned row,
     for(unsigned i=0;i<toc->count;++i) {
         unsigned id=hmbtn_read_le32(data+4+i*4);
         if(id>=37) continue;
-        if(toc->offsets[i]>toc->offsets[i+1] || toc->offsets[i+1]>bytes
-                || !hmbtn_animation_open(&a->animations[slot][id],data+toc->offsets[i],
-                    toc->offsets[i+1]-toc->offsets[i],error,size)) return false;
+        if(toc->offsets[i]>toc->offsets[i+1] || toc->offsets[i+1]>bytes) {
+            snprintf(error,size,"Villager %u pack %u outside original table",id,row);return false;
+        }
+        char detail[256]={0};
+        if(!hmbtn_animation_open(&a->animations[slot][id],data+toc->offsets[i],
+                toc->offsets[i+1]-toc->offsets[i],detail,sizeof(detail))) {
+            snprintf(error,size,"Villager %u pack %u: %s",id,row,detail);return false;
+        }
     }
     if(!hmbtn_bank_decode(data+toc->offsets[toc->count],bytes-toc->offsets[toc->count],a->atlases[slot],error,size)) return false;
     a->keys[slot]=row;return true;

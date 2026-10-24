@@ -41,5 +41,14 @@ int main(void)
     s.thrown[0]=(HmbtnThrownItem){{0x3a,0,1},{-4200,0,1400},0,0,0};
     hmbtn_farm_carry_flight(&s,&f,NULL,NULL,NULL);
     CHECK(f.cells[0].value==0x3b && s.discarded==2); /* Occupied soil is conserved. */
+    s.area=112;h.held_item=(HmbtnStoredTool){0x122,0,1};
+    CHECK(hmbtn_farm_carry_tick(&s,&h,NULL,&p,HMBTN_PAD_CROSS));
+    p.animation_done=true;CHECK(hmbtn_farm_carry_tick(&s,&h,NULL,&p,0));
+    CHECK(!h.held_item.id && s.thrown[0].area==112 && s.thrown[0].item.id==0x122);
+    const int32_t x=s.thrown[0].position[0],y=s.thrown[0].position[1];
+    s.area=0;hmbtn_farm_carry_flight(&s,&f,NULL,NULL,NULL);
+    CHECK(s.thrown[0].position[0]==x && s.thrown[0].position[1]==y);
+    s.area=112;for(unsigned i=0;i<60;++i) hmbtn_farm_carry_flight(&s,NULL,NULL,NULL,NULL);
+    CHECK(!s.thrown[0].item.id && s.discarded==3);
     puts("Loose field pickups, bag roundtrip, timed throw, flight retirement and protected objects passed.");return 0;
 }

@@ -78,10 +78,14 @@ Atalhos de sessão nova, sem cadastro, abertura ou visita de Thomas:
 ```
 
 `--area-preview` aceita 0, múltiplos de 4 entre 24 e 76 e os interiores
-92/96/112, descritos em [FARM_INTERIORS.md](FARM_INTERIORS.md). Cada região usa
+92/96/112, descritos em [FARM_INTERIORS.md](FARM_INTERIORS.md), e múltiplos de
+quatro entre 128 e 212, descritos em [VILLAGE.md](VILLAGE.md). Cada região usa
 uma chegada real de suas passagens; a fazenda começa na saída da casa.
 O controle e os sistemas já integrados ficam disponíveis. Os atalhos não
 carregam saves nem concedem produtos e não alteram a abertura normal.
+Use `--preview-date ESTAÇÃO:DIA --preview-time HH:MM` para selecionar a data/hora
+do atalho (estação 0..3, dia 1..30). Por exemplo, `0:3` e `12:00` iniciam na
+terça-feira 3 da primavera, ao meio-dia. A variante sazonal acompanha a data.
 Use `--help` para consultar os parâmetros. Não combine dois modos de prévia.
 
 Por preferência do usuário, esta etapa valida **somente Linux local**.
@@ -116,3 +120,8 @@ não adaptados conservam o controle, permitindo retornar. Os blits de textura
 animada da água ainda não estão ligados. Persistência em saves e comparação
 visual completa com PS1 continuam pendentes. O bootstrap `--diagnostics`
 não executa o jogo; a validação host não substitui o build PS1 e seu SHA-1.
+
+A coleta silvestre dos quatro runs do bosque/montanha foi integrada depois
+deste percurso: [POULTRY.md](POULTRY.md). Produtos coletados abastecem a mesma
+mochila e caixa de venda; pedras/tocos que exigem ferramentas, minas, pesca
+e banhos continuam pendentes.

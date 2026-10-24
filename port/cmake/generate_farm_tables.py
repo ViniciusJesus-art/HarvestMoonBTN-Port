@@ -147,6 +147,32 @@ def main(root, output):
     Path(output).with_name("feed_positions.inc").write_text(
         "/* Original estate records: barn run 2 and coop run 3. */\n"
         "static const int32_t feed_positions[32][3]={"+",".join(positions)+"};\n")
+    gather=[]
+    for record in records:
+        values=fields(record[1:-1]);point=fields(values[4][1:-1])[:3]
+        gather.append("{"+",".join(str(number(x)) for x in values[:3])+",{"+",".join(point)+"}}")
+    kinds=[]
+    for row in fields(body(estate,"estate_kind_values")):
+        kinds.append("{"+",".join(str(number(x)) for x in fields(row[1:-1]))+"}")
+    Path(output).with_name("gather_tables.inc").write_text(
+        "/* Original estate records and seasonal substitutions. */\n"
+        "static const HmbtnGatherRecord gather_records[197]={"+",".join(gather)+"};\n"
+        "static const unsigned gather_kinds[4][3]={"+",".join(kinds)+"};\n"
+        "static const struct { unsigned item,art; } gather_art[]={"+",".join(
+            "{%d,%d}" % (names["ITEM_"+name],art) for name,art in [
+            ("WEEDS",5),("MOON_DROP_FLOWER",6),("PINK_CAT_FLOWER",7),("BLUE_MAGIC_RED_FLOWER",8),
+            ("RED_MAGIC_RED_FLOWER",19),("TOY_FLOWER",9),("ORANGE_CUP_FRUIT",10),
+            ("BAMBOO_SHOOT",11),("WILD_GRAPE",12),("MUSHROOM",13),
+            ("POISONOUS_MUSHROOM",14),("TRUFFLE",15),("BLUE_GRASS",16),("RED_GRASS",17),("GREEN_GRASS",18)])+"};\n")
+    art=[]
+    for i in range(10):
+        match=re.search(rf"farm_item_toc_{i}\s*=\s*\{{(\d+),\s*\{{([^}}]+)\}}\}}",farm_data)
+        if not match: raise ValueError(f"Missing item pack {i}")
+        art.append("{"+match[1]+",{"+match[2]+"}}")
+    Path(output).with_name("estate_art_tables.inc").write_text(
+        "/* Original farm item art packs. */\n"
+        "static const uint32_t estate_art_offsets[11]={"+body(clean((src / "overlay/11_GF_FARM/farm_load.c").read_text()),"farm_item_file_offsets")+"};\n"
+        "static const HmbtnEstateArtToc estate_art_tocs[10]={"+",".join(art)+"};\n")
     sections=clean((src / "overlay/common/farm_section_table.h").read_text())
     offsets=[int(v,0) for v in fields(body(sections,"section_table"))]
     if len(offsets)!=1021:

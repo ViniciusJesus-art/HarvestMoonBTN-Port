@@ -22,11 +22,23 @@ static void usage(const char *program)
     puts("--house-preview: house/farm; arrows walk, X runs, Z interacts, C uses tools, Enter opens farm status, V opens rucksack, E cycles tools, 2 cycles items. Native gameplay remains partial.");
     puts("--farm-preview: start outside the house, skipping Thomas's visit.");
     puts("--area-preview ID: start in region 0, 24..76 or 128..212 (steps of 4), 92, 96 or 112; fresh test session.");
+    puts("--preview-date SEASON:DAY --preview-time HH:MM: set a region test session's date/time (season 0..3, day 1..30). Requires --area-preview or --farm-preview.");
+}
+static bool pair(const char *value,unsigned *first,unsigned *second)
+{
+    char *end,*last;errno=0;
+    if(value[0]<'0' || value[0]>'9') return false;
+    const unsigned long a=strtoul(value,&end,10);
+    if(errno || *end!=':' || end[1]<'0' || end[1]>'9') return false;
+    const unsigned long b=strtoul(end+1,&last,10);
+    if(errno || *last || a>99 || b>99) return false;
+    *first=(unsigned)a;*second=(unsigned)b;return true;
 }
 
 int main(int argc, char **argv)
 {
     HmbtnAppOptions options = {0};
+    hmbtn_farm_clock_init(&options.preview_clock);
     bool diagnostics = false;
     bool data_requested = false;
     const char *import_image=NULL;
@@ -61,6 +73,19 @@ int main(int argc, char **argv)
                 fputs("--area-preview requires 0, 24..76/128..212 in steps of 4, or 92/96/112.\n",stderr);return 2;
             }
             options.area_preview=true;options.preview_area=(unsigned)area;
+        } else if (strcmp(argv[i], "--preview-date") == 0 && i+1<argc) {
+            unsigned season,day;
+            if(!pair(argv[++i],&season,&day) || season>3 || day<1 || day>30) {
+                fputs("--preview-date requires SEASON:DAY, season 0..3 and day 1..30.\n",stderr);return 2;
+            }
+            options.preview_date_set=true;options.preview_clock.season=season;options.preview_clock.day=day-1;
+            options.preview_clock.weekday=(season*30+day-1)%7;
+        } else if (strcmp(argv[i], "--preview-time") == 0 && i+1<argc) {
+            unsigned hour,minute;
+            if(!pair(argv[++i],&hour,&minute) || hour>23 || minute>59) {
+                fputs("--preview-time requires HH:MM, hour 0..23 and minute 0..59.\n",stderr);return 2;
+            }
+            options.preview_time_set=true;options.preview_clock.hour=hour;options.preview_clock.minute=minute;
         } else if (strcmp(argv[i], "--data") == 0 && i + 1 < argc) {
             options.data_root = argv[++i];
             data_requested = true;
@@ -98,6 +123,9 @@ int main(int argc, char **argv)
             return 2;
         }
     }
+    if((options.preview_date_set || options.preview_time_set) && !options.area_preview) {
+        fputs("Preview date/time requires --area-preview or --farm-preview.\n",stderr);return 2;
+    }
     if (diagnostics && (options.frame_limit || options.screenshot_path || data_requested || options.window_test || options.scene_preview || options.intro_preview || options.childhood_preview || options.house_preview || options.area_preview || options.window_width)) {
         fputs("--diagnostics cannot be combined with window options.\n", stderr);
         return 2;
@@ -128,6 +156,6 @@ int main(int argc, char **argv)
     puts("Harvest Moon: Back to Nature - PC port");
     puts("Native foundation ready (Linux / Windows target).");
     printf("Host pointer width: %u bits\n", (unsigned)(sizeof(void *) * CHAR_BIT));
-    puts("Partial native port: title, opening, house/farm, outdoor regions, clock, tools and inventory. Interiors, remaining world systems and saves remain pending.");
+    puts("Partial native port: title, opening, farm/village interiors, outdoor regions, clock, tools, inventory, forage and adult chickens. Remaining world systems and saves are pending.");
     return diagnostics ? 0 : hmbtn_app_run(&options);
 }

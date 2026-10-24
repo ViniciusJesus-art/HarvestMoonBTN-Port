@@ -35,6 +35,8 @@ typedef struct HmbtnNewGame {
     int sound; /* Original bank-0 tone; -1 = no request. */
 } HmbtnNewGame;
 void hmbtn_new_game_init(HmbtnNewGame *game);
+/* Reuse the original eight-glyph editor for an animal; step 102 holds its result. */
+void hmbtn_name_editor_begin(HmbtnNewGame *game);
 bool hmbtn_message_open(HmbtnMessage *message, const uint8_t *record, size_t size,
     char *error, size_t error_size);
 int hmbtn_message_tick(HmbtnMessage *message, uint32_t pressed, uint32_t held);

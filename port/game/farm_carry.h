@@ -7,7 +7,7 @@ typedef struct HmbtnThrownItem {
     HmbtnStoredTool item;
     int32_t position[3], ground;
     int velocity;
-    unsigned facing;
+    unsigned facing,area;
 } HmbtnThrownItem;
 typedef struct HmbtnFarmCarry {
     unsigned phase;
@@ -15,6 +15,7 @@ typedef struct HmbtnFarmCarry {
     bool changed;
     HmbtnThrownItem thrown[3];
     unsigned discarded;
+    unsigned area; /* Current scene; flights retain the scene in which they began. */
 } HmbtnFarmCarry;
 /* The field path currently accepts loose pickups, not crops or estate objects. */
 bool hmbtn_farm_carry_tick(HmbtnFarmCarry *state,HmbtnHouseInteraction *inventory,

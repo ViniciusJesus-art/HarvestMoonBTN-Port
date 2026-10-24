@@ -88,6 +88,20 @@ class ScenePreviewTest(unittest.TestCase):
             completed = subprocess.run([EXECUTABLE, *args], capture_output=True, text=True, timeout=5)
             self.assertEqual(completed.returncode, 2)
 
+    def test_preview_calendar_validation(self):
+        for option, values in [
+            ("--preview-time", ["24:00", "12:60", "-1:00", "12:+1", "12:00x", "12", "12:", "99999999999999999999:00"]),
+            ("--preview-date", ["4:1", "0:0", "0:31", "-1:2", "0:2x", "0", ":2"]),
+        ]:
+            for value in values:
+                completed = subprocess.run([EXECUTABLE, "--farm-preview", option, value],
+                                           capture_output=True, text=True, timeout=5)
+                self.assertEqual(completed.returncode, 2, (option, value))
+        for option, value in [("--preview-date", "0:3"), ("--preview-time", "12:00")]:
+            completed = subprocess.run([EXECUTABLE, option, value], capture_output=True, text=True, timeout=5)
+            self.assertEqual(completed.returncode, 2)
+            self.assertIn("requires --area-preview", completed.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

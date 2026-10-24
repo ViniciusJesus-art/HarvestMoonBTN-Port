@@ -25,8 +25,10 @@ Ferramentas, sementes e objetos especiais não podem ser descartados por este ca
 O voo agora consulta a altura real do cenário e entrega produtos à caixa,
 conforme [SHIPPING.md](SHIPPING.md). O porte continua parcial: reações a
 água, obstáculos durante o voo, puff de aterrissagem, colocação de objetos de
-instalação, colheitas e animais ainda precisam dos caminhos originais
-correspondentes. Descartar em chão comum não registra venda.
+instalação, colheitas e demais espécies ainda precisam dos caminhos originais
+correspondentes. Galinhas/pintinhos têm transporte e colocação próprios,
+conforme [POULTRY_TRANSPORT.md](POULTRY_TRANSPORT.md).
+Descartar em chão comum não registra venda.
 O desenho de objetos carregados ainda usa projeção sobre o quadro do cenário;
 a oclusão completa com os modelos precisa de integração adicional.
 

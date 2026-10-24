@@ -2,9 +2,11 @@
 
 O disco é necessário uma vez, na importação. Depois, a pasta extraída pode ser
 verificada e usada para reconstruir o disco PS1 sem consultar a imagem de origem.
-O executável nativo já lê o bloco da tela de título em `A_FILE/00_gf.bin` para a prévia
-M2 e o menu parcial M3. Ele ainda não executa cadastro/saves/gameplay. Veja os
-[formatos implementados](ASSET_FORMATS.md) e o [fluxo atual](TITLE_FLOW.md).
+O executável nativo lê os recursos originais em `A_FILE/` para o título e os
+recortes de jogo adaptados. O porte permanece parcial; o estado atual está no
+[roadmap](ROADMAP.md), com os [formatos implementados](ASSET_FORMATS.md).
+A diretriz de leitura fiel e identidade dos recursos para futuros PNGs extraídos
+está em [RESOURCE_IDENTITIES.md](RESOURCE_IDENTITIES.md).
 Use `hmbtn_native --data /caminho/data` ou coloque `data/` junto ao executável.
 
 ## Importar e verificar
@@ -97,7 +99,8 @@ cmake --build --preset native-debug
 ctest --preset native-debug
 ```
 
-A leitura por intervalos com limites e a decodificação dos recursos do título já
-estão em `port/`. A leitura/decodificação de outros recursos e de áudio XA ainda
-precisa ser integrada. Nenhum overlay MIPS é executado e endereços serializados
-não são reinterpretados como ponteiros host.
+A leitura por intervalos com limites e os decodificadores existentes continuam
+em `port/`, sendo reutilizados pelos trechos já adaptados. Recursos ainda não
+integrados seguem no roadmap. Nenhum overlay MIPS é executado e endereços
+serializados não são reinterpretados como ponteiros host. O bootstrap
+`--diagnostics` não executa o jogo.

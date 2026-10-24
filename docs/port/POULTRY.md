@@ -1,7 +1,7 @@
-# Primeiro ciclo das galinhas e coleta silvestre
+# Galinhas, incubação e coleta silvestre
 
 O porte permite ganhar dinheiro com coleta, comprar e nomear uma galinha de
-Lillia, vê-la no galinheiro, alimentá-la e vender seus ovos. Todo o estado
+Lillia, vê-la no galinheiro, alimentá-la, vender seus ovos e revendê-la à loja. Todo o estado
 pertence à sessão: carteira, despesas, mochila, estoques, cochos e remessas.
 Os atalhos continuam iniciando sem animais e com 500G; não concedem produtos.
 
@@ -19,6 +19,7 @@ falta de dinheiro e lotação vêm do banco original.
 `game/poultry.c` adapta `animals/chicken.c`: afeição inicial 10 e posições
 de `place_grid_spot`, uma ração por adulta usando o primeiro cocho cheio,
 mais 10 de afeição quando alimentada, menos 20 quando não, limite 0–255.
+Ovos em incubação e pintinhos não consomem ração nem produzem ovos.
 O processamento diário ocorre **antes de limpar os cochos**, inclusive no sono
 e ao permanecer acordado até 6h. Os ovos anteriores são substituídos diariamente.
 
@@ -69,7 +70,7 @@ SDL_VIDEO_DRIVER=dummy SDL_RENDER_DRIVER=software SDL_AUDIO_DRIVER=dummy \
   ./build/native-debug/port/hmbtn_poultry_playthrough data
 ```
 
-São 32 CTests sem recursos proprietários e nove percursos opcionais com os
+São 33 CTests sem recursos proprietários e treze percursos opcionais com os
 dados extraídos locais. O novo percurso começa com 500G, coleta e vende
 21 brotos em sete dias, incluindo um dia sem coleta de Zack. Compra e nomeia
 uma galinha e duas rações, testa cancelamento/recusa, atravessa as portas,
@@ -79,15 +80,104 @@ posições e horários são selecionados para abreviar o percurso. Também verif
 altura, movimento, pausa, repouso e recursos sazonais dos quatro mapas.
 Um terceiro argumento aceita uma pasta de capturas BMP fora do Git.
 
+O percurso também retorna à loja em um novo dia de expediente, cancela a lista
+e a confirmação, vende a mesma galinha e confere o galinheiro sem esse animal.
+Depois da venda, termina com 580G, receita de 1.600G e despesa de 1.520G.
+Uma fixture separada, executada somente após concluir esse ciclo econômico,
+habilita capacidade ampliada e o prêmio para testar a rolagem, os filtros e
+a oferta de 2.000G. Essas condições ainda não podem ser obtidas pelo gameplay.
+
+## Venda de galinhas
+
+A terceira opção de Lillia adapta os estados 18–20 de `shop_poultry_step`
+em `shop_dialogues.c`. A lista segue a ordem dos registros, mostra quatro
+linhas, circula entre a primeira e a última e rola com indicadores acima/abaixo.
+Nome de oito glifos, data, idade, estação, afeição e prêmio usam os recursos
+originais da interface. O título incorpora o nome cadastrado da fazenda.
+Ovos em incubação, pintinhos, nomes pendentes e animais mortos ficam fora
+da lista; sem adulta disponível, a loja mostra a recusa `0x59`.
+
+Cross seleciona o animal e abre a oferta original `0x60` (500G) ou `0x61`
+(2.000G para vencedora). Cima/baixo escolhem Yes/No, Cross confirma e Circle
+cancela. A lista também pode ser cancelada com Circle. Cancelar conserva
+animal e dinheiro. Confirmar remove somente o registro escolhido, libera
+a vaga, atualiza a contagem e credita carteira/receitas uma única vez, mesmo
+com confirmações repetidas durante o fechamento. A carteira limita-se a
+9.999.999G; o livro registra o valor integral da venda, como `estate_gold_change`.
+Os ovos já postos permanecem independentes do registro do animal.
+
+O jogador, o mundo e o relógio continuam pausados durante lista e confirmação.
+Textos/retratos vêm do banco 2 (`0x49`, `0x58..0x61`); rótulos estáticos vêm
+de `text_bank.c`. A comparação visual e temporal com uma execução PS1 ainda
+está pendente. O concurso que concede o prêmio continua fora deste recorte.
+
+## Incubação, crescimento e funerais
+
+Cross na incubadora (zona original 34 da área 112, virado para a esquerda)
+coloca o ovo que está na mão. A interação reserva uma das cinco vagas antes
+da animação de depósito e consome somente esse ovo. Uma incubadora ocupada
+recusa outro ovo com a mensagem `0x1E6`; sem vaga, usa `0x1A1`. A reserva não
+conta como uma galinha visível na tela de estado, mas impede compras além da
+capacidade. O ovo aparece no ninho com o sprite original, inclusive o dourado.
+
+Depois de três viradas de dia, o pintinho aguarda o nome. O evento original
+299 (`0x12B`) roda na manhã seguinte: fala inicial em casa, fade para o
+galinheiro, pintinho no ninho, editor de oito glifos e volta à casa. Esse editor
+não permite abandonar o nome, conforme `name_entry_start_no_cancel`. A
+incubadora só é liberada no encerramento do evento. O pintinho passa mais sete
+viradas de dia crescendo, sem precisar de ração. Ao virar adulto, passa a usar
+o mesmo ciclo de alimentação e produção das galinhas compradas. Nascer de um
+ovo dourado não concede um prêmio de concurso ao novo animal.
+
+O evento original 172 (`0xAC`) resolve mortes por doença ou idade, com Carter,
+Rick, cenário da igreja/cemitério, falas, animação de luto, música e fades.
+As mensagens expandem a lista de nomes dos animais mortos por cada causa;
+listas extensas são paginadas pelo renderizador nativo. O comando original
+`ANIMAL_DEATH_CLEAR` remove apenas os registros marcados e libera suas vagas.
+A remoção também incrementa o contador de descartes. O evento avança uma hora
+no caso de idade e duas no de doença; o caso de doença aplica as perdas de
+amizade/afeição aos moradores e ajudantes. O retorno libera controle na casa.
+O fade continua após o fim do script, como o fade global do original.
+
+Os dois eventos executam os recursos originais pelo interpretador C nativo,
+com comandos específicos ligados ao estado real dos animais. Não há execução
+MIPS nem substituição dos eventos por uma mensagem isolada. O teste adicional:
+
+```bash
+SDL_VIDEO_DRIVER=dummy SDL_RENDER_DRIVER=software SDL_AUDIO_DRIVER=dummy \
+  ./build/native-debug/port/hmbtn_poultry_lifecycle_playthrough data
+```
+
+Esse percurso usa fixtures declaradas para morte por idade/doença e um ovo
+inicial, permitindo testar sem esperar anos. Exercita a zona real de depósito,
+três noites, nome obrigatório, volta à casa, sete noites de crescimento,
+penalidades e reabertura das vagas. Renderiza os eventos com recursos locais.
+O teste econômico anterior continua sem concessão de dinheiro ou produtos.
+
 ## Limites
 
-Não há incubação, pintinhos, reprodução, transporte de galinhas ao exterior,
-venda de animais, medicamentos, concurso, melhorias do galinheiro ou saves.
-Os contadores diários de doença e idade seguem o original, com PRNG host;
-o evento de funeral ainda não é executado. Um animal marcado como morto fica
-invisível com seu registro reservado, aguardando esse evento; a remoção e
-liberação da vaga fazem parte do próximo recorte. O jogador ainda não colide
-fisicamente com as galinhas. Vacas, ovelhas, cavalo e cachorro continuam pendentes.
+O estado da fazenda já inclui a lista real de galinhas, com saúde, afeição,
+data/idade e rolagem, conforme [POULTRY_STATUS.md](POULTRY_STATUS.md).
+
+O medicamento animal já pode ser comprado de Lillia/Barley, equipado e usado
+para curar a adulta doente com animação, consumo de dose e cue originais.
+Comportamento, testes e limites em [ANIMAL_MEDICINE.md](ANIMAL_MEDICINE.md).
+
+Adultas e pintinhos nomeados já podem ser carregados entre áreas. A fazenda
+tem alimentação horária e ovos na posição da adulta; o retorno conserva o
+registro. Regras, consulta de ocupação e evidências em
+[POULTRY_TRANSPORT.md](POULTRY_TRANSPORT.md).
+
+Ainda faltam venda das demais espécies,
+tratamentos das demais espécies, concursos, melhorias do galinheiro e saves.
+A segunda incubadora e a capacidade de dez vagas já têm regras na lógica,
+mas a melhoria e o interior ampliado ainda não estão disponíveis no gameplay.
+Os contadores de doença e idade seguem o original, com PRNG host; os
+intervalos de caminhada continuam sem paridade com todas as cues. A consulta
+original das galinhas seleciona o animal sem a parada rígida do jogador,
+conforme o estudo de movimento em [POULTRY_TRANSPORT.md](POULTRY_TRANSPORT.md).
+Vacas, ovelhas, cavalo e cachorro
+continuam pendentes.
 
 Validação somente Linux local, usando C11/SDL3 compartilhado com Windows;
 nenhum novo build Windows. O bootstrap `--diagnostics` não executa o jogo.

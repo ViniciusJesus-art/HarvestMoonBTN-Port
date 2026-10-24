@@ -2,11 +2,11 @@
 
 # Harvest Moon: Back to Nature — PC Port
 
-**A personal project to port Harvest Moon: Back to Nature (PlayStation) natively to Linux, Windows, and Android.**
+**A personal project to port Harvest Moon: Back to Nature (PlayStation) natively to Linux and Windows.**
 
 *Based on the [hmbtn-decomp](https://github.com/coalslav/hmbtn-decomp) decompilation project by coalslav.*
 
-> **Status: title, registration, farm arrival, and childhood sequence (partial M3/M4).** Walking and running inside the initial house are available; farm gameplay remains pending. Current development focuses on Linux and Windows; Android is planned for the future.
+> **Status: title, registration, farm arrival, and childhood sequence (partial M3/M4).** Walking and running inside the initial house are available; farm gameplay remains pending. Current development focuses on Linux and Windows.
 
 **Veja a Versão em Português 🇧🇷 [aqui](/README-PT-BR.md)**
 
@@ -50,7 +50,7 @@ The repository contains the **decompilation of the US PlayStation release, `SLUS
 
 **House controls:** `./build/native-debug/port/hmbtn_native --house-preview` opens the initial house directly. Arrows/D-pad walk; X/Circle runs forward. Ground queries use the original scene polygons and flags. Reaching the exit pauses at an explicit boundary; the farm transition remains pending. Z/Cross interacts with the TV, calendar, toolbox and bookshelf; music and footsteps are active. The options menu changes controls, vibration, stereo/mono and the clock. The bed menu plays the original sleep/blanket animation and fade, then stops before unported overnight world updates; diary/save/load remain pending. See [HOUSE_CONTROL.md](docs/port/HOUSE_CONTROL.md) and [HOUSE_INTERACTIONS.md](docs/port/HOUSE_INTERACTIONS.md).
 
-**Not yet implemented:** full gameplay, saves, general collisions, dynamic farm objects, full SPU audio/reverb, mods, or Android. The bootstrap does not run the complete game. Continue/demo stop at a boundary reported in the terminal, and Start/Z/X returns to the menu. The opening sequence and audio still need comparison with the PS1 version before full fidelity can be claimed. This portion is adapted under `port/`; the complete modules in `src/` are not compiled for the host platform. The original **PlayStation** build remains available by default. The local Windows `.exe` was rebuilt with MinGW x64 including the childhood sequence and streamed XA audio event; testing on actual Windows/MSVC is pending.
+**Not yet implemented:** full gameplay, saves, general collisions, dynamic farm objects, full SPU audio/reverb, mods. The bootstrap does not run the complete game. Continue/demo stop at a boundary reported in the terminal, and Start/Z/X returns to the menu. The opening sequence and audio still need comparison with the PS1 version before full fidelity can be claimed. This portion is adapted under `port/`; the complete modules in `src/` are not compiled for the host platform. The original **PlayStation** build remains available by default. The local Windows `.exe` was rebuilt with MinGW x64 including the childhood sequence and streamed XA audio event; testing on actual Windows/MSVC is pending.
 
 ## Getting Started on Linux and Windows
 
@@ -66,7 +66,7 @@ Run `./build/native-debug/port/hmbtn_native` on Linux or `.\build\native-debug\p
 
 ## Goals
 
-- Port the game's logic to a native application for Linux, Windows, and Android.
+- Port the game's logic to a native application for Linux and Windows.
 - Create a compatibility layer for PS1 graphics, audio, input, timing, memory, and file access.
 - Keep the decompiled code separate from cross-platform adaptations as much as possible.
 - Preserve a way to track updates from the original decompilation project.
@@ -96,7 +96,6 @@ The original build remains organized around its existing `CMakeLists.txt` files 
 |---|---|---|
 | Fedora / Linux | Primary development platform | Window validated on Wayland and X11 |
 | Windows | Native PC build | MinGW x64 and Wine verified; testing on actual Windows/MSVC pending |
-| Android | Port using the NDK, Android lifecycle, and touch controls | Not started |
 
 ## Documentation
 

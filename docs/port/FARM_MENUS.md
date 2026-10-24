@@ -35,10 +35,13 @@ ao usar ferramentas e a madeira acompanha os galhos cortados.
 As páginas de galinhas/vacas/ovelhas são puladas quando a contagem é zero,
 conforme `options_page_next/prev` do original.
 
-Contagens de envios, contas, afeição e animais começam com os valores iniciais;
-seus sistemas de progressão ainda não estão portados. Não há simulação de
-animais ou contratação de ajudantes por abrir esse menu. Listas de animais
-existentes precisarão dos registros reais quando o sistema de criação for integrado.
+Contagens de envios, contas e galinhas acompanham o estado real da sessão.
+A página de galinhas mostra adultas/pintinhos nomeados, saúde, afeição,
+data/idade, estação e prêmio, com sete linhas e rolagem. Animais carregados
+continuam listados; incubação e nome pendente não entram na contagem do
+resumo. Detalhes e testes em [POULTRY_STATUS.md](POULTRY_STATUS.md).
+As páginas das demais espécies aguardam seus registros nativos. Abrir o menu
+não concede animais, recursos nem contratação de ajudantes.
 Rótulos estáticos vêm do banco C US da decompilação; mensagens/descrições vêm
 dos dados importados, inclusive PT-BR no teste local.
 
@@ -80,6 +83,12 @@ Ferramentas básicas continuam recusando tocos e pedras grandes que exigem
 melhoria. Não se altera esse requisito para demonstrar uma animação.
 
 ## Validação
+
+A página de galinhas acrescenta o percurso opcional
+`hmbtn_poultry_status_playthrough data`, com recursos originais e fixtures
+de estados/lotação. O percurso econômico existente também verifica a página
+após uma compra normal. São 33 CTests e treze percursos locais aprovados.
+A evidência abaixo registra as validações anteriores dos outros recortes.
 
 - Configure/build Linux e 23 CTests: liberação de loop, identificadores antigos,
   inventário sem perda/duplicação, pilhas, slots bloqueados, páginas/fades,

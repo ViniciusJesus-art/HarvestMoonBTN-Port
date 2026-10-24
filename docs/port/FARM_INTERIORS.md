@@ -62,7 +62,12 @@ Depósitos e cochos já compartilham o estado da sessão, conforme
 [FARM_FEED.md](FARM_FEED.md). A compra de forragem/ração já abastece os estoques
 pelo fluxo de [FEED_SHOPS.md](FEED_SHOPS.md). O primeiro ciclo de galinhas adultas,
 com compra/nome, caminhada, alimentação e ovos, está em [POULTRY.md](POULTRY.md).
-Demais animais, reprodução, troca de montaria, melhorias dos edifícios,
+A incubadora e os eventos de nascimento/funeral das galinhas também estão
+integrados. Demais animais, troca de montaria, melhorias dos edifícios,
 caixas de venda internas e saves continuam pendentes. O bootstrap
 `--diagnostics` não executa o jogo; os testes host não substituem o build PS1
 e sua validação SHA-1.
+
+Adultas e pintinhos já atravessam as portas no colo do jogador, preservando
+o registro. A colocação, alimentação e ovos na fazenda estão documentados
+em [POULTRY_TRANSPORT.md](POULTRY_TRANSPORT.md).

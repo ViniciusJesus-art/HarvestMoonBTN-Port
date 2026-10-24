@@ -53,6 +53,18 @@ Os atalhos `--area-preview 92`, `96` e `112` abrem esses interiores diretamente.
 Depósitos/cochos compartilham estoque e animações; forragem e ração podem ser
 compradas de Barley/Lillia. Lillia também vende galinhas adultas com nome; o
 galinheiro tem caminhada, alimentação diária e ovos recolhíveis/vendáveis.
+A incubadora permite criar pintinhos, nomeá-los e acompanhar o crescimento;
+funerais resolvem mortes e liberam as vagas pelos scripts originais.
+A loja de Lillia também permite vender adultas, com lista, confirmação,
+liberação da vaga e receita real na carteira/livro de contas.
+Lillia e Barley vendem medicamento animal; R1 equipa e C/Square trata a
+galinha doente com animação original e consumo de dose. Veja
+[ANIMAL_MEDICINE.md](../docs/port/ANIMAL_MEDICINE.md).
+Z/Cross pega e coloca adultas/pintinhos; as portas conservam o animal na mão.
+Na fazenda, adultas acumulam alimentação horária e põem ovos no exterior.
+Veja [POULTRY_TRANSPORT.md](../docs/port/POULTRY_TRANSPORT.md).
+Start → direita → direita abre a lista real de galinhas, com saúde, afeição,
+data/idade e sete linhas com rolagem. Veja [POULTRY_STATUS.md](../docs/port/POULTRY_STATUS.md).
 A coleta silvestre sazonal permite financiar a compra com recursos do mapa.
 Veja [POULTRY.md](../docs/port/POULTRY.md),
 [FARM_FEED.md](../docs/port/FARM_FEED.md) e [FEED_SHOPS.md](../docs/port/FEED_SHOPS.md).
@@ -106,3 +118,21 @@ e [WINDOWS.md](../docs/port/WINDOWS.md).
 O recorte do cadastro e a apresentação em janelas 16:9 estão em [NEW_GAME.md](../docs/port/NEW_GAME.md).
 
 Música, passos, TV, calendário, baú de ferramentas e livro/estante estão descritos em [HOUSE_INTERACTIONS.md](../docs/port/HOUSE_INTERACTIONS.md).
+
+
+Conversas comuns com moradores (Z/Cross, mãos vazias) e colisão com o jogador
+estão em [NPC_INTERACTION.md](../docs/port/NPC_INTERACTION.md), com os limites de
+história/presentes ainda pendentes. A lista de compras agora mostra preços ao
+lado dos itens; a recusa de saldo insuficiente preserva o texto do `.bin` instalado.
+Veja [FEED_SHOPS.md](../docs/port/FEED_SHOPS.md) para testar a granja.
+
+Ao correr é possível atravessar NPCs; na caminhada a colisão permanece ativa.
+A identificação dos recursos deve seguir [RESOURCE_IDENTITIES.md](../docs/port/RESOURCE_IDENTITIES.md):
+reutilizar leitores/decodificadores e ids lógicos originais. A resolução de
+mensagens/retratos já usa essa identificação; suporte a PNGs extraídos é futuro.
+
+
+Os contadores de dias dos scripts agora avançam com o relógio da sessão,
+inclusive no sono. As rotas de moradores acumulam atraso ao serem bloqueadas
+pelo jogador e são liberadas após 30 minutos do jogo, com a agenda e retomada
+compensadas. Fontes e limites em [EVENT_DAYS.md](../docs/port/EVENT_DAYS.md).

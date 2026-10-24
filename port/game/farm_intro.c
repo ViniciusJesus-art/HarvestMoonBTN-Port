@@ -19,6 +19,9 @@ HmbtnIntroActor *hmbtn_farm_intro_actor(HmbtnFarmIntro *s, int32_t id)
     if (id == 17) return &s->mayor;
     if (id == 23) return &s->ellen;
     if (id == 26) return &s->zack;
+    if (id == 10) return &s->carter;
+    if (id == 15) return &s->barley;
+    if (id == 19) return &s->rick;
     if (id == 41) return &s->player;
     if (id >= 1 && id <= 4) return &s->childhood[id-1];
     if (id == 27) return &s->boy;
@@ -55,8 +58,9 @@ static HmbtnEventResult command(void *ctx, const HmbtnEventCommand *c,
     HmbtnIntroActor *actor = hmbtn_farm_intro_actor(s,a);
     switch (c->type) {
     case 0x23: {
-        if(s->event==12 && a==42) {
-            HmbtnIntroActor *actors[]={&s->mayor,&s->ellen,&s->zack};
+        if((s->event==12 || s->event==172) && a==42) {
+            HmbtnIntroActor *actors[]={s->event==12 ? &s->mayor : &s->carter,
+                s->event==12 ? &s->ellen : &s->barley,s->event==12 ? &s->zack : &s->rick};
             for(unsigned i=0;i<3;++i) {
                 memset(actors[i]->velocity,0,sizeof(actors[i]->velocity));
                 actors[i]->sprite=(HmbtnAnimationPlayer){0};
@@ -193,6 +197,9 @@ static HmbtnEventResult command(void *ctx, const HmbtnEventCommand *c,
         } else if (b == 5 && x == 10 && y == 10) {
             s->action_active = false;
             s->player.sprite = (HmbtnAnimationPlayer){10,(uint16_t)s->player.facing,0};
+        } else if(s->event==172 && b==63 && x==-1 && y==11) {
+            if(!s->action_ready) { s->action_pending=true;return HMBTN_EVENT_PENDING; }
+            s->action_active=true;s->action_finished=false;s->player.sprite=(HmbtnAnimationPlayer){0,0,0};
         } else break;
         s->player.pose = true; return HMBTN_EVENT_WAIT;
     case 0x1A:
@@ -229,6 +236,12 @@ static HmbtnEventResult command(void *ctx, const HmbtnEventCommand *c,
         return HMBTN_EVENT_WAIT;
     }
     case 8:
+        if((s->event==172 || s->event==299) && !b && ((a==44 && !x && y==1)
+                || (a==-2 && x==1 && !y) || (a==-4 && !x && !y))) {
+            const unsigned target=a==44 ? 44 : a==-4 ? 112 : 80;
+            if(s->area==target) return HMBTN_EVENT_DONE;
+            s->target_area=target;s->area_pending=true;return HMBTN_EVENT_PENDING;
+        }
         if ((((a == 0 || a == 230 || a == 231 || a == 232) && b == 1)
                 || (s->event==12 && (a==0 || a==32 || a==36 || a==40 || a==48 || a==52) && !b)
                 || (a == -2 && !b)) && !x && !y) {
@@ -243,6 +256,11 @@ static HmbtnEventResult command(void *ctx, const HmbtnEventCommand *c,
             s->target_area,a == -2 ? "farmhouse interior" : "next scene");
         return HMBTN_EVENT_BOUNDARY;
     case 0x25: /* event_cmd_enter_mode(0,0,0,0): finish the opening event. */
+        if((s->event==172 || s->event==299) && s->area==80 && !s->area_pending && !x && !y
+                && ((s->event==299 && !a && !b) || (s->event==172 && a==2 && b==1))) {
+            if(s->event==172) s->advanced_minutes+=60;
+            s->event_active=false;s->finish_requested=true;return HMBTN_EVENT_DONE;
+        }
         if (a || b || x || y || s->area_pending
                 || !((s->event==121 && s->area==80) || (s->event==12 && s->area==0))) break;
         s->event_active = false; s->finish_requested = true;
@@ -256,11 +274,11 @@ static HmbtnEventResult command(void *ctx, const HmbtnEventCommand *c,
         s->queued_event = (unsigned)a; s->event_pending = true;
         return HMBTN_EVENT_PENDING;
     case 0x18: /* Load the mode's actual VAB/SEQ before acknowledging it. */
-        if (a != 34 || b || x || y) break;
-        if (s->music_mode == 34) return HMBTN_EVENT_DONE;
+        if ((a!=34 && !(s->event==172 && a==10)) || b || x || y) break;
+        if (s->music_mode == (unsigned)a) return HMBTN_EVENT_DONE;
         s->song_pending = true; return HMBTN_EVENT_PENDING;
     case 0x19:
-        if (a || b || x || y || s->music_mode != 34) break;
+        if (a || b || x || y || (s->music_mode!=34 && !(s->event==172 && s->music_mode==10))) break;
         s->start_music = true; return HMBTN_EVENT_DONE;
     case 0x17: /* CD-XA start/poll: resources must be opened by the host. */
         if ((a != 4 && a != 5) || b || y || (x != 0 && x != 1)) break;
@@ -289,9 +307,13 @@ static HmbtnEventResult command(void *ctx, const HmbtnEventCommand *c,
         if(a<0 || b || x || y) break;
         return s->text_bank==(unsigned)a ? HMBTN_EVENT_DONE : HMBTN_EVENT_WAIT;
     case 0x4C: /* clock_fast_forward_unflagged: the tour advances two hours. */
+        if(s->event==172 && a==1 && !b && x==1 && !y) { s->advanced_minutes+=60;return HMBTN_EVENT_DONE; }
         if(s->event!=12 || a!=2 || b || x!=1 || y) break;
         s->advanced_minutes+=120;
         return HMBTN_EVENT_DONE;
+    case 0x51:case 0x5B:
+        if(s->game_command) return s->game_command(s->game_context,c,error,error_size);
+        break;
     case 0x67: {
         HmbtnIntroActor *target=hmbtn_farm_intro_actor(s,y);
         if(!actor || !target || b || x) break;
@@ -404,7 +426,7 @@ bool hmbtn_farm_intro_tick(HmbtnFarmIntro *s, char *error, size_t error_size)
     if (s->event!=12 && s->message && !s->message_done) return true;
     if (!hmbtn_event_tick(&s->script,command,s,error,error_size)) return false;
     if (!s->message) {
-        const unsigned ids[] = {1,2,3,4,17,23,26,27,33};
+        const unsigned ids[] = {1,2,3,4,10,15,17,19,23,26,27,33};
         for (unsigned a = 0; a < sizeof(ids)/sizeof(ids[0]); ++a) {
             HmbtnIntroActor *actor = hmbtn_farm_intro_actor(s,(int32_t)ids[a]);
             for (unsigned axis = 0; axis < 3; ++axis) {

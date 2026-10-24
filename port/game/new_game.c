@@ -201,7 +201,7 @@ static void name_tick(HmbtnNewGame *g,uint32_t pressed,uint32_t triggered)
         else {g->confirming=true;g->choice=0;g->sound=0;queue(g,0x3a6);}
     } else if (pressed==HMBTN_PAD_CIRCLE) {
         if (g->length) {g->name[--g->length]=0xffff;g->sound=1;}
-        else if (g->step==15) g->sound=2;
+        else if (g->step==15 || g->no_cancel) g->sound=2;
         else {
             if(g->step==101) { g->step=102;g->finished=true;g->choice=1; }
             else g->step=g->step==21?16:19;

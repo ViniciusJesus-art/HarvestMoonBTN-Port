@@ -5,7 +5,8 @@
 #include "poultry.h"
 typedef enum HmbtnFeedShopPhase {
     HMBTN_SHOP_OFF,HMBTN_SHOP_GREETING,HMBTN_SHOP_SELECT,HMBTN_SHOP_INFO,
-    HMBTN_SHOP_OFFER,HMBTN_SHOP_COUNT,HMBTN_SHOP_RESULT,HMBTN_SHOP_LEAVE,HMBTN_SHOP_NAME
+    HMBTN_SHOP_OFFER,HMBTN_SHOP_COUNT,HMBTN_SHOP_RESULT,HMBTN_SHOP_LEAVE,HMBTN_SHOP_NAME,
+    HMBTN_SHOP_SELL_LIST,HMBTN_SHOP_SELL_CONFIRM
 } HmbtnFeedShopPhase;
 typedef struct HmbtnFeedShop {
     HmbtnFeedShopPhase phase,next,after_result;
@@ -14,11 +15,13 @@ typedef struct HmbtnFeedShop {
     unsigned saved_facing;
     uint32_t previous_arrows;
     bool closing;
+    bool medicine_available;
     int sound;
     HmbtnPoultry *poultry;
     HmbtnNewGame editor;
     HmbtnFarmClock date;
     unsigned selection;
+    unsigned sale_cursor,sale_top,sale_slot,answer;
 } HmbtnFeedShop;
 /* Original scripts 365/368: empty hands, business hours, weekday and merchant present. */
 bool hmbtn_feed_shop_open(HmbtnFeedShop *shop,HmbtnVillage *village,

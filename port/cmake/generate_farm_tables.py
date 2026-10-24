@@ -132,6 +132,23 @@ def main(root, output):
         raise ValueError("Unexpected original shipment bins")
     clock=clean((src / "overlay/11_GF_FARM/world/clock.c").read_text())
     dates=[fields(row[1:-1])[:2] for row in fields(body(clock,"clock_date_table"))[:14]]
+    Path(output).with_name("clock_dates.inc").write_text(
+        "/* Original first 14 clock_date_table entries (1-based lookup). */\n"
+        "static const unsigned clock_dates[14][2]={"+
+        ",".join("{"+",".join(row)+"}" for row in dates)+"};\n")
+    event_requests=clean((src / "overlay/11_GF_FARM/event/event_request.c").read_text())
+    defaults=[255]*128
+    reset=re.search(r"void scene_item_queue_reset\(void\)\s*\{(.*?)\n\}",event_requests,re.S)
+    if not reset: raise ValueError("Missing original scene_item_queue_reset")
+    initial=re.findall(r"game_state\.days\.count0\[(0x[0-9A-Fa-f]+|[0-9]+)\]\s*=\s*(0x[0-9A-Fa-f]+|[0-9]+)\s*;",reset.group(1))
+    if not initial: raise ValueError("Missing original day-counter initialization")
+    for index,value in initial:
+        index,value=int(index,0),int(value,0)
+        if index>=128 or value>255: raise ValueError("Invalid original day-counter default")
+        defaults[index]=value
+    Path(output).with_name("event_day_defaults.inc").write_text(
+        "/* Original scene_item_queue_reset numeric defaults. */\n"
+        "static const uint8_t event_day_count0[128]={"+",".join(map(str,defaults))+"};\n")
     Path(output).with_name("shipping_tables.inc").write_text(
         "/* Original estate shipment bins and clock_date_index dates. */\n"
         "static const int8_t shipping_bins[380]={"+",".join(map(str,bins))+"};\n"
@@ -218,6 +235,18 @@ def main(root, output):
         tocs.append("{"+match[1]+",{"+match[2]+"}}")
     village.append("static const HmbtnVillagePack village_packs[35]={"+",".join(tocs)+"};")
     Path(output).with_name("village_tables.inc").write_text("\n".join(village)+"\n")
+    event=clean((src / "overlay/11_GF_FARM/event/event_script.c").read_text())
+    commands=clean((src / "overlay/11_GF_FARM/event/event_commands.c").read_text())
+    offsets=fields(body(event,"event_script_offsets"))
+    birthdays=re.search(r"birthday_moves\s*=\s*\{\s*(\{.*?\})\s*,\s*-1",commands,re.S).group(1)
+    Path(output).with_name("village_talk_tables.inc").write_text(
+        "/* Original conversation ranges and birthday tables. */\n"
+        "static const uint32_t talk_ranges[37][2]={"+",".join(
+            "{0,0}" if i in [0,27,30,33] else "{"+offsets[400 if i==35 else 350+i]+","+offsets[401 if i==35 else 351+i]+"}"
+            for i in range(37))+"};\n"
+        "static const int16_t bride_birthdays[2][5][3]={"+body(commands,"item_places")+"};\n"
+        "static const int16_t birthdays[28][3]="+birthdays+";\n")
+
 
 
 if __name__ == "__main__":

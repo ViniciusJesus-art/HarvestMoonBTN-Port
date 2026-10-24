@@ -82,6 +82,51 @@ int main(void)
     CHECK(s.selection==1 && s.item==0x109 && hmbtn_feed_shop_cost(&s)==1500);
     tick(&s,&h,&stats,HMBTN_PAD_CROSS);CHECK(advance(&s,&h,&stats,HMBTN_SHOP_RESULT));
     CHECK(s.request==0x55 && stats.gold==5000 && stats.ledger[0][1]==expenses && hmbtn_poultry_count(&poultry)==5);
+    CHECK(advance(&s,&h,&stats,HMBTN_SHOP_SELECT));tick(&s,&h,&stats,HMBTN_PAD_DOWN);
+    CHECK(s.selection==2 && !s.item);
+    tick(&s,&h,&stats,HMBTN_PAD_TRIANGLE);
+    CHECK(advance(&s,&h,&stats,HMBTN_SHOP_RESULT) && s.request==0x49);
+    CHECK(advance(&s,&h,&stats,HMBTN_SHOP_SELECT));
+    tick(&s,&h,&stats,HMBTN_PAD_CROSS);CHECK(advance(&s,&h,&stats,HMBTN_SHOP_SELL_LIST));
+    /* List wraps and scrolls over the four visible rows. */
+    tick(&s,&h,&stats,HMBTN_PAD_UP);CHECK(s.sale_cursor==4 && s.sale_top==1);
+    tick(&s,&h,&stats,HMBTN_PAD_DOWN);CHECK(!s.sale_cursor && !s.sale_top);
+    tick(&s,&h,&stats,HMBTN_PAD_CIRCLE);CHECK(advance(&s,&h,&stats,HMBTN_SHOP_RESULT) && s.request==0x5B);
+    CHECK(stats.gold==5000 && hmbtn_poultry_count(&poultry)==5);
+    CHECK(advance(&s,&h,&stats,HMBTN_SHOP_SELECT));
+    tick(&s,&h,&stats,HMBTN_PAD_CROSS);CHECK(advance(&s,&h,&stats,HMBTN_SHOP_SELL_LIST));
+    tick(&s,&h,&stats,HMBTN_PAD_CROSS);CHECK(advance(&s,&h,&stats,HMBTN_SHOP_SELL_CONFIRM) && s.request==0x60);
+    tick(&s,&h,&stats,HMBTN_PAD_DOWN);CHECK(s.answer==1);
+    tick(&s,&h,&stats,HMBTN_PAD_CROSS);CHECK(advance(&s,&h,&stats,HMBTN_SHOP_SELECT));
+    CHECK(stats.gold==5000 && hmbtn_poultry_count(&poultry)==5);
+    tick(&s,&h,&stats,HMBTN_PAD_CROSS);CHECK(advance(&s,&h,&stats,HMBTN_SHOP_SELL_LIST));
+    tick(&s,&h,&stats,HMBTN_PAD_DOWN);CHECK(s.sale_cursor==1);
+    tick(&s,&h,&stats,HMBTN_PAD_CROSS);CHECK(advance(&s,&h,&stats,HMBTN_SHOP_SELL_CONFIRM));
+    CHECK(s.sale_slot==1 && !s.answer);
+    tick(&s,&h,&stats,HMBTN_PAD_CROSS);CHECK(stats.gold==5500 && stats.ledger[0][0]==500);
+    for(unsigned i=0;i<8;++i) tick(&s,&h,&stats,HMBTN_PAD_CROSS);
+    CHECK(stats.gold==5500 && stats.ledger[0][0]==500 && !poultry.hens[1].occupied);
+    CHECK(stats.animals[0]==4 && stats.ledger[0][1]==expenses && hmbtn_poultry_room(&poultry));
+    CHECK(advance(&s,&h,&stats,HMBTN_SHOP_SELECT));
+    poultry.hens[4].prize=true;stats.gold=9999900;
+    tick(&s,&h,&stats,HMBTN_PAD_CROSS);CHECK(advance(&s,&h,&stats,HMBTN_SHOP_SELL_LIST));
+    tick(&s,&h,&stats,HMBTN_PAD_UP);CHECK(s.sale_cursor==3); /* Sparse record list. */
+    tick(&s,&h,&stats,HMBTN_PAD_CROSS);CHECK(advance(&s,&h,&stats,HMBTN_SHOP_SELL_CONFIRM) && s.request==0x61);
+    CHECK(s.sale_slot==4);tick(&s,&h,&stats,HMBTN_PAD_CIRCLE);
+    CHECK(advance(&s,&h,&stats,HMBTN_SHOP_SELECT));CHECK(poultry.hens[4].occupied && stats.gold==9999900);
+    tick(&s,&h,&stats,HMBTN_PAD_CROSS);CHECK(advance(&s,&h,&stats,HMBTN_SHOP_SELL_LIST));
+    tick(&s,&h,&stats,HMBTN_PAD_UP);tick(&s,&h,&stats,HMBTN_PAD_CROSS);
+    CHECK(advance(&s,&h,&stats,HMBTN_SHOP_SELL_CONFIRM));tick(&s,&h,&stats,HMBTN_PAD_CROSS);
+    CHECK(stats.gold==9999999 && stats.ledger[0][0]==2500 && stats.animals[0]==3 && !poultry.hens[4].occupied);
+    CHECK(advance(&s,&h,&stats,HMBTN_SHOP_SELECT));
+    /* Incubation, chicks and deaths must never enter the sale list. */
+    poultry.hens[0].stage=HMBTN_HEN_EGG;poultry.hens[2].stage=HMBTN_HEN_CHICK;poultry.hens[3].dead=true;
+    tick(&s,&h,&stats,HMBTN_PAD_CROSS);CHECK(advance(&s,&h,&stats,HMBTN_SHOP_RESULT) && s.request==0x59);
+    CHECK(!hmbtn_poultry_sell(&poultry,HMBTN_HENS) && !hmbtn_poultry_sell(&poultry,0)
+        && !hmbtn_poultry_sell(&poultry,1) && !hmbtn_poultry_sell(&poultry,2) && !hmbtn_poultry_sell(&poultry,3));
+    CHECK(stats.gold==9999999 && stats.ledger[0][0]==2500 && stats.ledger[0][1]==expenses);
+    CHECK(hmbtn_poultry_buy(&poultry,animal_name,&clock) && poultry.hens[1].occupied);
+    CHECK(hmbtn_poultry_sale_slot(&poultry,0)==1 && hmbtn_poultry_sale_slot(&poultry,1)==HMBTN_HENS);
     uint8_t record[8192]={0};HmbtnNewGame registration;hmbtn_new_game_init(&registration);
     registration.player_name[0]=0;registration.farm_name[0]=1;
     hmbtn_write_le16(record+0x1800,0x400A);hmbtn_write_le16(record+0x1802,0xFFD);
@@ -94,5 +139,37 @@ int main(void)
     for(unsigned i=0;i<1023;++i) hmbtn_write_le16(record+0x1800+i*2,0x400A);
     hmbtn_write_le16(record+0x1FFE,0xFFFF);
     CHECK(!hmbtn_feed_shop_expand(record,sizeof(record),&registration));
-    puts("Feed shops: original hours/presence, quantity wrap, help, cancel, prices, stock cap and atomic ledger commits passed.");return 0;
+    HmbtnHouseInteraction meds;hmbtn_house_interaction_init(&meds);
+    HmbtnFeedShop ms={0};ms.poultry=&poultry;HmbtnFarmStatistics money={0};money.gold=999;
+    meds.toolbox[63]=(HmbtnStoredTool){0x1E,0,1};
+    CHECK(hmbtn_feed_shop_open(&ms,&v,&player,&clock,128,0));
+    CHECK(advance(&ms,&meds,&money,HMBTN_SHOP_SELECT) && !ms.medicine_available);
+    tick(&ms,&meds,&money,HMBTN_PAD_UP);CHECK(ms.selection==2); /* Medicine hidden, even in toolbox. */
+    tick(&ms,&meds,&money,HMBTN_PAD_DOWN);CHECK(!ms.selection);
+    meds.toolbox[63]=(HmbtnStoredTool){0};tick(&ms,&meds,&money,0);
+    tick(&ms,&meds,&money,HMBTN_PAD_UP);CHECK(ms.selection==3 && ms.item==0x1E && hmbtn_feed_shop_cost(&ms)==1000);
+    tick(&ms,&meds,&money,HMBTN_PAD_TRIANGLE);CHECK(advance(&ms,&meds,&money,HMBTN_SHOP_RESULT) && ms.request==0x48);
+    CHECK(advance(&ms,&meds,&money,HMBTN_SHOP_SELECT));tick(&ms,&meds,&money,HMBTN_PAD_CROSS);
+    CHECK(advance(&ms,&meds,&money,HMBTN_SHOP_RESULT) && ms.request==0x4F && money.gold==999 && !money.ledger[0][1]);
+    CHECK(advance(&ms,&meds,&money,HMBTN_SHOP_SELECT));money.gold=1200;
+    meds.equipped=(HmbtnStoredTool){1,0,1};meds.bag[0]=(HmbtnStoredTool){6,0,1};meds.bag[1]=(HmbtnStoredTool){11,0,1};
+    const HmbtnHouseInteraction full=meds;
+    tick(&ms,&meds,&money,HMBTN_PAD_CROSS);
+    CHECK(advance(&ms,&meds,&money,HMBTN_SHOP_RESULT) && ms.request==0x54 && !memcmp(&full,&meds,sizeof(full)) && money.gold==1200);
+    CHECK(advance(&ms,&meds,&money,HMBTN_SHOP_SELECT));meds.bag[1]=(HmbtnStoredTool){0};
+    tick(&ms,&meds,&money,HMBTN_PAD_CROSS);CHECK(money.gold==200 && money.ledger[0][1]==1000 && meds.bag[1].id==0x1E && meds.bag[1].count==1);
+    for(unsigned i=0;i<8;++i) tick(&ms,&meds,&money,HMBTN_PAD_CROSS);
+    CHECK(money.gold==200 && money.ledger[0][1]==1000 && meds.bag[1].count==1 && !ms.medicine_available);
+    CHECK(advance(&ms,&meds,&money,HMBTN_SHOP_SELECT));tick(&ms,&meds,&money,HMBTN_PAD_CIRCLE);
+    CHECK(advance(&ms,&meds,&money,HMBTN_SHOP_OFF));
+    CHECK(hmbtn_feed_shop_open(&ms,&v,&player,&clock,136,0));
+    CHECK(advance(&ms,&meds,&money,HMBTN_SHOP_SELECT) && !ms.medicine_available);
+    tick(&ms,&meds,&money,HMBTN_PAD_UP);CHECK(!ms.selection); /* Same ownership in both shops. */
+    meds.bag[1]=(HmbtnStoredTool){0};meds.equipped=(HmbtnStoredTool){0};money.gold=2000;
+    tick(&ms,&meds,&money,0);tick(&ms,&meds,&money,HMBTN_PAD_DOWN);CHECK(ms.selection==3);
+    tick(&ms,&meds,&money,HMBTN_PAD_TRIANGLE);CHECK(advance(&ms,&meds,&money,HMBTN_SHOP_RESULT) && ms.request==0x64);
+    CHECK(advance(&ms,&meds,&money,HMBTN_SHOP_SELECT));tick(&ms,&meds,&money,HMBTN_PAD_CROSS);
+    CHECK(advance(&ms,&meds,&money,HMBTN_SHOP_RESULT) && ms.request==0x84 && money.gold==1000
+        && money.ledger[0][1]==2000 && meds.equipped.id==0x1E && meds.equipped.count==1);
+    puts("Feed shops: hours/presence, feed, chicken sales, scrolling, refusals, cancellations and atomic capped ledger commits passed.");return 0;
 }

@@ -1,5 +1,6 @@
 #include "new_game_ui.h"
 #include "resource_file.h"
+#include "text_resources.h"
 #include "psx_data.h"
 #include "window_frame.h"
 #include "model_render.h"
@@ -23,6 +24,16 @@ void hmbtn_new_game_ui_cursor(const HmbtnNewGameUI *u, HmbtnWorldSprite *sprite,
 {
     *sprite = (HmbtnWorldSprite){&u->icons,u->atlas,{24,(uint16_t)(variant&1u),0},{0},0};
     memcpy(sprite->position,position,sizeof(sprite->position));
+}
+bool hmbtn_new_game_ui_cue(const HmbtnNewGameUI *u,HmbtnWorldSprite *sprite,
+    const int32_t position[3],unsigned icon,unsigned phase,int screen_y)
+{
+    /* cue_draw_frame: reverse frames, stepping once per ten countdown units. */
+    if(!phase || icon>=u->icons.count[3]) return false;
+    const unsigned frames=hmbtn_read_le16(u->icons.data+u->icons.section[3]+icon*4);
+    if(!frames) return false;
+    *sprite=(HmbtnWorldSprite){&u->icons,u->atlas,{(uint16_t)icon,(uint16_t)(frames-1-(phase/10)%frames),0},{0},screen_y};
+    memcpy(sprite->position,position,sizeof(sprite->position));return true;
 }
 HmbtnNewGameUI *hmbtn_new_game_ui_create(const char *root, char *error, size_t error_size)
 {
@@ -78,9 +89,9 @@ bool hmbtn_ui_message_record(HmbtnNewGameUI *u,const uint8_t *record,size_t size
 bool hmbtn_ui_message_portrait(HmbtnNewGameUI *u,const HmbtnMessage *m,char *error,size_t error_size)
 {
     if(m->bank==UINT32_MAX || m->bank==u->portrait_bank) return true;
-    uint8_t bank[0x1800];
-    if(m->bank>UINT32_MAX/sizeof(bank)) { snprintf(error,error_size,"Portrait bank outside bounds");return false; }
-    if(!hmbtn_resource_read(u->root,"A_FILE/01_face.bin",m->bank*sizeof(bank),bank,sizeof(bank),error,error_size)
+    uint8_t bank[HMBTN_PORTRAIT_BANK_BYTES];
+    const HmbtnTextResourceId id={HMBTN_TEXT_PORTRAIT,m->bank,0};
+    if(!hmbtn_text_resource_read(u->root,id,bank,sizeof(bank),error,error_size)
             || !hmbtn_bank_apply(bank,sizeof(bank),u->atlas,error,error_size)) return false;
     u->portrait_bank=m->bank;return true;
 }

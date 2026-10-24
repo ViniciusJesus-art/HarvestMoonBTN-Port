@@ -1,4 +1,5 @@
 #include "farm_menu.h"
+#include "poultry.h"
 #include "field_effects.h"
 #include "psx_data.h"
 #include <stdio.h>
@@ -29,6 +30,31 @@ int main(void)
     hmbtn_farm_menu_tick(&m,&h,HMBTN_PAD_START,0);
     for(unsigned i=0;i<20;++i) hmbtn_farm_menu_tick(&m,&h,0,0);
     CHECK(m.mode==HMBTN_MENU_NONE);
+    HmbtnPoultry poultry={0};poultry.upgraded=true;HmbtnFarmClock date={0,0,2,2,12,0,0};
+    const uint16_t name[9]={0,0xFFFF,0xFFFF,0xFFFF,0xFFFF,0xFFFF,0xFFFF,0xFFFF,0xFFFF};
+    for(unsigned i=0;i<10;++i) CHECK(hmbtn_poultry_buy(&poultry,name,&date));
+    poultry.hens[0].held=true;poultry.hens[1].stage=HMBTN_HEN_EGG;
+    poultry.hens[2].stage=HMBTN_HEN_CHICK;poultry.hens[3].stage=HMBTN_HEN_CHICK;poultry.hens[3].naming_pending=true;
+    CHECK(hmbtn_poultry_count(&poultry)==8 && !hmbtn_poultry_room(&poultry));
+    CHECK(hmbtn_poultry_status_slot(&poultry,0)==0 && hmbtn_poultry_status_slot(&poultry,1)==2
+        && hmbtn_poultry_status_slot(&poultry,7)==9 && hmbtn_poultry_status_slot(&poultry,8)==HMBTN_HENS);
+    m.poultry=&poultry;m.stats.animals[0]=8;
+    CHECK(hmbtn_farm_menu_open(&m,HMBTN_PAD_START));
+    for(unsigned i=0;i<20;++i) hmbtn_farm_menu_tick(&m,&h,0,0);
+    hmbtn_farm_menu_tick(&m,&h,HMBTN_PAD_RIGHT,0);hmbtn_farm_menu_tick(&m,&h,HMBTN_PAD_RIGHT,0);
+    CHECK(m.page==2 && !m.list_top);
+    hmbtn_farm_menu_tick(&m,&h,HMBTN_PAD_UP,0);CHECK(m.list_top==1);
+    hmbtn_farm_menu_tick(&m,&h,HMBTN_PAD_DOWN,0);CHECK(!m.list_top);
+    hmbtn_farm_menu_tick(&m,&h,HMBTN_PAD_DOWN,0);CHECK(m.list_top==1);
+    hmbtn_farm_menu_tick(&m,&h,HMBTN_PAD_LEFT,0);CHECK(m.page==1 && !m.list_top);
+    hmbtn_farm_menu_tick(&m,&h,HMBTN_PAD_RIGHT,0);CHECK(m.page==2 && !m.list_top);
+    hmbtn_farm_menu_tick(&m,&h,HMBTN_PAD_DOWN,0);CHECK(m.list_top==1);
+    poultry.hens[9].occupied=false;m.stats.animals[0]=7;
+    hmbtn_farm_menu_tick(&m,&h,0,0);CHECK(!m.list_top);
+    hmbtn_farm_menu_tick(&m,&h,HMBTN_PAD_UP,0);CHECK(!m.list_top);
+    hmbtn_farm_menu_tick(&m,&h,HMBTN_PAD_CIRCLE,0);
+    for(unsigned i=0;i<20;++i) hmbtn_farm_menu_tick(&m,&h,0,0);
+    CHECK(m.mode==HMBTN_MENU_NONE && m.poultry==&poultry);
     h.items[0]=(HmbtnStoredTool){34,0,70};h.items[1]=(HmbtnStoredTool){34,0,50};
     CHECK(hmbtn_inventory_swap(&h,10,11));CHECK(h.items[0].count==21 && h.items[1].count==99);
     h.items[0]=(HmbtnStoredTool){0x3b,0,1};CHECK(!hmbtn_inventory_swap(&h,10,11));

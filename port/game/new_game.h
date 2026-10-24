@@ -31,7 +31,7 @@ typedef struct HmbtnNewGame {
     bool finished;
     unsigned length, cell, grid, choice, repeat_frames;
     uint32_t previous_held;
-    bool confirming, dirty, repeating;
+    bool confirming, dirty, repeating,no_cancel;
     int sound; /* Original bank-0 tone; -1 = no request. */
 } HmbtnNewGame;
 void hmbtn_new_game_init(HmbtnNewGame *game);

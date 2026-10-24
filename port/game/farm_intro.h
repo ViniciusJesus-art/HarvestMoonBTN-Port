@@ -16,6 +16,7 @@ typedef struct HmbtnFarmIntro {
     HmbtnIntroActor player, mayor;
     HmbtnIntroActor childhood[4], boy, girl; /* Event actors, not NPC gameplay state. */
     HmbtnIntroActor ellen, zack;
+    HmbtnIntroActor carter,barley,rick;
     int32_t slots[32];
     unsigned message, target_area;
     unsigned area, event, queued_event, camera_actor;
@@ -39,6 +40,9 @@ typedef struct HmbtnFarmIntro {
     bool zone_exited, player_marker;
     const HmbtnModel *ground; /* Borrowed native model, updated by the scene loader. */
     bool visit_approach;
+    /* Game-state commands supplied by the scene; unsupported commands still stop. */
+    HmbtnEventHandler game_command;
+    void *game_context;
 } HmbtnFarmIntro;
 
 bool hmbtn_farm_intro_open(HmbtnFarmIntro *intro, const uint8_t *script, size_t size,

@@ -1,4 +1,5 @@
 #include "house_control.h"
+#include "village.h"
 #include "psx_data.h"
 #include "pad_buttons.h"
 #include <stdio.h>
@@ -141,6 +142,27 @@ int main(void)
     CHECK(!hmbtn_world_door_at(section,sizeof(section),&p,&exit,&door_model));
     hmbtn_write_le16(z+2,80);hmbtn_write_le16(z+10,0);hmbtn_write_le16(z+12,15);
     CHECK(!hmbtn_farm_house_door_at(section,sizeof(section),&p,&exit,&door_model));
+    HmbtnVillage crowd;hmbtn_village_init(&crowd,NULL,0);
+    crowd.people[18].actor.visible=true;crowd.people[18].actor.position[0]=-300;
+    crowd.people[18].actor.position[2]=-200;
+    control=(HmbtnHouseControl){0};control.enabled=true;
+    control.npc_blocked=hmbtn_village_blocked;control.collision_context=&crowd;
+    p=(HmbtnIntroActor){0};p.position[0]=-300;p.position[2]=-490;
+    for(unsigned i=0;i<60;++i) hmbtn_farm_control_tick(&control,&p,&model,NULL,HMBTN_PAD_UP);
+    CHECK(p.position[2]<=-400); /* Walking cannot pass through the NPC. */
+    const int32_t stopped=p.position[2];
+    for(unsigned i=0;i<60;++i) hmbtn_farm_control_tick(&control,&p,&model,NULL,HMBTN_PAD_UP|HMBTN_PAD_CIRCLE);
+    CHECK(p.position[2]>=0 && p.position[2]<=500); /* Run through the NPC, stop at the floor boundary. */
+    p=(HmbtnIntroActor){0};p.position[0]=0;p.position[2]=-200;control.mode=0;
+    for(unsigned i=0;i<60;++i) {
+        hmbtn_farm_control_tick(&control,&p,&model,NULL,HMBTN_PAD_UP|HMBTN_PAD_CIRCLE);
+        /* Original wall slide may go around the furniture, never through it. */
+        CHECK(!(p.position[0]>-100 && p.position[0]<100 && p.position[2]>0));
+    }
+    p=(HmbtnIntroActor){0};p.position[0]=-300;p.position[2]=-490;control.mode=0;
+    crowd.people[18].actor.visible=false;
+    for(unsigned i=0;i<4;++i) hmbtn_farm_control_tick(&control,&p,&model,NULL,HMBTN_PAD_UP);
+    CHECK(p.position[2]>stopped);
     puts("Ground flags, furniture footprints, slopes, object clips, house movement and exit detection passed.");
     return 0;
 }

@@ -8,6 +8,8 @@ struct HmbtnWorldSprite;
 /* Borrow shared icon resources for the original world cursor/shadow (ANI 24). */
 void hmbtn_new_game_ui_cursor(const HmbtnNewGameUI *ui, struct HmbtnWorldSprite *sprite,
     const int32_t position[3], unsigned variant);
+bool hmbtn_new_game_ui_cue(const HmbtnNewGameUI *ui,struct HmbtnWorldSprite *sprite,
+    const int32_t position[3],unsigned icon,unsigned phase,int screen_y);
 HmbtnNewGameUI *hmbtn_new_game_ui_create(const char *root, char *error, size_t error_size);
 void hmbtn_new_game_ui_destroy(HmbtnNewGameUI *ui);
 bool hmbtn_ui_text(HmbtnNewGameUI *ui,uint8_t *rgba,const uint16_t *words,unsigned count,

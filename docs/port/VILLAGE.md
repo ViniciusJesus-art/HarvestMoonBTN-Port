@@ -56,11 +56,13 @@ horários, presença, datas especiais, retomada e avanço das rotas.
 ## Limites
 
 A compra de forragem/ração está em [FEED_SHOPS.md](FEED_SHOPS.md).
-Ainda faltam conversas livres, presentes, progressão de afinidade, demais lojas,
+Conversas comuns e colisão com o jogador estão em [NPC_INTERACTION.md](NPC_INTERACTION.md).
+Ainda faltam presentes, progressão completa de afinidade, demais lojas,
 festivais, eventos familiares e o conjunto completo de scripts dos moradores.
 As células de porta das rotas retomam no ponto seguinte; suas animações de
-porta e cues de evento ainda não são executados. Bloqueios dinâmicos entre
-jogador e moradores e a paridade de temporização também estão pendentes.
+porta e cues de evento ainda não são executados. O atraso das rotas e os contadores diários estão em [EVENT_DAYS.md](EVENT_DAYS.md).
+Bloqueios entre dois moradores e a paridade completa de temporização continuam
+pendentes.
 O clima continua ensolarado no recorte atual. Flags de sistemas ainda ausentes
 conservam seu estado inicial; ter uma condição no avaliador não implementa o
 evento que a modifica.

@@ -113,12 +113,13 @@ void hmbtn_farm_control_tick(HmbtnHouseControl *s,HmbtnIntroActor *p,
     /* Original chooses velocity from the previous mode, before changing it. */
     const int32_t speed=old_mode==4 ? 73 : old_mode==2 ? 41 : 0;
     s->mode=run ? 4u : arrows ? 2u : 0u;
-    const unsigned animation=s->carrying ? (s->mode==4 ? p->facing+19 : s->mode==2 ? p->facing+15 : 27)
+    const unsigned animation=s->carrying_big ? (s->mode==4 ? p->facing+19 : s->mode==2 ? p->facing+42 : 41)
+        : s->carrying ? (s->mode==4 ? p->facing+19 : s->mode==2 ? p->facing+15 : 27)
         : s->mode==4 ? p->facing+6 : s->mode==2 ? p->facing+1 : 0;
     if (old_facing!=p->facing || old_mode!=s->mode || p->sprite.animation!=animation) {
         p->sprite=(HmbtnAnimationPlayer){(uint16_t)animation,0,0}; p->animation_done=false;
     }
-    if (!s->mode) p->sprite=(HmbtnAnimationPlayer){(uint16_t)(s->carrying ? 27 : 0),(uint16_t)p->facing,0};
+    if (!s->mode) p->sprite=(HmbtnAnimationPlayer){(uint16_t)(s->carrying_big ? 41 : s->carrying ? 27 : 0),(uint16_t)p->facing,0};
     int32_t dx=0,dz=0;
     if (s->mode) {
         if (p->facing&1u) dx=p->facing==1 ? -speed : speed;
@@ -128,12 +129,13 @@ void hmbtn_farm_control_tick(HmbtnHouseControl *s,HmbtnIntroActor *p,
     if (p->facing&1u) ahead[0]+=p->facing==1 ? -48 : 48;
     else ahead[2]+=p->facing==0 ? -48 : 48;
     const unsigned occupant=s->mode ? hmbtn_farm_field_probe(field,ahead) : 0;
-    if(occupant && run && speed && hmbtn_farm_field_can_hop(field,p->position,p->facing)) {
+    if(occupant && !s->carrying_big && run && speed && hmbtn_farm_field_can_hop(field,p->position,p->facing)) {
         s->jumping=s->jump_started=true;s->jump_velocity=-80;
         p->sprite=(HmbtnAnimationPlayer){10,(uint16_t)p->facing,0};p->animation_done=false;
         jump_tick(s,p,ground);return;
     }
-    if (s->mode && !hmbtn_farm_settle(field,ground,ahead,0xE080,200)) {
+    if (s->mode && (!hmbtn_farm_settle(field,ground,ahead,0xE080,200)
+            || (s->mode!=4 && s->npc_blocked && s->npc_blocked(s->collision_context,p->position,ahead)))) {
         dx=dz=0;
         if (s->blocked_frames < 5) ++s->blocked_frames;
         else if (run) {
@@ -144,14 +146,16 @@ void hmbtn_farm_control_tick(HmbtnHouseControl *s,HmbtnIntroActor *p,
                 int32_t side[3]={p->position[0]+sides[p->facing&1u][i][0],p->position[1],
                     p->position[2]+sides[p->facing&1u][i][1]};
                 if(hmbtn_farm_settle(field,ground,side,0xE080,200)
-                        && !hmbtn_farm_field_probe(field,side)) open|=1u<<i;
+                        && !hmbtn_farm_field_probe(field,side)
+                        && (s->mode==4 || !s->npc_blocked || !s->npc_blocked(s->collision_context,p->position,side))) open|=1u<<i;
             }
             if(open) { const unsigned i=open==1 ? 0u : 1u;
                 dx=slides[p->facing&1u][i][0]; dz=slides[p->facing&1u][i][1]; }
         }
     } else { s->blocked_frames=0;if(occupant) dx=dz=0; }
     int32_t next[3]={p->position[0]+dx,p->position[1],p->position[2]+dz};
-    if(hmbtn_farm_settle(field,ground,next,0xC080,200)) {
+    if(hmbtn_farm_settle(field,ground,next,0xC080,200)
+            && (s->mode==4 || !s->npc_blocked || !s->npc_blocked(s->collision_context,p->position,next))) {
         memcpy(p->position,next,sizeof(next));
     }
     p->pose=false;

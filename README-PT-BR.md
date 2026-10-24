@@ -2,11 +2,11 @@
 
 # Harvest Moon: Back to Nature — PC Port
 
-**Um projeto pessoal para portar Harvest Moon: Back to Nature (PlayStation) nativamente para Linux, Windows e Android.**
+**Um projeto pessoal para portar Harvest Moon: Back to Nature (PlayStation) nativamente para Linux e Windows.**
 
 *Baseado na decompilação [hmbtn-decomp](https://github.com/coalslav/hmbtn-decomp), de coalslav.*
 
-> **Status: título, cadastro, chegada e sequência da infância (M3/M4 parcial).** Já é possível caminhar e correr na casa inicial; gameplay da fazenda permanece pendente. O foco atual é Linux e Windows; Android permanece futuro.
+> **Status: título, cadastro, chegada e sequência da infância (M3/M4 parcial).** Já é possível caminhar e correr na casa inicial; gameplay da fazenda permanece pendente. O foco atual é Linux e Windows.
 
 ---
 
@@ -47,7 +47,7 @@ O repositório contém a **decompilação correspondente à versão americana de
 
 **Controle na casa:** `./build/native-debug/port/hmbtn_native --house-preview` abre a casa inicial diretamente. Setas/D-pad caminham; X/Circle corre para a frente. O chão e os bloqueios usam polígonos e flags do cenário original. A porta pausa em um limite explícito; a transição para a fazenda continua pendente. Z/Cross interage com TV, calendário, baú e livro/estante; música e passos estão ativos. As opções alteram controle, vibração, estéreo/mono e relógio. A cama executa o menu, animação/coberta e fade, parando antes das atualizações diárias; avanço do dia e diário/save/load permanecem pendentes. Veja [HOUSE_CONTROL.md](docs/port/HOUSE_CONTROL.md) e [HOUSE_INTERACTIONS.md](docs/port/HOUSE_INTERACTIONS.md).
 
-**Ainda não foram implementados:** gameplay completo, saves, colisões gerais, objetos dinâmicos da fazenda, áudio completo da SPU/reverb, mods e Android. O bootstrap não executa o jogo completo. Continue/demo param na fronteira registrada no terminal; Start/Z/X retorna ao menu. A abertura e o áudio ainda exigem comparação com o PS1 antes de afirmar fidelidade total. O recorte foi adaptado em `port/`; os módulos completos de `src/` ainda não são compilados no host. O build original de **PlayStation** continua disponível por padrão. O `.exe` Windows local foi recompilado com MinGW x64 incluindo sequência da infância e áudio XA em fluxo; Windows real/MSVC continuam pendentes.
+**Ainda não foram implementados:** gameplay completo, saves, colisões gerais, objetos dinâmicos da fazenda, áudio completo da SPU/reverb, mods. O bootstrap não executa o jogo completo. Continue/demo param na fronteira registrada no terminal; Start/Z/X retorna ao menu. A abertura e o áudio ainda exigem comparação com o PS1 antes de afirmar fidelidade total. O recorte foi adaptado em `port/`; os módulos completos de `src/` ainda não são compilados no host. O build original de **PlayStation** continua disponível por padrão. O `.exe` Windows local foi recompilado com MinGW x64 incluindo sequência da infância e áudio XA em fluxo; Windows real/MSVC continuam pendentes.
 
 ## Começar no Linux e Windows
 
@@ -63,7 +63,7 @@ Execute `./build/native-debug/port/hmbtn_native` no Linux ou `.\build\native-deb
 
 ## Objetivos
 
-- Portar a lógica do jogo para uma aplicação nativa em Linux, Windows e Android.
+- Portar a lógica do jogo para uma aplicação nativa em Linux e Windows.
 - Criar uma camada de compatibilidade para gráficos, áudio, entrada, temporização, memória e arquivos do PS1.
 - Manter, na medida do possível, o código decompilado isolado das adaptações multiplataforma.
 - Preservar uma forma de acompanhar as atualizações da decompilação original.
@@ -93,7 +93,7 @@ O build original continua organizado pelos `CMakeLists.txt` e pelo toolchain PS1
 |---|---|---|
 | Fedora / Linux | Primeira plataforma de desenvolvimento | Janela validada em Wayland e X11 |
 | Windows | Build nativo de PC | MinGW x64 e Wine verificados; Windows real/MSVC pendentes |
-| Android | Port com NDK, ciclo de vida Android e controles por toque | Não iniciado |
+
 
 ## Documentação
 

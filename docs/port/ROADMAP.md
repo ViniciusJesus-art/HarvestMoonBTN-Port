@@ -641,3 +641,181 @@ produção está funcional; o sistema completo de animais continua pendente.
 O PRNG e os intervalos de caminhada são host; não há paridade com todas as cues.
 Somente validação Linux local, sem novo build Windows. O bootstrap não executa
 o jogo; o build host não substitui a validação PS1/SHA-1.
+
+### Incubação e eventos do ciclo das galinhas — 2026-10-24
+
+- [x] Incubadora na zona original, reserva de vaga e depósito animado de um ovo.
+- [x] Recusa por incubadora ocupada, melhoria ausente ou lotação, sem perder o ovo.
+- [x] Três noites de incubação e evento original 299 para nomear o pintinho.
+- [x] Nome obrigatório, liberação da incubadora e sete noites de crescimento.
+- [x] Sprites de pintinho e transição real ao ciclo adulto; sem ração/ovos durante crescimento.
+- [x] Evento original 172 de funeral por idade/doença, personagens, cenário, música e luto.
+- [x] Lista de nomes, penalidades por doença, remoção dos mortos e liberação das vagas.
+- [x] Retorno à casa e continuação do fade após encerrar o script.
+- [x] 32 CTests e dez percursos com recursos locais no Linux.
+- [ ] Medicamentos, venda/transporte de animais, colisão física, melhorias e demais espécies.
+
+Comportamentos, reprodução e limites em [POULTRY.md](POULTRY.md). Os funerais e
+o nascimento usam o interpretador nativo dos scripts existentes. Não houve
+build Windows; o bootstrap não executa o jogo e os testes host não substituem
+PS1/SHA-1.
+
+### Venda de galinhas pela loja de Lillia — 2026-10-24
+
+- [x] Terceira opção da loja, descrição e recusa original sem adultas disponíveis.
+- [x] Lista de quatro linhas com rolagem, nomes, data/idade, estação, afeição e prêmio.
+- [x] Exclusão de incubação, pintinhos, nomes pendentes e mortos da lista de venda.
+- [x] Oferta de 500G/2.000G, confirmação Yes/No e cancelamentos sem efeitos.
+- [x] Remoção individual, liberação/reuso de vaga e atualização da contagem.
+- [x] Crédito único em carteira/receitas, com limite de saldo e receita integral.
+- [x] 32 CTests e dez percursos com recursos locais revalidados no Linux.
+- [ ] Medicamentos, transporte de animais, colisão física, concursos e melhorias.
+
+O percurso econômico compra/alimenta a galinha, vende o ovo e revende a mesma
+adulta, terminando com 580G. Fixtures separadas cobrem capacidade ampliada,
+lista esparsa e prêmio, sem conceder esses benefícios ao jogo normal.
+Capturas em `build/native-debug/poultry-sales/`, fora do Git; validação de
+renderização SDL dummy/software, sem nova sessão gráfica real nem build Windows.
+Comandos e limites em [POULTRY.md](POULTRY.md). O bootstrap não executa o jogo;
+os testes host não substituem o build PS1/SHA-1.
+
+### Medicamento animal e cura das galinhas — 2026-10-24
+
+- [x] Medicamento de 1.000G em Lillia/Barley, descrições e mensagens originais.
+- [x] Verificação de posse no equipamento, mochila acessível e baú; opção oculta enquanto guardado.
+- [x] Compra para o equipamento/vaga da mochila, recusa por saldo/lotação e débito único.
+- [x] Equipamento por R1 e tratamento por C/Square nas quatro direções.
+- [x] Banco de ação 22, alvo fixado antes da animação, cura e consumo de uma dose ao concluir.
+- [x] Cue original de coração, som, fadiga e retorno ao controle normal.
+- [x] Bloqueio de movimento, menus, coleta e troca de ferramentas durante o uso.
+- [x] 32 CTests e onze percursos com recursos locais aprovados no Linux.
+- [ ] Transporte das galinhas, colisão física, demais espécies, concursos e melhorias.
+
+O novo percurso parte de 500G, vende 12 produtos coletados e compra o remédio
+e duas rações sem conceder dinheiro/mercadorias. Fixtures declaradas de animal
+e doença permitem verificar o tratamento e duas noites de produção, terminando
+com 80G. A dose também é consumida se o uso não acertar um alvo, como no original.
+Capturas de loja, tratamento e cura em `build/native-debug/poultry-medicine/`,
+ignoradas pelo Git. Renderização SDL dummy/software, sem nova execução gráfica
+real, comparação PS1 ou build Windows. Detalhes em
+[ANIMAL_MEDICINE.md](ANIMAL_MEDICINE.md). O bootstrap não executa o jogo e a
+validação host não substitui o build PS1/SHA-1.
+
+### Transporte de galinhas e ciclo no exterior — 2026-10-24
+
+- [x] Pegar/colocar adultas e pintinhos nomeados mantendo o mesmo registro reservado.
+- [x] Poses originais de duas mãos, quatro direções, sons e travessia das portas.
+- [x] Proteção contra guardar em mochila/equipamento, vender carregado e duplicar animais.
+- [x] Validação do chão, água, caixa de venda, obstáculos do campo e espaço de outra galinha.
+- [x] Consulta original de ocupação estudada: galinhas selecionáveis sem parada rígida do jogador.
+- [x] Alimentação externa horária, consumo dos cochos por área e avanço durante o sono.
+- [x] Ovos externos por posição/área, sprites sazonais, coleta e remessa.
+- [x] Retorno ao interior, liberação antes de dormir e sincronização da mão em crescimento/morte.
+- [x] 33 CTests e doze percursos com recursos locais aprovados no Linux.
+- [ ] Demais espécies, cães selvagens, clima completo, concursos, melhorias e saves.
+
+A antiga pendência de colisão das galinhas foi esclarecida nas rotinas
+`farm_object_contains`/`player_probe_target`: o hit `0x2008` resulta em seleção
+sem o resultado 4 que aplica parada rígida. Comparação com a execução PS1
+continua pendente. O novo percurso usa fixtures declaradas de adulta/pintinho
+e valida portas, alimentação externa, ovo vendido, retorno, sono e crescimento,
+preservando os 500G/estoques iniciais. Imagens douradas usam somente fixture
+de recurso; não concedem o concurso ao gameplay.
+Capturas em `build/native-debug/poultry-transport/`, ignoradas pelo Git;
+renderização SDL dummy/software, sem nova janela real nem build Windows.
+Fontes, comandos e limites em [POULTRY_TRANSPORT.md](POULTRY_TRANSPORT.md).
+O bootstrap não executa o jogo e os testes host não substituem PS1/SHA-1.
+
+### Página de estado das galinhas — 2026-10-24
+
+- [x] Corrigir o erro ao abrir a página de galinhas após comprar um animal.
+- [x] Ler registros reais da sessão, incluindo animais carregados e pintinhos nomeados.
+- [x] Ícones originais de adulta/pintinho/doença, nomes, afeição, data/idade, estação e prêmio.
+- [x] Sete linhas, rolagem circular e setas pulsantes do pack original de estado.
+- [x] Contagem do resumo exclui incubação/nome pendente sem liberar suas vagas.
+- [x] Troca de página/reabertura zera a rolagem; pausa conserva relógio e animais.
+- [x] Renderizar a página no percurso econômico depois de uma compra normal.
+- [x] 33 CTests e treze percursos com recursos locais aprovados no Linux.
+- [ ] Registros/páginas das demais espécies e comparação da apresentação com PS1.
+
+O percurso adicional cobre uma/dez aves, doença, pintinho, prêmio, lotação,
+nome completo, animal carregado e registros omitidos. Prêmio/capacidade ampliada
+continuam fixtures de interface. Capturas em `build/native-debug/poultry-status/`,
+fora do Git; renderização SDL dummy/software, sem nova janela real nem build
+Windows. Reprodução e distinção do formato de data em
+[POULTRY_STATUS.md](POULTRY_STATUS.md). O bootstrap não executa o jogo e os
+testes host não substituem PS1/SHA-1.
+
+
+### Colisão com moradores, conversas comuns e clareza na compra
+
+- Controle livre bloqueia passos/deslizes contra NPCs visíveis com a caixa
+  original durante a caminhada. Corrida permite atravessar NPCs nos dois
+  sentidos, mantendo testes de chão/móveis/campo.
+- Conversas de mãos vazias executam o bytecode original, leem mensagens/retratos
+  dos bancos 0..4 e conservam flags de encontro na sessão. Controle, menus e
+  relógio ficam suspensos durante a janela. Atendimento de Barley/Lillia mantém
+  prioridade durante o expediente.
+- Loja exibe preços unitários junto dos itens e saldo durante a recusa. A
+  fala de saldo insuficiente preserva o registro da edição instalada, sem
+  frases substitutas. Cursor da lista alinhado à linha selecionada. Galinha
+  continua custando 1.500G.
+- Configure/build nativos e 49 CTests locais passaram: 34 da base e 15 percursos
+  com recursos reais, incluindo 93 solicitações de diálogo, pausa/retorno,
+  recusa com 500G e compra com 1.550G obtidos por coleta/venda.
+
+Detalhes e limites em [NPC_INTERACTION.md](NPC_INTERACTION.md) e
+[FEED_SHOPS.md](FEED_SHOPS.md). Presentes, vara de Greg, demais lojas/eventos,
+progressão completa da história e temporização de eventos continuam pendentes.
+Capturas locais em `build/native-debug/npc-shop-check/`, fora do Git. Sem
+validação PS1/SHA-1 ou Windows real; bootstrap diagnóstico não executa o jogo.
+
+
+### Fidelidade dos BINs e identidade estável dos recursos
+
+- Corrida segue a exceção original dos moradores: atravessa NPCs; caminhada
+  bloqueia e as rotas retomam a colisão ao deixar de correr. A exceção não libera
+  paredes, móveis, bordas do chão ou objetos do campo.
+- Removida a reescrita PT-BR da fala de saldo insuficiente. O teste da loja
+  compara todos os glifos/controles com o registro original; o percurso de
+  conversas faz a mesma comparação em suas 93 solicitações, expandindo nomes.
+- `filesystem/text_resources.*` resolve mensagens por banco/registro e retratos
+  pelo banco original, centralizando a localização física e os limites. Os
+  leitores de intervalos, decodificadores, atlas e interfaces de mensagem atuais
+  continuam em uso. Não há novo decodificador nem leitor de PNG.
+- Diretriz para novos carregadores e futuros recursos PNG extraídos registrada
+  em [RESOURCE_IDENTITIES.md](RESOURCE_IDENTITIES.md). A identidade do recurso
+  não depende de seu offset; animação, paletas, transparência e metadados precisam
+  acompanhar uma futura extração.
+- Configure/build e 50 CTests locais: 35 testes da base e 15 percursos com BINs
+  reais. Incluem corrida/caminhada, colisão do cenário, texto original, leitura
+  exata de cinco bancos/retratos e rejeição de ids/intervalos inválidos.
+
+Porte ainda parcial. PNGs extraídos, presentes e eventos especiais continuam
+pendentes; bootstrap não executa o jogo. Validação Linux SDL dummy/software,
+sem execução Windows real ou substituição da verificação PS1/SHA-1.
+
+
+### Contadores diários dos scripts e atraso de rotas
+
+- Variáveis 40..42 das conversas agora leem/escrevem estado real da sessão:
+  128/8 contadores e 128 valores, com limites de byte e restauração se um
+  comando ainda ausente interromper o script.
+- Defaults vêm da inicialização C original. Avanço diário conserva 255 como
+  parado, limite 120 e condições de pausa do segundo grupo por datas, clima e
+  proposta de casamento. Calendário usa as primeiras 14 datas originais.
+- Notificações ordenadas do relógio atualizam os contadores durante sono e
+  mudança de dia, sem duplicar o avanço durante transições/fades.
+- Rotas bloqueadas pelo jogador acumulam até 30 minutos do jogo. A liberação
+  mantém o NPC selecionável; agenda e retomada de caminhada incluem o atraso.
+  Corrida continua livre. Resets de manhã, meio-dia/18h e entrada em local
+  pausado seguem as consultas originais.
+- Validação específica de defaults/limites/pausas, escrita/rollback por scripts,
+  agenda atrasada, reload, ano novo, sono e chegada às 06h sem dormir. Configure,
+  build e 51 CTests locais passaram: 36 da base e 15 percursos com BINs reais.
+
+Fontes, reprodução e limites em [EVENT_DAYS.md](EVENT_DAYS.md). Cooldown de
+cumprimento, bloqueios entre moradores, casamento/clima completos, presentes,
+vara de Greg, demais lojas/eventos e saves continuam pendentes. Leitores,
+decodificadores e falas originais preservados; nenhum novo carregador gráfico.
+Bootstrap não executa o jogo; testes Linux não substituem Windows real/PS1/SHA-1.

@@ -1,4 +1,4 @@
-# Compra de forragem e ração
+# Compra de forragem, ração e medicamento animal
 
 O recorte das lojas permite comprar forragem de Barley no rancho (área 136) e
 ração de Lillia na granja (128). Z/Cross inicia o atendimento ao alcançar o
@@ -18,8 +18,11 @@ reaplica a regra da porta ao falar com o vendedor.
 
 `port/game/feed_shop.c` adapta o ramo de ração de `shop_dialogues.c`: saudação,
 seleção, descrição, quantidade, compra/recusa, retorno ao menu e despedida.
-O menu expõe somente a mercadoria implementada. Compra/venda de animais,
-medicamentos e demais operações não são mostradas como se estivessem prontas.
+Lillia também oferece compra/nome e venda de galinhas adultas; a venda tem
+lista e confirmação antes de alterar o animal e a carteira. As duas lojas
+vendem o medicamento animal por 1.000G quando não há uma dose guardada;
+o tratamento das galinhas está em [ANIMAL_MEDICINE.md](ANIMAL_MEDICINE.md).
+Operações das demais espécies continuam pendentes.
 
 Na quantidade, direita/esquerda alteram uma unidade; cima/baixo, dez. O valor
 circula entre 1 e 99 conforme `shop_quantity_input`. Há repetição ao segurar as
@@ -40,6 +43,27 @@ com limites de tamanho verificados. Os painéis, glifos e ícones usam a interfa
 original já adaptada para o host. Os rótulos estáticos são extraídos de
 `text_bank.c` durante o configure; a tradução desses rótulos acompanha a
 limitação atual dos outros menus nativos.
+
+## Saldo, preços e recusa em PT-BR
+
+A lista mostra os preços unitários ao lado dos itens, extraídos da tabela
+original: galinha adulta por 1.500G e medicamento por 1.000G. O painel de dinheiro
+continua visível durante seleção/oferta/recusa; a quantidade de ração mantém
+seu total separado. O cursor da lista foi alinhado à linha selecionada.
+A sessão começa com 500G; isso não basta para a galinha. Não há dinheiro de
+depuração nem redução de preço em tempo de execução.
+
+O registro 0x4F é mostrado como consta no `.bin` instalado, inclusive a redação
+em primeira pessoa da cópia PT-BR local. A substituição por uma frase dirigida
+ao jogador foi removida para preservar a edição original fornecida. Os controles,
+os glifos e o retrato seguem os dados; apenas marcadores de nomes são expandidos.
+O saldo e os preços nos painéis permitem entender a recusa sem alterar a fala.
+
+`hmbtn_shop_shortage_playthrough` reproduz a tentativa com 500G, confere preço
+1.500G, igualdade do texto com o registro original, ausência de débito/animal e
+retorno ao menu. O percurso
+`hmbtn_poultry_playthrough` continua obtendo 1.050G pelas coletas/vendas e
+compra a galinha com 1.550G, terminando com 50G e um animal real na sessão.
 
 ## Testar sem esperar o expediente
 
@@ -62,7 +86,9 @@ São sessões novas: 500G e estoque zero, sem alterar o início normal ou saves.
 
 `native_feed_shop` cobre presença, mãos vazias, direção, horário/semana,
 quantidade, descrição, cancelamento, preços, estoque 999, carteira/contas,
-confirmação repetida e expansão limitada dos nomes.
+confirmação repetida e expansão limitada dos nomes. Também cobre venda comum
+e premiada, rolagem, registros não vendáveis, cancelamentos, liberação/reuso
+de vaga e limite da carteira com registro integral da receita.
 
 ```bash
 SDL_VIDEO_DRIVER=dummy SDL_RENDER_DRIVER=software SDL_AUDIO_DRIVER=dummy \
@@ -80,9 +106,11 @@ Um terceiro argumento opcional seleciona a pasta de capturas BMP, fora do Git.
 
 O recorte não executa os diálogos sociais completos desses moradores nem seus
 ramos de presentes/eventos familiares. A loja de Lillia agora oferece também
-a compra de galinhas adultas com nome, ligada ao galinheiro e à produção
-de ovos: [POULTRY.md](POULTRY.md). Demais animais, reprodução, medicamentos
-e outras operações comerciais continuam pendentes.
+a compra e venda de galinhas adultas com nome, ligadas ao galinheiro e à produção
+de ovos: [POULTRY.md](POULTRY.md). A incubação e o crescimento de pintinhos também estão integrados. Demais
+animais e outras operações comerciais continuam pendentes. O medicamento
+animal já tem compra, equipamento, consumo e cura das galinhas integrados;
+o novo percurso `hmbtn_poultry_medicine_playthrough` cobre esse ciclo.
 
 Validação nesta etapa somente no Linux local; código C11/SDL3 compartilhado
 com Windows, sem novo cross-build. O bootstrap `--diagnostics` não executa o

@@ -1,4 +1,5 @@
 #include "farm_menu.h"
+#include "poultry.h"
 #include <string.h>
 #include "storage_spots.inc"
 const HmbtnStorageSpot *hmbtn_storage_spot(unsigned i) { return i<18 ? &storage_spots[i] : NULL; }
@@ -14,6 +15,7 @@ HmbtnStoredTool *hmbtn_inventory_slot(HmbtnHouseInteraction *h,unsigned i)
 static bool allowed(const HmbtnStoredTool *item,unsigned dest)
 {
     if(!item->id) return true;
+    if(item->id==0x109 || item->id==0x10A) return false; /* A live carried animal keeps its reserved record. */
     const HmbtnFarmItem *info=hmbtn_farm_item(item->id);
     return info && (dest==0 || dest==9 || (info->class_flags&0x80000000u));
 }
@@ -71,7 +73,7 @@ bool hmbtn_farm_menu_open(HmbtnFarmMenu *m,uint32_t pressed)
 {
     if(m->mode!=HMBTN_MENU_NONE || !(pressed&(HMBTN_PAD_START|HMBTN_PAD_TRIANGLE))) return false;
     m->mode=pressed&HMBTN_PAD_START ? HMBTN_MENU_STATUS : HMBTN_MENU_RUCKSACK;
-    m->page=m->cycle=m->cursor=m->repeat_frames=0;m->previous_arrows=0;
+    m->page=m->cycle=m->cursor=m->repeat_frames=m->list_top=0;m->previous_arrows=0;
     m->marked=255;m->detail=m->closing=false;m->loaded=0;m->message=(HmbtnMessage){0};
     m->request=m->mode==HMBTN_MENU_RUCKSACK ? 0x3ac : 0;
     m->phase=m->mode==HMBTN_MENU_STATUS ? 1 : 3;m->fade=0;m->sound=3;return true;
@@ -93,7 +95,17 @@ void hmbtn_farm_menu_tick(HmbtnFarmMenu *m,HmbtnHouseInteraction *h,uint32_t pre
         if(pressed&(HMBTN_PAD_RIGHT|HMBTN_PAD_LEFT)) {
             do { m->page=(m->page+((pressed&HMBTN_PAD_RIGHT) ? 1u : 7u))%8; }
             while(m->page>=2 && m->page<=4 && !m->stats.animals[m->page-2]);
-            m->sound=5;
+            m->list_top=0;m->sound=5;
+        }
+        if(m->page==2 && m->poultry) {
+            const unsigned count=hmbtn_poultry_count(m->poultry);
+            if(count<=7) m->list_top=0;
+            else {
+                const unsigned last=count-7;
+                if(m->list_top>last) m->list_top=0;
+                if(pressed&HMBTN_PAD_UP) { m->list_top=m->list_top ? m->list_top-1 : last;m->sound=5; }
+                else if(pressed&HMBTN_PAD_DOWN) { m->list_top=m->list_top<last ? m->list_top+1 : 0;m->sound=5; }
+            }
         }
         m->cycle=(m->cycle+1)%120;return;
     }

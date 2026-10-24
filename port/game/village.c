@@ -16,6 +16,7 @@ static int half(const uint8_t *p) { const unsigned x=hmbtn_read_le16(p);return x
 void hmbtn_village_init(HmbtnVillage *v,const uint8_t *data,size_t size)
 {
     memset(v,0,sizeof(*v));v->schedule_data=data;v->schedule_size=size;v->date_key=UINT32_MAX;
+    hmbtn_event_days_init(&v->days);
     v->flags[EVENT_FLAG_SINGLE]=true;v->ann_birthday_season=1;v->ann_birthday_day=16;
     for(unsigned i=0;i<HMBTN_VILLAGERS;++i) { v->people[i].friendship=girl(i) ? 0 : 50;v->people[i].location=54; }
 }
@@ -45,14 +46,13 @@ bool hmbtn_village_sync(HmbtnVillage *v,const HmbtnFarmClock *c,char *error,size
     for(unsigned i=0;i<4;++i) v->flags[23+i]=i==c->season;
     for(unsigned i=0;i<30;++i) v->flags[120+i]=i==c->day;
     v->flags[EVENT_FLAG_WEATHER_SUNNY]=true;
-    const unsigned dates[14][2]={{0,0},{0,7},{0,17},{0,21},{1,6},{1,11},{2,8},{3,9},{1,0},{1,19},{2,20},{1,23},{2,2},{3,23}};
-    bool special=false;for(unsigned i=0;i<14;++i) special |= dates[i][0]==c->season && dates[i][1]==c->day;
-    v->flags[EVENT_FLAG_DATED_EVENT_TODAY]=special;
+    v->flags[EVENT_FLAG_DATED_EVENT_TODAY]=hmbtn_farm_clock_date_index(c->season,c->day)!=0;
     const unsigned key=(c->year*4+c->season)*30+c->day;
     if(key!=v->date_key) {
         for(unsigned id=0;id<HMBTN_VILLAGERS;++id) {
             HmbtnVillager *p=&v->people[id];int at=history(v,id);
             p->step=0;p->placed=false;p->actor.visible=false;
+            p->talk_flags &= (uint16_t)~0x600u;p->delay=0;p->blocked_by_player=false;
             for(unsigned i=0;i<30;++i) {
                 p->schedule[i][0]=p->schedule[i][1]=0;p->schedule[i][2]=p->schedule[i][3]=54;
                 if(at>=0) {
@@ -71,6 +71,7 @@ bool hmbtn_village_sync(HmbtnVillage *v,const HmbtnFarmClock *c,char *error,size
         HmbtnVillager *p=&v->people[id];unsigned step=p->step;
         for(unsigned i=step+1;i<30;++i) {
             unsigned time=p->schedule[i][0];if(time<360) time+=1440;
+            time+=p->delay;
             if(now<time) break;
             step=i;
         }
@@ -79,9 +80,52 @@ bool hmbtn_village_sync(HmbtnVillage *v,const HmbtnFarmClock *c,char *error,size
     }
     return true;
 }
+static bool inside(const int32_t p[3],const int32_t centre[3],int radius)
+{
+    return llabs((int64_t)p[0]-centre[0])<radius && llabs((int64_t)p[2]-centre[2])<radius
+        && llabs((int64_t)p[1]-centre[1])<20;
+}
+static bool approaching(const int32_t from[3],const int32_t to[3],const int32_t centre[3],int radius)
+{
+    if(!inside(to,centre,radius)) return false;
+    if(!inside(from,centre,radius)) return true;
+    const int64_t dx=(int64_t)from[0]-centre[0],dz=(int64_t)from[2]-centre[2];
+    const int64_t nx=(int64_t)to[0]-centre[0],nz=(int64_t)to[2]-centre[2];
+    return nx*nx+nz*nz<=dx*dx+dz*dz;
+}
+bool hmbtn_village_blocked(const void *context,const int32_t from[3],const int32_t to[3])
+{
+    const HmbtnVillage *v=context;
+    if(!v) return false;
+    for(unsigned id=1;id<HMBTN_VILLAGERS;++id)
+        if(v->people[id].actor.visible && v->people[id].delay<30 && approaching(from,to,v->people[id].actor.position,200)) return true;
+    return false;
+}
+unsigned hmbtn_village_target(const HmbtnVillage *v,const HmbtnIntroActor *p)
+{
+    if(!v || !p || p->facing>3) return 0;
+    int32_t ahead[3];memcpy(ahead,p->position,sizeof(ahead));
+    ahead[p->facing&1u ? 0 : 2]+=p->facing<2 ? -128 : 128;
+    for(unsigned id=1;id<HMBTN_VILLAGERS;++id)
+        if(id!=27 && id!=30 && id!=33 && v->people[id].actor.visible && inside(ahead,v->people[id].actor.position,200)) return id;
+    return 0;
+}
+void hmbtn_village_clock(HmbtnVillage *v,const HmbtnFarmClock *clock,unsigned changes,
+    unsigned weather,bool wedding_offer_pending)
+{
+    if(changes&HMBTN_CLOCK_DAY) hmbtn_event_days_advance(&v->days,clock,weather,wedding_offer_pending);
+    const bool reset=(changes&HMBTN_CLOCK_DAY) || ((changes&HMBTN_CLOCK_HOUR)
+        && (clock->hour==12 || clock->hour==18));
+    for(unsigned id=1;id<HMBTN_VILLAGERS;++id) {
+        HmbtnVillager *p=&v->people[id];
+        if(reset) { p->delay=0;p->blocked_by_player=false; }
+        else if((changes&HMBTN_CLOCK_MINUTE) && !v->player_running && p->actor.visible
+                && p->blocked_by_player && p->delay<30) ++p->delay;
+    }
+}
 void hmbtn_village_enter(HmbtnVillage *v)
 {
-    for(unsigned i=0;i<HMBTN_VILLAGERS;++i) { v->people[i].placed=false;v->people[i].actor.visible=false; }
+    for(unsigned i=0;i<HMBTN_VILLAGERS;++i) { v->people[i].placed=false;v->people[i].actor.visible=false;v->people[i].blocked_by_player=false; }
 }
 static const uint8_t *cell(const uint8_t *section,size_t size,unsigned row,unsigned column)
 {
@@ -119,6 +163,10 @@ static void route_frame(HmbtnVillage *v,HmbtnVillager *p,const uint8_t *section,
             ++p->step;p->schedule[p->step][0]=(uint16_t)(v->minute%1440);
             p->location=p->schedule[p->step][3];p->row=p->schedule[p->step][1]&255u;
             a->visible=p->location==hmbtn_read_le16(section+2) && p->location!=54;
+            if(!a->visible) {
+                p->schedule[p->step][0]=(uint16_t)((v->minute+1440-p->delay)%1440);
+                if(hmbtn_farm_clock_location_held(p->location)) p->delay=0;
+            }
             p->placed=false;
             if(a->visible) place(p,section,size);
             return;
@@ -153,6 +201,13 @@ static void route_frame(HmbtnVillage *v,HmbtnVillager *p,const uint8_t *section,
         const double distance=sqrt((double)dx*dx+(double)dz*dz);
         const int speed=(hmbtn_read_le16(section+8)&0x1000u) ? 16 : 48;
         if(a->sprite.animation!=a->facing+1) a->sprite=(HmbtnAnimationPlayer){(uint16_t)(a->facing+1),0,0};
+        int32_t next[3]={a->position[0],a->position[1],a->position[2]};
+        next[0]+=distance<=speed ? dx : (int)(dx*speed/distance);
+        next[2]+=distance<=speed ? dz : (int)(dz*speed/distance);
+        if(!resume && v->player && !v->player_running && p->delay<30 && approaching(a->position,next,v->player->position,218)) {
+            p->blocked_by_player=true;
+            a->sprite=(HmbtnAnimationPlayer){0,(uint16_t)a->facing,0};return;
+        }
         if(distance<=speed) {
             a->position[0]=half(target+6);a->position[2]=half(target+10);
             ++p->column;p->cell_entered=false;
@@ -168,12 +223,14 @@ void hmbtn_village_tick(HmbtnVillage *v,const uint8_t *section,size_t size,const
     if(!section || size<0x2000) return;
     for(unsigned id=1;id<37;++id) {
         HmbtnVillager *p=&v->people[id];HmbtnIntroActor *a=&p->actor;
+        if(!held) p->blocked_by_player=false;
         a->visible=p->location==hmbtn_read_le16(section+2) && p->location!=54;
         if(!a->visible) continue;
         if(!p->placed) {
             if(!place(p,section,size)) continue;
             unsigned start=p->schedule[p->step][0];if(start<360) start+=1440;
             unsigned elapsed=v->minute>=start ? v->minute-start : 0;
+            elapsed=elapsed>=p->delay ? elapsed-p->delay : 0;
             if(elapsed>1440) elapsed=1440;
             const uint8_t *entry=cell(section,size,p->row,0);
             if(hmbtn_read_le16(entry)!=5) for(unsigned t=0;t<elapsed*15 && !p->standing && a->visible;++t)

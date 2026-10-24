@@ -42,7 +42,8 @@ A compra de forragem e ração já abastece os estoques pelo fluxo normal das
 duas lojas, conforme [FEED_SHOPS.md](FEED_SHOPS.md). O corte de grama cultivada
 e outras fontes ainda estão pendentes. Galinhas adultas já consomem uma ração
 por dia e produzem ovos conforme a alimentação anterior, antes da limpeza dos
-cochos: [POULTRY.md](POULTRY.md). Outros animais, reprodução, comércio completo
-e eventos de saúde continuam pendentes. Esvaziar os cochos do celeiro não simula
+cochos: [POULTRY.md](POULTRY.md). Incubação, crescimento e funerais de galinhas também estão integrados; ovos
+e pintinhos não consomem ração. Outros animais, medicamentos e comércio completo
+continuam pendentes. Esvaziar os cochos do celeiro não simula
 vacas ou ovelhas. O bootstrap não executa o jogo e os testes host não substituem
 a validação SHA-1 do build PS1.

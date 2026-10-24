@@ -11,12 +11,14 @@ typedef struct HmbtnFarmStatistics {
 typedef struct HmbtnFarmMenu {
     HmbtnFarmMenuMode mode;
     unsigned phase,fade,page,cycle,cursor,marked,repeat_frames;
+    unsigned list_top;
     uint32_t previous_arrows;
     bool detail,closing;
     unsigned request,loaded;
     HmbtnMessage message;
     int sound;
     HmbtnFarmStatistics stats;
+    const struct HmbtnPoultry *poultry; /* Borrow the session records; never a serialized address. */
 } HmbtnFarmMenu;
 void hmbtn_farm_menu_init(HmbtnFarmMenu *menu);
 bool hmbtn_farm_menu_open(HmbtnFarmMenu *menu,uint32_t pressed);

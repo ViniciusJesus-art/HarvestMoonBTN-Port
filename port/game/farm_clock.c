@@ -4,6 +4,12 @@
 #include "psx_data.h"
 #include <string.h>
 #include "clock_tables.inc"
+#include "clock_dates.inc"
+unsigned hmbtn_farm_clock_date_index(unsigned season,unsigned day)
+{
+    for(unsigned i=0;i<14;++i) if(clock_dates[i][0]==season && clock_dates[i][1]==day) return i+1;
+    return 0;
+}
 void hmbtn_farm_clock_init(HmbtnFarmClock *c)
 {
     *c=(HmbtnFarmClock){0,0,1,1,6,0,0};
@@ -45,11 +51,14 @@ unsigned hmbtn_farm_clock_sleep_minutes(const HmbtnFarmClock *c,unsigned fatigue
     const unsigned extra=fatigue<50 ? 0 : fatigue<70 ? 120 : fatigue<80 ? 240 : fatigue<100 ? 360 : 0;
     return ((5+24-c->hour)%24)*60+60-c->minute+extra;
 }
+bool hmbtn_farm_clock_location_held(unsigned location)
+{
+    return location>=78 || clock_places[location]==0x1000;
+}
 bool hmbtn_farm_clock_place_held(const uint8_t *section,size_t size)
 {
     if(!section || size<16) return true;
-    const unsigned place=hmbtn_read_le16(section+2);
-    return place>=78 || clock_places[place]==0x1000;
+    return hmbtn_farm_clock_location_held(hmbtn_read_le16(section+2));
 }
 unsigned hmbtn_farm_clock_period(unsigned hour)
 {

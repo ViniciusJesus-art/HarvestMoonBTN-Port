@@ -6,11 +6,13 @@
 #include "scene_decode.h"
 #include "psx_data.h"
 #include "resource_file.h"
+#include "text_resources.h"
 #include "pad_buttons.h"
 #include "farm_intro.h"
 #include "farm_clock.h"
 #include "world_map.h"
 #include "village_art.h"
+#include "village_talk.h"
 #include "house_control.h"
 #include "farm_action.h"
 #include "field_effects.h"
@@ -67,6 +69,7 @@ struct HmbtnScenePreview {
     HmbtnHouseExit travel_exit;
     uint8_t tv_sectors[0x1800];
     HmbtnNewGame dialogue;
+    HmbtnVillageTalk talk;
     HmbtnNewGameUI *ui;
     HmbtnTitleAudio audio;
     HmbtnXAStream xa;
@@ -88,6 +91,9 @@ struct HmbtnScenePreview {
     HmbtnEstateArt estate_art;
     HmbtnPoultry poultry;
     HmbtnPoultryArt poultry_art;
+    unsigned animal_event;
+    HmbtnNewGame animal_name;
+    bool animal_name_active;
     uint8_t *feed_block;
     HmbtnImageAtlas *feed_atlas;
     HmbtnAnimation feed_art[2];
@@ -199,7 +205,9 @@ static bool load_area(HmbtnScenePreview *s, const char *root, unsigned area,
     hmbtn_model_renderer_destroy(s->geometry); free(s->section);
     s->section = section; s->scene = scene; s->geometry = geometry; s->area = area;s->dirty=true;
     if(s->opening && !hmbtn_estate_art_update(&s->estate_art,root,hmbtn_read_le16(section+10),error,error_size)) return false;
-    if(s->opening && area==112 && !hmbtn_poultry_art_load(&s->poultry_art,root,error,error_size)) return false;
+    bool hens_here=area==112 || hmbtn_poultry_held_slot(&s->poultry)<HMBTN_HENS;
+    for(unsigned i=0;i<HMBTN_HENS;++i) hens_here|=s->poultry.hens[i].occupied && s->poultry.hens[i].area==area;
+    if(s->opening && hens_here && !hmbtn_poultry_art_load(&s->poultry_art,root,error,error_size)) return false;
     s->carry.area=area;
     s->intro.ground=&s->scene.terrain;
     s->refused_zone=-1;
@@ -235,6 +243,7 @@ static HmbtnScenePreview *scene_create(SDL_Renderer *renderer,
     hmbtn_farm_field_init(&s->field,title_layout0_cells,1125);
     hmbtn_farm_action_init(&s->farm_action);
     hmbtn_farm_menu_init(&s->menu);
+    s->menu.poultry=&s->poultry;
     s->menu_ui=hmbtn_farm_menu_ui_create();
     if(!s->menu_ui) goto allocation;
     /* Texture uploads preserve the rest of PS1 VRAM. In particular, seasonal
@@ -265,9 +274,9 @@ HmbtnScenePreview *hmbtn_scene_preview_create(SDL_Renderer *renderer,
 static bool load_event(HmbtnScenePreview *s, unsigned event, char *error, size_t error_size)
 {
     static const uint32_t offsets[] = {0x2CC800,0x2CE800,0x2DA000,0x309800,0x315000,0x321000,0x323000};
-    if (event!=12 && (event < 116 || event > 121)) { snprintf(error,error_size,"Opening event %u is not integrated",event); return false; }
-    const uint32_t start = event==12 ? 0x36000 : offsets[event-116];
-    const size_t bytes = event==12 ? 0xb800 : offsets[event-115]-start;
+    if (event!=12 && event!=172 && event!=299 && (event < 116 || event > 121)) { snprintf(error,error_size,"Event %u is not integrated",event); return false; }
+    const uint32_t start = event==172 ? 0x417800 : event==299 ? 0x6D2000 : event==12 ? 0x36000 : offsets[event-116];
+    const size_t bytes = event==172 ? 0x6000 : event==299 ? 0x800 : event==12 ? 0xb800 : offsets[event-115]-start;
     free(s->event_block); s->event_block = malloc(bytes);
     if (!s->event_block) { snprintf(error,error_size,"Cannot allocate bounded opening event"); return false; }
     HmbtnEventBlock block;
@@ -278,6 +287,8 @@ static bool load_event(HmbtnScenePreview *s, unsigned event, char *error, size_t
     memset(s->intro.childhood,0,sizeof(s->intro.childhood));
     memset(&s->intro.mayor,0,sizeof(s->intro.mayor));
     memset(&s->intro.ellen,0,sizeof(s->intro.ellen));memset(&s->intro.zack,0,sizeof(s->intro.zack));
+    memset(&s->intro.carter,0,sizeof(s->intro.carter));memset(&s->intro.barley,0,sizeof(s->intro.barley));
+    memset(&s->intro.rick,0,sizeof(s->intro.rick));
     memset(&s->event_player_animation,0,sizeof(s->event_player_animation));
     memset(&s->intro.boy,0,sizeof(s->intro.boy)); memset(&s->intro.girl,0,sizeof(s->intro.girl));
     const uint8_t *script = NULL; size_t script_size = 0;
@@ -300,11 +311,12 @@ static bool load_event(HmbtnScenePreview *s, unsigned event, char *error, size_t
             if(!hmbtn_animation_open(&s->event_player_animation,entry,size,error,error_size)) return false;
         } else { snprintf(error,error_size,"Unsupported opening actor flags 0x%04x",flags); return false; }
     }
-    const uint64_t expected = event==12 ? (UINT64_C(1)<<17)|(UINT64_C(1)<<23)|(UINT64_C(1)<<26)
+    const uint64_t expected = event==299 ? 0 : event==172 ? (UINT64_C(1)<<10)|(UINT64_C(1)<<15)|(UINT64_C(1)<<19)
+        : event==12 ? (UINT64_C(1)<<17)|(UINT64_C(1)<<23)|(UINT64_C(1)<<26)
         : event == 116 || event == 121 ? UINT64_C(1)<<17
         : event == 117 ? 14u : event == 118 ? 2u : event == 120 ? 30u
         : (UINT64_C(1)<<27)|(UINT64_C(1)<<33);
-    if (!script || actor_mask != expected || banks != 1) {
+    if (!script || actor_mask != expected || banks != (event==299 ? 0u : 1u)) {
         snprintf(error,error_size,"Opening event is missing its expected actors, textures or script"); return false;
     }
     if (event == 116) {
@@ -317,6 +329,7 @@ static bool load_event(HmbtnScenePreview *s, unsigned event, char *error, size_t
     s->intro.cell_actor = 0; s->intro.camera_actor = 0; s->intro.camera_gliding = false;
     s->intro.message = 0; s->intro.message_done = false; s->loaded_message = 0;
     s->intro.text_bank=UINT32_MAX;s->intro.zone_exited=false;s->intro.advanced_minutes=0;
+    s->intro.finish_requested=false;s->intro.action_ready=s->intro.action_active=false;
     s->dialogue.message.phase = HMBTN_MESSAGE_CLOSED;
     printf("Opening event 0x%02x loaded: original actors, textures and native commands.\n",event); fflush(stdout);
     return true;
@@ -508,10 +521,97 @@ static void world_clock_events(void *context,const HmbtnFarmClock *clock,unsigne
 {
     HmbtnScenePreview *s=context;
     hmbtn_farm_shipping_clock(&s->shipping,&s->menu.stats,clock,changes);
+    if(s->village_ready) hmbtn_village_clock(&s->village,clock,changes,s->house.weather,false);
+    if(changes&HMBTN_CLOCK_HOUR) hmbtn_poultry_hour(&s->poultry,clock,s->house.weather);
     if(changes&HMBTN_CLOCK_DAY) {
         hmbtn_poultry_new_day(&s->poultry,&s->feed,clock);
+        hmbtn_poultry_carry_sync(&s->poultry,&s->house);
         hmbtn_farm_feed_new_day(&s->feed);hmbtn_farm_gather_new_day(&s->gather);
     }
+}
+static HmbtnEventResult animal_command(void *context,const HmbtnEventCommand *c,char *error,size_t size)
+{
+    HmbtnScenePreview *s=context;
+    if(c->type==0x51 && c->command==14 && s->animal_event==172) {
+        if(c->operand==0 && c->x>=0 && c->x<=2 && c->y>=0 && c->y<=1)
+            return c->x==2 && hmbtn_poultry_dead(&s->poultry,c->y==0) ? HMBTN_EVENT_DONE : HMBTN_EVENT_WAIT;
+        if(c->operand==1 && !c->x && !c->y) {
+            s->carry.discarded+=hmbtn_poultry_clear_dead(&s->poultry);
+            if(s->carry.discarded>99) s->carry.discarded=99;
+            return HMBTN_EVENT_DONE;
+        }
+    }
+    if(c->type==0x51 && c->command==13 && s->animal_event==299 && !c->y) {
+        if(c->operand==0 && !c->x) return HMBTN_EVENT_DONE;
+        if(c->operand==1 && c->x>=0 && c->x<=3)
+            return c->x>=2 && hmbtn_poultry_hatch_ready(&s->poultry,(unsigned)c->x-2) ? HMBTN_EVENT_DONE : HMBTN_EVENT_WAIT;
+        if(c->operand==2 && c->x>=2 && c->x<=3) {
+            HmbtnHen *hen=hmbtn_poultry_hatch_ready(&s->poultry,(unsigned)c->x-2);
+            if(!hen) { snprintf(error,size,"Chick naming lost its reserved slot");return HMBTN_EVENT_ERROR; }
+            if(!s->animal_name_active) {
+                hmbtn_name_editor_begin(&s->animal_name);s->animal_name.no_cancel=true;s->animal_name_active=true;
+                return HMBTN_EVENT_WAIT;
+            }
+            if(!s->animal_name.finished || s->animal_name.message.phase!=HMBTN_MESSAGE_CLOSED) return HMBTN_EVENT_WAIT;
+            memcpy(hen->name,s->animal_name.name,sizeof(hen->name));s->animal_name_active=false;return HMBTN_EVENT_DONE;
+        }
+        if(c->operand==3 && !c->x) { hmbtn_poultry_name_end(&s->poultry);return HMBTN_EVENT_DONE; }
+    }
+    if(c->type==0x5B && s->animal_event==172 && c->command==32 && c->operand==1 && c->x==-20 && c->y==-1000) {
+        /* event_cmd_apply_var_table: bachelorettes use affection, others friendship. */
+        for(unsigned i=1;i<HMBTN_VILLAGERS;++i) if(i!=27 && i!=33) {
+            HmbtnVillager *v=&s->village.people[i];
+            if(i==3 || i==7 || i==9 || i==14 || i==20) v->affection=v->affection>1000 ? v->affection-1000 : 0;
+            else v->friendship=v->friendship>20 ? v->friendship-20 : 0;
+        }
+        for(unsigned i=0;i<7;++i) s->menu.stats.helper_affection[i]=s->menu.stats.helper_affection[i]>20 ? s->menu.stats.helper_affection[i]-20 : 0;
+        return HMBTN_EVENT_DONE;
+    }
+    snprintf(error,size,"Unsupported animal event command %u/%d/%d",c->type,c->command,c->operand);
+    return HMBTN_EVENT_ERROR;
+}
+static bool animal_event_begin(HmbtnScenePreview *s,unsigned event,char *error,size_t size)
+{
+    if(!load_event(s,event,error,size)) return false;
+    s->animal_event=event;s->control.enabled=false;s->control.mode=0;
+    s->intro.game_command=animal_command;s->intro.game_context=s;s->intro.event_active=true;
+    s->intro.player.pose=false;s->intro.player.sprite=(HmbtnAnimationPlayer){0,(uint16_t)s->intro.player.facing,0};
+    memset(s->intro.player.velocity,0,sizeof(s->intro.player.velocity));
+    s->intro.fade_level=0;s->intro.fade_mode=0;s->intro.fade_length=0;s->intro.music_mode=0;
+    return true;
+}
+static bool village_conversation(HmbtnScenePreview *s,uint32_t pressed,uint32_t held,char *error,size_t size)
+{
+    HmbtnVillageTalk *t=&s->talk;
+    if(t->pending && t->loaded && !t->message_done) {
+        HmbtnMessage *m=&s->dialogue.message;
+        if(m->choices && m->phase==HMBTN_MESSAGE_WAIT_END && (pressed&(HMBTN_PAD_UP|HMBTN_PAD_DOWN))) {
+            s->dialogue.choice=(s->dialogue.choice+((pressed&HMBTN_PAD_UP) ? m->choices-1 : 1))%m->choices;
+            hmbtn_sound_effect(s->audio.sound,5);
+        }
+        const int sound=hmbtn_message_tick(m,pressed,held);
+        if(sound>=0) hmbtn_sound_effect(s->audio.sound,(unsigned)sound);
+        if(m->phase==HMBTN_MESSAGE_CLOSED) {
+            t->message_done=true;t->result=m->choices ? s->dialogue.choice+1 : 0;
+        }
+    }
+    if(!hmbtn_village_talk_tick(t,error,size)) return false;
+    if(t->pending && !t->loaded && t->active) {
+        uint8_t record[HMBTN_TEXT_RECORD_BYTES];
+        const HmbtnTextResourceId id={HMBTN_TEXT_RECORD,t->bank,t->request};
+        if(!hmbtn_text_resource_read(s->data_root,id,record,sizeof(record),error,size)
+                || !hmbtn_feed_shop_expand(record,sizeof(record),&s->dialogue)
+                || !hmbtn_ui_message_record(s->ui,record,sizeof(record),&s->dialogue.message,error,size)) return false;
+        s->dialogue.step=100;s->dialogue.choice=0;
+        s->dialogue.message.suppress_cursor=s->dialogue.message.choices!=0;t->loaded=true;
+    }
+    if(t->script.boundary) {
+        fprintf(stderr,"NPC %u conversation stopped at unported command %u, step %u.\n",
+            t->target,t->boundary_type,t->script.pc);
+    }
+    s->control.mode=0;
+    s->intro.player.sprite=(HmbtnAnimationPlayer){0,(uint16_t)s->intro.player.facing,0};
+    return true;
 }
 static bool feed_shop_message(HmbtnScenePreview *s,char *error,size_t size)
 {
@@ -522,14 +622,15 @@ static bool feed_shop_message(HmbtnScenePreview *s,char *error,size_t size)
         s->dialogue.message=(HmbtnMessage){0};return true;
     }
     if(shop->phase!=HMBTN_SHOP_OFF && shop->request!=shop->loaded) {
-        uint8_t record[8192];
-        if(!hmbtn_resource_read(s->data_root,"A_FILE/04_messege2.bin",shop->request*8192u,
-                record,sizeof(record),error,size)) return false;
+        uint8_t record[HMBTN_TEXT_RECORD_BYTES];
+        const HmbtnTextResourceId id={HMBTN_TEXT_RECORD,2,shop->request};
+        if(!hmbtn_text_resource_read(s->data_root,id,record,sizeof(record),error,size)) return false;
         if(!hmbtn_feed_shop_expand(record,sizeof(record),&s->dialogue)) {
             snprintf(error,size,"Cannot expand feed shop names");return false;
         }
         if(!hmbtn_ui_message_record(s->ui,record,sizeof(record),&shop->message,error,size)) return false;
-        shop->message.suppress_cursor=shop->phase==HMBTN_SHOP_SELECT || shop->phase==HMBTN_SHOP_COUNT;
+        shop->message.suppress_cursor=shop->phase==HMBTN_SHOP_SELECT || shop->phase==HMBTN_SHOP_COUNT
+            || shop->phase==HMBTN_SHOP_SELL_LIST || shop->phase==HMBTN_SHOP_SELL_CONFIRM;
         shop->loaded=shop->request;
     }
     if(shop->sound>=0) hmbtn_sound_effect(s->audio.sound,(unsigned)shop->sound);
@@ -581,6 +682,8 @@ static bool morning(HmbtnScenePreview *s,bool slept,char *error,size_t error_siz
 }
 static bool opening_tick(HmbtnScenePreview *s, uint32_t held, char *error, size_t error_size)
 {
+    /* The source's global fade keeps running after FARM_REQUEST_FINISH. */
+    if(s->completion_reported && s->intro.script.finished && s->intro.fade_mode==1 && s->intro.fade_level) --s->intro.fade_level;
     if(s->morning_fade) {
         --s->morning_fade;s->intro.music_volume=world_music_volume(s)*(45-s->morning_fade)/45;
         goto opening_done;
@@ -588,6 +691,19 @@ static bool opening_tick(HmbtnScenePreview *s, uint32_t held, char *error, size_
     if(s->overnight_tick) {
         if(++s->overnight_tick>=45 && !morning(s,false,error,error_size)) return false;
         goto opening_done;
+    }
+    if(s->completion_reported && s->control.enabled && s->area==80 && !s->animal_event
+            && !s->intro.fade_level
+            && !s->travel_tick && !s->door_tick && !s->sleep.active && !s->control.exit_pending
+            && s->house.mode==HMBTN_HOUSE_FREE && s->menu.mode==HMBTN_MENU_NONE && !s->carry.phase && !s->quick_ticks) {
+        unsigned event=hmbtn_poultry_dead(&s->poultry,false) || hmbtn_poultry_dead(&s->poultry,true) ? 172
+            : hmbtn_poultry_hatch_ready(&s->poultry,0) || hmbtn_poultry_hatch_ready(&s->poultry,1) ? 299 : 0;
+        if(event && !animal_event_begin(s,event,error,error_size)) return false;
+    }
+    if(s->animal_name_active) {
+        hmbtn_new_game_tick(&s->animal_name,s->pending_pressed,held);
+        if(!hmbtn_new_game_ui_load(s->ui,s->data_root,&s->animal_name,error,error_size)) return false;
+        if(s->animal_name.sound>=0) hmbtn_sound_effect(s->audio.sound,(unsigned)s->animal_name.sound);
     }
     /* The tour first leaves through the farm's real north exit. Keep its
      * script cursor suspended while the fade and resource load complete. */
@@ -607,7 +723,7 @@ static bool opening_tick(HmbtnScenePreview *s, uint32_t held, char *error, size_
         }
         goto opening_done;
     }
-    if (s->intro.message && s->loaded_message == s->intro.message) {
+    if (!s->animal_name_active && s->intro.message && s->loaded_message == s->intro.message) {
         if(s->first_visit_active && s->dialogue.message.choices && s->dialogue.message.phase==HMBTN_MESSAGE_WAIT_END) {
             if(s->pending_pressed&(HMBTN_PAD_UP|HMBTN_PAD_DOWN)) {
                 s->dialogue.choice^=1u;hmbtn_sound_effect(s->audio.sound,5);
@@ -651,19 +767,22 @@ static bool opening_tick(HmbtnScenePreview *s, uint32_t held, char *error, size_
     }
     if (s->intro.action_pending) {
         /* player_load_tool_anim: mode 71 -> row 12, seven sectors, ANI 352 bytes. */
-        s->action_block = malloc(0x3800); s->action_atlas = malloc(sizeof(*s->action_atlas));
+        if(!s->action_block) s->action_block = malloc(0x3800);
+        if(!s->action_atlas) s->action_atlas = malloc(sizeof(*s->action_atlas));
         if (!s->action_block || !s->action_atlas) {
             snprintf(error,error_size,"Cannot allocate the player's action bank"); return false;
         }
-        if (!hmbtn_resource_read(s->data_root,"A_FILE/00_gf.bin",0x3CE2800,s->action_block,0x3800,error,error_size)
-                || !hmbtn_animation_open(&s->action_animation,s->action_block,352,error,error_size)
-                || !hmbtn_bank_decode(s->action_block+352,0x3800-352,s->action_atlas,error,error_size)) return false;
+        const unsigned at=s->animal_event==172 ? 0x3CC6800 : 0x3CE2800,bank=s->animal_event==172 ? 508 : 352;
+        if (!hmbtn_resource_read(s->data_root,"A_FILE/00_gf.bin",at,s->action_block,0x3800,error,error_size)
+                || !hmbtn_animation_open(&s->action_animation,s->action_block,bank,error,error_size)
+                || !hmbtn_bank_decode(s->action_block+bank,0x3800-bank,s->action_atlas,error,error_size)) return false;
         s->intro.action_pending = false; s->intro.action_ready = true;
     }
     if (s->intro.song_pending) {
         hmbtn_title_audio_close(&s->audio);
-        if (!hmbtn_title_audio_open_song(&s->audio,s->data_root,34,error,error_size)) return false;
-        s->audio_song = s->intro.music_mode = 34; s->audio.xa = &s->xa; s->intro.song_pending = false;
+        const unsigned song=s->animal_event==172 ? 10 : 34;
+        if (!hmbtn_title_audio_open_song(&s->audio,s->data_root,song,error,error_size)) return false;
+        s->audio_song = s->intro.music_mode = song; s->audio.xa = &s->xa; s->intro.song_pending = false;
     }
     if (s->intro.start_music) {
         hmbtn_sound_start(s->audio.sound); s->intro.start_music = s->intro.stop_music = false;
@@ -673,6 +792,18 @@ static bool opening_tick(HmbtnScenePreview *s, uint32_t held, char *error, size_
     if (s->intro.script.boundary) {
         printf("Opening boundary: %s. Escape closes the window.\n",error); fflush(stdout);
         error[0] = '\0';
+    }
+    if(s->animal_event && s->intro.script.finished && s->intro.finish_requested) {
+        s->animal_event=0;s->intro.game_command=NULL;s->intro.game_context=NULL;
+        s->intro.carter.visible=s->intro.barley.visible=s->intro.rick.visible=false;
+        s->intro.action_active=false;s->intro.action_ready=false;s->intro.player.pose=false;
+        s->intro.player.sprite=(HmbtnAnimationPlayer){0,(uint16_t)s->intro.player.facing,0};
+        s->control.enabled=true;s->control.exit_pending=false;
+        hmbtn_farm_clock_advance_notify(&s->clock,s->intro.advanced_minutes,world_clock_events,s);sync_clock(s);
+        s->intro.advanced_minutes=0;hmbtn_daylight_select(&s->daylight,&s->clock);
+        s->menu.stats.animals[0]=hmbtn_poultry_count(&s->poultry);
+        if(!farm_song(s,hmbtn_world_song(s->section,16,s->clock.season,s->clock.hour),error,error_size)) return false;
+        s->intro.stop_music=false;s->intro.music_volume=world_music_volume(s);s->house_music_ticks=100;
     }
     if(s->first_visit_active && s->intro.script.finished && s->intro.finish_requested) {
         s->first_visit_active=false;s->control.enabled=true;s->control.exit_pending=false;
@@ -703,6 +834,10 @@ static bool opening_tick(HmbtnScenePreview *s, uint32_t held, char *error, size_
         fflush(stdout); s->completion_reported = true;
     }
     if(s->control.enabled) {
+        if(s->talk.active) {
+            if(!village_conversation(s,s->pending_pressed,held,error,error_size)) return false;
+            goto house_done;
+        }
         if(s->feed_shop.phase!=HMBTN_SHOP_OFF) {
             hmbtn_feed_shop_tick(&s->feed_shop,&s->house,&s->menu.stats,s->pending_pressed,held);
             if(s->feed_shop.phase==HMBTN_SHOP_OFF) {
@@ -714,7 +849,8 @@ static bool opening_tick(HmbtnScenePreview *s, uint32_t held, char *error, size_
             goto house_done;
         }
         if(!s->travel_tick && !s->door_tick && s->house.mode==HMBTN_HOUSE_FREE) {
-            const bool opened=!s->carry.phase && !s->feed.phase && hmbtn_farm_menu_open(&s->menu,s->pending_pressed);
+            const bool opened=!s->carry.phase && !s->feed.phase && !s->poultry.carry_phase && s->farm_action.phase==HMBTN_FARM_ACTION_FREE
+                && hmbtn_farm_menu_open(&s->menu,s->pending_pressed);
             if(s->menu.mode!=HMBTN_MENU_NONE) {
                 if(opened) { hmbtn_sound_release_voice(s->audio.sound,s->watering_voice);s->watering_voice=0; }
                 else hmbtn_farm_menu_tick(&s->menu,&s->house,s->pending_pressed,held);
@@ -745,10 +881,25 @@ static bool opening_tick(HmbtnScenePreview *s, uint32_t held, char *error, size_
         s->menu.stats.discarded=s->carry.discarded;
         if(!s->carry.phase && !s->house.held_item.id && !s->quick_ticks && !s->travel_tick && !s->door_tick
                 && !s->control.jumping && !s->control.exit_pending && s->house.mode==HMBTN_HOUSE_FREE
+                && s->farm_action.phase==HMBTN_FARM_ACTION_FREE
                 && (s->pending_pressed&HMBTN_PAD_CROSS)) {
-            bool taken=s->area==112 ? hmbtn_poultry_take_egg(&s->poultry,&s->house,&s->carry,&s->intro.player)
+            bool taken=(s->area==112 || s->area==0) ? hmbtn_poultry_take_egg(&s->poultry,s->area,&s->house,&s->carry,&s->intro.player)
                 : hmbtn_farm_gather_take(&s->gather,hmbtn_read_le16(s->section+2),s->clock.season,&s->house,&s->carry,&s->intro.player);
             if(taken) hmbtn_sound_effect(s->audio.sound,7);
+        }
+        if(s->poultry.carry_phase || (!s->carry.phase && !s->feed.phase && !s->quick_ticks && !s->travel_tick && !s->door_tick
+                && !s->control.jumping && !s->control.exit_pending && s->house.mode==HMBTN_HOUSE_FREE
+                && s->farm_action.phase==HMBTN_FARM_ACTION_FREE && (s->pending_pressed&HMBTN_PAD_CROSS))) {
+            HmbtnHouseExit door;unsigned model;
+            const bool at_door=!s->poultry.carry_phase && hmbtn_world_door_at(s->section,0x2000,&s->intro.player,&door,&model);
+            if(!at_door && hmbtn_poultry_carry_tick(&s->poultry,&s->house,&s->intro.player,s->area,
+                    &s->scene.terrain,s->area==0 ? &s->field : NULL,s->pending_pressed)) {
+                if(s->poultry.sound>=0) hmbtn_sound_effect(s->audio.sound,(unsigned)s->poultry.sound);
+                s->control.carrying=s->house.held_item.id!=0;
+                s->control.carrying_big=hmbtn_poultry_held_slot(&s->poultry)<HMBTN_HENS;
+                s->control.mode=0;memcpy(s->intro.camera,s->intro.player.position,sizeof(s->intro.camera));
+                goto house_done;
+            }
         }
         if(s->carry.phase || (s->area==0 && !s->quick_ticks && !s->travel_tick && !s->door_tick
                 && !s->control.jumping && s->house.mode==HMBTN_HOUSE_FREE
@@ -772,7 +923,7 @@ static bool opening_tick(HmbtnScenePreview *s, uint32_t held, char *error, size_
             }
             goto house_done;
         }
-        if(!s->control.jumping && !s->control.exit_pending && s->house.mode==HMBTN_HOUSE_FREE
+        if(hmbtn_poultry_held_slot(&s->poultry)==HMBTN_HENS && !s->control.jumping && !s->control.exit_pending && s->house.mode==HMBTN_HOUSE_FREE
                 && s->farm_action.phase==HMBTN_FARM_ACTION_FREE) {
             const bool tool=(s->pending_pressed&HMBTN_PAD_R1)!=0 || ((held&HMBTN_PAD_R1) && (s->pending_pressed&(HMBTN_PAD_LEFT|HMBTN_PAD_RIGHT))),
                 item=(s->pending_pressed&HMBTN_PAD_R2)!=0 || ((held&HMBTN_PAD_R2) && (s->pending_pressed&(HMBTN_PAD_LEFT|HMBTN_PAD_RIGHT)));
@@ -792,7 +943,7 @@ static bool opening_tick(HmbtnScenePreview *s, uint32_t held, char *error, size_
             /* doors.c: facing determines the swing sign, acceleration 8 and
              * limit 0x420. Walking timing remains a limited adaptation. */
             if(s->door_angle>-0x420) {
-                s->intro.player.sprite=(HmbtnAnimationPlayer){0,(uint16_t)s->intro.player.facing,0};
+                s->intro.player.sprite=(HmbtnAnimationPlayer){(uint16_t)(s->control.carrying_big ? 41 : 0),(uint16_t)s->intro.player.facing,0};
                 s->door_speed+=8;s->door_angle-=s->door_speed;
                 if(s->door_angle<-0x420) s->door_angle=-0x420;
                 const int turn=(s->intro.player.facing==1 || s->intro.player.facing==2) ? s->door_angle : -s->door_angle;
@@ -803,7 +954,8 @@ static bool opening_tick(HmbtnScenePreview *s, uint32_t held, char *error, size_
                 const unsigned face=s->intro.player.facing;
                 s->intro.player.position[face&1u ? 0 : 2]+=face<2 ? -41 : 41;
                 memcpy(s->intro.camera,s->intro.player.position,sizeof(s->intro.camera));
-                if(s->intro.player.sprite.animation!=face+1) s->intro.player.sprite=(HmbtnAnimationPlayer){(uint16_t)(face+1),0,0};
+                const unsigned animation=face+(s->control.carrying_big ? 42u : 1u);
+                if(s->intro.player.sprite.animation!=animation) s->intro.player.sprite=(HmbtnAnimationPlayer){(uint16_t)animation,0,0};
                 if(s->door_tick>=11) { s->door_tick=0;s->travel_tick=1; }
             }
             goto house_done;
@@ -819,7 +971,7 @@ static bool opening_tick(HmbtnScenePreview *s, uint32_t held, char *error, size_
                 memcpy(s->intro.camera,s->intro.player.position,sizeof(s->intro.camera));
                 s->control.mode=s->control.blocked_frames=0;
                 s->intro.player.facing=s->area==80 ? 3u : s->intro.player.facing;
-                s->intro.player.sprite=(HmbtnAnimationPlayer){0,(uint16_t)s->intro.player.facing,0};
+                s->intro.player.sprite=(HmbtnAnimationPlayer){(uint16_t)(s->control.carrying_big ? 41 : 0),(uint16_t)s->intro.player.facing,0};
                 s->house.tv_dirty=s->area==80;
                 memset(s->tv_sectors,0,sizeof(s->tv_sectors));
                 printf("Native area transition: area %u, entry (%d,%d,%d). Session inventory and field retained.\n",s->area,
@@ -839,13 +991,17 @@ static bool opening_tick(HmbtnScenePreview *s, uint32_t held, char *error, size_
             }
             goto house_done;
         }
-        if(s->area==0 && !s->house.held_item.id && !s->control.exit_pending && !s->control.jumping && s->house.mode==HMBTN_HOUSE_FREE
+        if((s->area==0 || s->house.equipped.id==0x1E || s->farm_action.phase==HMBTN_FARM_MEDICINE)
+                && !s->feed.phase && !s->house.held_item.id && !s->control.exit_pending && !s->control.jumping && s->house.mode==HMBTN_HOUSE_FREE
                 && (!(s->pending_pressed&HMBTN_PAD_CROSS) || s->farm_action.phase!=HMBTN_FARM_ACTION_FREE)) {
-            const bool acting=hmbtn_farm_action_tick(&s->farm_action,&s->intro.player,&s->house,
-                &s->field,&s->scene.terrain,s->pending_pressed,held);
+            const bool medicine=s->farm_action.phase==HMBTN_FARM_MEDICINE || s->house.equipped.id==0x1E;
+            const bool acting=medicine ? hmbtn_poultry_medicine_tick(&s->poultry,s->area,
+                &s->farm_action,&s->intro.player,&s->house,s->pending_pressed)
+                : hmbtn_farm_action_tick(&s->farm_action,&s->intro.player,&s->house,
+                    &s->field,&s->scene.terrain,s->pending_pressed,held);
             if(s->farm_action.bank_pending) {
                 const unsigned row=(unsigned)s->farm_action.bank;
-                const unsigned aligned=row==23 ? 1960 : 380; /* player_anim_banks[23/3]. */
+                const unsigned aligned=row==23 ? 1960 : row==22 ? 3012 : 380; /* player_anim_banks[23/22/3]. */
                 if(!s->action_block) s->action_block=malloc(0x3800);
                 if(!s->action_atlas) s->action_atlas=malloc(sizeof(*s->action_atlas));
                 if(!s->action_block || !s->action_atlas) {
@@ -872,7 +1028,7 @@ static bool opening_tick(HmbtnScenePreview *s, uint32_t held, char *error, size_
             }
             if(s->farm_action.broken_item) hmbtn_field_effect_submit(s->field_effects,
                 s->farm_action.broken_item,s->farm_action.effect_column,s->farm_action.effect_row);
-            if(s->farm_action.changed && !hmbtn_farm_field_retexture(&s->field,
+            if(s->area==0 && s->farm_action.changed && !hmbtn_farm_field_retexture(&s->field,
                     s->section+(s->scene.terrain.data-s->section),s->scene.terrain.size)) {
                 snprintf(error,error_size,"Cannot update field soil textures");return false;
             }
@@ -891,6 +1047,28 @@ static bool opening_tick(HmbtnScenePreview *s, uint32_t held, char *error, size_
             merchant->sprite=(HmbtnAnimationPlayer){0,(uint16_t)merchant->facing,0};
             if(!feed_shop_message(s,error,error_size)) return false;
             goto house_done;
+        }
+        if(s->house.mode==HMBTN_HOUSE_FREE && !s->control.exit_pending && !s->control.jumping
+                && !s->house.held_item.id && (s->pending_pressed&HMBTN_PAD_CROSS)) {
+            const unsigned id=hmbtn_village_target(&s->village,&s->intro.player);
+            if(id) {
+                uint32_t offset;size_t length;uint8_t block[8192];
+                if(!hmbtn_village_talk_range(id,&offset,&length)
+                        || !hmbtn_resource_read(s->data_root,"A_FILE/12_event_s.bin",offset,block,length,error,error_size)
+                        || !hmbtn_village_talk_open(&s->talk,id,block,length,&s->village,&s->intro.player,
+                            &s->clock,&s->dialogue,&s->house,error,error_size)
+                        || !village_conversation(s,0,0,error,error_size)) return false;
+                hmbtn_sound_effect(s->audio.sound,3);goto house_done;
+            }
+        }
+        if(s->area==112 && !s->control.exit_pending && !s->control.jumping && s->house.mode==HMBTN_HOUSE_FREE
+                && !s->quick_ticks && hmbtn_poultry_incubator_tick(&s->poultry,&s->feed,&s->house,
+                    &s->intro.player,&s->clock,s->section,s->scene.terrain.size+0x2000,s->pending_pressed)) {
+            if(s->feed.sound>=0) hmbtn_sound_effect(s->audio.sound,(unsigned)s->feed.sound);
+            if(s->feed.request) {
+                s->house.mode=HMBTN_HOUSE_BOOK;s->house.message_bank=2;s->house.request=s->feed.request;
+                s->house.loaded=0;s->house.closing=s->house.detail=false;s->house.sound=3;opened=true;
+            } else { s->control.mode=0;goto house_done; }
         }
         if(s->feed.phase || ((s->area==96 || s->area==112) && !s->control.exit_pending
                 && !s->control.jumping && s->house.mode==HMBTN_HOUSE_FREE && !s->quick_ticks)) {
@@ -928,7 +1106,7 @@ static bool opening_tick(HmbtnScenePreview *s, uint32_t held, char *error, size_
             if(!hmbtn_sound_key_on(s->audio.sound,2,1,12,60,127)) {
                 snprintf(error,error_size,"Original door opening tone unavailable");return false;
             }
-            s->intro.player.sprite=(HmbtnAnimationPlayer){0,(uint16_t)s->intro.player.facing,0};
+            s->intro.player.sprite=(HmbtnAnimationPlayer){(uint16_t)(s->control.carrying_big ? 41 : 0),(uint16_t)s->intro.player.facing,0};
             if(hmbtn_read_le16(s->section+16+s->travel_exit.zone*44)==0x1000) { s->door_tick=0;s->travel_tick=1; }
             goto house_done;
             }
@@ -971,7 +1149,9 @@ static bool opening_tick(HmbtnScenePreview *s, uint32_t held, char *error, size_
             if(s->house.mode!=HMBTN_HOUSE_SLEEP)
                 s->intro.player.sprite=(HmbtnAnimationPlayer){0,(uint16_t)s->intro.player.facing,0};
         } else if(!opened) {
+            s->control.npc_blocked=hmbtn_village_blocked;s->control.collision_context=&s->village;
             s->control.carrying=s->house.held_item.id!=0;
+            s->control.carrying_big=hmbtn_poultry_held_slot(&s->poultry)<HMBTN_HENS;
             hmbtn_farm_control_tick(&s->control,&s->intro.player,&s->scene.terrain,s->area==0 ? &s->field : NULL,
                 hmbtn_house_world_buttons(&s->house.options,held));
             if(s->control.jump_started && !hmbtn_sound_key_on(s->audio.sound,2,0,0,60,127)) {
@@ -996,6 +1176,7 @@ static bool opening_tick(HmbtnScenePreview *s, uint32_t held, char *error, size_
         }
         if(s->house.mode==HMBTN_HOUSE_SLEEP) {
             if(!s->sleep.active) {
+                hmbtn_poultry_release(&s->poultry,&s->house,&s->intro.player,s->area,&s->scene.terrain);
                 /* player_load_tool_anim: mode 74 -> row 15, aligned ANI 312. */
                 if(!s->action_block) s->action_block=malloc(0x3800);
                 if(!s->action_atlas) s->action_atlas=malloc(sizeof(*s->action_atlas));
@@ -1061,22 +1242,28 @@ static bool opening_tick(HmbtnScenePreview *s, uint32_t held, char *error, size_
     }
 house_done:
     if(s->completion_reported) {
+        s->village.player=&s->intro.player;s->village.player_running=s->control.mode==4;
         const bool held_clock=!s->control.enabled || s->travel_tick || s->door_tick || s->control.exit_pending
             || s->sleep.active || s->morning_fade || s->intro.message || s->first_visit_active
-            || s->menu.mode!=HMBTN_MENU_NONE || s->house.mode!=HMBTN_HOUSE_FREE || s->feed_shop.phase!=HMBTN_SHOP_OFF;
+            || s->menu.mode!=HMBTN_MENU_NONE || s->house.mode!=HMBTN_HOUSE_FREE || s->feed_shop.phase!=HMBTN_SHOP_OFF
+            || s->talk.active;
         const unsigned changes=hmbtn_farm_clock_tick(&s->clock,held_clock
             || hmbtn_farm_clock_place_held(s->section,16));
         world_clock_events(s,&s->clock,changes);
         s->menu.stats.animals[0]=hmbtn_poultry_count(&s->poultry);
-        if(s->area==112 && !held_clock) {
-            hmbtn_poultry_tick(&s->poultry,&s->scene.terrain,&s->intro.player,s->clock.hour);
+        if(!held_clock) {
+            hmbtn_poultry_tick(&s->poultry,s->area,&s->scene.terrain,s->area==0 ? &s->field : NULL,&s->intro.player,s->clock.hour);
             for(unsigned i=0;i<HMBTN_HENS;++i) if(s->poultry.hens[i].occupied && !s->poultry.hens[i].dead
-                    && !hmbtn_animation_tick(&s->poultry_art.adult,&s->poultry.hens[i].actor.sprite,error,error_size)) return false;
+                    && !s->poultry.hens[i].held && s->poultry.hens[i].area==s->area
+                    && s->poultry.hens[i].stage!=HMBTN_HEN_EGG
+                    && !hmbtn_animation_tick(s->poultry.hens[i].stage==HMBTN_HEN_CHICK ? &s->poultry_art.chick : &s->poultry_art.adult,
+                        &s->poultry.hens[i].actor.sprite,error,error_size)) return false;
         }
         if(s->village_ready) {
             if(!hmbtn_village_sync(&s->village,&s->clock,error,error_size)
                     || !hmbtn_village_art_update(&s->village_art,s->data_root,hmbtn_read_le16(s->section+12),&s->clock,error,error_size)) return false;
             hmbtn_village_tick(&s->village,s->section,s->scene.terrain.size+0x2000,&s->scene.terrain,held_clock);
+            if(s->talk.active && s->talk.released) s->village.people[s->talk.target].actor.visible=false;
             /* villager_set_action: Ellen remains seated; Gotz works on farm row 4. */
             for(unsigned id=1;id<37;++id) if(s->village.people[id].actor.visible) {
                 HmbtnVillager *p=&s->village.people[id];
@@ -1098,7 +1285,7 @@ house_done:
             if(s->clock.hour==6 && s->clock.minute==0 && s->farm_action.fatigue==100) s->farm_action.fatigue=99;
         }
         hmbtn_daylight_tick(&s->daylight,&s->clock,held_clock || (hmbtn_read_le16(s->section+8)&0x1800u));
-        if(!s->first_visit_active && !s->sleep.active) {
+        if(!s->first_visit_active && !s->animal_event && !s->sleep.active) {
             const unsigned song=hmbtn_world_song(s->section,16,s->clock.season,s->clock.hour);
             if(!farm_song(s,song,error,error_size)) return false;
         }
@@ -1108,10 +1295,13 @@ house_done:
         s->intro.music_volume=s->house_music_ticks*world_music_volume(s)/100;
     }
     if (s->intro.message && s->loaded_message != s->intro.message) {
-        if(s->first_visit_active) {
+        if(s->first_visit_active || s->animal_event) {
             uint8_t record[8192];uint16_t words[1024];unsigned count=0;
             if(!hmbtn_resource_read(s->data_root,"A_FILE/03_messege1.bin",s->intro.message*8192u,
                     record,sizeof(record),error,error_size)) return false;
+            if(s->animal_event==172 && !hmbtn_poultry_expand_dead(&s->poultry,record,sizeof(record))) {
+                snprintf(error,error_size,"Funeral names exceed message capacity");return false;
+            }
             for(unsigned i=0;i<1024 && count<1024;++i) {
                 uint16_t c=hmbtn_read_le16(record+0x1800+i*2);
                 const uint16_t *name=c==0x400a ? s->dialogue.player_name : c==0x400c ? s->dialogue.dog_name : c==0x400d ? s->dialogue.farm_name : NULL;
@@ -1207,16 +1397,27 @@ bool hmbtn_scene_preview_draw(HmbtnScenePreview *s, SDL_Renderer *renderer,
             actors[count]=(HmbtnWorldSprite){ani,s->estate_art.atlas,{0},{0},0};
             memcpy(actors[count++].position,hmbtn_farm_gather_record(i)->position,sizeof(actors[0].position));
         }
-        if(s->control.enabled && s->area==112) for(unsigned i=0;i<HMBTN_HENS;++i) {
+        for(unsigned i=0;i<HMBTN_HENS;++i) {
             const HmbtnHen *hen=&s->poultry.hens[i];
-            if(hen->occupied && !hen->dead) {
-                actors[count]=(HmbtnWorldSprite){&s->poultry_art.adult,s->poultry_art.atlas,hen->actor.sprite,{0},0};
+            if(hen->occupied && !hen->dead && !hen->held && hen->area==s->area && hen->stage!=HMBTN_HEN_EGG) {
+                actors[count]=(HmbtnWorldSprite){hen->stage==HMBTN_HEN_CHICK ? &s->poultry_art.chick : &s->poultry_art.adult,
+                    s->poultry_art.atlas,hen->actor.sprite,{0},0};
                 memcpy(actors[count++].position,hen->actor.position,sizeof(actors[0].position));
+                if(hen->praise && hmbtn_new_game_ui_cue(s->ui,&actors[count],hen->actor.position,37,hen->praise,-20)) ++count;
+            }
+            if(hen->occupied && hen->area==s->area && hen->stage==HMBTN_HEN_EGG) {
+                const HmbtnAnimation *ani=hmbtn_estate_art_sprite(&s->estate_art,hen->golden_egg ? 6 : 5);
+                if(ani) {
+                    actors[count]=(HmbtnWorldSprite){ani,s->estate_art.atlas,{0},{0},0};
+                    memcpy(actors[count++].position,hen->actor.position,sizeof(actors[0].position));
+                }
             }
             const HmbtnCoopEgg *egg=&s->poultry.eggs[i];
-            const int art=hmbtn_estate_item_art(egg->item);
+            /* estate_code_lookup: the outdoor egg sprites are seasonal. */
+            static const unsigned farm_egg[4]={0x16,0x1B,0x1B,0x0C};
+            const int art=s->area==0 ? (int)(farm_egg[s->clock.season]+(egg->item==0xE8)) : hmbtn_estate_item_art(egg->item);
             const HmbtnAnimation *ani=art>=0 ? hmbtn_estate_art_sprite(&s->estate_art,(unsigned)art) : NULL;
-            if(egg->item && ani) {
+            if(egg->item && egg->area==s->area && ani) {
                 actors[count]=(HmbtnWorldSprite){ani,s->estate_art.atlas,{0},{0},0};
                 memcpy(actors[count++].position,egg->position,sizeof(actors[0].position));
             }
@@ -1279,14 +1480,19 @@ bool hmbtn_scene_preview_draw(HmbtnScenePreview *s, SDL_Renderer *renderer,
         const unsigned model_count = hmbtn_scene_data_instances(&s->scene,instances);
         if (!hmbtn_model_render_instances(s->geometry,instances,model_count,s->atlas,&camera,actors,count,
                 s->pixels,FRAME_BYTES,NULL,error,error_size)) return false;
-        if((s->quick_ticks && s->quick_id) || s->house.held_item.id) {
+        if((s->quick_ticks && s->quick_id) || s->house.held_item.id || s->farm_action.phase==HMBTN_FARM_MEDICINE) {
             int x,y;const int32_t point[3]={s->intro.player.position[0]+150,s->intro.player.position[1]-100,s->intro.player.position[2]-150};
             int offset_x=-8,offset_y=-10;
-            if(s->house.held_item.id && !(s->quick_ticks && s->quick_tool))
+            if(s->control.carrying_big && s->control.mode!=4) {
+                static const int offset[4][2]={{-8,-10},{-6,-18},{6,-18},{8,-10}};
+                offset_x=offset[s->intro.player.facing&3][0];offset_y=offset[s->intro.player.facing&3][1];
+            }
+            else if(s->house.held_item.id && !(s->quick_ticks && s->quick_tool))
                 hmbtn_farm_carried_offset(s->intro.player.facing,s->control.mode==4,&offset_x,&offset_y);
             if(hmbtn_model_project_point(&camera,point,&x,&y)
                     && !hmbtn_house_ui_picture(s->house_ui,s->data_root,s->pixels,
-                        s->quick_ticks && s->quick_id ? s->quick_id : s->house.held_item.id,
+                        s->quick_ticks && s->quick_id ? s->quick_id
+                            : s->farm_action.phase==HMBTN_FARM_MEDICINE ? s->house.equipped.id : s->house.held_item.id,
                         x+offset_x,y+offset_y,error,error_size)) return false;
         }
         if(s->intro.player_marker) {
@@ -1318,9 +1524,11 @@ bool hmbtn_scene_preview_draw(HmbtnScenePreview *s, SDL_Renderer *renderer,
                     s->data_root,s->ticks,s->pixels,error,error_size)) return false;
             if(s->menu.mode==HMBTN_MENU_RUCKSACK && !hmbtn_farm_menu_ui_draw(s->menu_ui,s->house_ui,s->ui,&s->menu,&s->house,&s->farm_action,
                     &s->dialogue,s->data_root,s->ticks,s->pixels,error,error_size)) return false;
-            if (!hmbtn_new_game_ui_draw(s->ui,s->feed_shop.phase==HMBTN_SHOP_NAME ? &s->feed_shop.editor : &s->dialogue,
+            if(s->feed_shop.phase==HMBTN_SHOP_SELL_LIST || s->feed_shop.phase==HMBTN_SHOP_SELL_CONFIRM)
+                for(size_t i=0;i<FRAME_BYTES;++i) if(i%4!=3) s->pixels[i]/=2;
+            if(!hmbtn_feed_shop_ui_draw(&s->feed_shop,&s->menu.stats,&s->dialogue,s->ui,s->pixels,s->ticks,error,error_size)) return false;
+            if (!hmbtn_new_game_ui_draw(s->ui,s->animal_name_active ? &s->animal_name : s->feed_shop.phase==HMBTN_SHOP_NAME ? &s->feed_shop.editor : &s->dialogue,
                     s->ticks,s->pixels,error,error_size)) return false;
-            if(!hmbtn_feed_shop_ui_draw(&s->feed_shop,&s->menu.stats,s->ui,s->pixels,s->ticks,error,error_size)) return false;
             if(s->menu.mode==HMBTN_MENU_STATUS && !hmbtn_farm_menu_ui_draw(s->menu_ui,s->house_ui,s->ui,&s->menu,&s->house,&s->farm_action,
                     &s->dialogue,s->data_root,s->ticks,s->pixels,error,error_size)) return false;
         }

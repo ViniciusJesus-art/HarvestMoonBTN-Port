@@ -14,6 +14,7 @@ typedef struct HmbtnDaylight {
     int32_t rgb[3],step[3]; /* Original 20.12 subtractive quad. */
     unsigned period,taken,total;
 } HmbtnDaylight;
+unsigned hmbtn_farm_clock_date_index(unsigned season,unsigned day);
 void hmbtn_farm_clock_init(HmbtnFarmClock *clock);
 /* one_minute=30, divided by two in clock_advance_minute. Pauses retain frames. */
 unsigned hmbtn_farm_clock_tick(HmbtnFarmClock *clock,bool held);
@@ -23,6 +24,7 @@ typedef void (*HmbtnClockObserver)(void *context,const HmbtnFarmClock *clock,uns
 unsigned hmbtn_farm_clock_advance_notify(HmbtnFarmClock *clock,unsigned minutes,
     HmbtnClockObserver observer,void *context);
 unsigned hmbtn_farm_clock_sleep_minutes(const HmbtnFarmClock *clock,unsigned fatigue);
+bool hmbtn_farm_clock_location_held(unsigned location);
 bool hmbtn_farm_clock_place_held(const uint8_t *section,size_t size);
 unsigned hmbtn_farm_clock_period(unsigned hour);
 unsigned hmbtn_farm_clock_fatigue(unsigned hour);

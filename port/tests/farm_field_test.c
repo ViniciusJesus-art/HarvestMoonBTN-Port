@@ -62,7 +62,7 @@ int main(void)
     f.cells[i].value=0x3b;p.position[0]=-600;control.mode=0;
     for(unsigned k=0;k<100;++k) hmbtn_farm_control_tick(&control,&p,&ground,&f,HMBTN_PAD_CIRCLE|HMBTN_PAD_RIGHT);
     CHECK(!control.jumping && p.position[0]<-400);
-    HmbtnHouseInteraction h;hmbtn_house_interaction_init(&h);h.equipped.id=6;
+    HmbtnHouseInteraction h;HmbtnGameState h_state;hmbtn_game_state_init(&h_state);hmbtn_house_interaction_init(&h,&h_state);h.inventory->equipped.id=6;
     HmbtnFarmAction a;hmbtn_farm_action_init(&a);hmbtn_farm_field_init(&f,NULL,0);
     p.position[0]=-600;p.position[2]=-2600;p.facing=3;
     CHECK(hmbtn_farm_action_tick(&a,&p,&h,&f,&ground,HMBTN_PAD_SQUARE,HMBTN_PAD_SQUARE));
@@ -72,7 +72,7 @@ int main(void)
     CHECK(f.cells[i].value==0x167);p.animation_done=true;
     CHECK(hmbtn_farm_action_tick(&a,&p,&h,&f,&ground,0,0));
     CHECK(a.phase==HMBTN_FARM_ACTION_FREE && a.changed && a.stamina==99 && f.cells[i].value==0x168);
-    h.equipped.id=21;h.equipped.count=0;
+    h.inventory->equipped.id=21;h.inventory->equipped.count=0;
     CHECK(!hmbtn_farm_action_tick(&a,&p,&h,&f,&ground,HMBTN_PAD_SQUARE,0));
     f.cells[0]=(HmbtnFarmTile){0x169,0x169,0,0};
     f.cells[1]=(HmbtnFarmTile){0x16d,0x169,0,0};

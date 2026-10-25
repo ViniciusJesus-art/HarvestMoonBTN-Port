@@ -137,7 +137,7 @@ int hmbtn_app_run(const HmbtnAppOptions *options)
                 && !SDL_RumbleGamepad(input.gamepad,0x5000,0x5000,150))
             SDL_Log("Controller vibration unavailable: %s",SDL_GetError());
         if (drawn && preview && hmbtn_title_preview_registration(preview)) {
-            const HmbtnNewGame registration = *hmbtn_title_preview_registration(preview);
+            const HmbtnRegistration registration = *hmbtn_title_preview_registration(preview);
             char *root = hmbtn_data_directory(options->data_root);
             /* Release title atlases and audio before allocating the farm resources. */
             hmbtn_title_preview_destroy(preview); preview = NULL;

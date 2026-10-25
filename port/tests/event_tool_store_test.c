@@ -22,56 +22,56 @@ static size_t block(uint8_t bytes[140],int item,int table,int quiet,int notify,b
 int main(void)
 {
     char error[256]={0};uint8_t bytes[140];HmbtnVillageTalk t;HmbtnVillage v;
-    HmbtnHouseInteraction h;HmbtnNewGame n;HmbtnIntroActor p={0};
+    HmbtnHouseInteraction h;HmbtnRegistration n;HmbtnIntroActor p={0};
     const HmbtnFarmClock c={0,0,2,2,7,0,0};
-    hmbtn_village_init(&v,NULL,0);hmbtn_house_interaction_init(&h);hmbtn_new_game_init(&n);
+    hmbtn_village_init(&v,NULL,0);HmbtnGameState h_state;hmbtn_game_state_init(&h_state);hmbtn_house_interaction_init(&h,&h_state);hmbtn_registration_init(&n);
     size_t size=block(bytes,56,0,1,1,false);
     CHECK(hmbtn_village_talk_open(&t,32,bytes,size,&v,&p,&c,&n,&h,error,sizeof(error)));
     CHECK(hmbtn_village_talk_tick(&t,error,sizeof(error)) && !t.active && !t.script.boundary && t.slots[0]==1);
-    CHECK(h.equipped.id==56 && h.equipped.count==1 && !h.equipped.modifier && t.show_tool==56 && t.show_frames==11);
+    CHECK(h.inventory->equipped.id==56 && h.inventory->equipped.count==1 && !h.inventory->equipped.modifier && t.show_tool==56 && t.show_frames==11);
     for(unsigned level=0;level<3;++level) {
         const unsigned capacity=2u<<level;
-        hmbtn_house_interaction_init(&h);h.rucksack_level=level;h.equipped=(HmbtnStoredTool){1,4,9};
-        for(unsigned i=0;i<capacity;++i) h.bag[i]=(HmbtnStoredTool){6,2,7};
-        h.bag[capacity-1]=(HmbtnStoredTool){0,9,9};
+        hmbtn_game_state_init(&h_state);hmbtn_house_interaction_init(&h,&h_state);h.inventory->rucksack_level=level;h.inventory->equipped=(HmbtnStoredTool){1,4,9};
+        for(unsigned i=0;i<capacity;++i) h.inventory->bag[i]=(HmbtnStoredTool){6,2,7};
+        h.inventory->bag[capacity-1]=(HmbtnStoredTool){0,9,9};
         CHECK(hmbtn_village_talk_open(&t,32,bytes,size,&v,&p,&c,&n,&h,error,sizeof(error)));
         CHECK(hmbtn_village_talk_tick(&t,error,sizeof(error)) && t.slots[0]==1 && t.show_tool==56);
-        CHECK(h.bag[capacity-1].id==56 && !h.bag[capacity-1].modifier && h.bag[capacity-1].count==1);
-        CHECK(h.equipped.id==1 && h.equipped.modifier==4 && h.equipped.count==9);
-        HmbtnHouseInteraction before=h;
+        CHECK(h.inventory->bag[capacity-1].id==56 && !h.inventory->bag[capacity-1].modifier && h.inventory->bag[capacity-1].count==1);
+        CHECK(h.inventory->equipped.id==1 && h.inventory->equipped.modifier==4 && h.inventory->equipped.count==9);
+        HmbtnInventory before=*h.inventory;
         CHECK(hmbtn_village_talk_open(&t,32,bytes,size,&v,&p,&c,&n,&h,error,sizeof(error)));
         CHECK(hmbtn_village_talk_tick(&t,error,sizeof(error)) && !t.slots[0] && !t.show_tool && !t.show_frames);
-        CHECK(!memcmp(&h,&before,sizeof(h))); /* Toolbox space cannot bypass quiet=1. */
+        CHECK(!memcmp(h.inventory,&before,sizeof(before))); /* Toolbox space cannot bypass quiet=1. */
     }
     /* A non-quiet grant may spill to the first toolbox hole, without a pose. */
-    size=block(bytes,56,0,0,1,false);h.toolbox[2]=(HmbtnStoredTool){0,9,9};
+    size=block(bytes,56,0,0,1,false);h.inventory->toolbox[2]=(HmbtnStoredTool){0,9,9};
     CHECK(hmbtn_village_talk_open(&t,32,bytes,size,&v,&p,&c,&n,&h,error,sizeof(error)));
     CHECK(hmbtn_village_talk_tick(&t,error,sizeof(error)) && t.slots[0]==1 && !t.show_tool);
-    CHECK(h.toolbox[2].id==56 && h.toolbox[2].count==1 && !h.toolbox[2].modifier);
-    for(unsigned i=0;i<64;++i) h.toolbox[i]=(HmbtnStoredTool){6,2,7};
-    HmbtnHouseInteraction before=h;
+    CHECK(h.inventory->toolbox[2].id==56 && h.inventory->toolbox[2].count==1 && !h.inventory->toolbox[2].modifier);
+    for(unsigned i=0;i<64;++i) h.inventory->toolbox[i]=(HmbtnStoredTool){6,2,7};
+    HmbtnInventory before=*h.inventory;
     CHECK(hmbtn_village_talk_open(&t,32,bytes,size,&v,&p,&c,&n,&h,error,sizeof(error)));
-    CHECK(hmbtn_village_talk_tick(&t,error,sizeof(error)) && !t.slots[0] && !memcmp(&h,&before,sizeof(h)));
+    CHECK(hmbtn_village_talk_tick(&t,error,sizeof(error)) && !t.slots[0] && !memcmp(h.inventory,&before,sizeof(before)));
     /* Table mode reads the signed low halfword, just like script_vars[].half. */
-    hmbtn_house_interaction_init(&h);size=block(bytes,7,1,1,2,false);
+    hmbtn_game_state_init(&h_state);hmbtn_house_interaction_init(&h,&h_state);size=block(bytes,7,1,1,2,false);
     CHECK(hmbtn_village_talk_open(&t,32,bytes,size,&v,&p,&c,&n,&h,error,sizeof(error)));t.slots[7]=0x10019;
-    CHECK(hmbtn_village_talk_tick(&t,error,sizeof(error)) && h.equipped.id==25
-        && h.equipped.modifier==4 && h.equipped.count==1 && t.show_tool==25 && t.show_frames==61);
-    hmbtn_house_interaction_init(&h);size=block(bytes,56,0,1,0,false);
+    CHECK(hmbtn_village_talk_tick(&t,error,sizeof(error)) && h.inventory->equipped.id==25
+        && h.inventory->equipped.modifier==4 && h.inventory->equipped.count==1 && t.show_tool==25 && t.show_frames==61);
+    hmbtn_game_state_init(&h_state);hmbtn_house_interaction_init(&h,&h_state);size=block(bytes,56,0,1,0,false);
     CHECK(hmbtn_village_talk_open(&t,32,bytes,size,&v,&p,&c,&n,&h,error,sizeof(error)));
-    CHECK(hmbtn_village_talk_tick(&t,error,sizeof(error)) && h.equipped.id==56 && !t.show_tool);
+    CHECK(hmbtn_village_talk_tick(&t,error,sizeof(error)) && h.inventory->equipped.id==56 && !t.show_tool);
     /* A subsequent unsupported action restores all tool stores and the cue. */
-    hmbtn_house_interaction_init(&h);before=h;size=block(bytes,56,0,1,1,true);
+    hmbtn_game_state_init(&h_state);hmbtn_house_interaction_init(&h,&h_state);before=*h.inventory;size=block(bytes,56,0,1,1,true);
     CHECK(hmbtn_village_talk_open(&t,32,bytes,size,&v,&p,&c,&n,&h,error,sizeof(error)));
     CHECK(hmbtn_village_talk_tick(&t,error,sizeof(error)) && t.script.boundary && !t.show_tool
-        && !t.show_frames && !memcmp(&h,&before,sizeof(h)));
-    h.equipped.id=1;for(unsigned i=0;i<2;++i) h.bag[i].id=6;
-    before=h;size=block(bytes,56,0,0,1,true);
+        && !t.show_frames && !memcmp(h.inventory,&before,sizeof(before)));
+    h.inventory->equipped.id=1;for(unsigned i=0;i<2;++i) h.inventory->bag[i].id=6;
+    before=*h.inventory;size=block(bytes,56,0,0,1,true);
     CHECK(hmbtn_village_talk_open(&t,32,bytes,size,&v,&p,&c,&n,&h,error,sizeof(error)));
-    CHECK(hmbtn_village_talk_tick(&t,error,sizeof(error)) && t.script.boundary && !memcmp(&h,&before,sizeof(h)));
+    CHECK(hmbtn_village_talk_tick(&t,error,sizeof(error)) && t.script.boundary && !memcmp(h.inventory,&before,sizeof(before)));
     size=block(bytes,380,0,1,1,false);
     CHECK(hmbtn_village_talk_open(&t,32,bytes,size,&v,&p,&c,&n,&h,error,sizeof(error)));
-    CHECK(hmbtn_village_talk_tick(&t,error,sizeof(error)) && t.script.boundary && !memcmp(&h,&before,sizeof(h)));
+    CHECK(hmbtn_village_talk_tick(&t,error,sizeof(error)) && t.script.boundary && !memcmp(h.inventory,&before,sizeof(before)));
     size=block(bytes,32,1,1,1,false);
     CHECK(hmbtn_village_talk_open(&t,32,bytes,size,&v,&p,&c,&n,&h,error,sizeof(error)));
     CHECK(!hmbtn_village_talk_tick(&t,error,sizeof(error)));

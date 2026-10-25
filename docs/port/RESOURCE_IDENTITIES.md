@@ -71,12 +71,19 @@ Não há offsets novos de eventos no coordenador de gameplay. As condições
 de disparo continuam nos BINs; o gerador contém somente os intervalos das
 tabelas C originais. A prévia geométrica não depende da tabela de eventos.
 
-Os eventos 129/130 não trazem banco de atores no bloco. A entrega da torta
+Os eventos 129/130/289 não trazem banco de atores no bloco. A entrega da torta
 reutiliza `village_art` por IDs 9/23/34 (Elli, Ellen e Stu), inclusive no
 renderizador e na animação durante o evento. A torta e o bolo usam a ANI base
 do jogador e a imagem original do item por ID. Não há novo leitor gráfico
 para essas sequências; uma fonte PNG futura pode continuar atendendo às
 interfaces de arte já existentes.
+
+A entrega de ingredientes (289) também usa `village_art` por ID, incluindo
+Thomas (17) e os demais moradores presentes na área. Cópias temporárias
+preservam os atores do evento até a saída, usando o mesmo atlas/ANI do
+carregador da vila. As respostas preservam a identidade banco/registro dos
+textos (bancos 1 e 0), separada da seleção do retrato. Nenhum intervalo ou
+decodificador gráfico adicional foi introduzido.
 
 Não há carregador nem exportador de PNG de recursos do jogo implementado nesta
 etapa. A identificação acima permite relacionar uma extração futura aos mesmos

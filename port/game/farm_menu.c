@@ -3,15 +3,6 @@
 #include <string.h>
 #include "storage_spots.inc"
 const HmbtnStorageSpot *hmbtn_storage_spot(unsigned i) { return i<18 ? &storage_spots[i] : NULL; }
-HmbtnStoredTool *hmbtn_inventory_slot(HmbtnHouseInteraction *h,unsigned i)
-{
-    if(i>=18 || h->rucksack_level>2) return NULL;
-    if(i==0) return &h->equipped;
-    if(i==9) return &h->held_item;
-    const unsigned capacity=2u<<h->rucksack_level;
-    if(i<9) return i<=capacity ? &h->bag[i-1] : NULL;
-    return i-10<capacity ? &h->items[i-10] : NULL;
-}
 static bool allowed(const HmbtnStoredTool *item,unsigned dest)
 {
     if(!item->id) return true;
@@ -19,7 +10,7 @@ static bool allowed(const HmbtnStoredTool *item,unsigned dest)
     const HmbtnFarmItem *info=hmbtn_farm_item(item->id);
     return info && (dest==0 || dest==9 || (info->class_flags&0x80000000u));
 }
-bool hmbtn_inventory_swap(HmbtnHouseInteraction *h,unsigned from,unsigned to)
+bool hmbtn_inventory_swap(HmbtnInventory *h,unsigned from,unsigned to)
 {
     HmbtnStoredTool *a=hmbtn_inventory_slot(h,from),*b=hmbtn_inventory_slot(h,to);
     if(!a || !b || a==b || !allowed(a,to) || !allowed(b,from)) return false;
@@ -42,7 +33,7 @@ static void compact(HmbtnStoredTool items[8])
     unsigned n=0;for(unsigned i=0;i<8;++i) if(items[i].id) items[n++]=items[i];
     while(n<8) items[n++]=(HmbtnStoredTool){0};
 }
-bool hmbtn_inventory_cycle(HmbtnHouseInteraction *h,bool tools,bool reverse)
+bool hmbtn_inventory_cycle(HmbtnInventory *h,bool tools,bool reverse)
 {
     HmbtnStoredTool *slots=tools ? h->bag : h->items,*hand=tools ? &h->equipped : &h->held_item;
     const HmbtnFarmItem *info=hmbtn_farm_item(hand->id);
@@ -65,9 +56,9 @@ bool hmbtn_inventory_cycle(HmbtnHouseInteraction *h,bool tools,bool reverse)
     }
     *hand=tmp;compact(slots);return true;
 }
-void hmbtn_farm_menu_init(HmbtnFarmMenu *m)
+void hmbtn_farm_menu_init(HmbtnFarmMenu *m,const HmbtnEconomy *economy)
 {
-    memset(m,0,sizeof(*m));m->sound=-1;m->marked=255;m->stats.gold=500;
+    memset(m,0,sizeof(*m));m->sound=-1;m->marked=255;m->economy=economy;
 }
 bool hmbtn_farm_menu_open(HmbtnFarmMenu *m,uint32_t pressed)
 {
@@ -78,7 +69,7 @@ bool hmbtn_farm_menu_open(HmbtnFarmMenu *m,uint32_t pressed)
     m->request=m->mode==HMBTN_MENU_RUCKSACK ? 0x3ac : 0;
     m->phase=m->mode==HMBTN_MENU_STATUS ? 1 : 3;m->fade=0;m->sound=3;return true;
 }
-void hmbtn_farm_menu_tick(HmbtnFarmMenu *m,HmbtnHouseInteraction *h,uint32_t pressed,uint32_t held)
+void hmbtn_farm_menu_tick(HmbtnFarmMenu *m,HmbtnInventory *h,uint32_t pressed,uint32_t held)
 {
     m->sound=-1;
     if(m->mode==HMBTN_MENU_NONE) return;

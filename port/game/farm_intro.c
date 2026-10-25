@@ -57,7 +57,7 @@ static HmbtnEventResult command(void *ctx, const HmbtnEventCommand *c,
 {
     HmbtnFarmIntro *s = ctx;
     const int32_t a = c->command, b = c->operand, x = c->x, y = c->y;
-    const bool visit=(s->event>=128 && s->event<=133) || s->event==288;
+    const bool visit=(s->event>=128 && s->event<=133) || s->event==288 || s->event==289;
     HmbtnIntroActor *actor = hmbtn_farm_intro_actor(s,a);
     switch (c->type) {
     case 0x23: {
@@ -197,11 +197,11 @@ static HmbtnEventResult command(void *ctx, const HmbtnEventCommand *c,
         s->slots[b] = actor->position[1]; s->slots[x] = actor->position[0]; s->slots[y] = actor->position[2];
         return HMBTN_EVENT_DONE;
     case 2:
-        if (a != 1 || b < 0 || (x != -1 && !(s->event==12 && x==0) && !(visit && slot(x))) || y) break;
+        if ((a != 1 && !(visit && a>=0 && a<=4)) || b < 0 || (x != -1 && !(s->event==12 && x==0) && !(visit && slot(x))) || y) break;
         if (s->message_done && s->message == (unsigned)b) {
             s->message = 0; s->message_done = false; return HMBTN_EVENT_DONE;
         }
-        s->message_result_slot=x;s->message = (unsigned)b; return HMBTN_EVENT_WAIT;
+        s->message_result_slot=x;s->message_bank=(unsigned)a;s->message = (unsigned)b; return HMBTN_EVENT_WAIT;
     case 0x3F:
         /* Queued records are (player mode, animation, action-bank flag), not
          * (animation, frame). Mode 0x47 loads sector row 12 for the nod. */

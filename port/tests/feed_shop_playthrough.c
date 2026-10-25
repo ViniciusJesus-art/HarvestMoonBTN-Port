@@ -46,7 +46,7 @@ static bool shop_wait(HmbtnScenePreview *s,HmbtnFeedShopPhase phase,char *error,
 }
 static bool buy(HmbtnScenePreview *s,unsigned id,HmbtnHost *host,const char *captures,char *error,size_t size)
 {
-    HmbtnIntroActor *merchant=&s->village.people[id].actor;
+    HmbtnIntroActor *merchant=&s->session->village.people[id].actor;
     REQUIRE(merchant->visible);
     static const int delta[4][2]={{0,-350},{-350,0},{0,350},{350,0}};
     bool reachable=false;
@@ -58,14 +58,14 @@ static bool buy(HmbtnScenePreview *s,unsigned id,HmbtnHost *host,const char *cap
     }
     REQUIRE(reachable);REQUIRE(step(s,0,error,size));
     REQUIRE(step(s,HMBTN_PAD_CROSS,error,size) && s->feed_shop.phase==HMBTN_SHOP_GREETING);
-    const HmbtnFarmClock before=s->clock;int32_t position[3];memcpy(position,s->intro.player.position,sizeof(position));
+    const HmbtnFarmClock before=s->session->game.clock;int32_t position[3];memcpy(position,s->intro.player.position,sizeof(position));
     REQUIRE(step(s,HMBTN_PAD_START,error,size) && s->menu.mode==HMBTN_MENU_NONE);
     REQUIRE(shop_wait(s,HMBTN_SHOP_SELECT,error,size));
     REQUIRE(step(s,HMBTN_PAD_CROSS,error,size));REQUIRE(shop_wait(s,HMBTN_SHOP_COUNT,error,size));
     REQUIRE(step(s,HMBTN_PAD_LEFT,error,size) && s->feed_shop.quantity==99);
-    const unsigned gold=s->menu.stats.gold,stock=id==15 ? 0 : 2;
+    const unsigned gold=s->session->game.economy.gold,stock=id==15 ? 0 : 2;
     REQUIRE(step(s,HMBTN_PAD_CROSS,error,size));REQUIRE(shop_wait(s,HMBTN_SHOP_RESULT,error,size));
-    REQUIRE(s->feed_shop.loaded==0x4F && s->menu.stats.gold==gold && !s->house.supplies[stock]);
+    REQUIRE(s->feed_shop.loaded==0x4F && s->session->game.economy.gold==gold && !s->house.inventory->supplies[stock]);
     REQUIRE(shop_wait(s,HMBTN_SHOP_COUNT,error,size));
     REQUIRE(step(s,HMBTN_PAD_RIGHT,error,size) && s->feed_shop.quantity==1);
     REQUIRE(step(s,HMBTN_PAD_RIGHT,error,size) && s->feed_shop.quantity==2);
@@ -76,11 +76,11 @@ static bool buy(HmbtnScenePreview *s,unsigned id,HmbtnHost *host,const char *cap
         const bool saved=SDL_SaveBMP(p,path);SDL_DestroySurface(p);REQUIRE(saved);
     }
     REQUIRE(step(s,HMBTN_PAD_CROSS,error,size));
-    REQUIRE(s->house.supplies[stock]==2 && s->menu.stats.gold==gold-(id==15 ? 40u : 20u));
+    REQUIRE(s->house.inventory->supplies[stock]==2 && s->session->game.economy.gold==gold-(id==15 ? 40u : 20u));
     REQUIRE(shop_wait(s,HMBTN_SHOP_SELECT,error,size));
     REQUIRE(step(s,HMBTN_PAD_CIRCLE,error,size));REQUIRE(shop_wait(s,HMBTN_SHOP_OFF,error,size));
     REQUIRE(memcmp(position,s->intro.player.position,sizeof(position))==0);
-    REQUIRE(memcmp(&before,&s->clock,sizeof(before))==0);return true;
+    REQUIRE(memcmp(&before,&s->session->game.clock,sizeof(before))==0);return true;
 }
 static bool feed(HmbtnScenePreview *s,unsigned kind,unsigned bin,char *error,size_t size)
 {
@@ -102,22 +102,22 @@ int main(int argc,char **argv)
     HmbtnHost host={0};HmbtnScenePreview *s=NULL;char error[512]={0};
     CHECK(hmbtn_host_open(&host));s=hmbtn_scene_area_create(host.renderer,argv[1],0,error,sizeof(error));CHECK(s);
     for(unsigned i=0;i<110;++i) CHECK(step(s,0,error,sizeof(error)));
-    s->clock=(HmbtnFarmClock){0,0,2,2,12,0,0};sync_clock(s);
-    CHECK(s->menu.stats.gold==500 && !s->house.supplies[0] && !s->house.supplies[2]);
+    s->session->game.clock=(HmbtnFarmClock){0,0,2,2,12,0,0};
+    CHECK(s->session->game.economy.gold==500 && !s->house.inventory->supplies[0] && !s->house.inventory->supplies[2]);
     CHECK(travel(s,32,error,sizeof(error)) && travel(s,24,error,sizeof(error))
         && travel(s,28,error,sizeof(error)) && travel(s,136,error,sizeof(error)));
     CHECK(buy(s,15,&host,argc==3 ? argv[2] : NULL,error,sizeof(error)));
     CHECK(travel(s,28,error,sizeof(error)) && travel(s,24,error,sizeof(error)) && travel(s,128,error,sizeof(error)));
     CHECK(buy(s,18,&host,argc==3 ? argv[2] : NULL,error,sizeof(error)));
-    CHECK(s->menu.stats.gold==440 && s->menu.stats.ledger[0][1]==60);
+    CHECK(s->session->game.economy.gold==440 && s->session->game.economy.ledger[0][1]==60);
     CHECK(travel(s,24,error,sizeof(error)) && travel(s,32,error,sizeof(error)) && travel(s,0,error,sizeof(error)));
     CHECK(travel(s,96,error,sizeof(error)) && feed(s,9,0,error,sizeof(error)));
-    CHECK(s->house.held_item.id==0x68 && s->house.supplies[0]==1);
-    CHECK(feed(s,41,0,error,sizeof(error)) && !s->house.held_item.id && s->feed.barn[0]);
+    CHECK(s->house.inventory->held_item.id==0x68 && s->house.inventory->supplies[0]==1);
+    CHECK(feed(s,41,0,error,sizeof(error)) && !s->house.inventory->held_item.id && s->feed.barn[0]);
     CHECK(travel(s,0,error,sizeof(error)) && travel(s,112,error,sizeof(error)) && feed(s,26,0,error,sizeof(error)));
-    CHECK(s->house.held_item.id==0x69 && s->house.supplies[2]==1);
-    CHECK(feed(s,40,0,error,sizeof(error)) && !s->house.held_item.id && s->feed.coop[0]);
-    CHECK(s->menu.stats.gold==440 && s->menu.stats.ledger[0][1]==60 && !s->first_visit_active);
+    CHECK(s->house.inventory->held_item.id==0x69 && s->house.inventory->supplies[2]==1);
+    CHECK(feed(s,40,0,error,sizeof(error)) && !s->house.inventory->held_item.id && s->feed.coop[0]);
+    CHECK(s->session->game.economy.gold==440 && s->session->game.economy.ledger[0][1]==60 && !s->first_visit_active);
     puts("Original-resource shops: reachable merchants, insufficient funds, real purchases, expenses, map return, stocks and both bins passed.");
     hmbtn_scene_preview_destroy(s);hmbtn_host_close(&host);return 0;
 fail:

@@ -8,7 +8,7 @@ void hmbtn_farm_carried_offset(unsigned facing,bool running,int *x,int *y)
 }
 /* player_collect_target, farm_tile_occupant and thrown_item_update. */
 void hmbtn_farm_carry_flight(HmbtnFarmCarry *s,HmbtnFarmField *field,
-    const HmbtnModel *ground,HmbtnFarmShipping *shipping,HmbtnFarmStatistics *stats)
+    const HmbtnModel *ground,HmbtnEconomy *economy)
 {
     static const int step[4][2]={{0,-44},{-44,0},{0,44},{44,0}};
     s->changed=s->small_fish_placed=false;s->sound=-1;
@@ -29,7 +29,7 @@ void hmbtn_farm_carry_flight(HmbtnFarmCarry *s,HmbtnFarmField *field,
         }
         if(t->position[1]>=t->ground) {
             if(t->area==56 && t->item.id==0xA3 && surface && (hit.flags&2u) && !(hit.flags&0x44u)) s->small_fish_placed=true;
-            if(surface && (hit.flags&0x80u) && hmbtn_farm_shipping_add(shipping,stats,t->item.id)) {
+            if(surface && (hit.flags&0x80u) && hmbtn_farm_shipping_add(economy,t->item.id)) {
                 t->item=(HmbtnStoredTool){0};s->sound=0x13;continue;
             }
             int c,r;bool placed=false;
@@ -54,18 +54,18 @@ bool hmbtn_farm_carry_tick(HmbtnFarmCarry *s,HmbtnHouseInteraction *h,
         if(!p->animation_done) return true;
         if(s->phase>=2) {
             unsigned i=s->phase-2;
-            s->thrown[i]=(HmbtnThrownItem){h->held_item,
+            s->thrown[i]=(HmbtnThrownItem){h->inventory->held_item,
                 {p->position[0],p->position[1]-300,p->position[2]},p->position[1],0,p->facing,s->area};
-            h->held_item=(HmbtnStoredTool){0};s->sound=9;
+            h->inventory->held_item=(HmbtnStoredTool){0};s->sound=9;
         }
         s->phase=0;p->sprite=(HmbtnAnimationPlayer){0,(uint16_t)p->facing,0};p->animation_done=false;
         return true;
     }
     if(!(pressed&HMBTN_PAD_CROSS) || p->facing>3) return false;
-    if(h->held_item.id) {
-        const HmbtnFarmItem *item=hmbtn_farm_item(h->held_item.id);
+    if(h->inventory->held_item.id) {
+        const HmbtnFarmItem *item=hmbtn_farm_item(h->inventory->held_item.id);
         /* Never discard tools, seeds, livestock or unported estate containers. */
-        if(!item || !(item->flags&0x8000) || h->held_item.count>1) return false;
+        if(!item || !(item->flags&0x8000) || h->inventory->held_item.count>1) return false;
         for(unsigned i=0;i<3;++i) if(!s->thrown[i].item.id) {
             s->phase=i+2;p->sprite=(HmbtnAnimationPlayer){(uint16_t)(23+p->facing),0,0};
             p->animation_done=false;return true;
@@ -81,7 +81,7 @@ bool hmbtn_farm_carry_tick(HmbtnFarmCarry *s,HmbtnHouseInteraction *h,
     unsigned index=(unsigned)(r*45+c);HmbtnFarmTile *tile=&f->cells[index];
     const HmbtnFarmItem *item=hmbtn_farm_item(tile->value);
     if(!f->active[index] || !item || (item->flags!=0x8000 && item->flags!=0x8010)) return false;
-    h->held_item=(HmbtnStoredTool){tile->value,0,1};
+    h->inventory->held_item=(HmbtnStoredTool){tile->value,0,1};
     tile->value=tile->ground;tile->kind=0;tile->growth_flags=0;
     s->changed=true;s->sound=7;s->phase=1;
     p->sprite=(HmbtnAnimationPlayer){(uint16_t)(11+p->facing),0,0};p->animation_done=false;

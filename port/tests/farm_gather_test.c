@@ -9,11 +9,11 @@ int main(void)
     CHECK(bamboo && hmbtn_farm_item(bamboo)->sell_price==50 && hmbtn_estate_item_art(bamboo)==11);
     CHECK(!hmbtn_farm_gather_item(&g,146,r->location,1));
     CHECK(!hmbtn_farm_gather_item(&g,146,999,0));
-    HmbtnHouseInteraction h;hmbtn_house_interaction_init(&h);HmbtnFarmCarry carry={0};HmbtnIntroActor p={0};
+    HmbtnHouseInteraction h;HmbtnGameState h_state;hmbtn_game_state_init(&h_state);hmbtn_house_interaction_init(&h,&h_state);HmbtnFarmCarry carry={0};HmbtnIntroActor p={0};
     memcpy(p.position,r->position,sizeof(p.position));p.position[2]+=224;
     p.facing=2;CHECK(!hmbtn_farm_gather_take(&g,r->location,0,&h,&carry,&p));p.facing=0;
     CHECK(hmbtn_farm_gather_take(&g,r->location,0,&h,&carry,&p));
-    CHECK(g.taken[146] && h.held_item.id==bamboo && carry.phase==1 && p.sprite.animation==11);
+    CHECK(g.taken[146] && h.inventory->held_item.id==bamboo && carry.phase==1 && p.sprite.animation==11);
     CHECK(!hmbtn_farm_gather_take(&g,r->location,0,&h,&carry,&p));
     CHECK(!hmbtn_farm_gather_item(&g,146,r->location,0));
     hmbtn_farm_gather_new_day(&g);CHECK(hmbtn_farm_gather_item(&g,146,r->location,0)==bamboo);

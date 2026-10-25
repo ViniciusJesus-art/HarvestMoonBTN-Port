@@ -19,15 +19,17 @@ typedef struct HmbtnFeedShop {
     int sound;
     HmbtnPoultry *poultry;
     HmbtnNewGame editor;
-    HmbtnFarmClock date;
+    const HmbtnFarmClock *clock; /* Live session clock; modal shop pauses it. */
     unsigned selection;
     unsigned sale_cursor,sale_top,sale_slot,answer;
 } HmbtnFeedShop;
 /* Original scripts 365/368: empty hands, business hours, weekday and merchant present. */
 bool hmbtn_feed_shop_open(HmbtnFeedShop *shop,HmbtnVillage *village,
     const HmbtnIntroActor *player,const HmbtnFarmClock *clock,unsigned area,unsigned held_item);
+/* Borrow the authoritative economy. stats contains only the remaining
+ * nonfinancial counters (animal count); no purse or accounts live there. */
 void hmbtn_feed_shop_tick(HmbtnFeedShop *shop,HmbtnHouseInteraction *inventory,
-    HmbtnFarmStatistics *stats,uint32_t pressed,uint32_t held);
+    HmbtnEconomy *economy,HmbtnFarmStatistics *stats,uint32_t pressed,uint32_t held);
 unsigned hmbtn_feed_shop_cost(const HmbtnFeedShop *shop);
-bool hmbtn_feed_shop_expand(uint8_t *record,size_t size,const HmbtnNewGame *registration);
+bool hmbtn_feed_shop_expand(uint8_t *record,size_t size,const HmbtnRegistration *registration);
 #endif

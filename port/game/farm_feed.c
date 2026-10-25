@@ -22,7 +22,7 @@ bool hmbtn_farm_feed_tick(HmbtnFarmFeed *f,HmbtnHouseInteraction *h,HmbtnIntroAc
     f->sound=-1;f->request=0;
     if(f->phase) {
         if(p->animation_done) {
-            if(f->phase==2) h->held_item=(HmbtnStoredTool){0};
+            if(f->phase==2) h->inventory->held_item=(HmbtnStoredTool){0};
             f->phase=0;p->sprite=(HmbtnAnimationPlayer){0,(uint16_t)p->facing,0};p->animation_done=false;
         }
         return true;
@@ -38,7 +38,7 @@ bool hmbtn_farm_feed_tick(HmbtnFarmFeed *f,HmbtnHouseInteraction *h,HmbtnIntroAc
         const unsigned facing=hmbtn_read_le16(zone+8);
         const bool bin=kind==40 || kind==41,barn=kind==9 || kind==41;
         const unsigned item=barn ? 0x68 : 0x69,stock=barn ? 0 : 2;
-        if(bin && h->held_item.id!=item) { f->request=barn ? 0x1E4 : 0x1E5;return true; }
+        if(bin && h->inventory->held_item.id!=item) { f->request=barn ? 0x1E4 : 0x1E5;return true; }
         if(kind!=9 && p->facing!=facing
                 && !(bin && ((facing==6 && (p->facing&1)) || (facing==7 && !(p->facing&1))))) return true;
         if(bin) {
@@ -47,10 +47,10 @@ bool hmbtn_farm_feed_tick(HmbtnFarmFeed *f,HmbtnHouseInteraction *h,HmbtnIntroAc
             /* The original consumes another unit even when the bin is full. */
             if(barn) f->barn[index]=true;else f->coop[index]=true;
             f->phase=2;
-        } else if(!h->held_item.id && h->supplies[stock]) {
-            --h->supplies[stock];h->held_item=(HmbtnStoredTool){(uint16_t)item,0,1};f->phase=1;
-        } else if(h->held_item.id==item) {
-            if(h->supplies[stock]<999) ++h->supplies[stock];
+        } else if(!h->inventory->held_item.id && h->inventory->supplies[stock]) {
+            --h->inventory->supplies[stock];h->inventory->held_item=(HmbtnStoredTool){(uint16_t)item,0,1};f->phase=1;
+        } else if(h->inventory->held_item.id==item) {
+            if(h->inventory->supplies[stock]<999) ++h->inventory->supplies[stock];
             f->phase=2;
         } else { f->request=barn ? 0x19C : 0x19F;return true; }
         p->sprite=(HmbtnAnimationPlayer){(uint16_t)((f->phase==1 ? 11 : 23)+p->facing),0,0};

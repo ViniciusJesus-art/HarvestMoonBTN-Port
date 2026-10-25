@@ -13,7 +13,7 @@ static void idle(HmbtnFarmAction *a,HmbtnIntroActor *p)
 }
 static void cost(HmbtnFarmAction *a,const HmbtnHouseInteraction *h,unsigned amount)
 {
-    unsigned fatigue=(h->weather!=0)+(h->hour>=22 ? 1u : h->hour<6 ? 2u : 0u)+(a->stamina==0 ? 2u : 0u);
+    unsigned fatigue=(h->weather!=0)+(h->clock->hour>=22 ? 1u : h->clock->hour<6 ? 2u : 0u)+(a->stamina==0 ? 2u : 0u);
     a->stamina=a->stamina>amount ? a->stamina-amount : 0;
     a->fatigue=a->fatigue+fatigue>100 ? 100 : a->fatigue+fatigue;
 }
@@ -22,7 +22,7 @@ bool hmbtn_farm_action_tick(HmbtnFarmAction *a,HmbtnIntroActor *p,HmbtnHouseInte
 {
     a->sound=-1;a->finished_bank=a->changed=false;
     a->release_sound=false;a->broken_item=0;
-    HmbtnStoredTool *tool=&h->equipped;
+    HmbtnStoredTool *tool=&h->inventory->equipped;
     if(a->phase==HMBTN_FARM_TOOL_CHARGE) {
         if(held&HMBTN_PAD_SQUARE) {
             if(a->charge_frames<tool->modifier*20) ++a->charge_frames;
@@ -58,7 +58,7 @@ bool hmbtn_farm_action_tick(HmbtnFarmAction *a,HmbtnIntroActor *p,HmbtnHouseInte
             const uint16_t item=target<HMBTN_FIELD_CELLS ? field->cells[target].value : 0;
             /* Initial tools affect one square. Upgraded area grids are a
              * separate step and are not accepted by the input path below. */
-            changed=hmbtn_farm_field_tool(field,c,r,a->kind,tool->modifier,a->strikes,h->supplies);
+            changed=hmbtn_farm_field_tool(field,c,r,a->kind,tool->modifier,a->strikes,h->inventory->supplies);
             if(changed && (a->kind==0 || a->kind==2 || a->kind==3)) {
                 a->broken_item=item;a->effect_column=c;a->effect_row=r;
                 if(item>=0x3b && item<=0x3d) { ++a->effect_column;++a->effect_row; }

@@ -35,16 +35,16 @@ int main(int argc,char **argv)
     for(unsigned b=0;b<2;++b) {
         unsigned area=b ? 112 : 96,stock=b ? 2 : 0,item=b ? 0x69 : 0x68;
         CHECK(load_area(s,s->data_root,area,error,sizeof(error)));s->intro.area=area;
-        s->house.supplies[stock]=2;CHECK(point(s,b ? 26 : 9,0));
+        s->house.inventory->supplies[stock]=2;CHECK(point(s,b ? 26 : 9,0));
         CHECK(step(s,HMBTN_PAD_CROSS,error,sizeof(error)) && s->feed.phase==1);
-        CHECK(s->house.held_item.id==item && s->house.supplies[stock]==1);
+        CHECK(s->house.inventory->held_item.id==item && s->house.inventory->supplies[stock]==1);
         CHECK(step(s,HMBTN_PAD_START,error,sizeof(error)) && s->menu.mode==HMBTN_MENU_NONE);
         for(unsigned i=0;i<90 && s->feed.phase;++i) CHECK(step(s,0,error,sizeof(error)));
-        CHECK(!s->feed.phase && s->house.held_item.id==item);
+        CHECK(!s->feed.phase && s->house.inventory->held_item.id==item);
         CHECK(point(s,b ? 40 : 41,0));
         CHECK(step(s,HMBTN_PAD_CROSS,error,sizeof(error)) && s->feed.phase==2);
         for(unsigned i=0;i<90 && s->feed.phase;++i) CHECK(step(s,0,error,sizeof(error)));
-        CHECK(!s->feed.phase && !s->house.held_item.id && (b ? s->feed.coop[0] : s->feed.barn[0]));
+        CHECK(!s->feed.phase && !s->house.inventory->held_item.id && (b ? s->feed.coop[0] : s->feed.barn[0]));
         CHECK(step(s,0,error,sizeof(error)));
         CHECK(hmbtn_scene_preview_draw(s,host.renderer,0,0,0,error,sizeof(error)));
         if(argc==3) {
@@ -54,9 +54,9 @@ int main(int argc,char **argv)
         }
         CHECK(point(s,b ? 26 : 9,0));CHECK(step(s,HMBTN_PAD_CROSS,error,sizeof(error)));
         for(unsigned i=0;i<90 && s->feed.phase;++i) CHECK(step(s,0,error,sizeof(error)));
-        CHECK(s->house.supplies[stock]==0);CHECK(step(s,HMBTN_PAD_CROSS,error,sizeof(error)));
+        CHECK(s->house.inventory->supplies[stock]==0);CHECK(step(s,HMBTN_PAD_CROSS,error,sizeof(error)));
         for(unsigned i=0;i<90 && s->feed.phase;++i) CHECK(step(s,0,error,sizeof(error)));
-        CHECK(s->house.supplies[stock]==1 && !s->house.held_item.id);
+        CHECK(s->house.inventory->supplies[stock]==1 && !s->house.inventory->held_item.id);
         CHECK(step(s,HMBTN_PAD_CROSS,error,sizeof(error)));
         for(unsigned i=0;i<90 && s->feed.phase;++i) CHECK(step(s,0,error,sizeof(error)));
         CHECK(step(s,HMBTN_PAD_CROSS,error,sizeof(error)));
@@ -72,7 +72,7 @@ int main(int argc,char **argv)
         printf("Feed area %u: withdraw, original animations, bin rendering, return and empty message passed.\n",area);
     }
     CHECK(s->feed.barn[0] && s->feed.coop[0]);
-    hmbtn_farm_clock_advance_notify(&s->clock,1440,world_clock_events,s);
+    hmbtn_farm_clock_advance_notify(&s->session->game.clock,1440,world_clock_events,s);
     CHECK(!s->feed.barn[0] && !s->feed.coop[0]);
     hmbtn_scene_preview_destroy(s);hmbtn_host_close(&host);return 0;
 fail:

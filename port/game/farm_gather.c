@@ -21,7 +21,7 @@ void hmbtn_farm_gather_new_day(HmbtnFarmGather *s)
 bool hmbtn_farm_gather_take(HmbtnFarmGather *s,unsigned location,unsigned season,
     HmbtnHouseInteraction *h,HmbtnFarmCarry *carry,HmbtnIntroActor *p)
 {
-    if(h->held_item.id || carry->phase || p->facing>3) return false;
+    if(h->inventory->held_item.id || carry->phase || p->facing>3) return false;
     static const int step[4][2]={{0,-224},{-224,0},{0,224},{224,0}};
     for(unsigned i=125;i<=172;++i) {
         const unsigned id=hmbtn_farm_gather_item(s,i,location,season);
@@ -30,7 +30,7 @@ bool hmbtn_farm_gather_take(HmbtnFarmGather *s,unsigned location,unsigned season
         if(abs(r->position[0]-p->position[0]-step[p->facing][0])>=200
                 || abs(r->position[2]-p->position[2]-step[p->facing][1])>=200
                 || abs(r->position[1]-p->position[1])>=200) continue;
-        h->held_item=(HmbtnStoredTool){(uint16_t)id,0,1};s->taken[i]=true;
+        h->inventory->held_item=(HmbtnStoredTool){(uint16_t)id,0,1};s->taken[i]=true;
         carry->phase=1;carry->sound=7;p->animation_done=false;
         p->sprite=(HmbtnAnimationPlayer){(uint16_t)(11+p->facing),0,0};return true;
     }

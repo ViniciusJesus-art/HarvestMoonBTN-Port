@@ -14,7 +14,7 @@ static bool number(HmbtnNewGameUI *ui,uint8_t *pixels,unsigned value,unsigned wi
     text[n++]=0xFFFF;
     return hmbtn_ui_text(ui,pixels,text,n,x,y,0,3,error,size);
 }
-static bool sale_list(const HmbtnFeedShop *s,const HmbtnNewGame *g,HmbtnNewGameUI *ui,
+static bool sale_list(const HmbtnFeedShop *s,const HmbtnRegistration *g,HmbtnNewGameUI *ui,
     uint8_t *p,unsigned tick,char *error,size_t size)
 {
     /* shop_record_list: four rows, original name/date/affection icons. */
@@ -47,7 +47,7 @@ static bool sale_list(const HmbtnFeedShop *s,const HmbtnNewGame *g,HmbtnNewGameU
     }
     return true;
 }
-bool hmbtn_feed_shop_ui_draw(const HmbtnFeedShop *s,const HmbtnFarmStatistics *stats,const HmbtnNewGame *registration,
+bool hmbtn_feed_shop_ui_draw(const HmbtnFeedShop *s,const HmbtnEconomy *economy,const HmbtnRegistration *registration,
     HmbtnNewGameUI *ui,uint8_t *p,unsigned tick,char *error,size_t size)
 {
     if(s->phase==HMBTN_SHOP_OFF || s->phase==HMBTN_SHOP_NAME) return true;
@@ -63,7 +63,7 @@ bool hmbtn_feed_shop_ui_draw(const HmbtnFeedShop *s,const HmbtnFarmStatistics *s
     const unsigned length=s->merchant==15 ? WORDS(shop_fodder) : WORDS(shop_chicken_feed);
     hmbtn_window_frame_draw(p,320,240,227,16,79,34);
     if(!hmbtn_ui_text(ui,p,shop_money_title,WORDS(shop_money_title),231,20,0,3,error,size)
-            || !number(ui,p,stats->gold,8,shop_gold_unit,231,34,error,size)) return false;
+            || !number(ui,p,economy->gold,8,shop_gold_unit,231,34,error,size)) return false;
     if(s->phase==HMBTN_SHOP_GREETING || s->phase==HMBTN_SHOP_LEAVE) return true;
     const bool hens=s->merchant==18 && s->poultry;
     const unsigned rows=(hens ? 3u : 1u)+s->medicine_available;

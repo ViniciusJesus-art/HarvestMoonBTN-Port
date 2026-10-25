@@ -13,7 +13,7 @@ static bool original_message(HmbtnScenePreview *s,char *error,size_t size)
     uint8_t record[8192];HmbtnMessage expected;
     const HmbtnTextResourceId id={HMBTN_TEXT_RECORD,1,s->intro.message};
     return hmbtn_text_resource_read(s->data_root,id,record,sizeof(record),error,size)
-        && hmbtn_feed_shop_expand(record,sizeof(record),&s->dialogue)
+        && hmbtn_feed_shop_expand(record,sizeof(record),hmbtn_game_registration_const(&s->session->game))
         && hmbtn_message_open(&expected,record,sizeof(record),error,size)
         && expected.count==s->dialogue.message.count
         && !memcmp(expected.words,s->dialogue.message.words,expected.count*sizeof(*expected.words));
@@ -30,25 +30,25 @@ int main(int argc,char **argv)
         s=hmbtn_scene_area_create_at(host.renderer,argv[1],0,&clock,error,sizeof(error));CHECK(s);
         /* Complete the host handoff before installing friendship fixtures. */
         CHECK(step(s,0,0,error,sizeof(error)));
-        const HmbtnHouseInteraction inventory_before=s->house;
-        for(unsigned i=1;i<HMBTN_VILLAGERS;++i) { s->village.people[i].friendship=100;s->village.people[i].affection=5000; }
+        const HmbtnInventory inventory_before=*s->house.inventory;
+        for(unsigned i=1;i<HMBTN_VILLAGERS;++i) { s->session->village.people[i].friendship=100;s->session->village.people[i].affection=5000; }
         for(unsigned i=0;i<7;++i) s->menu.stats.helper_affection[i]=100;
-        CHECK(hmbtn_farm_visit_trigger(&s->triggers,&s->village,&s->clock,0,s->previous_place,2)==(pie ? 128u : 288u));
-        HmbtnFarmClock wrong=s->clock;wrong.hour=23;
-        CHECK(!hmbtn_farm_visit_trigger(&s->triggers,&s->village,&wrong,0,s->previous_place,2));
+        CHECK(hmbtn_farm_visit_trigger(&s->triggers,&s->session->village,&s->session->game.clock,0,s->previous_place,2)==(pie ? 128u : 288u));
+        HmbtnFarmClock wrong=s->session->game.clock;wrong.hour=23;
+        CHECK(!hmbtn_farm_visit_trigger(&s->triggers,&s->session->village,&wrong,0,s->previous_place,2));
         if(pie) {
-            s->village.people[17].friendship=99;
-            CHECK(!hmbtn_farm_visit_trigger(&s->triggers,&s->village,&s->clock,0,s->previous_place,2));
-            s->village.people[17].friendship=100;s->village.days.count0[8]=3;
-            CHECK(!hmbtn_farm_visit_trigger(&s->triggers,&s->village,&s->clock,0,s->previous_place,2));
-            s->village.days.count0[8]=255;wrong=s->clock;wrong.weekday=1;
-            CHECK(!hmbtn_farm_visit_trigger(&s->triggers,&s->village,&wrong,0,s->previous_place,2));
+            s->session->village.people[17].friendship=99;
+            CHECK(!hmbtn_farm_visit_trigger(&s->triggers,&s->session->village,&s->session->game.clock,0,s->previous_place,2));
+            s->session->village.people[17].friendship=100;s->session->village.days.count0[8]=3;
+            CHECK(!hmbtn_farm_visit_trigger(&s->triggers,&s->session->village,&s->session->game.clock,0,s->previous_place,2));
+            s->session->village.days.count0[8]=255;wrong=s->session->game.clock;wrong.weekday=1;
+            CHECK(!hmbtn_farm_visit_trigger(&s->triggers,&s->session->village,&wrong,0,s->previous_place,2));
         } else {
-            CHECK(!hmbtn_farm_visit_trigger(&s->triggers,&s->village,&s->clock,0,1,2));
-            CHECK(!hmbtn_farm_visit_trigger(&s->triggers,&s->village,&s->clock,0,2,0));
+            CHECK(!hmbtn_farm_visit_trigger(&s->triggers,&s->session->village,&s->session->game.clock,0,1,2));
+            CHECK(!hmbtn_farm_visit_trigger(&s->triggers,&s->session->village,&s->session->game.clock,0,2,0));
         }
         CHECK(step(s,0,0,error,sizeof(error)) && s->visit.active && s->visit.event==(pie ? 128u : 288u));
-        CHECK(s->village.event_actor==&s->intro.mayor && s->village.event_actor_id==17);
+        CHECK(s->session->village.event_actor==&s->intro.mayor && s->session->village.event_actor_id==17);
         bool messages[2042]={0},spoke=false,selected=false,captured=false,exited=false,walked=false;
         unsigned records=0;unsigned last=UINT32_MAX;
         for(unsigned frame=0;frame<7000 && s->visit.active;++frame) {
@@ -73,7 +73,7 @@ int main(int argc,char **argv)
             if(s->control.enabled && s->visit.free && !s->intro.message && s->intro.mayor.position[2]<=3959 && !spoke) {
                 if(timeout) {
                     /* Let the real clock reach the original one-hour deadline. */
-                    CHECK(s->clock.hour<8);
+                    CHECK(s->session->game.clock.hour<8);
                 } else if(leave && !exited) {
                     CHECK(load_area(s,argv[1],80,error,sizeof(error)));s->intro.area=s->area;
                     s->intro.player.position[0]=-90;s->intro.player.position[1]=0;s->intro.player.position[2]=541;
@@ -81,15 +81,15 @@ int main(int argc,char **argv)
                 } else if(!leave) {
                     memcpy(s->intro.player.position,s->intro.mayor.position,sizeof(s->intro.player.position));
                     s->intro.player.position[2]-=300;s->intro.player.facing=2;s->control.mode=0;
-                    CHECK(hmbtn_village_target(&s->village,&s->intro.player)==17);
+                    CHECK(hmbtn_village_target(&s->session->village,&s->intro.player)==17);
                     /* The scripted actor participates in the established NPC probe. */
                     int32_t next[3];memcpy(next,s->intro.player.position,sizeof(next));next[2]+=150;
-                    CHECK(hmbtn_village_blocked(&s->village,s->intro.player.position,next));
+                    CHECK(hmbtn_village_blocked(&s->session->village,s->intro.player.position,next));
                     HmbtnIntroActor runner=s->intro.player;
-                    HmbtnHouseControl probe={.mode=2,.enabled=true,.npc_blocked=hmbtn_village_blocked,.collision_context=&s->village};
-                    for(unsigned i=0;i<8;++i) hmbtn_farm_control_tick(&probe,&runner,&s->scene.terrain,&s->field,HMBTN_PAD_UP);
+                    HmbtnHouseControl probe={.mode=2,.enabled=true,.npc_blocked=hmbtn_village_blocked,.collision_context=&s->session->village};
+                    for(unsigned i=0;i<8;++i) hmbtn_farm_control_tick(&probe,&runner,&s->scene.terrain,&s->session->field,HMBTN_PAD_UP);
                     CHECK(runner.position[2]<s->intro.mayor.position[2]-190);
-                    for(unsigned i=0;i<12;++i) hmbtn_farm_control_tick(&probe,&runner,&s->scene.terrain,&s->field,HMBTN_PAD_UP|HMBTN_PAD_CIRCLE);
+                    for(unsigned i=0;i<12;++i) hmbtn_farm_control_tick(&probe,&runner,&s->scene.terrain,&s->session->field,HMBTN_PAD_UP|HMBTN_PAD_CIRCLE);
                     CHECK(runner.position[2]>s->intro.mayor.position[2]+200);
                     pressed=HMBTN_PAD_CROSS;spoke=true;
                 }
@@ -104,42 +104,42 @@ int main(int argc,char **argv)
                 walked=memcmp(before,s->intro.player.position,sizeof(before))!=0;
             }
             if(s->intro.message) {
-                const HmbtnFarmClock before=s->clock;const int32_t position[3]={s->intro.player.position[0],s->intro.player.position[1],s->intro.player.position[2]};
+                const HmbtnFarmClock before=s->session->game.clock;const int32_t position[3]={s->intro.player.position[0],s->intro.player.position[1],s->intro.player.position[2]};
                 CHECK(step(s,pressed,held,error,sizeof(error)));
-                if(s->intro.message) CHECK(!memcmp(&s->clock,&before,sizeof(before))
+                if(s->intro.message) CHECK(!memcmp(&s->session->game.clock,&before,sizeof(before))
                     && !memcmp(position,s->intro.player.position,sizeof(position)));
             } else CHECK(step(s,pressed,held,error,sizeof(error)));
         }
         CHECK(!s->visit.active && s->intro.script.finished && !s->intro.script.boundary && s->control.enabled);
-        CHECK(!s->village.event_actor && !s->intro.mayor.visible && !s->intro.game_command);
-        CHECK(!s->village.flags[3] && !s->village.flags[4] && !s->village.flags[5] && !s->village.flags[0xB0]);
-        CHECK(!memcmp(&s->house.held_item,&inventory_before.held_item,sizeof(s->house.held_item))
-            && !memcmp(&s->house.equipped,&inventory_before.equipped,sizeof(s->house.equipped))
-            && !memcmp(s->house.bag,inventory_before.bag,sizeof(s->house.bag)));
+        CHECK(!s->session->village.event_actor && !s->intro.mayor.visible && !s->intro.game_command);
+        CHECK(!s->session->village.flags[3] && !s->session->village.flags[4] && !s->session->village.flags[5] && !s->session->village.flags[0xB0]);
+        CHECK(!memcmp(&s->house.inventory->held_item,&inventory_before.held_item,sizeof(s->house.inventory->held_item))
+            && !memcmp(&s->house.inventory->equipped,&inventory_before.equipped,sizeof(s->house.inventory->equipped))
+            && !memcmp(s->house.inventory->bag,inventory_before.bag,sizeof(s->house.inventory->bag)));
         if(pie) {
             CHECK(messages[385] && messages[386] && messages[refuse ? 389 : 387] && selected && spoke);
-            CHECK(messages[388]==!refuse && s->village.flags[203]==!refuse && s->village.flags[379]);
-            CHECK(s->village.people[17].friendship==(refuse ? 80u : 120u) && s->village.days.count0[13]==0);
+            CHECK(messages[388]==!refuse && s->session->village.flags[203]==!refuse && s->session->village.flags[379]);
+            CHECK(s->session->village.people[17].friendship==(refuse ? 80u : 120u) && s->session->village.days.count0[13]==0);
         } else {
-            CHECK(messages[2041] && !s->village.flags[539] && s->village.days.count0[26]==0);
-            if(timeout || leave) CHECK(!selected && !spoke && records==1 && !s->village.flags[217]);
+            CHECK(messages[2041] && !s->session->village.flags[539] && s->session->village.days.count0[26]==0);
+            if(timeout || leave) CHECK(!selected && !spoke && records==1 && !s->session->village.flags[217]);
             else {
                 static const unsigned requests[9]={926,872,898,902,906,910,914,918,922};
-                CHECK(messages[requests[(s->clock.year+1)%9]] && messages[refuse ? 874 : 873] && selected && spoke);
-                CHECK(s->village.flags[217]==!refuse && s->village.people[17].friendship==(refuse ? 80u : 100u));
-                CHECK(s->village.people[3].affection==(refuse ? 4000u : 5000u)
+                CHECK(messages[requests[(s->session->game.clock.year+1)%9]] && messages[refuse ? 874 : 873] && selected && spoke);
+                CHECK(s->session->village.flags[217]==!refuse && s->session->village.people[17].friendship==(refuse ? 80u : 100u));
+                CHECK(s->session->village.people[3].affection==(refuse ? 4000u : 5000u)
                     && s->menu.stats.helper_affection[0]==(refuse ? 80u : 100u));
             }
         }
-        if(timeout) CHECK(s->clock.hour>=7 && records==1);
+        if(timeout) CHECK(s->session->game.clock.hour>=7 && records==1);
         if(leave) CHECK(s->area==80 && exited);
         /* Re-entering on the same date never repeats either visit. */
         if(s->area!=0) { CHECK(load_area(s,argv[1],0,error,sizeof(error)));s->intro.area=0; }
         if(!pie) {
-            HmbtnFarmClock future=s->clock;++future.year;future.hour=6;future.minute=0;
-            s->village.days.count0[26]=1;
-            CHECK(hmbtn_farm_visit_trigger(&s->triggers,&s->village,&future,0,2,2)==288);
-            s->village.days.count0[26]=0;
+            HmbtnFarmClock future=s->session->game.clock;++future.year;future.hour=6;future.minute=0;
+            s->session->village.days.count0[26]=1;
+            CHECK(hmbtn_farm_visit_trigger(&s->triggers,&s->session->village,&future,0,2,2)==288);
+            s->session->village.days.count0[26]=0;
         }
         s->trigger_entry=true;
         for(unsigned i=0;i<40;++i) CHECK(step(s,0,0,error,sizeof(error)) && !s->visit.active);

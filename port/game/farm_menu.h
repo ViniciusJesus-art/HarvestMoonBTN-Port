@@ -4,9 +4,8 @@
 typedef enum HmbtnFarmMenuMode { HMBTN_MENU_NONE,HMBTN_MENU_STATUS,HMBTN_MENU_RUCKSACK } HmbtnFarmMenuMode;
 typedef struct HmbtnStorageSpot { int x,y;uint8_t next[24]; } HmbtnStorageSpot;
 typedef struct HmbtnFarmStatistics {
-    unsigned gold,shipments[25],animals[3],fish,discarded,power_berries;
+    unsigned animals[3],fish,discarded,power_berries;
     unsigned building_score,recipes,dog_affection,helper_affection[7];
-    unsigned ledger[4][2];
 } HmbtnFarmStatistics;
 typedef struct HmbtnFarmMenu {
     HmbtnFarmMenuMode mode;
@@ -18,13 +17,14 @@ typedef struct HmbtnFarmMenu {
     HmbtnMessage message;
     int sound;
     HmbtnFarmStatistics stats;
+    const HmbtnEconomy *economy; /* Borrowed read-only view; no financial snapshot. */
     const struct HmbtnPoultry *poultry; /* Borrow the session records; never a serialized address. */
 } HmbtnFarmMenu;
-void hmbtn_farm_menu_init(HmbtnFarmMenu *menu);
+/* Bind the game's live economy; does not initialize or reset financial data. */
+void hmbtn_farm_menu_init(HmbtnFarmMenu *menu,const HmbtnEconomy *economy);
 bool hmbtn_farm_menu_open(HmbtnFarmMenu *menu,uint32_t pressed);
-void hmbtn_farm_menu_tick(HmbtnFarmMenu *menu,HmbtnHouseInteraction *inventory,uint32_t pressed,uint32_t held);
+void hmbtn_farm_menu_tick(HmbtnFarmMenu *menu,HmbtnInventory *inventory,uint32_t pressed,uint32_t held);
 const HmbtnStorageSpot *hmbtn_storage_spot(unsigned index);
-HmbtnStoredTool *hmbtn_inventory_slot(HmbtnHouseInteraction *inventory,unsigned index);
-bool hmbtn_inventory_swap(HmbtnHouseInteraction *inventory,unsigned from,unsigned to);
-bool hmbtn_inventory_cycle(HmbtnHouseInteraction *inventory,bool tools,bool reverse);
+bool hmbtn_inventory_swap(HmbtnInventory *inventory,unsigned from,unsigned to);
+bool hmbtn_inventory_cycle(HmbtnInventory *inventory,bool tools,bool reverse);
 #endif

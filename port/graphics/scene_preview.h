@@ -20,7 +20,7 @@ HmbtnScenePreview *hmbtn_scene_area_create(SDL_Renderer *renderer,
 HmbtnScenePreview *hmbtn_scene_area_create_at(SDL_Renderer *renderer,
     const char *data_root,unsigned area,const HmbtnFarmClock *clock,char *error,size_t error_size);
 bool hmbtn_scene_preview_take_rumble(HmbtnScenePreview *scene);
-void hmbtn_scene_intro_registration(HmbtnScenePreview *scene, const HmbtnNewGame *registration);
+void hmbtn_scene_intro_registration(HmbtnScenePreview *scene, const HmbtnRegistration *registration);
 void hmbtn_scene_preview_destroy(HmbtnScenePreview *scene);
 bool hmbtn_scene_preview_draw(HmbtnScenePreview *scene, SDL_Renderer *renderer,
     Uint64 elapsed_ns, uint32_t pressed, uint32_t held, char *error, size_t error_size);

@@ -22,6 +22,7 @@ struct HmbtnTitlePreview {
     uint32_t pending_pressed;
     HmbtnTitleFlow flow;
     HmbtnTitleAudio audio;
+    HmbtnGameState game;
     HmbtnNewGame new_game;
     HmbtnNewGameUI *new_game_ui;
     char *data_root;
@@ -206,7 +207,8 @@ bool hmbtn_title_preview_draw(HmbtnTitlePreview *p, SDL_Renderer *renderer,
         random_range(p, 65535); /* main.c advances the generator every game tick. */
         hmbtn_title_flow_tick(&p->flow, p->pending_pressed);
         if (previous == HMBTN_TITLE_NEW_GAME && p->flow.step == HMBTN_TITLE_NEW_GAME_TEXT_OPEN) {
-            hmbtn_new_game_init(&p->new_game);
+            hmbtn_game_state_init(&p->game);
+            hmbtn_new_game_init(&p->new_game,hmbtn_game_registration(&p->game));
             if (!p->new_game_ui) p->new_game_ui = hmbtn_new_game_ui_create(p->data_root,error,error_size);
             if (!p->new_game_ui) return false;
         } else if (p->flow.step >= 11 && p->flow.step <= 28) {
@@ -253,7 +255,7 @@ bool hmbtn_title_preview_draw(HmbtnTitlePreview *p, SDL_Renderer *renderer,
     return true;
 }
 
-const HmbtnNewGame *hmbtn_title_preview_registration(const HmbtnTitlePreview *p)
+const HmbtnRegistration *hmbtn_title_preview_registration(const HmbtnTitlePreview *p)
 {
-    return p && p->new_game.finished ? &p->new_game : NULL;
+    return p && p->new_game.finished ? hmbtn_game_registration_const(&p->game) : NULL;
 }

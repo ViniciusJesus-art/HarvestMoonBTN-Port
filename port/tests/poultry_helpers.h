@@ -85,28 +85,28 @@ static bool idle(HmbtnScenePreview *s,char *error,size_t size)
 }
 static bool ship(HmbtnScenePreview *s,char *error,size_t size)
 {
-    REQUIRE(s->area==0 && s->house.held_item.id);int32_t box[3];REQUIRE(box_position(&s->scene.terrain,box));
-    const unsigned price=(unsigned)hmbtn_farm_item(s->house.held_item.id)->sell_price;
-    const unsigned before=s->shipping.pending_value;
+    REQUIRE(s->area==0 && s->house.inventory->held_item.id);int32_t box[3];REQUIRE(box_position(&s->scene.terrain,box));
+    const unsigned price=(unsigned)hmbtn_farm_item(s->house.inventory->held_item.id)->sell_price;
+    const unsigned before=s->session->game.economy.shipping.pending_value;
     int y=-300,v=0;unsigned flight=0;
     do { y+=v;v+=9;if(v>45) v=45;++flight; } while(y<box[1] && flight<100);
     s->intro.player.position[0]=box[0]-(int32_t)flight*44;s->intro.player.position[1]=0;s->intro.player.position[2]=box[2];
     s->intro.player.facing=3;s->control.mode=0;
     REQUIRE(step(s,HMBTN_PAD_CROSS,error,size));REQUIRE(idle(s,error,size));
     for(unsigned i=0;i<100 && s->carry.thrown[0].item.id;++i) REQUIRE(step(s,0,error,size));
-    REQUIRE(!s->carry.thrown[0].item.id && s->shipping.pending_value==before+price);return true;
+    REQUIRE(!s->carry.thrown[0].item.id && s->session->game.economy.shipping.pending_value==before+price);return true;
 }
 static bool sleep_day(HmbtnScenePreview *s,char *error,size_t size)
 {
-    REQUIRE(s->area==0 && travel(s,80,error,size));const unsigned day=s->clock.day;
+    REQUIRE(s->area==0 && travel(s,80,error,size));const unsigned day=s->session->game.clock.day;
     s->house.mode=HMBTN_HOUSE_SLEEP;
-    for(unsigned i=0;i<1200 && (s->clock.day==day || s->morning_fade);++i) REQUIRE(step(s,0,error,size));
-    REQUIRE(s->clock.day!=day && s->clock.hour==6 && !s->morning_fade && s->area==80);
+    for(unsigned i=0;i<1200 && (s->session->game.clock.day==day || s->morning_fade);++i) REQUIRE(step(s,0,error,size));
+    REQUIRE(s->session->game.clock.day!=day && s->session->game.clock.hour==6 && !s->morning_fade && s->area==80);
     REQUIRE(travel(s,0,error,size));return true;
 }
 static bool merchant(HmbtnScenePreview *s,char *error,size_t size)
 {
-    HmbtnIntroActor *a=&s->village.people[18].actor;REQUIRE(a->visible);
+    HmbtnIntroActor *a=&s->session->village.people[18].actor;REQUIRE(a->visible);
     memcpy(s->intro.player.position,a->position,sizeof(a->position));s->intro.player.position[2]+=350;
     s->intro.player.facing=0;s->control.mode=0;
     REQUIRE(step(s,HMBTN_PAD_CROSS,error,size));REQUIRE(shop_wait(s,HMBTN_SHOP_SELECT,error,size));return true;

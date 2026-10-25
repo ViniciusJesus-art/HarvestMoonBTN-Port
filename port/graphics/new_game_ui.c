@@ -178,7 +178,7 @@ static bool summary(HmbtnNewGameUI *u,const HmbtnNewGame *g,uint8_t *p,char *err
     uint16_t expanded[128];unsigned count=0;
     for(unsigned i=0;i<sizeof(new_game_summary)/2 && count<127;++i) {
         const uint16_t c=new_game_summary[i];
-        const uint16_t *insert=c==0x400a?g->player_name:c==0x400c?g->dog_name:c==0x400d?g->farm_name:NULL;
+        const uint16_t *insert=c==0x400a?g->registration->player_name:c==0x400c?g->registration->dog_name:c==0x400d?g->registration->farm_name:NULL;
         if(insert) {
             for(unsigned j=0;j<HMBTN_NAME_CHARS && insert[j]!=0xffff && count<127;++j) expanded[count++]=insert[j];
         } else expanded[count++]=c;
@@ -193,8 +193,8 @@ static bool summary(HmbtnNewGameUI *u,const HmbtnNewGame *g,uint8_t *p,char *err
             start=i+1;row_y+=13;
         }
     }
-    return icon(u,p,43,g->season,172,72,error,error_size)
-        && number(u,p,g->day+1,188,72,error,error_size);
+    return icon(u,p,43,g->registration->birthday_season,172,72,error,error_size)
+        && number(u,p,g->registration->birthday_day+1,188,72,error,error_size);
 }
 bool hmbtn_new_game_ui_draw(HmbtnNewGameUI *u,const HmbtnNewGame *g,
     unsigned tick,uint8_t *p,char *error,size_t error_size)
@@ -211,8 +211,8 @@ bool hmbtn_new_game_ui_draw(HmbtnNewGameUI *u,const HmbtnNewGame *g,
         if(birthday) {
             hmbtn_window_frame_draw(p,WIDTH,HEIGHT,171,32,133,18);
             if(!text(u,p,birthday_label,sizeof(birthday_label)/2,173,35,0,3,false,error,error_size)) return false;
-            if(g->birthday_phase>=2 && !icon(u,p,43,g->season,253,35,error,error_size)) return false;
-            if(g->birthday_phase>=3 && !number(u,p,g->day+1,277,35,error,error_size)) return false;
+            if(g->birthday_phase>=2 && !icon(u,p,43,g->registration->birthday_season,253,35,error,error_size)) return false;
+            if(g->birthday_phase>=3 && !number(u,p,g->registration->birthday_day+1,277,35,error,error_size)) return false;
             if(g->birthday_phase<3) {
                 hmbtn_window_frame_draw(p,WIDTH,HEIGHT,20,56,279,103);
                 for(unsigned i=0;i<4;++i) {

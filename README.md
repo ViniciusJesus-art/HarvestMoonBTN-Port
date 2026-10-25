@@ -120,6 +120,14 @@ docker run --rm --user "$(id -u):$(id -g)" -v "$PWD":/src:ro -v /tmp/hmbtn-build
 
 The `check` target verifies the hashes of the 14 original binaries. **Once the port or gameplay modifications begin, the original hashes will no longer be valid checks for modified binaries.** Rebuilding the disc image through the original workflow requires your own copy of the disc; refer to the upstream documentation.
 
+
+![HMBTN — captura do projeto 1](./docs/prints/Screenshot_20261024_233235.png)
+
+
+![HMBTN — captura do projeto 1](./docs/prints/Screenshot_20261024_233706.png)
+
+
+
 ## Origins and Credits
 
 This repository is a **fork** of [coalslav/hmbtn-decomp](https://github.com/coalslav/hmbtn-decomp). The decompilation and its initial structure were created by the upstream project. Development of the port will take place separately, and the original authorship history will be preserved.

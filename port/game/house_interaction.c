@@ -8,35 +8,40 @@ static int32_t half(const uint8_t *p)
 {
     const uint16_t v=hmbtn_read_le16(p); return v<32768 ? v : (int32_t)v-65536;
 }
-void hmbtn_house_interaction_init(HmbtnHouseInteraction *h)
+void hmbtn_house_interaction_init(HmbtnHouseInteraction *h,HmbtnGameState *state)
 {
-    memset(h,0,sizeof(*h)); h->day=1; h->weekday=1; h->hour=6;
+    memset(h,0,sizeof(*h));
     h->picked=255; h->sound=-1; h->tv_group=18;
     h->message_bank=3;
     h->options.vibration=h->options.stereo=h->options.clock=true;
-    const uint16_t tools[5]={1,11,6,16,21};
-    for(unsigned i=0;i<5;++i) h->toolbox[i].id=tools[i];
+    h->inventory=hmbtn_game_inventory(state);
+    h->clock=hmbtn_game_clock_const(state);
+    h->registration=hmbtn_game_registration_const(state);
 }
 bool hmbtn_house_expand_reading(const HmbtnHouseInteraction *h, uint8_t *record,
-    size_t size, const uint16_t dog_name[HMBTN_NAME_CHARS+1],
-    const uint16_t farm_name[HMBTN_NAME_CHARS+1])
+    size_t size)
+{
+    return hmbtn_house_expand_item_reading(h,NULL,record,size);
+}
+bool hmbtn_house_expand_item_reading(const HmbtnHouseInteraction *h,
+    const HmbtnStoredTool *selected,uint8_t *record,size_t size)
 {
     /* text_insert_source: dog/farm names and estate stocks in bank-2 signs.
      * Unsupported inserts stay intact for the message parser to reject. */
-    if(!h || !record || size!=8192 || !dog_name || !farm_name) return false;
+    if(!h || !record || size!=8192 || !h->registration) return false;
     uint16_t words[HMBTN_MESSAGE_WORDS]; unsigned count=0;
     for(unsigned i=0;i<HMBTN_MESSAGE_WORDS;++i) {
         const uint16_t c=hmbtn_read_le16(record+0x1800+i*2);
         uint16_t insert[HMBTN_NAME_CHARS+1]; unsigned n=0;
         if(c==0x400c || c==0x400d) {
-            const uint16_t *name=c==0x400c ? dog_name : farm_name;
+            const uint16_t *name=c==0x400c ? h->registration->dog_name : h->registration->farm_name;
             while(n<HMBTN_NAME_CHARS && name[n]!=0xffff) {
                 insert[n]=name[n]; ++n;
             }
         } else if(c==0x4010 || (c>=0x4012 && c<=0x4015)) {
-            if(c==0x4010 && (h->cursor>16 || h->page>=8)) return false;
-            unsigned value=c==0x4010 ? (h->cursor==0 ? h->equipped.count : h->cursor<9 ?
-                h->bag[h->cursor-1].count : h->toolbox[h->page*8+h->cursor-9].count) : h->supplies[c-0x4012];
+            if(c==0x4010 && !selected && (h->cursor>16 || h->page>=8)) return false;
+            unsigned value=c==0x4010 ? (selected ? selected->count : h->cursor==0 ? h->inventory->equipped.count : h->cursor<9 ?
+                h->inventory->bag[h->cursor-1].count : h->inventory->toolbox[h->page*8+h->cursor-9].count) : h->inventory->supplies[c-0x4012];
             unsigned divisor=1000;
             if(value>9999) return false;
             while(divisor>1 && value<divisor) divisor/=10;
@@ -67,28 +72,28 @@ unsigned hmbtn_house_calendar_message(unsigned season, unsigned day)
 void hmbtn_house_tv_program(const HmbtnHouseInteraction *h, unsigned channel,
     unsigned *message, unsigned *group)
 {
-    if(h->hour<6 || h->weather>=3) {
+    if(h->clock->hour<6 || h->weather>=3) {
         *message=h->weather>=3 ? 0x26a : 0x26b;
         *group=h->weather>=3 ? 17u : 16u; return;
     }
     if(channel==0) {
         static const unsigned base[4]={0x26c,0x26e,0x271,0x273};
         *message=h->tomorrow>=3 ? (h->tomorrow==3 ? 0x270u : 0x275u)
-            : base[h->season]+(h->tomorrow!=0);
+            : base[h->clock->season]+(h->tomorrow!=0);
         *group=h->tomorrow>=3 ? h->tomorrow+4 : h->tomorrow==1 ? 5u : h->tomorrow==2 ? 6u : 4u;
     } else if(channel==1 || channel==3) {
-        *message=(channel==1 ? 0x277u : 0x2efu)+h->season*30+h->day;
+        *message=(channel==1 ? 0x277u : 0x2efu)+h->clock->season*30+h->clock->day;
         *group=channel==1 ? 0u : 1u;
-    } else if((h->season==0 && h->day<5) || (h->season==3 && h->day>=28)) {
-        *message=h->day+(h->season==0 ? 610 : 587); *group=10;
+    } else if((h->clock->season==0 && h->clock->day<5) || (h->clock->season==3 && h->clock->day>=28)) {
+        *message=h->clock->day+(h->clock->season==0 ? 610 : 587); *group=10;
     } else {
         static const unsigned rows[7][3]={{40,560,14},{38,520,15},{18,500,3},
             {20,480,12},{35,440,13},{38,400,11},{23,371,9}};
-        const unsigned *r=rows[h->weekday];
-        const int value=(int)(h->year*113+h->season*30+h->day)-5;
+        const unsigned *r=rows[h->clock->weekday];
+        const int value=(int)(h->clock->year*113+h->clock->season*30+h->clock->day)-5;
         const int row=value%((int)r[0]*7)/7;
         *message=(unsigned)((int)r[1]+row); *group=r[2];
-        if(h->weekday==5 && value>=548) ++*message;
+        if(h->clock->weekday==5 && value>=548) ++*message;
     }
 }
 static void request(HmbtnHouseInteraction *h,unsigned message)
@@ -117,7 +122,7 @@ bool hmbtn_house_interact(HmbtnHouseInteraction *h,const uint8_t *section,
             request(h,0x3b0); break;
         case 2: h->mode=HMBTN_HOUSE_BED; h->bed_choice=0; request(h,0x1b7); break;
         case 3: h->mode=HMBTN_HOUSE_TV_SELECT; request(h,0x3a1); break;
-        case 8: h->mode=HMBTN_HOUSE_CALENDAR; h->calendar_day=h->day; request(h,0x3b4); break;
+        case 8: h->mode=HMBTN_HOUSE_CALENDAR; h->calendar_day=h->clock->day; request(h,0x3b4); break;
         case 22: h->mode=HMBTN_HOUSE_TOOLBOX_OPEN; h->pan=0; h->cursor=h->page=0; h->picked=255; h->sound=-1; break;
         case 16: h->mode=HMBTN_HOUSE_BOOK; h->message_bank=2; request(h,(unsigned)half(p+4)); break;
         default: h->sound=-1; return false;
@@ -128,7 +133,7 @@ bool hmbtn_house_interact(HmbtnHouseInteraction *h,const uint8_t *section,
 }
 static HmbtnStoredTool *tool(HmbtnHouseInteraction *h,unsigned cell,unsigned page)
 {
-    return cell==0 ? &h->equipped : cell<9 ? &h->bag[cell-1] : &h->toolbox[page*8+cell-9];
+    return cell==0 ? &h->inventory->equipped : cell<9 ? &h->inventory->bag[cell-1] : &h->inventory->toolbox[page*8+cell-9];
 }
 static void close_menu(HmbtnHouseInteraction *h)
 {
@@ -289,7 +294,7 @@ void hmbtn_house_interaction_tick(HmbtnHouseInteraction *h,uint32_t pressed,uint
         else if(pressed&HMBTN_PAD_RIGHT) day=(day+1)%30;
         if((unsigned)day!=h->calendar_day) { h->calendar_day=(unsigned)day; h->sound=5; }
         if(pressed&(HMBTN_PAD_CROSS|HMBTN_PAD_TRIANGLE)) {
-            h->detail=true; request(h,hmbtn_house_calendar_message(h->season,h->calendar_day)); h->sound=0;
+            h->detail=true; request(h,hmbtn_house_calendar_message(h->clock->season,h->calendar_day)); h->sound=0;
         }
     } else if(h->mode==HMBTN_HOUSE_TOOLBOX) {
         if(h->detail) { h->detail=false; request(h,0x3ad); return; }
@@ -309,8 +314,8 @@ void hmbtn_house_interaction_tick(HmbtnHouseInteraction *h,uint32_t pressed,uint
         } else if(pressed&HMBTN_PAD_SELECT) {
             if(h->picked!=255) { h->sound=2; return; }
             unsigned write=0;
-            for(unsigned i=0;i<64;++i) if(h->toolbox[i].id) h->toolbox[write++]=h->toolbox[i];
-            while(write<64) h->toolbox[write++]=(HmbtnStoredTool){0};
+            for(unsigned i=0;i<64;++i) if(h->inventory->toolbox[i].id) h->inventory->toolbox[write++]=h->inventory->toolbox[i];
+            while(write<64) h->inventory->toolbox[write++]=(HmbtnStoredTool){0};
             h->sound=0;
         } else if(pressed&HMBTN_PAD_TRIANGLE) {
             const unsigned id=tool(h,h->cursor,h->page)->id;

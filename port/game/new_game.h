@@ -4,8 +4,9 @@
 #include <stddef.h>
 #include <stdint.h>
 #include "pad_buttons.h"
+#include "game_state.h"
 
-enum { HMBTN_MESSAGE_WORDS = 1024, HMBTN_NAME_CHARS = 8 };
+enum { HMBTN_MESSAGE_WORDS = 1024 };
 typedef enum HmbtnMessagePhase {
     HMBTN_MESSAGE_CLOSED, HMBTN_MESSAGE_OPENING, HMBTN_MESSAGE_PRINTING,
     HMBTN_MESSAGE_WAIT_PAGE, HMBTN_MESSAGE_WAIT_END, HMBTN_MESSAGE_CLOSING,
@@ -26,15 +27,16 @@ typedef struct HmbtnNewGame {
     unsigned request, queued, loaded;
     HmbtnMessage message;
     uint16_t name[HMBTN_NAME_CHARS + 1]; /* Current editor buffer. */
-    uint16_t player_name[HMBTN_NAME_CHARS + 1], farm_name[HMBTN_NAME_CHARS + 1], dog_name[HMBTN_NAME_CHARS + 1];
-    unsigned birthday_phase, birthday_value, season, day, fade;
+    HmbtnRegistration *registration; /* Borrowed; NULL for the animal-name editor. */
+    unsigned birthday_phase, birthday_value, fade;
     bool finished;
     unsigned length, cell, grid, choice, repeat_frames;
     uint32_t previous_held;
     bool confirming, dirty, repeating,no_cancel;
     int sound; /* Original bank-0 tone; -1 = no request. */
 } HmbtnNewGame;
-void hmbtn_new_game_init(HmbtnNewGame *game);
+/* Recreate editor/dialogue state without resetting the borrowed registration. */
+void hmbtn_new_game_init(HmbtnNewGame *game,HmbtnRegistration *registration);
 /* Reuse the original eight-glyph editor for an animal; step 102 holds its result. */
 void hmbtn_name_editor_begin(HmbtnNewGame *game);
 bool hmbtn_message_open(HmbtnMessage *message, const uint8_t *record, size_t size,

@@ -18,10 +18,10 @@ int main(int argc,char **argv)
     CHECK(hmbtn_host_open(&host));
     s=hmbtn_scene_area_create(host.renderer,argv[1],0,error,sizeof(error));CHECK(s);
     for(unsigned i=0;i<110;++i) CHECK(step(s,0,error,sizeof(error)));
-    s->house.bag[0]=(HmbtnStoredTool){21,0,73};s->shipping.pending_value=60;
+    s->house.inventory->bag[0]=(HmbtnStoredTool){21,0,73};s->session->game.economy.shipping.pending_value=60;
     const unsigned buildings[]={92,96,112};
     for(unsigned season=0;season<4;++season) for(unsigned b=0;b<3;++b) {
-        s->clock=(HmbtnFarmClock){0,season,1,1,12,0,0};sync_clock(s);
+        s->session->game.clock=(HmbtnFarmClock){0,season,1,1,12,0,0};
         CHECK(load_area(s,s->data_root,0,error,sizeof(error)));s->intro.area=0;
         const uint8_t *door=NULL;
         for(unsigned i=0;i<50;++i) {
@@ -40,16 +40,16 @@ int main(int argc,char **argv)
         for(unsigned i=0;i<100 && (s->area==0 || s->travel_tick);++i) CHECK(step(s,0,error,sizeof(error)));
         CHECK(s->area==buildings[b] && !s->control.exit_pending && !s->door_tick && s->control.enabled);
         CHECK(hmbtn_farm_clock_place_held(s->section,16));
-        HmbtnFarmClock clock=s->clock;
+        HmbtnFarmClock clock=s->session->game.clock;
         for(unsigned i=0;i<30;++i) CHECK(step(s,0,error,sizeof(error)));
-        CHECK(memcmp(&clock,&s->clock,sizeof(clock))==0);
+        CHECK(memcmp(&clock,&s->session->game.clock,sizeof(clock))==0);
         CHECK(hmbtn_scene_preview_draw(s,host.renderer,0,0,0,error,sizeof(error)));
         const uint8_t *exit=s->section+16;
         for(unsigned a=0;a<3;++a) s->intro.player.position[a]=(half(exit+14+a*2)+half(exit+20+a*2))/2;
         CHECK(step(s,0,error,sizeof(error)) && s->travel_tick);
         for(unsigned i=0;i<30 && s->travel_tick;++i) CHECK(step(s,0,error,sizeof(error)));
         CHECK(s->area==0 && !s->control.exit_pending && !s->first_visit_active);
-        CHECK(s->house.bag[0].id==21 && s->house.bag[0].count==73 && s->shipping.pending_value==60);
+        CHECK(s->house.inventory->bag[0].id==21 && s->house.inventory->bag[0].count==73 && s->session->game.economy.shipping.pending_value==60);
         printf("Farm building %u season %u: door, terrain, render, paused clock and return passed.\n",buildings[b],season);
     }
     hmbtn_scene_preview_destroy(s);hmbtn_host_close(&host);return 0;

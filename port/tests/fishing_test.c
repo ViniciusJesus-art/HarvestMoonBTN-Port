@@ -52,7 +52,7 @@ int main(void)
     CHECK(hmbtn_fishing_roll(&f,&c,flags)==161 && !f.streak);
     uint8_t b[88];plane(b,2);HmbtnModel ground;
     CHECK(hmbtn_model_open(&ground,b,sizeof(b),error,sizeof(error)));
-    HmbtnHouseInteraction h;hmbtn_house_interaction_init(&h);h.equipped.id=56;
+    HmbtnHouseInteraction h;HmbtnGameState h_state;hmbtn_game_state_init(&h_state);hmbtn_house_interaction_init(&h,&h_state);h.inventory->equipped.id=56;
     HmbtnFarmAction status;hmbtn_farm_action_init(&status);HmbtnIntroActor p={0};
     c=(HmbtnFarmClock){0,0,1,1,6,0,0};f=(HmbtnFishing){0};
     CHECK(hmbtn_fishing_tick(&f,&p,&h,&status,&ground,&c,44,flags,HMBTN_PAD_SQUARE,HMBTN_PAD_SQUARE));
@@ -63,23 +63,23 @@ int main(void)
     CHECK(f.phase==HMBTN_FISHING_WAIT && f.water && f.kind==0 && status.stamina==99);
     CHECK(hmbtn_fishing_tick(&f,&p,&h,&status,&ground,&c,44,flags,0,0) && f.phase==HMBTN_FISHING_REEL);
     p.animation_done=true;CHECK(hmbtn_fishing_tick(&f,&p,&h,&status,&ground,&c,44,flags,0,0));
-    CHECK(f.phase==HMBTN_FISHING_FREE && !f.marker_visible && !h.held_item.id);
+    CHECK(f.phase==HMBTN_FISHING_FREE && !f.marker_visible && !h.inventory->held_item.id);
     /* A missed bite returns to waiting; releasing Square while hooked reels a catch. */
     f.phase=HMBTN_FISHING_HOOKED;f.pull=0;
     CHECK(hmbtn_fishing_tick(&f,&p,&h,&status,&ground,&c,44,flags,0,HMBTN_PAD_SQUARE) && f.phase==HMBTN_FISHING_WAIT);
     f.phase=HMBTN_FISHING_HOOKED;f.random=54;
     CHECK(hmbtn_fishing_tick(&f,&p,&h,&status,&ground,&c,44,flags,0,0) && f.phase==HMBTN_FISHING_CATCH);
     p.animation_done=true;CHECK(hmbtn_fishing_tick(&f,&p,&h,&status,&ground,&c,44,flags,0,0));
-    CHECK(f.phase==HMBTN_FISHING_RECEIVE && f.caught==161 && !h.held_item.id && !f.using_action);
+    CHECK(f.phase==HMBTN_FISHING_RECEIVE && f.caught==161 && !h.inventory->held_item.id && !f.using_action);
     p.animation_done=true;CHECK(hmbtn_fishing_tick(&f,&p,&h,&status,&ground,&c,44,flags,0,0));
-    CHECK(f.phase==HMBTN_FISHING_FREE && h.held_item.id==161 && h.held_item.count==1);
+    CHECK(f.phase==HMBTN_FISHING_FREE && h.inventory->held_item.id==161 && h.inventory->held_item.count==1);
     /* The unique berry really raises maximum stamina, refills and is consumed. */
-    h.held_item=(HmbtnStoredTool){0};memset(flags,0,sizeof(flags));c.season=3;
+    h.inventory->held_item=(HmbtnStoredTool){0};memset(flags,0,sizeof(flags));c.season=3;
     f.phase=HMBTN_FISHING_CATCH;f.random=54;status.fatigue=10;p.animation_done=true;
     CHECK(hmbtn_fishing_tick(&f,&p,&h,&status,&ground,&c,44,flags,0,0) && f.caught==103 && flags[0x53]);
     p.animation_done=true;CHECK(hmbtn_fishing_tick(&f,&p,&h,&status,&ground,&c,44,flags,0,0) && f.phase==HMBTN_FISHING_EAT);
     p.animation_done=true;CHECK(hmbtn_fishing_tick(&f,&p,&h,&status,&ground,&c,44,flags,0,0));
-    CHECK(f.berry_eaten && status.max_stamina==110 && status.stamina==110 && status.fatigue==9 && !h.held_item.id);
+    CHECK(f.berry_eaten && status.max_stamina==110 && status.stamina==110 && status.fatigue==9 && !h.inventory->held_item.id);
     c.hour=12;f.random=54;CHECK(hmbtn_fishing_roll(&f,&c,flags)==0 && flags[0x53]);
     /* A king is released and its print is shown/stored without filling the bag. */
     f.phase=HMBTN_FISHING_CATCH;f.kind=3;f.random=23;p.animation_done=true;
@@ -88,17 +88,17 @@ int main(void)
     p.animation_done=true;CHECK(hmbtn_fishing_tick(&f,&p,&h,&status,&ground,&c,66,flags,0,0));
     for(unsigned i=0;i<200 && f.phase==HMBTN_FISHING_RELEASE_FLIGHT;++i)
         CHECK(hmbtn_fishing_tick(&f,&p,&h,&status,&ground,&c,66,flags,0,0));
-    CHECK(f.phase==HMBTN_FISHING_PRINT && f.shown==127 && !h.held_item.id);
+    CHECK(f.phase==HMBTN_FISHING_PRINT && f.shown==127 && !h.inventory->held_item.id);
     p.animation_done=true;CHECK(hmbtn_fishing_tick(&f,&p,&h,&status,&ground,&c,66,flags,0,0));
     for(unsigned i=0;i<31;++i) CHECK(hmbtn_fishing_tick(&f,&p,&h,&status,&ground,&c,66,flags,0,0));
     CHECK(f.phase==HMBTN_FISHING_PRINT_STORE);p.animation_done=true;
     CHECK(hmbtn_fishing_tick(&f,&p,&h,&status,&ground,&c,66,flags,0,0) && f.phase==HMBTN_FISHING_FREE);
-    CHECK(flags[0x56] && (f.catch_flags&0x10) && !h.items[0].id);
-    HmbtnFarmCarry carry={0};HmbtnFarmShipping shipping={0};HmbtnFarmStatistics stats={0};carry.area=56;
+    CHECK(flags[0x56] && (f.catch_flags&0x10) && !h.inventory->items[0].id);
+    HmbtnFarmCarry carry={0};HmbtnEconomy economy={0};carry.area=56;
     carry.thrown[0]=(HmbtnThrownItem){{163,0,1},{0,1,0},0,0,0,56};
-    hmbtn_farm_carry_flight(&carry,NULL,&ground,&shipping,&stats);
+    hmbtn_farm_carry_flight(&carry,NULL,&ground,&economy);
     CHECK(carry.small_fish_placed && !carry.thrown[0].item.id);
-    hmbtn_farm_carry_flight(&carry,NULL,&ground,&shipping,&stats);CHECK(!carry.small_fish_placed);
+    hmbtn_farm_carry_flight(&carry,NULL,&ground,&economy);CHECK(!carry.small_fish_placed);
     /* Dry ground, pond and invalid water all wind the cast up without a catch. */
     const unsigned invalid[]={0,4,0x40};
     for(unsigned j=0;j<3;++j) {

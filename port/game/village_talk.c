@@ -1,6 +1,7 @@
 /* event_commands.c: comparisons deliberately return 1 when the rule FAILS. */
 #include "village_talk.h"
 #include "item_reaction.h"
+#include "event_item.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -30,8 +31,8 @@ static bool value(HmbtnVillageTalk *t,int var,int element,int32_t *out)
     HmbtnVillager *p=person(element) ? &v->people[element] : NULL;
     if(var>=49 && var-48<HMBTN_VILLAGE_FLAGS) { *out=v->flags[var-48];return true; }
     switch(var) {
-    case 3:*out=(int32_t)t->registration->season;break;
-    case 4:*out=(int32_t)t->registration->day;break;
+    case 3:*out=(int32_t)t->registration->birthday_season;break;
+    case 4:*out=(int32_t)t->registration->birthday_day;break;
     case 10:*out=(int32_t)c->hour;break;
     case 11:*out=(int32_t)c->weekday;break;
     case 12:*out=(int32_t)c->year+1;break;
@@ -93,8 +94,8 @@ static void birthday(const HmbtnVillageTalk *t,unsigned id,int *season,int *day)
         *season=birthdays[i][1];*day=birthdays[i][2];return;
     }
     for(unsigned i=0;i<5;++i) if((unsigned)bride_birthdays[0][i][0]==id) {
-        const unsigned alternate=t->registration->season==(unsigned)bride_birthdays[0][i][1]
-            && t->registration->day==(unsigned)bride_birthdays[0][i][2];
+        const unsigned alternate=t->registration->birthday_season==(unsigned)bride_birthdays[0][i][1]
+            && t->registration->birthday_day==(unsigned)bride_birthdays[0][i][2];
         *season=bride_birthdays[alternate][i][1];*day=bride_birthdays[alternate][i][2];return;
     }
 }
@@ -149,20 +150,9 @@ static HmbtnEventResult command(void *context,const HmbtnEventCommand *c,char *e
             item=(int)((uint32_t)t->slots[item]&0xFFFFu);
             if(item>=32768) item-=65536;
         }
-        done=false;
-        if((where!=0 && where!=1) || which<0 || which>2) goto boundary;
-        for(int kind=0;kind<=which;++kind) {
-            HmbtnStoredTool *items=NULL;unsigned count=0;
-            if(kind==0) { items=where ? &t->inventory->held_item : &t->inventory->equipped;count=1; }
-            if(kind==1) { items=where ? t->inventory->items : t->inventory->bag;
-                count=t->inventory->rucksack_level<=2 ? 2u<<t->inventory->rucksack_level : 0; }
-            if(kind==2 && where==0) { items=t->inventory->toolbox;count=64; }
-            if(kind==2 && where==1) goto boundary; /* Fridge not represented in this session. */
-            for(unsigned i=0;i<count;++i) if(items[i].id==item) {
-                done=true;
-                if(c->type==30 && (y&1)) items[i]=(HmbtnStoredTool){0};
-            }
-        }
+        const int found=hmbtn_event_items_take(t->inventory,item,where,which,c->type==30 && (y&1) ? 1u : 0u);
+        if(found<0) goto boundary;
+        done=found!=0;
         break;
     }
     case 32: { /* event_item_store: equipped, rucksack, then optional toolbox. */
@@ -223,7 +213,7 @@ static HmbtnEventResult command(void *context,const HmbtnEventCommand *c,char *e
         t->script.pc=(unsigned)t->slots[v];return HMBTN_EVENT_JUMP;
     case 81:
         if(v==22) {
-            if(t->inventory->event_count1<15) ++t->inventory->event_count1;
+            if(t->house->event_count1<15) ++t->house->event_count1;
             break;
         }
         /* Only queries of initial-state systems; shops/story mutations are boundaries. */
@@ -259,8 +249,9 @@ bool hmbtn_village_talk_range(unsigned id,uint32_t *offset,size_t *size)
 }
 bool hmbtn_village_talk_open(HmbtnVillageTalk *t,unsigned id,const uint8_t *data,size_t size,
     HmbtnVillage *v,const HmbtnIntroActor *player,const HmbtnFarmClock *clock,
-    const HmbtnNewGame *registration,HmbtnHouseInteraction *inventory,char *error,size_t error_size)
+    const HmbtnRegistration *registration,HmbtnHouseInteraction *house,char *error,size_t error_size)
 {
+    HmbtnInventory *inventory=house ? house->inventory : NULL;
     HmbtnEventBlock block;const uint8_t *code;size_t length;
     if(!t || !person((int)id) || !v || !player || !clock || !registration || !inventory || inventory->held_item.id>=380
             || !hmbtn_event_block_open(&block,data,size,error,error_size)
@@ -269,18 +260,14 @@ bool hmbtn_village_talk_open(HmbtnVillageTalk *t,unsigned id,const uint8_t *data
     memset(t,0,sizeof(*t));memcpy(t->code,code,length);
     if(!hmbtn_event_script_open(&t->script,t->code,length,error,error_size)) return false;
     memcpy(t->saved_flags,v->flags,sizeof(t->saved_flags));t->saved_days=v->days;
-    t->saved_equipped=inventory->equipped;
-    memcpy(t->saved_bag,inventory->bag,sizeof(t->saved_bag));
-    memcpy(t->saved_toolbox,inventory->toolbox,sizeof(t->saved_toolbox));
-    t->saved_held_item=inventory->held_item;
-    t->saved_event_count1=inventory->event_count1;
-    memcpy(t->saved_items,inventory->items,sizeof(t->saved_items));
+    t->saved_inventory=*inventory;
+    t->saved_event_count1=house->event_count1;
     for(unsigned i=0;i<HMBTN_VILLAGERS;++i) {
         t->saved_people[i].flags=v->people[i].talk_flags;t->saved_people[i].affection=v->people[i].affection;
         t->saved_people[i].friendship=v->people[i].friendship;
     }
     t->target=id;t->saved_facing=v->people[id].actor.facing;t->village=v;t->player=player;
-    t->clock=clock;t->registration=registration;t->inventory=inventory;t->active=true;return true;
+    t->clock=clock;t->registration=registration;t->inventory=inventory;t->house=house;t->active=true;return true;
 }
 bool hmbtn_village_talk_tick(HmbtnVillageTalk *t,char *error,size_t size)
 {
@@ -295,12 +282,15 @@ bool hmbtn_village_talk_tick(HmbtnVillageTalk *t,char *error,size_t size)
                 t->village->people[i].affection=t->saved_people[i].affection;
                 t->village->people[i].friendship=t->saved_people[i].friendship;
             }
-            t->inventory->equipped=t->saved_equipped;
-            memcpy(t->inventory->bag,t->saved_bag,sizeof(t->saved_bag));
-            memcpy(t->inventory->toolbox,t->saved_toolbox,sizeof(t->saved_toolbox));
-            t->inventory->held_item=t->saved_held_item;
-            t->inventory->event_count1=t->saved_event_count1;
-            memcpy(t->inventory->items,t->saved_items,sizeof(t->saved_items));
+            /* Preserve the existing rollback scope: item stores only. Capacity
+             * and supplies are not mutated by these conversation commands. */
+            HmbtnInventory *live=t->inventory;
+            live->equipped=t->saved_inventory.equipped;
+            memcpy(live->bag,t->saved_inventory.bag,sizeof(live->bag));
+            memcpy(live->toolbox,t->saved_inventory.toolbox,sizeof(live->toolbox));
+            live->held_item=t->saved_inventory.held_item;
+            memcpy(live->items,t->saved_inventory.items,sizeof(live->items));
+            t->house->event_count1=t->saved_event_count1;
             t->show_tool=t->show_frames=0;
         }
         HmbtnIntroActor *a=&t->village->people[t->target].actor;

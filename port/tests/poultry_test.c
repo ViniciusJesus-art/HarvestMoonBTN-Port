@@ -1,3 +1,4 @@
+#include "farm_menu.h"
 #include "poultry.h"
 #include <stdio.h>
 #include <string.h>
@@ -15,13 +16,13 @@ int main(void)
     CHECK(!p.eggs[0].item && !feed.coop[3] && p.hens[0].fed_yesterday && p.hens[0].affection==20);
     feed.coop[1]=feed.coop[4]=true;++clock.day;hmbtn_poultry_new_day(&p,&feed,&clock);
     CHECK(p.eggs[0].item==0x122 && !feed.coop[1] && feed.coop[4] && p.hens[0].affection==30);
-    HmbtnHouseInteraction inventory;hmbtn_house_interaction_init(&inventory);HmbtnFarmCarry carry={0};HmbtnIntroActor player={0};
+    HmbtnHouseInteraction inventory;HmbtnGameState inventory_state;hmbtn_game_state_init(&inventory_state);hmbtn_house_interaction_init(&inventory,&inventory_state);HmbtnFarmCarry carry={0};HmbtnIntroActor player={0};
     memcpy(player.position,p.eggs[0].position,sizeof(player.position));player.position[2]+=224;
     CHECK(hmbtn_poultry_take_egg(&p,112,&inventory,&carry,&player));
-    CHECK(inventory.held_item.id==0x122 && !p.eggs[0].item && carry.phase==1);
+    CHECK(inventory.inventory->held_item.id==0x122 && !p.eggs[0].item && carry.phase==1);
     CHECK(!hmbtn_poultry_take_egg(&p,112,&inventory,&carry,&player));
     player.animation_done=true;CHECK(hmbtn_farm_carry_tick(&carry,&inventory,NULL,&player,0));
-    CHECK(!carry.phase && hmbtn_inventory_cycle(&inventory,false,false) && !inventory.held_item.id);
+    CHECK(!carry.phase && hmbtn_inventory_cycle(inventory.inventory,false,false) && !inventory.inventory->held_item.id);
     p.hens[0].affection=100;feed.coop[4]=false;++clock.day;hmbtn_poultry_new_day(&p,&feed,&clock);
     CHECK(p.eggs[0].item==0x123 && p.hens[0].affection==80 && !p.hens[0].fed_yesterday);
     ++clock.day;hmbtn_poultry_new_day(&p,&feed,&clock);CHECK(!p.eggs[0].item && p.hens[0].affection==60);
@@ -73,38 +74,39 @@ int main(void)
     HmbtnFarmAction action;hmbtn_farm_action_init(&action);
     HmbtnPoultry medicine={0};CHECK(hmbtn_poultry_buy(&medicine,name,&clock));
     CHECK(hmbtn_poultry_buy(&medicine,name,&clock));
-    inventory=(HmbtnHouseInteraction){0};inventory.hour=12;
+    inventory_state.inventory=(HmbtnInventory){0};
+    hmbtn_house_interaction_init(&inventory,&inventory_state);inventory_state.clock.hour=12;
     const int delta[4][2]={{0,-128},{-128,0},{0,128},{128,0}};
     for(unsigned facing=0;facing<4;++facing) {
         player=(HmbtnIntroActor){0};player.facing=facing;
         memcpy(player.position,medicine.hens[0].actor.position,sizeof(player.position));
         player.position[0]-=delta[facing][0];player.position[2]-=delta[facing][1];
-        inventory.equipped=(HmbtnStoredTool){0x1E,0,2};medicine.hens[0].days_sick=2;medicine.hens[1].days_sick=3;
+        inventory.inventory->equipped=(HmbtnStoredTool){0x1E,0,2};medicine.hens[0].days_sick=2;medicine.hens[1].days_sick=3;
         CHECK(hmbtn_poultry_medicine_tick(&medicine,112,&action,&player,&inventory,HMBTN_PAD_SQUARE));
         CHECK(action.phase==HMBTN_FARM_MEDICINE && action.bank==22 && action.bank_pending
-            && action.target==0 && player.sprite.animation==facing && inventory.equipped.count==2);
+            && action.target==0 && player.sprite.animation==facing && inventory.inventory->equipped.count==2);
         CHECK(hmbtn_poultry_medicine_tick(&medicine,112,&action,&player,&inventory,HMBTN_PAD_SQUARE));
-        CHECK(medicine.hens[0].days_sick==2 && inventory.equipped.count==2);
+        CHECK(medicine.hens[0].days_sick==2 && inventory.inventory->equipped.count==2);
         player.animation_done=true;
         CHECK(hmbtn_poultry_medicine_tick(&medicine,112,&action,&player,&inventory,0));
         CHECK(!medicine.hens[0].days_sick && medicine.hens[1].days_sick==3 && medicine.hens[0].praise==45
-            && action.finished_bank && action.changed && action.sound==17 && inventory.equipped.count==1);
+            && action.finished_bank && action.changed && action.sound==17 && inventory.inventory->equipped.count==1);
         CHECK(action.stamina==100 && !action.fatigue && action.phase==HMBTN_FARM_ACTION_FREE);
     }
     /* A miss still consumes one dose. The target is latched, never reacquired. */
-    player.position[0]=10000;inventory.equipped=(HmbtnStoredTool){0x1E,0,1};
+    player.position[0]=10000;inventory.inventory->equipped=(HmbtnStoredTool){0x1E,0,1};
     medicine.hens[0].days_sick=2;
     CHECK(hmbtn_poultry_medicine_tick(&medicine,112,&action,&player,&inventory,HMBTN_PAD_SQUARE) && action.target==HMBTN_HENS);
     player.position[0]=medicine.hens[0].actor.position[0];player.animation_done=true;
     CHECK(hmbtn_poultry_medicine_tick(&medicine,112,&action,&player,&inventory,0));
-    CHECK(medicine.hens[0].days_sick==2 && !inventory.equipped.id && !action.changed);
-    inventory.equipped=(HmbtnStoredTool){0x1E,0,1};inventory.held_item.id=0x122;
+    CHECK(medicine.hens[0].days_sick==2 && !inventory.inventory->equipped.id && !action.changed);
+    inventory.inventory->equipped=(HmbtnStoredTool){0x1E,0,1};inventory.inventory->held_item.id=0x122;
     CHECK(!hmbtn_poultry_medicine_tick(&medicine,112,&action,&player,&inventory,HMBTN_PAD_SQUARE));
-    inventory.held_item.id=0;action.fatigue=100;
+    inventory.inventory->held_item.id=0;action.fatigue=100;
     CHECK(!hmbtn_poultry_medicine_tick(&medicine,112,&action,&player,&inventory,HMBTN_PAD_SQUARE));
-    action.fatigue=0;inventory.hour=23;inventory.weather=1;action.stamina=0;
+    action.fatigue=0;inventory_state.clock.hour=23;inventory.weather=1;action.stamina=0;
     CHECK(hmbtn_poultry_medicine_tick(NULL,112,&action,&player,&inventory,HMBTN_PAD_SQUARE));
     player.animation_done=true;CHECK(hmbtn_poultry_medicine_tick(NULL,112,&action,&player,&inventory,0));
-    CHECK(action.fatigue==4 && !inventory.equipped.id && medicine.hens[0].days_sick==2);
+    CHECK(action.fatigue==4 && !inventory.inventory->equipped.id && medicine.hens[0].days_sick==2);
     puts("Coop feeding, eggs, lifecycle, death, medicine targeting, consumption, fatigue and message lists passed.");return 0;
 }

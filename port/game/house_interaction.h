@@ -2,6 +2,7 @@
 #define HMBTN_HOUSE_INTERACTION_H
 #include "house_control.h"
 #include "new_game.h"
+#include "game_state.h"
 typedef enum HmbtnHouseMode {
     HMBTN_HOUSE_FREE, HMBTN_HOUSE_TV_SELECT, HMBTN_HOUSE_TV,
     HMBTN_HOUSE_CALENDAR, HMBTN_HOUSE_TOOLBOX_OPEN, HMBTN_HOUSE_TOOLBOX,
@@ -13,29 +14,31 @@ typedef struct HmbtnHouseOptions {
     unsigned idle_frames;
     bool vibration, stereo, clock, rotated, rumble;
 } HmbtnHouseOptions;
-typedef struct HmbtnStoredTool { uint16_t id, modifier, count; } HmbtnStoredTool;
 typedef struct HmbtnHouseInteraction {
     HmbtnHouseMode mode;
     HmbtnMessage message;
     unsigned request, loaded, message_bank, tv_channel, tv_group, tv_ticks;
-    unsigned year, season, day, weekday, hour, minute, weather, tomorrow;
+    unsigned weather, tomorrow;
     unsigned calendar_day, cursor, page, picked, picked_page, pan;
     unsigned steps;
     unsigned event_count1; /* Original player.counts70[1], capped at 15. */
-    unsigned supplies[4]; /* Fodder, lumber, chicken feed, fish food. */
-    HmbtnStoredTool equipped, bag[8], toolbox[64];
-    HmbtnStoredTool held_item, items[8];
-    unsigned rucksack_level;
+    HmbtnInventory *inventory; /* Borrowed from HmbtnGameState; never owned/reset by UI. */
+    const HmbtnFarmClock *clock;
+    const HmbtnRegistration *registration;
     HmbtnHouseOptions options;
     unsigned bed_choice, boundary; /* 1 overnight, 2 diary/load, 3 livestock. */
     bool save_requested;
     int sound;
     bool detail, closing, tv_dirty;
 } HmbtnHouseInteraction;
-void hmbtn_house_interaction_init(HmbtnHouseInteraction *house);
+/* Bind live domain views; never reset inventory, clock or registration. */
+void hmbtn_house_interaction_init(HmbtnHouseInteraction *house,HmbtnGameState *state);
 bool hmbtn_house_expand_reading(const HmbtnHouseInteraction *house, uint8_t *record,
-    size_t size, const uint16_t dog_name[HMBTN_NAME_CHARS+1],
-    const uint16_t farm_name[HMBTN_NAME_CHARS+1]);
+    size_t size);
+/* An item description can select a record without temporarily equipping it.
+ * NULL selects the normal house cursor/page; this function only reads state. */
+bool hmbtn_house_expand_item_reading(const HmbtnHouseInteraction *house,
+    const HmbtnStoredTool *selected,uint8_t *record,size_t size);
 bool hmbtn_house_interact(HmbtnHouseInteraction *house, const uint8_t *section,
     size_t size, const HmbtnIntroActor *player);
 void hmbtn_house_interaction_tick(HmbtnHouseInteraction *house, uint32_t pressed, uint32_t held);

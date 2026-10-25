@@ -21,7 +21,7 @@ static unsigned passages(const HmbtnScenePreview *s,Passage out[50])
         for(unsigned a=0;a<3;++a) point[a]=(half(p+14+a*2)+half(p+20+a*2))/2;
         HmbtnHouseExit exit;unsigned logical,resource;
         if(!hmbtn_house_exit_at(s->section,s->scene.terrain.size+0x2000,point,&exit) || exit.zone!=i
-                || !hmbtn_world_area(exit.target,s->clock.season,&logical,&resource)) continue;
+                || !hmbtn_world_area(exit.target,s->session->game.clock.season,&logical,&resource)) continue;
         Passage *link=&out[count++];link->exit=exit;link->facing=hmbtn_read_le16(p+8);
         for(unsigned a=0;a<3;++a) { link->min[a]=half(p+14+a*2);link->max[a]=half(p+20+a*2); }
     }
@@ -31,7 +31,7 @@ static bool walk(HmbtnScenePreview *s,const Passage *link,char *error,size_t siz
 {
     static const uint32_t buttons[4]={HMBTN_PAD_DOWN,HMBTN_PAD_LEFT,HMBTN_PAD_UP,HMBTN_PAD_RIGHT};
     const unsigned from=s->area,face=link->facing;unsigned logical,resource;
-    REQUIRE(face<4 && hmbtn_world_area(link->exit.target,s->clock.season,&logical,&resource));
+    REQUIRE(face<4 && hmbtn_world_area(link->exit.target,s->session->game.clock.season,&logical,&resource));
     for(unsigned a=0;a<3;++a) s->intro.player.position[a]=(link->min[a]+link->max[a])/2;
     const unsigned axis=face&1u ? 0 : 2;
     s->intro.player.position[axis]=face<2 ? link->max[axis]+82 : link->min[axis]-82;
@@ -41,10 +41,10 @@ static bool walk(HmbtnScenePreview *s,const Passage *link,char *error,size_t siz
     s->intro.player.sprite=(HmbtnAnimationPlayer){0,(uint16_t)face,0};s->control.mode=0;
     for(unsigned i=0;i<100 && !s->travel_tick;++i) REQUIRE(step(s,0,buttons[face],error,size));
     REQUIRE(s->travel_tick && s->area==from && s->control.exit_pending);
-    const HmbtnFarmClock frozen=s->clock;
+    const HmbtnFarmClock frozen=s->session->game.clock;
     for(unsigned i=0;i<30 && s->travel_tick;++i) {
         REQUIRE(step(s,0,0,error,size));
-        if(s->travel_tick) REQUIRE(memcmp(&frozen,&s->clock,sizeof(frozen))==0);
+        if(s->travel_tick) REQUIRE(memcmp(&frozen,&s->session->game.clock,sizeof(frozen))==0);
     }
     REQUIRE(s->area==logical && !s->travel_tick && !s->control.exit_pending && s->control.enabled);
     REQUIRE(s->intro.player.position[0]==link->exit.entry[0] && s->intro.player.position[2]==link->exit.entry[2]);
@@ -58,7 +58,7 @@ static bool inspect(HmbtnScenePreview *s,HmbtnHost *host,Route *route,const char
 {
     s->dirty=true;REQUIRE(hmbtn_scene_preview_draw(s,host->renderer,0,0,0,error,size));
     if(captures) {
-        char path[1024];snprintf(path,sizeof(path),"%s/region-%u-season-%u.bmp",captures,s->area,s->clock.season);
+        char path[1024];snprintf(path,sizeof(path),"%s/region-%u-season-%u.bmp",captures,s->area,s->session->game.clock.season);
         SDL_Surface *surface=SDL_RenderReadPixels(host->renderer,NULL);REQUIRE(surface);
         const bool saved=SDL_SaveBMP(surface,path);SDL_DestroySurface(surface);REQUIRE(saved);
     }
@@ -66,9 +66,9 @@ static bool inspect(HmbtnScenePreview *s,HmbtnHost *host,Route *route,const char
     if(s->area==56) {
         /* The beach has separate day/night SEQs, both using pitch-wheel
          * commands. Decode and mix their actual banks as well as opening them. */
-        const HmbtnFarmClock clock=s->clock;
+        const HmbtnFarmClock clock=s->session->game.clock;
         for(unsigned night=0;night<2;++night) {
-            s->clock.hour=night ? 17u : 12u;sync_clock(s);
+            s->session->game.clock.hour=night ? 17u : 12u;
             REQUIRE(step(s,0,0,error,size));
             REQUIRE(s->audio_song==(night ? 24u : 25u));
             uint64_t energy=0;int16_t pcm[1024];
@@ -76,9 +76,9 @@ static bool inspect(HmbtnScenePreview *s,HmbtnHost *host,Route *route,const char
                 hmbtn_sound_render(s->audio.sound,pcm,512);
                 for(unsigned j=0;j<1024;++j) energy+=(uint64_t)abs(pcm[j]);
             }
-            REQUIRE(night && s->clock.season==3 ? energy==0 : energy>0);
+            REQUIRE(night && s->session->game.clock.season==3 ? energy==0 : energy>0);
         }
-        s->clock=clock;sync_clock(s);hmbtn_daylight_select(&s->daylight,&s->clock);
+        s->session->game.clock=clock;hmbtn_daylight_select(&s->daylight,&s->session->game.clock);
         REQUIRE(step(s,0,0,error,size));
     }
     /* Read each real sign, including the personalized farm-direction board. */
@@ -91,19 +91,19 @@ static bool inspect(HmbtnScenePreview *s,HmbtnHost *host,Route *route,const char
         for(unsigned a=0;a<3;++a) s->intro.player.position[a]=(half(p+14+a*2)+half(p+20+a*2))/2;
         s->intro.player.position[face&1u ? 0 : 2]+=face<2 ? 224 : -224;
         s->intro.player.facing=face;s->control.mode=0;
-        const HmbtnStoredTool held=s->house.held_item;s->house.held_item=(HmbtnStoredTool){0};
+        const HmbtnStoredTool held=s->house.inventory->held_item;s->house.inventory->held_item=(HmbtnStoredTool){0};
         REQUIRE(step(s,HMBTN_PAD_CROSS,0,error,size));
         REQUIRE(s->house.mode==HMBTN_HOUSE_BOOK && s->house.request==hmbtn_read_le16(p+4));
-        const HmbtnFarmClock frozen=s->clock;
+        const HmbtnFarmClock frozen=s->session->game.clock;
         for(unsigned t=0;t<20;++t) REQUIRE(step(s,0,0,error,size));
-        REQUIRE(memcmp(&frozen,&s->clock,sizeof(frozen))==0);
+        REQUIRE(memcmp(&frozen,&s->session->game.clock,sizeof(frozen))==0);
         REQUIRE(hmbtn_scene_preview_draw(s,host->renderer,0,0,0,error,size));
         for(unsigned t=0;t<2500 && s->house.mode!=HMBTN_HOUSE_FREE;++t) {
             const bool waiting=s->house.message.phase==HMBTN_MESSAGE_WAIT_PAGE || s->house.message.phase==HMBTN_MESSAGE_WAIT_END;
             REQUIRE(step(s,waiting ? HMBTN_PAD_CROSS : 0,HMBTN_PAD_CROSS,error,size));
         }
         REQUIRE(s->house.mode==HMBTN_HOUSE_FREE && !s->control.exit_pending);
-        s->house.held_item=held;++route->signs;
+        s->house.inventory->held_item=held;++route->signs;
     }
     /* Mine entrances need their own digging/layer systems. Reaching one must
      * leave the player able to move back rather than latch exit_pending. */
@@ -111,7 +111,7 @@ static bool inspect(HmbtnScenePreview *s,HmbtnHost *host,Route *route,const char
         const uint8_t *p=s->section+16+i*44;unsigned logical,resource;
         const unsigned flags=hmbtn_read_le16(p),target=hmbtn_read_le16(p+2);
         if((flags&0x7388u) || hmbtn_read_le16(p+10)!=99 || target>=255
-                || hmbtn_world_area(target,s->clock.season,&logical,&resource)) continue;
+                || hmbtn_world_area(target,s->session->game.clock.season,&logical,&resource)) continue;
         for(unsigned a=0;a<3;++a) s->intro.player.position[a]=(half(p+14+a*2)+half(p+20+a*2))/2;
         const unsigned area=s->area;
         REQUIRE(step(s,0,0,error,size));
@@ -132,7 +132,7 @@ static bool explore(HmbtnScenePreview *s,HmbtnHost *host,Route *route,const char
         Passage returns[50],back={0};const unsigned total=passages(s,returns);bool found=false;
         for(unsigned j=0;j<total;++j) {
             unsigned logical,resource;
-            REQUIRE(hmbtn_world_area(returns[j].exit.target,s->clock.season,&logical,&resource));
+            REQUIRE(hmbtn_world_area(returns[j].exit.target,s->session->game.clock.season,&logical,&resource));
             if(logical!=from) continue;
             route->covered[s->area][returns[j].exit.zone]=true;
             back=returns[j];found=true;break;
@@ -152,13 +152,13 @@ int main(int argc,char **argv)
     s=hmbtn_scene_house_create(host.renderer,argv[1],error,sizeof(error));if(!s) goto done;
     for(unsigned i=0;i<130;++i) if(!step(s,0,0,error,sizeof(error))) goto done;
     s->first_visit_started=true;
-    s->house.bag[0]=(HmbtnStoredTool){21,0,73};s->house.held_item=(HmbtnStoredTool){0x3a,0,1};
-    for(unsigned i=0;i<8;++i) s->dialogue.farm_name[i]=(uint16_t)(0x20+i);
-    s->field.cells[400].value=s->field.cells[400].ground=0x168;
-    HmbtnFarmTile field[HMBTN_FIELD_CELLS];memcpy(field,s->field.cells,sizeof(field));
-    s->shipping.pending_value=60;s->menu.stats.shipments[0]=1;
+    s->house.inventory->bag[0]=(HmbtnStoredTool){21,0,73};s->house.inventory->held_item=(HmbtnStoredTool){0x3a,0,1};
+    for(unsigned i=0;i<8;++i) s->session->game.registration.farm_name[i]=(uint16_t)(0x20+i);
+    s->session->field.cells[400].value=s->session->field.cells[400].ground=0x168;
+    HmbtnFarmTile field[HMBTN_FIELD_CELLS];memcpy(field,s->session->field.cells,sizeof(field));
+    s->session->game.economy.shipping.pending_value=60;s->session->game.economy.shipments[0]=1;
     for(unsigned season=0;season<4;++season) {
-        s->clock=(HmbtnFarmClock){0,season,1,1,6,0,0};sync_clock(s);
+        s->session->game.clock=(HmbtnFarmClock){0,season,1,1,6,0,0};
         if(!load_area(s,s->data_root,0,error,sizeof(error))) goto done;s->intro.area=0;
         Route route={0};
         if(!explore(s,&host,&route,argc==3 ? argv[2] : NULL,error,sizeof(error))) goto done;
@@ -166,9 +166,9 @@ int main(int argc,char **argv)
         printf("World season %u: 15 regions, %u directed passages, %u signs.\n",season,route.passages,route.signs);
         if(route.passages!=34 || route.signs!=(season==1 ? 17u : 18u) || route.boundaries!=2
                 || s->first_visit_active || !s->first_visit_started
-                || s->house.bag[0].id!=21 || s->house.bag[0].count!=73 || s->house.held_item.id!=0x3a
-                || s->shipping.pending_value!=60 || s->menu.stats.shipments[0]!=1
-                || memcmp(field,s->field.cells,sizeof(field))) goto done;
+                || s->house.inventory->bag[0].id!=21 || s->house.inventory->bag[0].count!=73 || s->house.inventory->held_item.id!=0x3a
+                || s->session->game.economy.shipping.pending_value!=60 || s->session->game.economy.shipments[0]!=1
+                || memcmp(field,s->session->field.cells,sizeof(field))) goto done;
     }
     ok=true;puts("All outdoor regions, reciprocal walking exits, seasonal terrain/textures, sign reading, clock pauses and inventory preservation passed.");
 done:

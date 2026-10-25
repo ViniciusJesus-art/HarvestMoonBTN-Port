@@ -13,7 +13,7 @@ static void record(uint8_t *data,const uint16_t *text,size_t count)
 int main(void)
 {
     uint8_t data[8192]; char error[256]={0};
-    HmbtnNewGame g;hmbtn_new_game_init(&g);
+    HmbtnNewGame g;HmbtnGameState game;hmbtn_game_state_init(&game);hmbtn_new_game_init(&g,hmbtn_game_registration(&game));
     CHECK(g.step==11 && g.name[0]==0xffff);
     tick(&g,0);CHECK(g.step==12 && g.request==0x3a2);
     const uint16_t pages[]={0xf87,0xff7,0xff4,0,0xffc,0xffb,0xfffe,1,0xffff};
@@ -62,7 +62,7 @@ int main(void)
     CHECK(hmbtn_message_open(&g.message,data,sizeof(data),error,sizeof(error)));
     many(&g,30);tick(&g,HMBTN_PAD_START);many(&g,12);
     CHECK(hmbtn_message_open(&g.message,data,sizeof(data),error,sizeof(error)));
-    many(&g,30);tick(&g,HMBTN_PAD_CROSS);CHECK(g.step==16 && g.player_name[0]==0 && g.length==8);
+    many(&g,30);tick(&g,HMBTN_PAD_CROSS);CHECK(g.step==16 && game.registration.player_name[0]==0 && g.length==8);
     /* Birthday prompt -> fixed picker help, with original wrap and back paths. */
     many(&g,12);CHECK(g.step==17 && g.request==0x3a5);
     CHECK(hmbtn_message_open(&g.message,data,sizeof(data),error,sizeof(error)));
@@ -84,7 +84,7 @@ int main(void)
     tick(&g,HMBTN_PAD_LEFT);CHECK(g.birthday_value==3);
     tick(&g,HMBTN_PAD_RIGHT);CHECK(g.birthday_value==0);
     tick(&g,HMBTN_PAD_RIGHT);tick(&g,HMBTN_PAD_CROSS);
-    CHECK(g.birthday_phase==2 && g.season==1 && g.birthday_value==0);
+    CHECK(g.birthday_phase==2 && game.registration.birthday_season==1 && g.birthday_value==0);
     tick(&g,HMBTN_PAD_UP);CHECK(g.birthday_value==28);
     tick(&g,HMBTN_PAD_DOWN);CHECK(g.birthday_value==0);
     g.birthday_value=0;tick(&g,HMBTN_PAD_LEFT);CHECK(g.birthday_value==29);
@@ -95,7 +95,7 @@ int main(void)
     }
     g.birthday_value=29;tick(&g,HMBTN_PAD_CIRCLE);CHECK(g.birthday_phase==1 && g.birthday_value==1);
     tick(&g,HMBTN_PAD_CROSS);g.birthday_value=29;tick(&g,HMBTN_PAD_CROSS);
-    CHECK(g.day==29 && g.birthday_phase==3 && g.queued==0x3a7);
+    CHECK(game.registration.birthday_day==29 && g.birthday_phase==3 && g.queued==0x3a7);
     many(&g,12);CHECK(g.request==0x3a7);
     CHECK(hmbtn_message_open(&g.message,data,sizeof(data),error,sizeof(error)));
     many(&g,18);tick(&g,HMBTN_PAD_DOWN);tick(&g,HMBTN_PAD_CROSS);
@@ -110,7 +110,7 @@ int main(void)
     CHECK(hmbtn_message_open(&g.message,data,sizeof(data),error,sizeof(error)));
     many(&g,18);tick(&g,HMBTN_PAD_CROSS);tick(&g,HMBTN_PAD_START);many(&g,12);
     CHECK(hmbtn_message_open(&g.message,data,sizeof(data),error,sizeof(error)));
-    many(&g,18);tick(&g,HMBTN_PAD_CROSS);CHECK(g.step==22 && g.farm_name[0]==0);
+    many(&g,18);tick(&g,HMBTN_PAD_CROSS);CHECK(g.step==22 && game.registration.farm_name[0]==0);
     many(&g,12);CHECK(g.request==0x3a3 && g.step==23);
     CHECK(hmbtn_message_open(&g.message,data,sizeof(data),error,sizeof(error)));
     many(&g,18);tick(&g,HMBTN_PAD_CROSS);many(&g,12);CHECK(g.step==24);
@@ -122,7 +122,7 @@ int main(void)
     tick(&g,HMBTN_PAD_CROSS);tick(&g,HMBTN_PAD_START);many(&g,12);
     CHECK(hmbtn_message_open(&g.message,data,sizeof(data),error,sizeof(error)));
     many(&g,18);tick(&g,HMBTN_PAD_CROSS);many(&g,12);
-    CHECK(g.step==26 && g.request==0x3aa && g.dog_name[0]==0);
+    CHECK(g.step==26 && g.request==0x3aa && game.registration.dog_name[0]==0);
     const uint16_t choices[]={0xffa,0xfffe,0,0xfffe,1,0xffff};record(data,choices,sizeof(choices)/2);
     CHECK(hmbtn_message_open(&g.message,data,sizeof(data),error,sizeof(error)));
     many(&g,18);CHECK(g.message.choices==2 && g.message.page==2 && g.message.phase==HMBTN_MESSAGE_WAIT_END);
@@ -131,7 +131,7 @@ int main(void)
     g.step=26;g.choice=0;g.message.phase=HMBTN_MESSAGE_WAIT_END;
     tick(&g,HMBTN_PAD_CROSS);CHECK(g.step==27 && g.fade==0);
     many(&g,10);CHECK(g.step==28 && g.fade==10 && !g.finished);
-    tick(&g,0);CHECK(g.finished && g.step==100 && g.season==1 && g.day==29);
+    tick(&g,0);CHECK(g.finished && g.step==100 && game.registration.birthday_season==1 && game.registration.birthday_day==29);
     CHECK(!hmbtn_message_open(&g.message,data,64,error,sizeof(error)));
     const uint16_t event_text[]={0xff5,0xe2d,0x20,0xffff};record(data,event_text,4);
     CHECK(hmbtn_message_open(&g.message,data,sizeof(data),error,sizeof(error)));

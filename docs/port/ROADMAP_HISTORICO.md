@@ -1,0 +1,1046 @@
+# Roteiro do porte nativo — Linux e Windows
+
+> Arquivo histórico de contexto técnico e evidências. Para o estado atual e o
+> backlog ativo, consulte [ROADMAP.md](ROADMAP.md) e seus arquivos relacionados.
+
+O objetivo original é seguir o comportamento do jogo, adaptar o código C e
+compilá-lo para PC, sem executar
+o binário MIPS em um emulador. mods, troca facilitada de sprites/textos/interface, maior resolução interna
+e câmera 16:9 ficam para depois da paridade do jogo básico com o PS1. A janela
+pode aceitar resoluções físicas maiores desde já, preservando a imagem original.
+
+## Situação inicial
+
+- [x] Build PS1 preservado: executável e 13 overlays conferidos com SHA-1.
+- [x] Build C11 nativo separado em `build/native-*` e testes de little-endian.
+- [x] Importação única do disco para `data/`, com integridade e manifesto.
+- [x] Reconstrução PS1 usando somente a pasta extraída.
+- [x] CI configurada para Linux/Windows em Debug e Release.
+
+Os dados locais vêm de uma tradução PT-BR com alterações também em código. Isso
+não confirma compatibilidade com o C americano compilado. O build PS1 continua
+exigindo os hashes originais. A prévia PC decodifica recursos; ainda não executa o jogo.
+
+## M1 — Aplicação nativa com janela (primeira implementação)
+
+- [x] Integrar SDL3 ao build host, com versão de download fixada e hash.
+- [x] Criar janela redimensionável com apresentação lógica de 320 × 240.
+- [x] Implementar apresentação de frames, eventos e temporização sem espera ocupada.
+- [x] Fechar por Escape/botão da janela e alternar tela cheia com F11.
+- [x] Mostrar diagnóstico explícito: esta etapa ainda não executa o jogo.
+- [x] Manter diagnóstico de console e execução finita para testes automáticos.
+- [x] Validar build, testes sem display e uma janela real no Linux.
+- [x] Preparar a CI Windows com a mesma dependência.
+- [ ] Validar execução gráfica no Windows (pendente; não testada neste host).
+
+Entrega: executável de PC abre sua própria janela e responde aos eventos. Não
+equivale à tela de título nem ao loop original portado. SDL3 cuida inicialmente
+de janela, eventos e apresentação; a tradução gráfica PS1 permanece trabalho próprio.
+
+## M2 — Recursos reais na janela
+
+- [x] Implementar leitura nativa de intervalos de bytes dos membros em `data/A_FILE/`.
+- [x] Validar limites/offsets e identificar ANI/bancos por seus cabeçalhos e layout.
+- [x] Adaptar a decodificação dos bancos `0x0D` de `texture_pack.c`, sem chamadas GPU PS1.
+- [x] Decodificar paletas/cores e composição de partes/frames de `anim.c`.
+- [x] Exibir imagem e animação reais da tela de título na janela PC.
+- [ ] Comparar sistematicamente a imagem e o ritmo com execução PS1 de referência.
+- [x] Testar dados truncados e compressão com amostras sintéticas, sem assets no Git.
+
+Entrega: visualização de recursos originais pelo renderizador PC. Ainda não é a
+lógica da tela de título. Manter os recursos no formato original inicialmente.
+
+## M3 — Tela de título executando código C adaptado
+
+**Em andamento:** logo Natsume, introdução, fundo animado, áudio nativo e estados
+0..9 e 11..28 implementados em C host. O cadastro inclui nomes, aniversário e
+resumo. A transição agora inicia a chegada à fazenda/evento `0x74`; a sequência da infância (`0x75..0x79`) e a entrada na casa também executam;
+gameplay, saves e demo continuam pendentes. Detalhes em
+[TITLE_FLOW.md](TITLE_FLOW.md) e [FARM_INTRO.md](FARM_INTRO.md).
+
+- [x] Adaptar logo Natsume e entrada gradual de título/copyright/texto antes das opções.
+- [x] Adaptar as duas camadas móveis de grama, personagens e flores.
+- [x] Reproduzir música SEQ e efeitos VAB/ADPCM do título em SDL3.
+- [x] Remover barras/textos de diagnóstico da área do jogo.
+- [x] Portar apresentação do prefeito, pergunta pelo nome, fonte e retrato originais.
+- [x] Portar grade e confirmação do nome do jogador, com limite de oito glifos.
+- [x] Validar janela 1280×720 mantendo conteúdo 4:3 e capturas com margens.
+- [x] Portar aniversário, nome da fazenda, nome do cachorro e resumo do cadastro.
+- [x] Transferir o cadastro e iniciar a chegada à fazenda/evento `0x74`.
+- [x] Adaptar espera por Start, seleção/confirmar, cursor e fades do menu.
+- [ ] Conferir imagem, semente aleatória, tempos e áudio contra execução PS1 de referência.
+- [ ] Completar interpolação, reverb e comparação de volumes/afinação com a SPU.
+- [x] Mapear teclado e gamepad para os bits PS1, com hotplug e teste virtual.
+- [x] Registrar no terminal os limites antes de cadastro, saves, demo e fazenda.
+- [x] Gerar `.exe` Windows x64 e verificar via Wine, sem confundir com Windows real.
+
+- [ ] Inventariar chamadas e estado necessários em `main.c` e `27_GF_TITLE/title.c`.
+- [ ] Substituir endereços fixos por estado e buffers alocados no host.
+- [ ] Separar dados serializados de estruturas de runtime e ponteiros host.
+- [ ] Compilar o recorte necessário do C do jogo para x86-64.
+- [ ] Substituir overlays desse recorte por seleção de módulos/funções nativos.
+- [ ] Integrar estados, animações, transições e comandos do menu original.
+- [x] Mapear teclado/gamepad aos botões exigidos pelo recorte do título.
+- [ ] Conferir escala, transparência e ritmo com o jogo PS1 de referência.
+
+Entrega: primeiro marco do **jogo portado** — tela de título funcional, executando
+lógica C nativa e lendo arquivos extraídos, sem executar instruções MIPS.
+
+## M4 — Primeiro trecho jogável
+
+- [x] Decodificar o TMD prelit da área 0 com offsets/índices validados.
+- [x] Implementar oito primitivas, texturas afins, cores e ordenação desse modelo.
+- [x] Exibir o modelo base da fazenda em `--scene-preview`, com câmera de diagnóstico.
+- [x] Projetar sprites do jogador/Thomas com ordenação junto aos polígonos.
+- [x] Executar a chegada: caminhada, poses, diálogos, fades e música do evento `0x74`.
+- [x] Renderizar modelos adicionais: portas, caixa, objetos com rotação e visibilidade inicial.
+- [x] Desenhar o campo inicial com mato, pedras, tocos e galhos dos layouts originais.
+- [x] Carregar a área 230 e portar a lembrança da infância/evento `0x75`.
+- [x] Exibir as dez imagens do evento `0x76`, com tempos e fades do script.
+- [x] Carregar áreas 231/232 e portar encontro e canção/evento `0x77`.
+- [x] Ler/decodificar XA em fluxo para as faixas 4/5, sem disco e sem processo externo.
+- [x] Portar despedida `0x78` e retorno a Thomas `0x79`, com música 34 e falas.
+- [x] Usar o banco de ação correto para a confirmação com a cabeça e restaurar o sprite básico.
+- [x] Carregar o interior da casa/área 80 e encerrar o roteiro da abertura.
+- [x] Integrar o término da abertura ao controle na casa, com chão e colisões estáticas originais.
+- [x] Integrar a transição inicial casa↔fazenda e interação com a porta externa.
+- [ ] Completar o ciclo original de portas e os eventos da fazenda.
+- [ ] Adaptar operações de geometria/GTE e ponto fixo usadas pelo cenário escolhido.
+- [ ] Implementar as primitivas e ordenação gráfica exigidas nesse recorte.
+- [x] Carregar um cenário, posicionar câmera e desenhar chão/objetos/personagem.
+- [x] Integrar movimento, animação, colisões estáticas e uma transição de porta.
+- [ ] Comparar posição, câmera e colisões em uma sequência reproduzível de entradas.
+
+Entrega: personagem controlável em um cenário real. Não ampliar para todo o jogo
+antes de verificar esse caminho completo.
+
+A prévia já adapta projeção/matrizes inteiras, mas a paridade GTE/GPU permanece
+pendente. New Game inicia a chegada com os atores e as mensagens do primeiro
+evento, encontro, canção, despedida e retorno ao presente. A sequência entra
+na casa/área 80, posiciona o jogador na porta e encerra o roteiro original.
+Já há caminhada/corrida na casa inicial e na fazenda, saída/retorno pela porta
+e leitura das placas. Colisões dos ocupantes do campo, ferramentas, eventos
+externos e gameplay completo permanecem pendentes. Detalhes em
+[SCENE_RENDERER.md](SCENE_RENDERER.md) e [FARM_INTRO.md](FARM_INTRO.md).
+
+## M5 — Sistemas do jogo
+
+- [x] Relógio/calendário, ciclo visual dia/noite e transições de dia no recorte casa/fazenda.
+- [ ] Clima e conjunto completo de atualizações/eventos diários.
+- [ ] Ferramentas, inventário, plantação e economia.
+- [ ] Animais, moradores, família e rotinas.
+- [ ] Scripts, diálogos, festivais e minijogos.
+- [ ] Bancos sonoros, sequências, efeitos e áudio XA.
+- [ ] Saves em arquivos host; definir formato/versionamento e importação PS1.
+- [ ] Validar progressão e ida/volta de saves em Linux e Windows.
+
+Entrega: jogo básico funcional e verificável. Subsistemas ausentes devem continuar
+identificados como ausentes; não usar stubs para aparentar gameplay implementado.
+
+## M6 — Instalação e distribuição
+
+- [ ] Empacotar executáveis e bibliotecas Linux/Windows, sem dados proprietários.
+- [ ] Transformar o importador existente em etapa de instalação da cópia do usuário.
+- [x] Localizar a pasta de dados instalada sem depender do diretório atual.
+- [ ] Validar instalação limpa, atualização e erros de arquivos ausentes.
+- [ ] Avaliar suporte a traduções cujas mudanças também afetam código.
+
+
+
+## Organização e validação
+
+- Adaptações em `port/`; documentação em `docs/port/`. Preservar `src/`, `sdk/`,
+  `disc/`, `tools/` e o fluxo PS1. Adaptar fontes originais apenas no recorte necessário,
+  com mudanças pequenas e auditáveis que permitam manter o build original.
+- `port/core/`: aplicação e estado host; `platform/`: janela/serviços SDL;
+  `graphics/`: apresentação e posteriormente renderização do jogo; `input/`:
+  eventos e controles; `filesystem/`: leitura de intervalos; `audio/`: VAB/ADPCM/SEQ do título.
+- SDL3 é infraestrutura de PC, não substitui automaticamente GPU, GTE ou SPU do PS1.
+- Base: `cmake --preset native-debug`, `cmake --build --preset native-debug`,
+  `ctest --preset native-debug`. A janela deve ter teste finito para não travar a CI.
+- Testes sem display não comprovam apresentação real. Registrar separadamente
+  execução gráfica Linux, execução Windows e comparações com o jogo.
+- O teste host não substitui a verificação SHA-1 dos binários PS1.
+
+## Registro de execução
+
+### M1 — 2026-10-22
+
+- Build Debug em Linux x86-64 concluído com SDL3 3.4.18 estático.
+- Cinco testes CTest passaram: formatos, diagnóstico sem vídeo, três frames em
+  dummy/software, atalhos da janela e importação de dados sintéticos.
+- Janela real Wayland/OpenGL: 120 frames apresentados; captura em
+  `build/native-debug/window.png` (artefato local, ignorado pelo Git).
+- Janela real X11/OpenGL: redimensionamento a 1280 × 720 conferido; com a janela em
+  foco, F11 ativou tela cheia e Escape encerrou normalmente. O envio de teclas sem
+  foco não serviu como validação dos atalhos; foi substituído pelo teste com foco.
+- Windows: CI preparada; execução e validação visual permanecem pendentes.
+- M1 não executa `src/`. A implementação de recursos foi adicionada em M2 abaixo.
+
+
+### M2 — 2026-10-22
+
+- Leitura por intervalos e decodificadores C de bancos/ANI implementados em `port/`.
+- Prévia nativa mostra fundo, logotipo e três sequências animadas da tela de título.
+- O padrão do executável agora lê `data/`; `--data DIR` seleciona outra pasta.
+  `--window-test` mantém o diagnóstico de M1 sem exigir recursos.
+- Oito testes CTest passaram, incluindo pipeline completo com pacote sintético.
+- Janela real Wayland/OpenGL: 180 frames com recursos locais; captura em
+  `build/native-debug/title-desktop.png`. Sem consulta à imagem original.
+- A comparação com o PS1 e a execução Windows permanecem pendentes.
+- Formatos e limites documentados em [ASSET_FORMATS.md](ASSET_FORMATS.md).
+- Próxima implementação: M3, máquina de estados e entrada da tela de título.
+
+
+### M3 parcial — 2026-10-22
+
+- `port/game/title_flow.c` inicialmente adaptou os estados 4..9, máscaras e prioridade
+  de entrada do original. A abertura foi acrescentada na revisão seguinte, abaixo.
+- Menu desenhado com sprites originais e cursor; confirmar destinos ainda não
+  integrados apresentava um aviso de indisponibilidade com retorno ao menu; o aviso
+  foi posteriormente retirado da imagem e mantido no terminal.
+- Onze testes CTest Linux passaram, incluindo fluxo, teclado e gamepad virtual.
+- Janela real X11/OpenGL: Start, cima/baixo, confirmar New Game/Continue e voltar
+  conferidos com eventos sincronizados aos estados. Captura: `build/native-debug/title-menu.png`.
+- MinGW x64 em Docker: `.exe` gerado com imports somente de DLLs Windows do sistema.
+  Seis testes C, teste adicional de gamepad virtual e frames Win32/software passaram
+  em Wine. Caminho com espaço/acento e outro diretório de trabalho conferidos.
+- Pacote local: `build/native-windows-x64/package/`, sem dados do jogo. CI MSVC
+  Debug/Release prepara o mesmo tipo de pacote após testes; execução remota pendente.
+- Wine não substitui validação em Windows real, inclusive gamepad físico.
+- Próximo recorte: texto/diálogo e cadastro do caminho New Game. M3 permanece parcial.
+
+### Abertura fiel ao original e controle de memória
+
+- Logo Natsume antes da grama/personagens; entrada gradual de título, copyright
+  e Press Start, sem exibir diretamente as opções. Barras/painéis host removidos
+  da imagem do jogo. Scroll, sprites e flores seguem as rotinas do título.
+- Áudio VAB/ADPCM/SEQ real no Linux/Windows: música e efeitos de cursor/confirmar.
+  Interpolação gaussiana/reverb e comparação com a SPU continuam pendentes.
+- Doze testes Linux aprovados, janela X11/software + PipeWire validada e música
+  renderizada por 55 s com repetição. Build MinGW x64 desta alteração aprovado.
+- Presets limitam compilação e testes a uma tarefa. Build Windows em contêiner
+  limitado a 1536 MiB; esta revisão não foi executada no Wine.
+- Detalhes, limitações e medições de RAM em [TITLE_FLOW.md](TITLE_FLOW.md).
+
+### New Game — apresentação e nome do jogador
+
+- Estados 11..16 adaptados em C: mensagens reais de 8 KiB, fonte, retrato, caixas,
+  grade alfabética/símbolos, edição de até oito glifos e confirmação Yes/No.
+- Os recursos de UI são carregados sob demanda, sem ler arquivos grandes inteiros.
+- `--window-size 1280x720` e separação entre janela e coordenadas 320×240; a
+  imagem original continua 4:3. Widescreen real e mods continuam etapas futuras.
+- Próximo recorte: estado 17 em diante, aniversário e demais nomes do cadastro.
+- Limites e validação em [NEW_GAME.md](NEW_GAME.md).
+
+### Correções de UI e conclusão do cadastro
+
+- Molduras corrigidas de BGR para RGB, conforme `prim_make_*`: tons bege originais.
+- Ajuda e confirmações `0x0FF3` aparecem completas, sem digitação/blips.
+- Estados 16..28 acrescentam aniversário, nomes de fazenda/cachorro, resumo,
+  recomeço e fade. Numeração dos estados alinhada ao enum original.
+- Quatorze testes Linux aprovados e percurso com dados reais até aceitar o cadastro.
+- Janela X11/software + PipeWire 1280×720: 2210 frames, saída zero, pico RSS ~74 MiB.
+- Build MinGW x64 aprovado e pacote Windows atualizado; execução em Windows real pendente.
+- Próximo recorte: carregar a primeira cena após o cadastro e integrar o estado
+  original da fazenda; ainda não há gameplay nativo.
+- Evidências e limites atuais em [NEW_GAME.md](NEW_GAME.md).
+
+### M4 parcial — geometria da fazenda
+
+- Leitura limitada da área 0 em `00_gf.bin`: TMD principal com 294 objetos e 4.246
+  primitivas, banco de texturas/paletas, sem carregar o arquivo inteiro.
+- Parser por bytes little-endian e renderer C de matrizes/projeção inteiras,
+  cores, UVs afins, dithering, semitransparência e ordenação por profundidade.
+- `--scene-preview` mostra geometria real e permite mover a câmera; personagens,
+  objetos dinâmicos e gameplay ainda não estão implementados.
+- Janela Linux X11/software em 1280×720: 900 frames e quatro direções/reset
+  conferidos, saída zero e pico RSS de cerca de 73 MiB.
+- Configure/build e 16 testes CTest aprovados no Linux; executável/pacote MinGW
+  Windows x64 atualizados em contêiner limitado a 1536 MiB, com uma tarefa.
+  Sem execução no Wine nesta revisão; Windows real/MSVC continuam pendentes.
+- A transição de New Game permanece na fronteira após o resumo. O original
+  solicita o evento `0x74`; seus 78 registros e dependências foram identificados
+  para o próximo recorte. Não substituir esse evento pela prévia estática.
+- Fontes, formatos, comando de execução e limites em [SCENE_RENDERER.md](SCENE_RENDERER.md).
+
+### M4 parcial — chegada com personagens e roteiro nativo
+
+- Interpretador limitado dos registros originais de evento, com validação de
+  offsets/saltos e limite de instruções por tick; handlers C do primeiro roteiro.
+- Jogador e Thomas com sprites/poses, câmera acompanhando, ordem de desenho com
+  o cenário, mensagens reais `0x76B..0x76F`, música 31 e fades.
+- O cadastro entrega nomes/aniversário à chegada; o título e seu áudio são
+  liberados antes de carregar a cena. `--intro-preview` permite testar esse recorte.
+- A execução alcança o passo 74, solicitação da área 230; infância/evento `0x75`
+  ainda não portados. Esse limite não é tratado como uma troca de cena concluída.
+- Janela X11/software + PipeWire 1280×720: 2.984 frames, cinco mensagens e saída
+  zero; pico RSS cerca de 79 MiB. Caminho completo do cadastro à primeira conversa
+  também conferido: 3.413 frames, saída zero e cerca de 79 MiB; probe dummy adicional.
+- Build/testes Linux aprovados; executável/pacote Windows recompilados com MinGW
+  x64 em contêiner de 1536 MiB e uma tarefa. Windows real/MSVC continuam pendentes.
+- Detalhes, evidências e próximos passos em [FARM_INTRO.md](FARM_INTRO.md).
+
+### M4 parcial — cenário adicional e primeiros flashbacks
+
+- Tabela original de 15 modelos: portas, caixa, objetos giratórios, posições,
+  rotações e visibilidade inicial, com uma ordenação comum a terreno e atores.
+- Campo inicial com mato, pedras, rochas, tocos e galhos. Layout 0 reproduzível;
+  seleção aleatória dos três layouts e seu estado global ainda pendentes.
+- Área 230, evento `0x75`: menino, cachorro, avô, caminhada, câmera, falas
+  `0x770/0x771`, sépia original e música 32. Evento `0x76`: dez imagens e fades.
+- Carregamento confirmado pelo host antes de avançar o comando. O próximo
+  limite é área 231/evento `0x77`, encontro da infância; depois concluir o
+  retorno da sequência e o primeiro trecho com controle e colisões.
+- Configure/build e 17 CTest aprovados. Janela real X11/software + PipeWire:
+  5.871 frames, saída zero e pico RSS de aproximadamente 80 MiB, sem swap.
+  Probe dummy adicional com dados locais: 6.500 ticks e cerca de 22 MiB.
+- Executável/pacote Windows x64 recompilados em contêiner com 1536 MiB e uma
+  tarefa por vez. Windows real/MSVC e paridade PS1 ainda pendentes.
+- Recursos, evidências e limitações em [FARM_INTRO.md](FARM_INTRO.md).
+
+### M4 parcial — encontro, canção, despedida e retorno ao presente
+
+- Áreas 231/232, atores 27/33, encontro `0x77` e canção com duas faixas XA
+  extraídas. Áudio em fluxo com histórico por canal, misturado com SEQ/efeitos.
+- Câmera com altura/distância/centro vertical e os 177 passos do recuo original.
+- Despedida `0x78` na área 230, quatro atores e falas; retorno `0x79` na área 0,
+  campo recarregado, música 34 e conversa completa com Thomas.
+- Banco de ação real do jogador para o aceno da cabeça; restauração ao terminar.
+  Cursores/sombras usam a ANI 24 e respeitam os flags dos atores. Corrigida a
+  contagem do separador FFC/FFB nas páginas de texto.
+- `--childhood-preview` testa diretamente o encontro. O fluxo normal percorre
+  todos os eventos. O próximo limite é o interior da casa/área 80, no passo 31
+  de `0x79`; depois integrar o controle livre e colisões reais.
+- 18 CTest aprovados no Linux; probe da chegada ao limite com 6.792 ticks e
+  saída zero. XA 4/5 comparados integralmente ao FFmpeg: PCM sem diferenças.
+- Implementação e recursos em [FARM_INTRO.md](FARM_INTRO.md) e
+  [XA_AUDIO.md](XA_AUDIO.md). O host continua sem executar o jogo completo.
+- Janela real Linux: 8.330 frames em 139,80 s, percurso completo do encontro ao
+  limite da casa, saída zero; imagens também conferidas por leitura direta SDL.
+  Executável/pacote MinGW Windows x64 atualizados; execução Windows real/MSVC
+  permanece pendente.
+
+### Interior da casa e conclusão do roteiro de abertura
+
+- Área 80 carrega modelos e texturas originais; móveis `0x41` usam o mesmo
+  caminho validado de pacotes prelit dos modelos `0x42`.
+- Evento `0x79` conclui a carga, posiciona o jogador conforme a tabela original,
+  clareia a tela e emite o pedido de término. A casa permanece visível.
+- 18 testes Linux aprovados e probe com recursos locais percorreu `0x74..0x79`
+  em 6.856 ticks, sem fronteira pendente; captura direta SDL conferida.
+- Build e pacote Windows x64 atualizados; execução Windows real pendente.
+- Próximo recorte: integrar o pedido de término ao primeiro ciclo de controle,
+  portar chão/colisões e validar caminhada e interação/saída pela porta.
+  O bootstrap ainda não executa o jogo completo.
+
+### Primeiro controle dentro da casa inicial
+
+- `game/ground.*` consulta os triângulos/quads, flags e centros do cenário original.
+- `game/house_control.*` libera caminhada/corrida ao encerrar `0x79`, com
+  animações originais, bloqueios e deslizamento ao correr. Atalho `--house-preview`.
+- Zona da porta reconhecida a partir dos dados: destino área 0, entrada
+  `(-4464,0,4032)`. A porta pausa no limite explícito; transição ainda pendente.
+- 19 testes Linux aprovados; nove percursos com recursos reais e teste de teclado
+  em janela X11/software de 480 frames, saída zero. Windows x64 recompilado.
+- Próximo recorte: transição completa casa → fazenda, eventos externos e retorno
+  pela porta. Interações, relógio, inventário e sons dos passos ainda faltam.
+- Escopo e evidências: [HOUSE_CONTROL.md](HOUSE_CONTROL.md). O porte continua parcial.
+
+### Música e interações da casa inicial
+
+- [x] Tema de primavera e passos com os bancos/parâmetros originais.
+- [x] TV: quatro canais, programas por data e animação original no aparelho.
+- [x] Calendário: navegação e mensagens dos eventos.
+- [x] Baú: tampa, interface e cinco ferramentas; equipar, mover, trocar,
+  organizar e consultar descrições, conservando os itens na sessão.
+- [x] Livro/estante com texto e rolagem contínua original.
+- [x] Mesa de opções: manual, tipos de controle, vibração SDL, estéreo/mono e relógio.
+- [x] Menu da cama e sequência original de deitar, câmera, coberta e fades.
+- [ ] Avanço do pernoite/manhã: plantações, animais, clima e eventos diários.
+- [ ] Diário/save/load e troca de animais; entradas identificam seus limites.
+- [ ] Comparação sistemática da apresentação e áudio com o PS1.
+- [x] Transição inicial casa↔fazenda e leitura das placas externas.
+- [ ] Paridade completa das portas e eventos externos.
+
+Detalhes e controles em [HOUSE_INTERACTIONS.md](HOUSE_INTERACTIONS.md).
+A meta do porte 1:1 permanece aberta; o jogo completo ainda não executa no host.
+
+### Continuação da casa — opções e cama
+
+- Configurações alteram o comportamento real: mapeamento do personagem,
+  canais de áudio, relógio e pedido de vibração ao controle conectado.
+- Morphs usam a topologia de saída e chaves de vértices validadas, sem modificar
+  os recursos; isso permite animar a coberta com as duas entradas LINK da cama.
+- Dormir para após a animação e o fade, antes das atualizações diárias ainda
+  ausentes. A data não muda e o pedido de diário não produz um save parcial.
+- Próximo recorte: transição casa↔fazenda e seus eventos, conforme a prioridade
+  atual. Avanço diário/pernoite e salvamento completo dependem também do estado
+  externo ainda não portado. A saída atual permanece no limite.
+- Validação e diferenças conhecidas em [HOUSE_INTERACTIONS.md](HOUSE_INTERACTIONS.md).
+
+### Distribuição do porte — instaladores
+
+- [x] Extrator nativo em fluxo e preparação gráfica com seleção/arraste do `.bin`.
+- [x] Importar somente recursos, sem executável de PS1, overlays MIPS ou disco agregado.
+- [x] Dados por usuário, manifesto SHA-256, transação e cancelamento sem pasta parcial.
+- [x] Pacotes AppImage, DEB, RPM e EXE; ícone e atalhos; sem Python/SDK/emulador no usuário final.
+- [x] Workflow de artifacts Linux/Windows sem dados proprietários, com builds e CTest.
+- [ ] Validar instalação e interface em Windows real; executar o workflow no GitHub.
+
+Implementação, formatos e validação local em [INSTALLERS.md](INSTALLERS.md).
+Isso organiza a distribuição do recorte atual, sem alterar o escopo parcial do jogo.
+
+### Primeiro controle fora da casa
+
+- [x] Zona de saída da casa carrega a fazenda/área 0 na entrada original.
+- [x] Controle, chão estático, música e estado do inventário preservados.
+- [x] Retorno inicial pela porta externa, com giro e som originais; temporização completa ainda pendente.
+- [ ] Autowalk/blend original da transição, colisões do campo e eventos externos.
+
+O exterior ainda é um recorte parcial. Limites e evidências em
+[FARM_CONTROL.md](FARM_CONTROL.md).
+
+### Retorno da fazenda e leitura externa
+
+- Porta da casa: zona/direção/Cross, giro com aceleração original e som 0x16.
+- Volta à área 80 na entrada serializada, sem perder inventário/opções; saída novamente validada.
+- Placas externas de tipo 16 usam seus textos importados.
+- Próximo recorte: colisões dos ocupantes do campo e uso de ferramentas.
+- O ciclo completo de portas (hold, fechamento e autowalk) ainda requer paridade.
+
+### Correções das placas, espera da porta e volume
+
+- [x] Banco 2 para placas/estante; TV e menus continuam usando o banco 3.
+- [x] Nome do cachorro cadastrado e estoques da sessão nos textos das placas.
+- [x] Respeitar direção livre nas placas cujas zonas usam `FACING_ANY`.
+- [x] Jogador parado durante a abertura da porta; caminhar somente após abrir.
+- [x] Música com volume 80 dentro e 100 fora, inclusive no tick da troca de área.
+- [x] 21 CTests Linux, probe com as cinco placas/estante/porta e build Windows x64.
+- [ ] Colisões dos ocupantes do campo, uso de ferramentas e atualizações diárias.
+
+Recursos importados permanecem fora do Git. O porte continua parcial e não
+substitui o build PS1 nem sua validação SHA-1. Evidências e diferenças de
+apresentação restantes em [FARM_CONTROL.md](FARM_CONTROL.md).
+
+### Fazenda — conclusão funcional solicitada
+
+- [x] Fechamento de diálogos em um único ciclo, sem reexibir a moldura.
+- [x] Validar a proporção real de amplitude da música: casa 80% do exterior.
+- [x] Consultas originais de chão, retângulos FarmChoice e regras dos ocupantes do campo.
+- [x] Bloqueio/deslizamento e salto conforme o tipo do obstáculo.
+- [x] Estado mutável dos 1125 terrenos, conservado nas entradas/saídas.
+- [x] Cinco ferramentas iniciais: ANI/sons, efeito após a animação, arar, regar e limpar.
+- [x] Abastecer o regador com 100 unidades e mostrar a contagem real na descrição.
+- [x] Stamina/fadiga/experiência na sessão e animação original por sobrecarga.
+- [x] Efeitos de quebra originais no campo (fila limitada e pausa).
+- [ ] Ferramentas melhoradas e áreas ampliadas.
+- [x] Pegar/carregar/lançar objetos soltos, guardar itens e caixa da fazenda.
+- [ ] Portas e interiores das instalações da fazenda.
+- [ ] Relógio, animais, eventos e atualizações diárias ligados ao estado da fazenda.
+- [ ] Comparação reproduzível com PS1 e execução em Windows real.
+
+Esta lista descreve a conclusão solicitada; itens pendentes não são considerados
+implementados apenas por terem representação visual no cenário.
+
+Validação: 22 CTests Linux, comparação do PCM 80/100, probe com dados locais
+para 1125 quads/ferramentas/refil/sobrecarga/ida e volta, e build MinGW x64.
+Detalhes e limites da fazenda em [FARM_CONTROL.md](FARM_CONTROL.md).
+
+### Menus da fazenda, mochila e áudio de ferramentas
+
+- [x] Regador libera sua própria voz no fim da ação e ao abrir menus.
+- [x] Identificadores de áudio impedem que um release antigo interrompa outra voz.
+- [x] Animações de quebra para pedras, galhos, madeira e mato; fila de 25 efeitos.
+- [x] Start: resumo, envios, ajudantes, contas e experiência, com o pack original.
+- [x] Pausa congela o mundo e efeitos; música continua.
+- [x] Triângulo: mochila com os slots desbloqueados, ajuda e descrições originais.
+- [x] Mover/trocar/equipar e empilhar sementes, preservando o inventário do baú.
+- [x] R1 troca ferramentas; R2 guarda/retira itens; teclado com R1/R2 separados.
+- [x] Imagens de itens com cache limitado e centralização pelos recortes originais.
+- [x] Coleta de objetos soltos, carregamento, lançamento e caixa da fazenda.
+- [ ] Colocação de instalações e colheita.
+- [ ] Dados vivos de animais, ajudantes contratados e economia diária.
+- [ ] Paridade visual completa de todos os menus e testes em Windows real.
+
+Controles, fontes e validação em [FARM_MENUS.md](FARM_MENUS.md).
+Objetos soltos já usam a mão/mochila compartilhadas e o fluxo de lançamento.
+Entrega e contabilização descritas em [SHIPPING.md](SHIPPING.md).
+
+### Coleta, mochila e descarte
+
+- [x] Recolher pedra pequena, galho e mato do campo, removendo imagem/colisão.
+- [x] Carregar com as ANIs originais de coleta, repouso, caminhada e corrida.
+- [x] Guardar/retirar pela mochila compartilhada, respeitando capacidade.
+- [x] Lançar e descartar objetos soltos, com animação, som e três slots de voo.
+- [x] Bloquear comandos durante a ação e congelar o voo nos menus.
+- [x] 24 CTests e probe de coleta → mochila → retirada → lançamento.
+- [x] Consulta real do chão no voo e entrega à caixa da fazenda.
+- [ ] Colocação de instalações, colheitas e demais reações de aterrissagem.
+
+Limites e controles em [FARM_CARRY.md](FARM_CARRY.md).
+Entrega e economia em [SHIPPING.md](SHIPPING.md).
+
+### Ajustes de carregamento e primeiro encontro matinal
+
+- [x] Deslocamentos originais de itens carregados por direção e corrida.
+- [x] Pedra/galho/madeira com classe de campo retornam a célula livre no plantio.
+- [x] Preservar solo, ocupantes e colisão; mato segue o descarte.
+- [x] Primeiro trecho do evento 12: Thomas, textos, nome e escolha Sim/Não.
+- [x] Gatilho uma vez por sessão.
+- [x] Continuar o passeio aceito a partir do cursor 15 e Zack a partir do 147.
+
+### Passeio de Thomas e apresentação de Zack — 2026-10-23
+
+- [x] Passeio aceito completo: estrada 32, áreas 36/40/48/52 e retorno à fazenda.
+- [x] Geometria/texturas reais, caminhadas, poses, Ellen e mensagens 64..77.
+- [x] Recusa com falas 78/79 e continuação comum com Zack.
+- [x] Subrotinas do roteiro sem modificar os bytes importados; retorno validado.
+- [x] Trocas de retrato na mesma mensagem e esperas pelos bancos 105/159.
+- [x] Apresentação de Zack, câmera da caixa, marcador e saída original.
+- [x] Controle liberado no término do evento; mochila/terreno conservados.
+- [x] Acréscimo das duas horas do passeio ao horário da sessão.
+- [x] 24 CTests Linux, percurso Sim/Não com dados locais, janela X11/software e cross-build MinGW x64.
+- [x] Exploração livre das regiões externas da cidade.
+- [ ] Rotinas de moradores e interiores.
+- [x] Entrega à caixa da fazenda e pagamento; produtores e demais caixas ainda pendentes.
+- [ ] Persistência em saves, comparação com PS1 e execução em Windows real.
+
+Fontes, reprodução e limites em [FIRST_MORNING.md](FIRST_MORNING.md).
+Entrega à caixa e integração da economia descritas em [SHIPPING.md](SHIPPING.md).
+Próximo recorte: cultivos e demais atualizações diárias.
+O bootstrap nativo de diagnóstico não executa o jogo; o porte continua parcial.
+
+### Aproximação de Thomas, escadas e relógio — 2026-10-23
+
+- [x] Aproximação de Thomas pela entrada norte antes da primeira conversa.
+- [x] Jogador/atores assentados no chão durante os eventos, incluindo as escadas da estrada 32.
+- [x] Relógio de 15 ticks por minuto; pausa em interiores, menus, eventos e fades.
+- [x] Virada da data às 06:00, semana, 30 dias/estação e limite de ano original.
+- [x] Amanhecer/dia/entardecer/noite com tabelas originais, blend subtrativo e interpolação de 256 ticks.
+- [x] Faixas sazonais e noturna, proporção de volume e silêncio no inverno à noite.
+- [x] Hora/minutos, calendário e TV atualizados pelo mesmo estado de tempo.
+- [x] Sono até a manhã, recuperação de stamina/fadiga e retorno ao controle.
+- [x] Seções sazonais da casa/fazenda, solo de inverno e uploads de textura persistentes.
+- [x] Secagem do terreno, mato de inverno e conservação de mochila/experiência/descartes.
+- [x] 25 CTests, dois percursos com dados locais, janela X11/software e compilação MinGW x64.
+- [ ] Clima, cultivos, animais, festivais e demais callbacks diários.
+- [ ] Saves, comparação de paridade com PS1 e execução em Windows real.
+
+Regras, reprodução e limites em [CLOCK.md](CLOCK.md). A aproximação antes
+do bloco do evento 12 é uma preparação nativa solicitada para a visita;
+o script importado continua intacto. O bootstrap de diagnóstico não executa o jogo.
+
+### Direção na conversa e caixa de venda — 2026-10-23
+
+- [x] Jogador vira para Thomas ao terminar o deslocamento da porta e permanece assim na primeira fala.
+- [x] Altura dos objetos lançados consultada no terreno real.
+- [x] Entrega reconhecida pelo bit 0x80 da superfície original, nas quatro estações.
+- [x] Preços originais, 25 grupos de produtos, limite de 999 e total de peixes enviados separado.
+- [x] Valor pendente, pagamento único às 17h58, datas sem coleta e entregas após o horário.
+- [x] Saldo/receitas no estado compartilhado do menu; limite de carteira original.
+- [x] Eventos de economia em ordem durante sono; histórico de contas às 05h59 do último dia da estação.
+- [x] 26 CTests Linux, três percursos com dados locais, passeio X11 e cross-build MinGW x64.
+- [ ] Cultivos, crescimento diário e geração dos produtos; cesta, cavalo e caixas de interiores.
+- [ ] Rotina de Zack, demais moradores, clima e saves.
+
+Reprodução e limites em [SHIPPING.md](SHIPPING.md). O campo inicial continua
+com os objetos soltos já suportados; os produtos do teste não são concedidos
+em jogo. O pedido seguinte priorizou as demais regiões do mapa.
+
+### Regiões externas do mapa — 2026-10-23
+
+- [x] Fazenda e 14 outras regiões externas conectadas por zonas originais.
+- [x] 34 passagens direcionais, fade e retorno ao controle na chegada.
+- [x] Resolução das quatro seções sazonais de cada região.
+- [x] Caminhada/corrida no terreno real; altura de chegada, escadas e encostas.
+- [x] Limites originais da câmera em exploração livre.
+- [x] Leitura das placas do vilarejo/trilhas, incluindo nome cadastrado da fazenda.
+- [x] Música regional, exceções de volume e pitch wheel real das SEQs da praia.
+- [x] Inventário, terreno e remessas conservados; retorno sem repetir Thomas.
+- [x] 27 CTests e quatro percursos de integração com dados locais no Linux.
+- [ ] Interiores, horários, moradores e eventos dos estabelecimentos.
+- [ ] Minas, coleta silvestre, pesca, banhos e blits de textura animada.
+
+Detalhes e reprodução em [WORLD_MAP.md](WORLD_MAP.md). Nesta etapa, por pedido
+do usuário, validar somente no Linux local; manter o código compartilhado
+compatível com Windows, sem cross-build a cada entrega. Próximo recorte do
+mapa: interiores e suas regras de entrada, antes dos sistemas próprios de cada local.
+
+### Interiores iniciais da fazenda — 2026-10-23
+
+- [x] Estábulo 92, celeiro 96 e galinheiro 112, nas quatro estações.
+- [x] Entrada por Z/Cross, direção e altura da zona; saída interna ao caminhar.
+- [x] Giro por direção, rotação inicial e suporte a modelos de portas duplas.
+- [x] Relógio pausado nos interiores e estado conservado no retorno.
+- [x] Atalhos de teste `--area-preview 92/96/112`.
+- [x] 27 CTests e cinco percursos de integração revalidados no Linux local.
+- [ ] Alimentação, animais e demais operações internas.
+- [x] Portas da vila: regras de presença, afinidade, calendário e horário.
+
+Fontes, reprodução e limites em [FARM_INTERIORS.md](FARM_INTERIORS.md).
+As portas da fazenda não têm bloqueios de horário na tabela original; as
+regras dos estabelecimentos da vila precisam de seus estados reais antes
+da liberação. Windows continua como alvo do código, sem recompilação nesta etapa.
+
+### Interiores do vilarejo e infraestrutura de alimentação — 2026-10-24
+
+- [x] 22 interiores de base 128..212 e suas quatro variantes sazonais.
+- [x] Portas, escadas e passagens; recusa com o texto original do banco 2.
+- [x] 31 tabelas originais de acesso e agendas para determinar presença.
+- [x] Sprites dos 35 packs de moradores e rotas com retomada pelo relógio.
+- [x] Atalhos de teste para os 22 interiores.
+- [x] Depósitos e cochos ligados ao estoque/mão, animações e sprites originais.
+- [x] Limpeza diária dos cochos, inclusive no avanço durante o sono.
+- [x] Compra de forragem/ração pelo gameplay normal; demais lojas pendentes.
+- [ ] Conversas, presentes, progressão de afinidade e scripts completos de moradores.
+- [ ] Animais e seu ciclo de alimentação, produção, saúde e reprodução.
+
+Validação Linux: 29 CTests e sete percursos opcionais com os dados locais;
+88 pares interior/estação e todos os packs de moradores importados. O teste de
+sono/virada de ano também cobre packs noturnos com ranges ANI vazios reservados.
+O decodificador aceita importar esses ranges e rejeita tentar reproduzi-los.
+Não houve nova compilação Windows. Os testes host não substituem o build PS1.
+
+Detalhes e limites: [VILLAGE.md](VILLAGE.md) e [FARM_FEED.md](FARM_FEED.md).
+O ciclo de alimentação não é considerado completo enquanto faltarem os
+animais. Este primeiro percurso adiciona estoques somente nas fixtures; o
+recorte seguinte, abaixo, valida a compra pelo fluxo normal sem conceder recursos.
+
+### Compra de alimentos da fazenda — 2026-10-24
+
+- [x] Forragem de Barley e ração de Lillia, com presença e expediente dos scripts originais.
+- [x] Saudação, seleção, descrição, quantidade, compra/recusa, retorno e cancelamento.
+- [x] Preços reais, limite de 999, débito único da carteira e registro de despesas.
+- [x] Crédito nos estoques usados por depósitos/cochos; preservação nas passagens.
+- [x] Pausa de jogador/mundo/relógio e nomes cadastrados nas mensagens.
+- [x] Atalhos de região com `--preview-date` e `--preview-time`, sem conceder recursos.
+- [x] Percurso loja → compra → retorno pelo mapa → depósito → cocho, usando os 500G iniciais.
+- [x] 30 CTests e oito percursos com recursos locais no Linux.
+- [ ] Animais e seu ciclo de produção, saúde, reprodução e comércio.
+- [ ] Grama cultivada, fontes adicionais de alimento e demais operações das lojas.
+
+Detalhes e comandos em [FEED_SHOPS.md](FEED_SHOPS.md). O ciclo completo de
+animais continua pendente; o abastecimento dos depósitos já é possível no
+jogo normal. Não houve nova compilação Windows. O bootstrap não executa o
+jogo e a validação host não substitui o build PS1/SHA-1.
+
+### Galinhas adultas e coleta silvestre — 2026-10-24
+
+- [x] Coleta dos runs originais 11–14: posições, estações, flores/ervas e reposição diária.
+- [x] Venda dos produtos coletados pela mesma caixa, carteira e livro de receitas.
+- [x] Compra de galinha adulta de Lillia por 1.500G, nome de oito glifos e limite inicial de cinco.
+- [x] Recusa por saldo/lotação, cancelamento e débito único após confirmar o nome.
+- [x] Sprites originais, caminhada sobre o terreno, repouso noturno e pausa em menus.
+- [x] Consumo individual antes da limpeza dos cochos e afeição diária.
+- [x] Ovos por alimentação anterior, graus, coleta animada, mochila e venda.
+- [x] 32 CTests e nove percursos com dados locais; ciclo econômico partindo dos 500G iniciais.
+- [ ] Incubação, pintinhos, transporte ao exterior, venda de animais e medicamentos.
+- [ ] Eventos de doença/funeral, liberação das vagas de mortos e colisão física do jogador.
+- [ ] Vacas, ovelhas, cavalo, cachorro, concursos, melhorias e saves.
+
+Detalhes, comandos e limites em [POULTRY.md](POULTRY.md). O primeiro ciclo de
+produção está funcional; o sistema completo de animais continua pendente.
+O PRNG e os intervalos de caminhada são host; não há paridade com todas as cues.
+Somente validação Linux local, sem novo build Windows. O bootstrap não executa
+o jogo; o build host não substitui a validação PS1/SHA-1.
+
+### Incubação e eventos do ciclo das galinhas — 2026-10-24
+
+- [x] Incubadora na zona original, reserva de vaga e depósito animado de um ovo.
+- [x] Recusa por incubadora ocupada, melhoria ausente ou lotação, sem perder o ovo.
+- [x] Três noites de incubação e evento original 299 para nomear o pintinho.
+- [x] Nome obrigatório, liberação da incubadora e sete noites de crescimento.
+- [x] Sprites de pintinho e transição real ao ciclo adulto; sem ração/ovos durante crescimento.
+- [x] Evento original 172 de funeral por idade/doença, personagens, cenário, música e luto.
+- [x] Lista de nomes, penalidades por doença, remoção dos mortos e liberação das vagas.
+- [x] Retorno à casa e continuação do fade após encerrar o script.
+- [x] 32 CTests e dez percursos com recursos locais no Linux.
+- [ ] Medicamentos, venda/transporte de animais, colisão física, melhorias e demais espécies.
+
+Comportamentos, reprodução e limites em [POULTRY.md](POULTRY.md). Os funerais e
+o nascimento usam o interpretador nativo dos scripts existentes. Não houve
+build Windows; o bootstrap não executa o jogo e os testes host não substituem
+PS1/SHA-1.
+
+### Venda de galinhas pela loja de Lillia — 2026-10-24
+
+- [x] Terceira opção da loja, descrição e recusa original sem adultas disponíveis.
+- [x] Lista de quatro linhas com rolagem, nomes, data/idade, estação, afeição e prêmio.
+- [x] Exclusão de incubação, pintinhos, nomes pendentes e mortos da lista de venda.
+- [x] Oferta de 500G/2.000G, confirmação Yes/No e cancelamentos sem efeitos.
+- [x] Remoção individual, liberação/reuso de vaga e atualização da contagem.
+- [x] Crédito único em carteira/receitas, com limite de saldo e receita integral.
+- [x] 32 CTests e dez percursos com recursos locais revalidados no Linux.
+- [ ] Medicamentos, transporte de animais, colisão física, concursos e melhorias.
+
+O percurso econômico compra/alimenta a galinha, vende o ovo e revende a mesma
+adulta, terminando com 580G. Fixtures separadas cobrem capacidade ampliada,
+lista esparsa e prêmio, sem conceder esses benefícios ao jogo normal.
+Capturas em `build/native-debug/poultry-sales/`, fora do Git; validação de
+renderização SDL dummy/software, sem nova sessão gráfica real nem build Windows.
+Comandos e limites em [POULTRY.md](POULTRY.md). O bootstrap não executa o jogo;
+os testes host não substituem o build PS1/SHA-1.
+
+### Medicamento animal e cura das galinhas — 2026-10-24
+
+- [x] Medicamento de 1.000G em Lillia/Barley, descrições e mensagens originais.
+- [x] Verificação de posse no equipamento, mochila acessível e baú; opção oculta enquanto guardado.
+- [x] Compra para o equipamento/vaga da mochila, recusa por saldo/lotação e débito único.
+- [x] Equipamento por R1 e tratamento por C/Square nas quatro direções.
+- [x] Banco de ação 22, alvo fixado antes da animação, cura e consumo de uma dose ao concluir.
+- [x] Cue original de coração, som, fadiga e retorno ao controle normal.
+- [x] Bloqueio de movimento, menus, coleta e troca de ferramentas durante o uso.
+- [x] 32 CTests e onze percursos com recursos locais aprovados no Linux.
+- [ ] Transporte das galinhas, colisão física, demais espécies, concursos e melhorias.
+
+O novo percurso parte de 500G, vende 12 produtos coletados e compra o remédio
+e duas rações sem conceder dinheiro/mercadorias. Fixtures declaradas de animal
+e doença permitem verificar o tratamento e duas noites de produção, terminando
+com 80G. A dose também é consumida se o uso não acertar um alvo, como no original.
+Capturas de loja, tratamento e cura em `build/native-debug/poultry-medicine/`,
+ignoradas pelo Git. Renderização SDL dummy/software, sem nova execução gráfica
+real, comparação PS1 ou build Windows. Detalhes em
+[ANIMAL_MEDICINE.md](ANIMAL_MEDICINE.md). O bootstrap não executa o jogo e a
+validação host não substitui o build PS1/SHA-1.
+
+### Transporte de galinhas e ciclo no exterior — 2026-10-24
+
+- [x] Pegar/colocar adultas e pintinhos nomeados mantendo o mesmo registro reservado.
+- [x] Poses originais de duas mãos, quatro direções, sons e travessia das portas.
+- [x] Proteção contra guardar em mochila/equipamento, vender carregado e duplicar animais.
+- [x] Validação do chão, água, caixa de venda, obstáculos do campo e espaço de outra galinha.
+- [x] Consulta original de ocupação estudada: galinhas selecionáveis sem parada rígida do jogador.
+- [x] Alimentação externa horária, consumo dos cochos por área e avanço durante o sono.
+- [x] Ovos externos por posição/área, sprites sazonais, coleta e remessa.
+- [x] Retorno ao interior, liberação antes de dormir e sincronização da mão em crescimento/morte.
+- [x] 33 CTests e doze percursos com recursos locais aprovados no Linux.
+- [ ] Demais espécies, cães selvagens, clima completo, concursos, melhorias e saves.
+
+A antiga pendência de colisão das galinhas foi esclarecida nas rotinas
+`farm_object_contains`/`player_probe_target`: o hit `0x2008` resulta em seleção
+sem o resultado 4 que aplica parada rígida. Comparação com a execução PS1
+continua pendente. O novo percurso usa fixtures declaradas de adulta/pintinho
+e valida portas, alimentação externa, ovo vendido, retorno, sono e crescimento,
+preservando os 500G/estoques iniciais. Imagens douradas usam somente fixture
+de recurso; não concedem o concurso ao gameplay.
+Capturas em `build/native-debug/poultry-transport/`, ignoradas pelo Git;
+renderização SDL dummy/software, sem nova janela real nem build Windows.
+Fontes, comandos e limites em [POULTRY_TRANSPORT.md](POULTRY_TRANSPORT.md).
+O bootstrap não executa o jogo e os testes host não substituem PS1/SHA-1.
+
+### Página de estado das galinhas — 2026-10-24
+
+- [x] Corrigir o erro ao abrir a página de galinhas após comprar um animal.
+- [x] Ler registros reais da sessão, incluindo animais carregados e pintinhos nomeados.
+- [x] Ícones originais de adulta/pintinho/doença, nomes, afeição, data/idade, estação e prêmio.
+- [x] Sete linhas, rolagem circular e setas pulsantes do pack original de estado.
+- [x] Contagem do resumo exclui incubação/nome pendente sem liberar suas vagas.
+- [x] Troca de página/reabertura zera a rolagem; pausa conserva relógio e animais.
+- [x] Renderizar a página no percurso econômico depois de uma compra normal.
+- [x] 33 CTests e treze percursos com recursos locais aprovados no Linux.
+- [ ] Registros/páginas das demais espécies e comparação da apresentação com PS1.
+
+O percurso adicional cobre uma/dez aves, doença, pintinho, prêmio, lotação,
+nome completo, animal carregado e registros omitidos. Prêmio/capacidade ampliada
+continuam fixtures de interface. Capturas em `build/native-debug/poultry-status/`,
+fora do Git; renderização SDL dummy/software, sem nova janela real nem build
+Windows. Reprodução e distinção do formato de data em
+[POULTRY_STATUS.md](POULTRY_STATUS.md). O bootstrap não executa o jogo e os
+testes host não substituem PS1/SHA-1.
+
+
+### Colisão com moradores, conversas comuns e clareza na compra
+
+- Controle livre bloqueia passos/deslizes contra NPCs visíveis com a caixa
+  original durante a caminhada. Corrida permite atravessar NPCs nos dois
+  sentidos, mantendo testes de chão/móveis/campo.
+- Conversas de mãos vazias executam o bytecode original, leem mensagens/retratos
+  dos bancos 0..4 e conservam flags de encontro na sessão. Controle, menus e
+  relógio ficam suspensos durante a janela. Atendimento de Barley/Lillia mantém
+  prioridade durante o expediente.
+- Loja exibe preços unitários junto dos itens e saldo durante a recusa. A
+  fala de saldo insuficiente preserva o registro da edição instalada, sem
+  frases substitutas. Cursor da lista alinhado à linha selecionada. Galinha
+  continua custando 1.500G.
+- Configure/build nativos e 49 CTests locais passaram: 34 da base e 15 percursos
+  com recursos reais, incluindo 93 solicitações de diálogo, pausa/retorno,
+  recusa com 500G e compra com 1.550G obtidos por coleta/venda.
+
+Detalhes e limites em [NPC_INTERACTION.md](NPC_INTERACTION.md) e
+[FEED_SHOPS.md](FEED_SHOPS.md). Presentes, vara de Greg, demais lojas/eventos,
+progressão completa da história e temporização de eventos continuam pendentes.
+Capturas locais em `build/native-debug/npc-shop-check/`, fora do Git. Sem
+validação PS1/SHA-1 ou Windows real; bootstrap diagnóstico não executa o jogo.
+
+
+### Fidelidade dos BINs e identidade estável dos recursos
+
+- Corrida segue a exceção original dos moradores: atravessa NPCs; caminhada
+  bloqueia e as rotas retomam a colisão ao deixar de correr. A exceção não libera
+  paredes, móveis, bordas do chão ou objetos do campo.
+- Removida a reescrita PT-BR da fala de saldo insuficiente. O teste da loja
+  compara todos os glifos/controles com o registro original; o percurso de
+  conversas faz a mesma comparação em suas 93 solicitações, expandindo nomes.
+- `filesystem/text_resources.*` resolve mensagens por banco/registro e retratos
+  pelo banco original, centralizando a localização física e os limites. Os
+  leitores de intervalos, decodificadores, atlas e interfaces de mensagem atuais
+  continuam em uso. Não há novo decodificador nem leitor de PNG.
+- Diretriz para novos carregadores e futuros recursos PNG extraídos registrada
+  em [RESOURCE_IDENTITIES.md](RESOURCE_IDENTITIES.md). A identidade do recurso
+  não depende de seu offset; animação, paletas, transparência e metadados precisam
+  acompanhar uma futura extração.
+- Configure/build e 50 CTests locais: 35 testes da base e 15 percursos com BINs
+  reais. Incluem corrida/caminhada, colisão do cenário, texto original, leitura
+  exata de cinco bancos/retratos e rejeição de ids/intervalos inválidos.
+
+Porte ainda parcial. PNGs extraídos, presentes e eventos especiais continuam
+pendentes; bootstrap não executa o jogo. Validação Linux SDL dummy/software,
+sem execução Windows real ou substituição da verificação PS1/SHA-1.
+
+
+### Contadores diários dos scripts e atraso de rotas
+
+- Variáveis 40..42 das conversas agora leem/escrevem estado real da sessão:
+  128/8 contadores e 128 valores, com limites de byte e restauração se um
+  comando ainda ausente interromper o script.
+- Defaults vêm da inicialização C original. Avanço diário conserva 255 como
+  parado, limite 120 e condições de pausa do segundo grupo por datas, clima e
+  proposta de casamento. Calendário usa as primeiras 14 datas originais.
+- Notificações ordenadas do relógio atualizam os contadores durante sono e
+  mudança de dia, sem duplicar o avanço durante transições/fades.
+- Rotas bloqueadas pelo jogador acumulam até 30 minutos do jogo. A liberação
+  mantém o NPC selecionável; agenda e retomada de caminhada incluem o atraso.
+  Corrida continua livre. Resets de manhã, meio-dia/18h e entrada em local
+  pausado seguem as consultas originais.
+- Validação específica de defaults/limites/pausas, escrita/rollback por scripts,
+  agenda atrasada, reload, ano novo, sono e chegada às 06h sem dormir. Configure,
+  build e 51 CTests locais passaram: 36 da base e 15 percursos com BINs reais.
+
+Fontes, reprodução e limites em [EVENT_DAYS.md](EVENT_DAYS.md). Cooldown de
+cumprimento, bloqueios entre moradores, casamento/clima completos, presentes,
+vara de Greg, demais lojas/eventos e saves continuam pendentes. Leitores,
+decodificadores e falas originais preservados; nenhum novo carregador gráfico.
+Bootstrap não executa o jogo; testes Linux não substituem Windows real/PS1/SHA-1.
+
+
+### Amizade e afeição na manhã seguinte
+
+- Portada a rotina `family_flags_update`: flags dos scripts de conversa agora
+  geram +200 de afeição para as cinco candidatas ou +1 de amizade para os
+  demais moradores na manhã seguinte, conforme a flag original. Repetir uma
+  conversa no mesmo dia não multiplica esse ganho.
+- Proteção por conversa, perda por negligência de 1 em 10, seis exceções,
+  limites 0..65535/0..255 e flags de afeição estritamente acima de 1500 seguem
+  o código original. Flags de apresentação são conservadas.
+- Adaptado `rand_range` com estado e overflow explícitos de 32 bits. O estado
+  dos moradores permanece na sessão; a sequência global compartilhada com
+  título/áudio/animais ainda não foi portada.
+- A mudança de dia consome as flags antes de reconstruir a agenda. Sono,
+  virada do ano e chegada às 06h sem dormir atualizam os pontos uma vez;
+  recarregar uma área não concede nem descarta o ganho.
+- Configure/build e 52 CTests Linux aprovados: 37 da base e 15 percursos com
+  BINs reais. Incluem vetores do gerador, limites/exceções, rollback, repetição
+  da conversa real com Lillia e ganho único após a animação/transição de sono.
+  A comparação das 93 solicitações de mensagem com os BINs continua passando.
+
+Fontes e limites em [VILLAGER_AFFINITY.md](VILLAGER_AFFINITY.md). Presentes,
+família/casamento, cenas românticas, vara de Greg, demais lojas/eventos e saves
+continuam pendentes. Corrida, falas dos BINs e leitores/decodificadores atuais
+preservados; nenhum novo carregador gráfico. Bootstrap diagnóstico não executa
+o jogo; validação Linux SDL dummy/software não substitui Windows real/PS1/SHA-1.
+
+
+### Vara de Greg e entrega de ferramentas por script
+
+- O comando 32 agora armazena ferramentas na mão, no primeiro espaço da
+  mochila ou, quando permitido pelo argumento original, na caixa. Capacidades
+  2/4/8, modificadores, quantidade, falta de espaço e variáveis de 16 bits
+  seguem `event_item_store`. Interrupções por ação ausente restauram os itens.
+- Greg executa o roteiro 382 do BIN instalado: verifica espaço, registra a
+  oferta, recebe a resposta e entrega a vara `0x38`. A flag é ativada antes
+  da resposta, inclusive na recusa, como no original. Com mochila cheia a
+  oferta não é registrada; liberar espaço permite o ramo de entrega.
+- A apresentação reutiliza a ANI base `0x47`, imagem pelo id do item, efeito 7
+  e o mecanismo de pose breve existente. Movimento/menus aguardam o contador;
+  nenhuma nova tabela de offsets nem carregador gráfico foi introduzido.
+- Novo teste sintético do armazenamento e percurso com cenário/agenda reais
+  da praia, textos comparados com os BINs, mão livre, mochila, recusa, falta
+  de espaço, ciclo de ferramentas, retorno entre áreas e ausência de duplicação.
+- Configure/build e 54 CTests Linux aprovados: 38 da base e 16 percursos com
+  BINs reais. Captura local da entrega conferida em SDL dummy/software;
+  artefatos em `/tmp/hmbtn-greg-presentation.*`, fora do Git.
+
+Reprodução e fontes em [GREG_ROD.md](GREG_ROD.md). A vara pode ser recebida e
+selecionada; a pesca continua pendente, assim como presentes, família, demais
+lojas/eventos e saves. Leitores, decodificadores, falas originais e travessia
+dos NPCs ao correr preservados. O bootstrap não executa o jogo; validação host
+não substitui Windows real nem o build PS1/SHA-1.
+
+
+### Presentes e aniversários dos moradores
+
+- Consulta de preferências adaptada de `item_villager_reaction`, com a tabela
+  C original gerada no configure: códigos de três bits em palavras de 32 bits,
+  ausência de imagem, ferramentas e reações de animais carregados.
+- Comandos 57/58/30 agora consultam o presente, resolvem conteúdo embrulhado
+  e removem os registros solicitados pelo roteiro. Comando 81/22 mantém o
+  contador original limitado a 15. Indireção de item conserva a metade inferior
+  assinada de 16 bits, sem ponteiros serializados.
+- Z/Cross entrega ao morador antes de arremessar/coletar. Atendimento de lojas
+  com mãos vazias mantém prioridade; presentes durante o expediente seguem
+  o diálogo do próprio morador. Pausa de controles/rotas/relógio e representação
+  do item carregado acompanham o consumo real.
+- Primeiro presente, repetição, perdas, mensagens de aniversário e aniversário
+  alternativo das candidatas executam os operandos do BIN instalado. Diferenças
+  verificadas entre ramos de embrulho/aniversário são preservadas, sem fórmula
+  global substituta nem alteração de falas.
+- Uma ação ausente restaura os depósitos de produtos/ferramentas, contadores,
+  flags e afinidade de todos os moradores, incluindo registros diferentes do alvo.
+- Configure/build e 56 CTests Linux aprovados: 39 da base e 17 percursos com
+  BINs reais. O novo percurso confere 186 casos em 31 moradores e 197 solicitações
+  de mensagem, além de coleta real no bosque → presente para Lillia com loja
+  aberta. Captura local em `/tmp/hmbtn-gifts-lillia.*`, fora do Git.
+
+Fontes, reprodução e limites em [VILLAGER_GIFTS.md](VILLAGER_GIFTS.md).
+Loja de embrulho, ajudantes, família, festivais e outros comandos de história
+continuam pendentes. A entrega da vara de Greg permanece integrada; pescar
+requer portar conjuntamente boia, animações e captura/eventos. Nenhum novo
+carregador gráfico, offset ou decodificador foi introduzido. Bootstrap não
+executa o jogo; testes host não substituem Windows real ou build PS1/SHA-1.
+
+
+### Pesca, resultados e recursos de ação compartilhados
+
+- Ciclo nativo de lançamento, contato com água, espera, fisgada, cancelamento,
+  recolhimento e recebimento. Boia consulta o chão decodificado; tabelas de
+  horário/local/estação e compensação vêm do C original. Quadrado/C controla
+  a pesca; movimento/menus aguardam a ação e o relógio externo continua ativo.
+- Capturas normais entram na mão e usam inventário, presentes e venda existentes.
+  Receita em garrafa, Power Berry, condições/flags das seis capturas especiais
+  e soltura/apresentação de estampa foram adaptadas. A berry aumenta a energia
+  máxima real e o sono respeita o máximo adquirido.
+- Peixe pequeno lançado na água da praia e meta de 200 peixes vendidos alimentam
+  as condições originais. A troca de cena limpa isca/sequência de resultados;
+  às 06h a ação é encerrada e o retorno à casa conserva as aquisições.
+- `filesystem/action_resources.*` identifica bancos pela linha original de
+  `farm_load_sector_row`, com intervalos/limites ANI gerados das fontes C.
+  Pesca, confirmação, funeral, sono, sobrecarga, medicina e reabastecimento
+  reutilizam a interface. Leitor BIN, decodificadores, atlas e imagens por id
+  permanecem os atuais; não foi criado caminho PNG nem tabela física no gameplay.
+- Configure/build e 59 CTests Linux aprovados: 41 da base e 18 percursos com
+  BINs reais. O novo percurso recebe a vara de Greg, lança na água real da
+  praia, cancela, fisga, recebe um peixe e confere pagamento pela venda. Fixtures
+  de resultados especiais executam as ANIs de consumo/estampa, a passagem das
+  06h e o sono com energia máxima ampliada. Capturas locais conferidas em
+  `/tmp/hmbtn-fishing-check/`, fora do Git.
+
+Reprodução, fontes e limites em [FISHING.md](FISHING.md). Respingo/espera do
+efeito de pouso, vibração da pesca, alvos dinâmicos de eventos, galeria,
+obtenção da vara melhorada, cozinha e acesso ao conjunto completo de locais
+continuam pendentes. Nem todos os pré-requisitos especiais podem ser obtidos
+no gameplay atual. Paridade visual/temporal PS1, Windows real e saves também
+permanecem pendentes; bootstrap diagnóstico não executa o jogo.
+
+### Visitas de Thomas: pedidos da torta e do festival
+
+- Eventos 128 e 288 integrados pelo bytecode original: chegada pela entrada
+  norte, espera por interação, saudação, escolhas, caminhada e despedida.
+  Ignorar a visita até o prazo original de uma hora ou sair da fazenda
+  também encerra o roteiro e devolve controle/agenda.
+- Tabelas sazonais de gatilhos lidas do `00_gf.bin`, com limite de 100
+  entradas, campos LE de 36 bytes e avaliação das condições originais do
+  recorte. Incluem intervalo invertido dos contadores, amizade mínima,
+  calendário, horário, clima, local anterior, flags e modo de disparo.
+  Eventos sem implementação continuam inelegíveis.
+- Aceitar/recusar a torta altera amizade de Thomas e a flag do pedido.
+  O festival escolhe uma entre nove perguntas conforme o ano módulo 9;
+  a recusa aplica a perda original de amizade/afeição e dos ajudantes.
+  Slots de resposta, contadores e política de repetição vêm dos scripts.
+  A visita do festival pode voltar em outro ano; o favor da torta usa sua
+  marca própria. Flags ampliadas para as 37 palavras originais de 32 bits.
+- O jogador conserva movimento, animação, trabalho e menus enquanto Thomas
+  espera. Conversar pausa relógio/controle. O ator da visita usa a seleção
+  e colisão existentes, sem uma cópia extra da agenda: corrida atravessa,
+  caminhada bloqueia. O menu de escolha reutiliza a interface original.
+- `filesystem/event_resources.*` resolve roteiro/banco/atores por ID de
+  evento e gatilhos por seção sazonal. Intervalos gerados das tabelas C;
+  abertura, primeira manhã, funeral e nascimento migrados para a mesma
+  interface. Leitor BIN e decodificadores de bloco/ANI/banco preservados.
+  Mensagens desse fluxo usam o identificador lógico banco/registro.
+- Configure/build e 61 CTests Linux aprovados: 42 da base e 19 percursos
+  com BINs reais. Novos testes cobrem gates, truncamento, limite de tabela,
+  efeitos, nove variantes anuais, aceitação/recusa, tempo esgotado, saída,
+  ausência de repetição, glifos/controles idênticos aos BINs e colisão/corrida.
+  Capturas conferidas em `/tmp/hmbtn-visits-check/`, fora do Git.
+
+Reprodução e condições em [FARM_VISITS.md](FARM_VISITS.md). A sequência da
+torta, inicialmente prevista como próximo recorte, está descrita abaixo. Esta etapa
+implementa as visitas que iniciam os pedidos; não concede itens/recompensas
+antecipadamente. Festivais completos, demais eventos, PNGs extraídos,
+save/load, paridade PS1 e execução Windows real continuam pendentes. O
+bootstrap diagnóstico não executa o jogo e os testes host não substituem
+o build PS1/toolchain/SHA-1.
+
+### Torta para Ellen: coleta, entrega, recompensa e cobrança
+
+- Eventos originais 129..133 integrados ao pedido 128. O balcão de Doug na
+  Hospedaria usa sua zona original e o modo de disparo 10; mão ocupada bloqueia
+  a coleta. A torta vem do roteiro e não pode ser recebida duas vezes.
+- A entrega exige o item original na mão e o mesmo dia do pedido. As duas
+  escolhas de Ellen, a sequência de Elli e os agradecimentos usam os registros
+  390..394/2045, incluindo a mudança de olhares durante o banco de retrato 145.
+  O roteiro paga 300G/livro-caixa e altera amizade com Doug/Ellen em +20.
+- No dia seguinte, a tabela da fazenda seleciona retorno 131 (entrega feita),
+  132 (buscada sem entrega) ou 133 (não buscada). O sucesso apresenta e consome
+  o bolo com a ANI base 5 e o efeito real de fadiga da linha do item, restaurando
+  o que estava na mão. As falhas aplicam as perdas de amizade na chegada,
+  mesmo que Thomas seja ignorado; as marcas impedem repetição.
+- Atores de Ellen/Elli/Stu usam o carregador `village_art` existente por ID,
+  com cópias temporárias para o evento e devolução às agendas. A apresentação
+  de itens usa ANI base/imagem por ID e continua até terminar após o roteiro.
+  Leitores/decodificadores preservados; nenhum offset gráfico novo ou PNG.
+- Configure/build e 63 CTests Linux aprovados: 43 da base e 20 percursos com
+  BINs reais. O percurso da torta não concede itens/flags de missão por fixture:
+  testa ambos os caminhos, dinheiro, caixa, inventário, consumo, retrato,
+  falhas, prazo, ausência de duplicação e mensagens idênticas aos BINs.
+  Capturas de Elli e do bolo em `/tmp/hmbtn-pie-check/`, fora do Git.
+
+Condições e reprodução em [FARM_VISITS.md](FARM_VISITS.md). A entrega dos
+ingredientes solicitados por Thomas foi integrada no recorte abaixo. Menu geral da
+Hospedaria, festivais completos, outros eventos, PNGs, saves e validação real
+Windows/PS1 continuam pendentes. O bootstrap diagnóstico não executa o jogo;
+os testes host não substituem a toolchain PS1 nem sua validação SHA-1.
+
+### Ingredientes de Thomas: entrega e respostas na casa — 2026-10-25
+
+- Evento 289 integrado ao pedido 288 pelo bytecode instalado, sem falas ou
+  condições de missão substitutas. A tabela sazonal da casa de Thomas é
+  carregada pela interface de recursos existente; exige a interação com o
+  alvo 17, o pedido aceito, calendário/contador e três ingredientes elegíveis.
+- Condição 83 adaptada de `farm_event_available`: nove ciclos anuais e grupos
+  originais de ovos/leite, contando registros da mão e mochila ativa sem
+  consumir nem interpretar `count` como pilha. O ano interno da condição e
+  o ano exibido consultado pelo roteiro mantêm suas bases originais.
+- Remoção compartilhada com os diálogos de presentes: cada comando retira no
+  máximo um registro, conserva as sobras e retorna o total encontrado. O
+  roteiro controla variantes, escolhas, ganho de amizade/afeição, ajudantes
+  e limpeza da flag do pedido. Recusar conserva itens e permite nova tentativa.
+- Diferença C/BIN preservada: ovos dourados e leite dourado podem liberar o
+  gatilho, mas não são removidos pelas listas desse script. O ramo original
+  ainda concede o ganho; fixtures específicas conferem esse comportamento.
+- Thomas e os moradores presentes usam cópias temporárias e `village_art` por
+  ID. Mensagens dos bancos 1 e 0 preservam glifos/controles e retratos. Animação,
+  seleção, colisão e devolução às agendas reutilizam os caminhos existentes;
+  nenhum novo carregador gráfico, offset físico ou PNG foi introduzido.
+- Configure/build e 64 CTests Linux aprovados: 43 da base e 21 percursos com
+  BINs reais. O percurso novo cobre as nove variantes com aceitação/recusa,
+  dois casos com somente ingredientes dourados, falta de quantidade, prazo,
+  contador, sobras, saturação, respostas posteriores e ausência de ganho
+  duplicado. Mensagens são comparadas com os BINs e passam pelo renderizador.
+
+Fontes, condições e reprodução em [FARM_VISITS.md](FARM_VISITS.md). Festival
+completo, outros eventos sazonais, menu geral da Hospedaria, saves e paridade
+PS1 continuam pendentes. O bootstrap diagnóstico não executa o jogo; SDL
+dummy/software no Linux não comprova execução Windows real nem substitui
+a toolchain PS1 e a validação SHA-1.

@@ -4,7 +4,7 @@
 #include "psx_data.h"
 #include <stdlib.h>
 #include <string.h>
-bool hmbtn_feed_shop_expand(uint8_t *record,size_t size,const HmbtnNewGame *registration)
+bool hmbtn_feed_shop_expand(uint8_t *record,size_t size,const HmbtnRegistration *registration)
 {
     if(!record || size!=8192 || !registration) return false;
     uint16_t words[HMBTN_MESSAGE_WORDS];unsigned count=0;
@@ -46,17 +46,17 @@ static void next(HmbtnFeedShop *s,HmbtnFeedShopPhase phase,unsigned message)
 static bool has_medicine(const HmbtnHouseInteraction *h)
 {
     /* milestone_probe_animal_medicine: held tool, accessible bag and toolbox. */
-    if(h->equipped.id==0x1E) return true;
-    const unsigned capacity=h->rucksack_level<=2 ? 2u<<h->rucksack_level : 0;
-    for(unsigned i=0;i<capacity;++i) if(h->bag[i].id==0x1E) return true;
-    for(unsigned i=0;i<64;++i) if(h->toolbox[i].id==0x1E) return true;
+    if(h->inventory->equipped.id==0x1E) return true;
+    const unsigned capacity=h->inventory->rucksack_level<=2 ? 2u<<h->inventory->rucksack_level : 0;
+    for(unsigned i=0;i<capacity;++i) if(h->inventory->bag[i].id==0x1E) return true;
+    for(unsigned i=0;i<64;++i) if(h->inventory->toolbox[i].id==0x1E) return true;
     return false;
 }
 static bool buy_medicine(HmbtnHouseInteraction *h)
 {
-    if(has_medicine(h) || h->rucksack_level>2) return false;
-    HmbtnStoredTool *slot=!h->equipped.id ? &h->equipped : NULL;
-    for(unsigned i=0;!slot && i<(2u<<h->rucksack_level);++i) if(!h->bag[i].id) slot=&h->bag[i];
+    if(has_medicine(h) || h->inventory->rucksack_level>2) return false;
+    HmbtnStoredTool *slot=!h->inventory->equipped.id ? &h->inventory->equipped : NULL;
+    for(unsigned i=0;!slot && i<(2u<<h->inventory->rucksack_level);++i) if(!h->inventory->bag[i].id) slot=&h->inventory->bag[i];
     if(!slot) return false;
     *slot=(HmbtnStoredTool){0x1E,0,1};return true;
 }
@@ -77,12 +77,12 @@ bool hmbtn_feed_shop_open(HmbtnFeedShop *s,HmbtnVillage *v,const HmbtnIntroActor
             || abs(merchant->position[2]-p->position[2]-step[p->facing][1])>=200
             || abs(merchant->position[1]-p->position[1])>=20) return false;
     HmbtnPoultry *poultry=s->poultry;
-    memset(s,0,sizeof(*s));s->poultry=poultry;s->date=*clock;
+    memset(s,0,sizeof(*s));s->poultry=poultry;s->clock=clock;
     s->merchant=id;s->item=barn ? 0x68 : 0x69;s->quantity=1;
     s->saved_facing=merchant->facing;s->sound=3;
     start_message(s,HMBTN_SHOP_GREETING,barn ? 0x62 : 0x44);return true;
 }
-void hmbtn_feed_shop_tick(HmbtnFeedShop *s,HmbtnHouseInteraction *h,HmbtnFarmStatistics *stats,
+void hmbtn_feed_shop_tick(HmbtnFeedShop *s,HmbtnHouseInteraction *h,HmbtnEconomy *economy,HmbtnFarmStatistics *stats,
     uint32_t pressed,uint32_t held)
 {
     s->sound=-1;
@@ -96,9 +96,9 @@ void hmbtn_feed_shop_tick(HmbtnFeedShop *s,HmbtnHouseInteraction *h,HmbtnFarmSta
         s->after_result=HMBTN_SHOP_SELECT;
         if(s->editor.choice) start_message(s,HMBTN_SHOP_RESULT,0x4E);
         else if(!hmbtn_poultry_room(s->poultry)) start_message(s,HMBTN_SHOP_RESULT,0x55);
-        else if(stats->gold<hmbtn_feed_shop_cost(s)) start_message(s,HMBTN_SHOP_RESULT,0x4F);
-        else if(hmbtn_poultry_buy(s->poultry,s->editor.name,&s->date)) {
-            unsigned cost=hmbtn_feed_shop_cost(s);stats->gold-=cost;stats->ledger[0][1]+=cost;
+        else if(economy->gold<hmbtn_feed_shop_cost(s)) start_message(s,HMBTN_SHOP_RESULT,0x4F);
+        else if(hmbtn_poultry_buy(s->poultry,s->editor.name,s->clock)) {
+            unsigned cost=hmbtn_feed_shop_cost(s);economy->gold-=cost;economy->ledger[0][1]+=cost;
             stats->animals[0]=hmbtn_poultry_count(s->poultry);
             start_message(s,HMBTN_SHOP_RESULT,0x57);
         }
@@ -154,9 +154,9 @@ void hmbtn_feed_shop_tick(HmbtnFeedShop *s,HmbtnHouseInteraction *h,HmbtnFarmSta
             const unsigned price=yes ? hmbtn_poultry_sell(s->poultry,s->sale_slot) : 0;
             s->sound=yes ? 0 : 1;s->after_result=HMBTN_SHOP_SELECT;
             if(price) {
-                const uint64_t gold=(uint64_t)stats->gold+price;
-                stats->gold=gold>9999999 ? 9999999u : (unsigned)gold;
-                stats->ledger[0][0]+=price;stats->animals[0]=hmbtn_poultry_count(s->poultry);
+                const uint64_t gold=(uint64_t)economy->gold+price;
+                economy->gold=gold>9999999 ? 9999999u : (unsigned)gold;
+                economy->ledger[0][0]+=price;stats->animals[0]=hmbtn_poultry_count(s->poultry);
             }
             next(s,HMBTN_SHOP_RESULT,price ? 0x5E : 0x5B);
         }
@@ -180,10 +180,10 @@ void hmbtn_feed_shop_tick(HmbtnFeedShop *s,HmbtnHouseInteraction *h,HmbtnFarmSta
             s->sound=0;s->after_result=HMBTN_SHOP_SELECT;
             if(s->selection==3) {
                 const unsigned cost=hmbtn_feed_shop_cost(s);
-                if(stats->gold<cost) next(s,HMBTN_SHOP_RESULT,0x4F);
+                if(economy->gold<cost) next(s,HMBTN_SHOP_RESULT,0x4F);
                 else if(!buy_medicine(h)) next(s,HMBTN_SHOP_RESULT,0x54);
                 else {
-                    stats->gold-=cost;stats->ledger[0][1]+=cost;s->medicine_available=false;
+                    economy->gold-=cost;economy->ledger[0][1]+=cost;s->medicine_available=false;
                     s->selection=0;s->item=barn ? 0x68 : 0x69;
                     next(s,HMBTN_SHOP_RESULT,barn ? 0x84 : 0x51);
                 }
@@ -194,7 +194,7 @@ void hmbtn_feed_shop_tick(HmbtnFeedShop *s,HmbtnHouseInteraction *h,HmbtnFarmSta
                     hmbtn_poultry_sale_slot(s->poultry,0)==HMBTN_HENS ? 0x59 : 0x58);
             }
             else if(s->selection==1 && !hmbtn_poultry_room(s->poultry)) next(s,HMBTN_SHOP_RESULT,0x55);
-            else if(s->selection==1 && stats->gold<hmbtn_feed_shop_cost(s)) next(s,HMBTN_SHOP_RESULT,0x4F);
+            else if(s->selection==1 && economy->gold<hmbtn_feed_shop_cost(s)) next(s,HMBTN_SHOP_RESULT,0x4F);
             else next(s,HMBTN_SHOP_OFFER,barn ? 0x6C : s->selection ? 0x56 : 0x4B);
         }
         return;
@@ -211,11 +211,11 @@ void hmbtn_feed_shop_tick(HmbtnFeedShop *s,HmbtnHouseInteraction *h,HmbtnFarmSta
     else if(pressed&HMBTN_PAD_CROSS) {
         const unsigned cost=hmbtn_feed_shop_cost(s),stock=barn ? 0 : 2;
         s->after_result=HMBTN_SHOP_COUNT;s->sound=0;
-        if(stats->gold<cost) next(s,HMBTN_SHOP_RESULT,0x4F);
-        else if(h->supplies[stock]>=1000 || s->quantity>=1000-h->supplies[stock])
+        if(economy->gold<cost) next(s,HMBTN_SHOP_RESULT,0x4F);
+        else if(h->inventory->supplies[stock]>=1000 || s->quantity>=1000-h->inventory->supplies[stock])
             next(s,HMBTN_SHOP_RESULT,barn ? 0x6D : 0x4C);
         else {
-            h->supplies[stock]+=s->quantity;stats->gold-=cost;stats->ledger[0][1]+=cost;
+            h->inventory->supplies[stock]+=s->quantity;economy->gold-=cost;economy->ledger[0][1]+=cost;
             s->after_result=HMBTN_SHOP_SELECT;next(s,HMBTN_SHOP_RESULT,barn ? 0x70 : 0x52);
         }
         return;

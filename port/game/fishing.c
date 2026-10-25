@@ -110,15 +110,15 @@ bool hmbtn_fishing_tick(HmbtnFishing *f,HmbtnIntroActor *p,HmbtnHouseInteraction
     f->sound=-1;f->finished_bank=f->berry_eaten=false;
     switch(f->phase) {
     case HMBTN_FISHING_FREE:
-        if(!(pressed&HMBTN_PAD_SQUARE) || (h->equipped.id!=ITEM_FISHING_ROD && h->equipped.id!=ITEM_FISHING_POLE)
-                || h->held_item.id || p->facing>3 || status->fatigue>=100) return false;
+        if(!(pressed&HMBTN_PAD_SQUARE) || (h->inventory->equipped.id!=ITEM_FISHING_ROD && h->inventory->equipped.id!=ITEM_FISHING_POLE)
+                || h->inventory->held_item.id || p->facing>3 || status->fatigue>=100) return false;
         f->phase=HMBTN_FISHING_CAST;f->using_action=true;f->bank_pending=true;f->caught=f->shown=0;
         f->bob_frame=0;pose(p,p->facing,0);launch(f,p,true);f->sound=15;return true;
     case HMBTN_FISHING_CAST:
         if(f->in_flight && flight(f,ground)) { f->in_flight=false;if(f->water) f->sound=16; }
         if(f->in_flight || !p->animation_done) return true;
         f->kind=location==44 ? 0 : location==13 ? 1 : location==12 ? 2 : location==66 ? 3 : 4;
-        status->fatigue+=(h->weather!=0)+(h->hour>=22 ? 1u : h->hour<6 ? 2u : 0u)+(status->stamina==0 ? 2u : 0u);
+        status->fatigue+=(h->weather!=0)+(h->clock->hour>=22 ? 1u : h->clock->hour<6 ? 2u : 0u)+(status->stamina==0 ? 2u : 0u);
         if(status->fatigue>100) status->fatigue=100;
         if(status->stamina) --status->stamina;
         f->wait=hmbtn_fishing_wait(f,c->hour*60+c->minute);
@@ -128,7 +128,7 @@ bool hmbtn_fishing_tick(HmbtnFishing *f,HmbtnIntroActor *p,HmbtnHouseInteraction
     case HMBTN_FISHING_WAIT:
         if(!(held&HMBTN_PAD_SQUARE)) { f->phase=HMBTN_FISHING_REEL;pose(p,p->facing+4,0);f->marker_visible=false;f->sound=15;return true; }
         if(!f->wait) {
-            if(hmbtn_psx_random_range(&f->random,100)<(h->equipped.id==ITEM_FISHING_POLE ? 40u : 20u)) {
+            if(hmbtn_psx_random_range(&f->random,100)<(h->inventory->equipped.id==ITEM_FISHING_POLE ? 40u : 20u)) {
                 f->phase=HMBTN_FISHING_HOOKED;pose(p,p->facing+9,0);return true;
             }
             f->wait=hmbtn_fishing_wait(f,c->hour*60+c->minute);
@@ -147,7 +147,7 @@ bool hmbtn_fishing_tick(HmbtnFishing *f,HmbtnIntroActor *p,HmbtnHouseInteraction
         f->shown=f->caught;f->phase=HMBTN_FISHING_RECEIVE;pose(p,11+p->facing,0);return true;
     case HMBTN_FISHING_RECEIVE:
         if(!p->animation_done) return true;
-        h->held_item=(HmbtnStoredTool){(uint16_t)f->caught,0,1};f->shown=0;
+        h->inventory->held_item=(HmbtnStoredTool){(uint16_t)f->caught,0,1};f->shown=0;
         if(f->caught==ITEM_POWER_BERRY) { f->phase=HMBTN_FISHING_EAT;f->sound=74;pose(p,5,0); }
         else if(f->caught>=ITEM_CARP && f->caught<=ITEM_SEA_BREAM) { f->phase=HMBTN_FISHING_RELEASE;pose(p,23+p->facing,0); }
         else finish(f,p);
@@ -157,12 +157,12 @@ bool hmbtn_fishing_tick(HmbtnFishing *f,HmbtnIntroActor *p,HmbtnHouseInteraction
             status->max_stamina=status->max_stamina+10>255 ? 255 : status->max_stamina+10;
             status->stamina=status->max_stamina;if(status->fatigue) --status->fatigue;
             f->berry_eaten=true;
-            h->held_item=(HmbtnStoredTool){0};finish(f,p);
+            h->inventory->held_item=(HmbtnStoredTool){0};finish(f,p);
         }
         return true;
     case HMBTN_FISHING_RELEASE:
         if(p->animation_done) {
-            launch(f,p,false);f->phase=HMBTN_FISHING_RELEASE_FLIGHT;h->held_item=(HmbtnStoredTool){0};f->sound=9;pose(p,0,p->facing);
+            launch(f,p,false);f->phase=HMBTN_FISHING_RELEASE_FLIGHT;h->inventory->held_item=(HmbtnStoredTool){0};f->sound=9;pose(p,0,p->facing);
         }
         return true;
     case HMBTN_FISHING_RELEASE_FLIGHT:

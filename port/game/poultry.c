@@ -62,15 +62,15 @@ bool hmbtn_poultry_medicine_tick(HmbtnPoultry *p,unsigned area,HmbtnFarmAction *
             }
         }
         /* stored_item_release runs even when the target is absent or healthy. */
-        if(h->equipped.id==0x1E && h->equipped.count && !--h->equipped.count) h->equipped=(HmbtnStoredTool){0};
-        const unsigned fatigue=(h->weather!=0)+(h->hour>=22 ? 1u : h->hour<6 ? 2u : 0u)+(a->stamina==0 ? 2u : 0u);
+        if(h->inventory->equipped.id==0x1E && h->inventory->equipped.count && !--h->inventory->equipped.count) h->inventory->equipped=(HmbtnStoredTool){0};
+        const unsigned fatigue=(h->weather!=0)+(h->clock->hour>=22 ? 1u : h->clock->hour<6 ? 2u : 0u)+(a->stamina==0 ? 2u : 0u);
         a->fatigue=a->fatigue+fatigue>100 ? 100 : a->fatigue+fatigue;
         a->sound=17;a->finished_bank=true;a->bank=-1;a->phase=HMBTN_FARM_ACTION_FREE;
         player->sprite=(HmbtnAnimationPlayer){0,(uint16_t)player->facing,0};player->animation_done=false;
         return true;
     }
     if(a->phase!=HMBTN_FARM_ACTION_FREE || !(pressed&HMBTN_PAD_SQUARE) || player->facing>3
-            || h->equipped.id!=0x1E || !h->equipped.count || h->held_item.id || a->fatigue>=100) return false;
+            || h->inventory->equipped.id!=0x1E || !h->inventory->equipped.count || h->inventory->held_item.id || a->fatigue>=100) return false;
     /* player_probe_target(kind 0x18) probes 128 forward, against the original
      * chicken halfWidth/halfDepth (strict 200). It latches before the animation. */
     static const int step[4][2]={{0,-128},{-128,0},{0,128},{128,0}};
@@ -186,14 +186,14 @@ void hmbtn_poultry_tick(HmbtnPoultry *p,unsigned area,const HmbtnModel *ground,
 }
 bool hmbtn_poultry_take_egg(HmbtnPoultry *p,unsigned area,HmbtnHouseInteraction *h,HmbtnFarmCarry *carry,HmbtnIntroActor *a)
 {
-    if(h->held_item.id || carry->phase || a->facing>3) return false;
+    if(h->inventory->held_item.id || carry->phase || a->facing>3) return false;
     static const int delta[4][2]={{0,-224},{-224,0},{0,224},{224,0}};
     for(unsigned i=0;i<HMBTN_HENS;++i) {
         HmbtnCoopEgg *e=&p->eggs[i];if(!e->item || e->area!=area) continue;
         if(abs(e->position[0]-a->position[0]-delta[a->facing][0])>=200
                 || abs(e->position[2]-a->position[2]-delta[a->facing][1])>=200
                 || abs(e->position[1]-a->position[1])>=200) continue;
-        h->held_item=(HmbtnStoredTool){(uint16_t)e->item,0,1};e->item=0;
+        h->inventory->held_item=(HmbtnStoredTool){(uint16_t)e->item,0,1};e->item=0;
         carry->phase=1;carry->sound=7;a->animation_done=false;
         a->sprite=(HmbtnAnimationPlayer){(uint16_t)(11+a->facing),0,0};return true;
     }
@@ -256,9 +256,9 @@ bool hmbtn_poultry_incubator_tick(HmbtnPoultry *p,HmbtnFarmFeed *action,HmbtnHou
                 || x<=half(zone+14) || x>=half(zone+20) || z<=half(zone+18) || z>=half(zone+24)
                 || abs(a->position[1]-half(zone+16))>=128) continue;
         action->sound=-1;action->request=0;
-        if(h->held_item.id && h->held_item.id!=0x122 && h->held_item.id!=0x123 && h->held_item.id!=0x124 && h->held_item.id!=0xE8) return true;
-        if(!h->held_item.id) { action->request=0x1E7;return true; }
-        action->request=hmbtn_poultry_incubate(p,hmbtn_read_le16(zone+12),h->held_item.id,clock);
+        if(h->inventory->held_item.id && h->inventory->held_item.id!=0x122 && h->inventory->held_item.id!=0x123 && h->inventory->held_item.id!=0x124 && h->inventory->held_item.id!=0xE8) return true;
+        if(!h->inventory->held_item.id) { action->request=0x1E7;return true; }
+        action->request=hmbtn_poultry_incubate(p,hmbtn_read_le16(zone+12),h->inventory->held_item.id,clock);
         if(action->request) return true;
         action->phase=2;action->sound=7;a->animation_done=false;
         a->sprite=(HmbtnAnimationPlayer){(uint16_t)(23+a->facing),0,0};return true;

@@ -19,7 +19,7 @@ typedef struct HmbtnFarmIntro {
     HmbtnIntroActor elli,stu;
     HmbtnIntroActor carter,barley,rick;
     int32_t slots[32];
-    unsigned message, target_area;
+    unsigned message, message_bank, target_area;
     int message_result_slot; /* Original show-message result destination, -1 discards. */
     unsigned area, event, queued_event, camera_actor;
     int32_t camera[3];

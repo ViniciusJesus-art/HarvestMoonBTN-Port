@@ -74,7 +74,7 @@ int main(void)
     assert(!hmbtn_event_resource_locate((HmbtnEventResourceKind)2,0,&range));
     /* Delivery mode/target and held identity: a pie in the bag is not offered. */
     entry(bytes,130,all);bytes[33]=39;bytes[34]=3;bytes[35]=23;
-    HmbtnHouseInteraction inventory={0};inventory.held_item=(HmbtnStoredTool){204,0,1};
+    HmbtnInventory inventory={0};inventory.held_item=(HmbtnStoredTool){204,0,1};
     assert(hmbtn_farm_event_trigger(&t,&v,&clock,0,2,3,23,&inventory)==130);
     assert(!hmbtn_farm_event_trigger(&t,&v,&clock,0,2,3,9,&inventory));
     assert(!hmbtn_farm_event_trigger(&t,&v,&clock,0,2,2,23,&inventory));
@@ -84,5 +84,39 @@ int main(void)
     assert(hmbtn_farm_event_trigger(&t,&v,&clock,0,2,10,6,&inventory)==129);
     inventory.held_item=(HmbtnStoredTool){204,0,1};
     assert(!hmbtn_farm_event_trigger(&t,&v,&clock,0,2,10,6,&inventory));
+    /* Condition 83 counts records using the INTERNAL year. It is a pure
+     * query; wrapped contents, stack counts and inactive bag slots do not count. */
+    entry(bytes,289,all|0x8000);bytes[33]=83;bytes[34]=3;bytes[35]=17;
+    static const unsigned needed[9]={65,71,67,77,290,139,162,68,151};
+    for(unsigned year=0;year<9;++year) {
+        clock.year=year;inventory=(HmbtnInventory){0};
+        inventory.held_item=(HmbtnStoredTool){(uint16_t)needed[year],0,99};
+        inventory.items[0]=inventory.held_item;
+        assert(!hmbtn_farm_event_trigger(&t,&v,&clock,0,2,3,17,&inventory));
+        inventory.items[1]=inventory.held_item;
+        if(year==4) { inventory.items[0].id=293;inventory.items[1].id=232; }
+        if(year==5) { inventory.items[0].id=141;inventory.items[1].id=227; }
+        HmbtnInventory before=inventory;
+        assert(hmbtn_farm_event_trigger(&t,&v,&clock,0,2,3,17,&inventory)==289
+            && !memcmp(&before,&inventory,sizeof(before)));
+        if(year==4) {
+            inventory.items[1].id=294; /* Mystic Berry is not an egg. */
+            assert(!hmbtn_farm_event_trigger(&t,&v,&clock,0,2,3,17,&inventory));
+            inventory=before;
+        }
+        assert(!hmbtn_farm_event_trigger(&t,&v,&clock,0,2,3,15,&inventory));
+        assert(!hmbtn_farm_event_trigger(&t,&v,&clock,0,2,0,17,&inventory));
+        inventory.items[1]=(HmbtnStoredTool){164,(uint16_t)needed[year],1};
+        inventory.items[2]=inventory.held_item;
+        assert(!hmbtn_farm_event_trigger(&t,&v,&clock,0,2,3,17,&inventory));
+    }
+    visit=(HmbtnFarmVisit){.event=289,.active=true,.talk=true,.talk_target=17};
+    v.people[17].talk_flags=0;c=(HmbtnEventCommand){.type=11,.command=-1};
+    assert(hmbtn_farm_visit_command(&visit,&intro,&v,&clock,&c,error,sizeof(error))==HMBTN_EVENT_DONE
+        && !v.people[17].talk_flags && !visit.free);
+    v.people[17].friendship=250;v.people[3].affection=65000;
+    v.people[27].friendship=200;c=(HmbtnEventCommand){.type=91,.command=32,.operand=1,.x=20,.y=1000};
+    assert(hmbtn_farm_visit_command(&visit,&intro,&v,&clock,&c,error,sizeof(error))==HMBTN_EVENT_DONE
+        && v.people[17].friendship==255 && v.people[3].affection==65535 && v.people[27].friendship==200);
     puts("Farm visit trigger gates, state effects, repeat policy and logical resource identities passed.");return 0;
 }

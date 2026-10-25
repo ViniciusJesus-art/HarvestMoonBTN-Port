@@ -6,12 +6,12 @@
 #include <string.h>
 #define FAIL(msg) do { snprintf(error,error_size,"%s",msg); return false; } while (0)
 
-void hmbtn_new_game_init(HmbtnNewGame *g)
+void hmbtn_new_game_init(HmbtnNewGame *g,HmbtnRegistration *registration)
 {
     memset(g, 0, sizeof(*g));
-    g->step = 11; g->sound = -1;
+    g->step = 11; g->sound = -1;g->registration=registration;
     for (unsigned i = 0; i <= HMBTN_NAME_CHARS; ++i)
-        g->name[i] = g->player_name[i] = g->farm_name[i] = g->dog_name[i] = 0xffff;
+        g->name[i] = 0xffff;
 }
 bool hmbtn_message_open(HmbtnMessage *m, const uint8_t *record, size_t size,
     char *error, size_t error_size)
@@ -179,7 +179,7 @@ static void start_name(HmbtnNewGame *g)
 }
 void hmbtn_name_editor_begin(HmbtnNewGame *g)
 {
-    hmbtn_new_game_init(g);g->step=101;start_name(g);
+    hmbtn_new_game_init(g,NULL);g->step=101;start_name(g);
 }
 static void name_tick(HmbtnNewGame *g,uint32_t pressed,uint32_t triggered)
 {
@@ -188,7 +188,7 @@ static void name_tick(HmbtnNewGame *g,uint32_t pressed,uint32_t triggered)
         if (pressed == HMBTN_PAD_CROSS && g->choice == 0) {
             if(g->step==101) { g->finished=true;g->choice=0; }
             else {
-                uint16_t *dest=g->step==15?g->player_name:g->step==21?g->farm_name:g->dog_name;
+                uint16_t *dest=g->step==15?g->registration->player_name:g->step==21?g->registration->farm_name:g->registration->dog_name;
                 memcpy(dest,g->name,sizeof(g->name));
             }
             ++g->step;g->sound=0;
@@ -230,22 +230,22 @@ static void birthday_tick(HmbtnNewGame *g,uint32_t pressed,uint32_t triggered)
         if (pressed==HMBTN_PAD_CROSS && g->choice==0) {
             g->step=19;g->sound=0;g->message.phase=HMBTN_MESSAGE_CLOSING;g->message.box_frame=0;
         } else if (pressed==HMBTN_PAD_CROSS || pressed==HMBTN_PAD_CIRCLE) {
-            g->birthday_phase=2;g->birthday_value=g->day;g->sound=1;queue(g,0x3a9);
+            g->birthday_phase=2;g->birthday_value=g->registration->birthday_day;g->sound=1;queue(g,0x3a9);
         } else if (triggered & (HMBTN_PAD_UP|HMBTN_PAD_DOWN)) {g->choice^=1;g->sound=5;}
         return;
     }
     if (pressed==HMBTN_PAD_CROSS) {
         g->sound=0;
         if (g->birthday_phase==1) {
-            g->season=g->birthday_value;g->birthday_value=0;g->birthday_phase=2;
+            g->registration->birthday_season=g->birthday_value;g->birthday_value=0;g->birthday_phase=2;
         } else {
-            g->day=g->birthday_value;g->birthday_value=0;g->birthday_phase=3;g->choice=0;queue(g,0x3a7);
+            g->registration->birthday_day=g->birthday_value;g->birthday_value=0;g->birthday_phase=3;g->choice=0;queue(g,0x3a7);
         }
         return;
     }
     if (pressed==HMBTN_PAD_CIRCLE) {
         g->sound=1;
-        if (g->birthday_phase==2) {g->birthday_phase=1;g->birthday_value=g->season;}
+        if (g->birthday_phase==2) {g->birthday_phase=1;g->birthday_value=g->registration->birthday_season;}
         else {g->step=13;g->message.phase=HMBTN_MESSAGE_CLOSING;g->message.box_frame=0;}
         return;
     }

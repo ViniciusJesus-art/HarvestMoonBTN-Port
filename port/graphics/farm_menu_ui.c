@@ -55,12 +55,12 @@ static bool background(HmbtnNewGameUI *shared,unsigned tick,uint8_t *p,char *err
     return true;
 }
 static bool summary(HmbtnFarmMenuUI *u,HmbtnNewGameUI *shared,const HmbtnFarmMenu *m,
-    const HmbtnHouseInteraction *h,const HmbtnNewGame *g,uint8_t *p,char *error,size_t size)
+    const HmbtnHouseInteraction *h,const HmbtnRegistration *g,uint8_t *p,char *error,size_t size)
 {
     const HmbtnFarmStatistics *s=&m->stats;
     if(!sprite(u,0,0,0,24,48,p,error,size)
         || !hmbtn_ui_text(shared,p,g->player_name,HMBTN_NAME_CHARS+1,48,50,0,3,error,size)) return false;
-    const unsigned icons[3]={11,12,10},values[3]={s->building_score,s->recipes,s->gold};
+    const unsigned icons[3]={11,12,10},values[3]={s->building_score,s->recipes,m->economy->gold};
     const int xs[3]={40,40,140},ys[3]={72,96,48};
     for(unsigned i=0;i<3;++i) if(!sprite(u,3,icons[i],0,xs[i],ys[i],p,error,size)
         || !number(shared,p,values[i],i==2 ? 8 : 3,i==0 ? farm_glyph_8f[0] : i==1 ? farm_pieces[0] : farm_gold[0],xs[i]+24,ys[i]+4,error,size)) return false;
@@ -74,7 +74,7 @@ static bool summary(HmbtnFarmMenuUI *u,HmbtnNewGameUI *shared,const HmbtnFarmMen
     const unsigned list_count[5]={s->animals[0],s->animals[1],s->animals[2],s->fish,s->discarded};
     for(unsigned i=0;i<5;++i) if(!sprite(u,list_art[i],list_anim[i],0,140,72+(int)i*24,p,error,size)
         || !number(shared,p,list_count[i]>99 ? 99 : list_count[i],2,-1,164,76+(int)i*24,error,size)) return false;
-    const unsigned feed_anim[4]={8,7,6,9},stock[4]={h->supplies[2],h->supplies[0],h->supplies[3],h->supplies[1]};
+    const unsigned feed_anim[4]={8,7,6,9},stock[4]={h->inventory->supplies[2],h->inventory->supplies[0],h->inventory->supplies[3],h->inventory->supplies[1]};
     const int feed_y[4]={72,96,144,168};
     for(unsigned i=0;i<4;++i) if(!sprite(u,3,feed_anim[i],0,212,feed_y[i],p,error,size)
         || !number(shared,p,stock[i]>999 ? 999 : stock[i],3,-1,236,feed_y[i]+4,error,size)) return false;
@@ -111,7 +111,7 @@ static bool chickens(HmbtnFarmMenuUI *u,HmbtnNewGameUI *shared,const HmbtnFarmMe
     return true;
 }
 static bool status(HmbtnFarmMenuUI *u,HmbtnNewGameUI *shared,const HmbtnFarmMenu *m,
-    const HmbtnHouseInteraction *h,const HmbtnFarmAction *a,const HmbtnNewGame *g,uint8_t *p,char *error,size_t size)
+    const HmbtnHouseInteraction *h,const HmbtnFarmAction *a,const HmbtnRegistration *g,uint8_t *p,char *error,size_t size)
 {
     hmbtn_window_frame_draw(p,320,240,16,32,288,192);hmbtn_window_frame_draw(p,320,240,60,16,200,32);
     uint16_t title[16];unsigned n=0;
@@ -128,7 +128,7 @@ static bool status(HmbtnFarmMenuUI *u,HmbtnNewGameUI *shared,const HmbtnFarmMenu
         for(unsigned i=0;i<21;++i) {
             const int x=36+(int)(i/7)*88,y=50+(int)(i%7)*24;
             if(!sprite(u,2,icons[i],0,x,y,p,error,size)
-                || !number(shared,p,m->stats.shipments[i]>999 ? 999 : m->stats.shipments[i],3,-1,x+30,y+6,error,size)) return false;
+                || !number(shared,p,m->economy->shipments[i]>999 ? 999 : m->economy->shipments[i],3,-1,x+30,y+6,error,size)) return false;
         }
     } else if(m->page==2) {
         return chickens(u,shared,m,p,error,size);
@@ -149,21 +149,21 @@ static bool status(HmbtnFarmMenuUI *u,HmbtnNewGameUI *shared,const HmbtnFarmMenu
     } else if(m->page==6) {
         if(!hmbtn_ui_text(shared,p,farm_earnings_expenses,WORDS(farm_earnings_expenses),178,20,0,3,error,size)
             || !hmbtn_ui_text(shared,p,farm_this_months_accounts,WORDS(farm_this_months_accounts),32,64,0,3,error,size)
-            || !number(shared,p,m->stats.ledger[0][0],7,farm_gold[0],186,64,error,size)
-            || !number(shared,p,m->stats.ledger[0][1],7,farm_gold[0],186,78,error,size)) return false;
+            || !number(shared,p,m->economy->ledger[0][0],7,farm_gold[0],186,64,error,size)
+            || !number(shared,p,m->economy->ledger[0][1],7,farm_gold[0],186,78,error,size)) return false;
         for(unsigned i=0;i<4;++i) {
             const int y=104+(int)i*32;
-            if(!hmbtn_ui_icon(shared,p,43,(h->season+4-i)%4,24,y,error,size)) return false;
+            if(!hmbtn_ui_icon(shared,p,43,(h->clock->season+4-i)%4,24,y,error,size)) return false;
             rect(p,40,y+2,129,9,0xe0b888);rect(p,41,y+3,127,7,0xc8a060);
-            const unsigned income=m->stats.ledger[i][0]%10000*64/10000,expense=m->stats.ledger[i][1]%10000*64/10000;
+            const unsigned income=m->economy->ledger[i][0]%10000*64/10000,expense=m->economy->ledger[i][1]%10000*64/10000;
             rect(p,105-(int)expense,y+3,expense,7,0xd14070);rect(p,105,y+3,income,7,0x0090c8);
             const uint16_t *grades[9]={farm_go_getter,farm_spend_too_much,farm_idler,farm_satisfactory,
                 farm_you_should_save,farm_play_too_much,farm_hard_worker,farm_keep_working,farm_try_harder};
             const unsigned lengths[9]={WORDS(farm_go_getter),WORDS(farm_spend_too_much),WORDS(farm_idler),WORDS(farm_satisfactory),
                 WORDS(farm_you_should_save),WORDS(farm_play_too_much),WORDS(farm_hard_worker),WORDS(farm_keep_working),WORDS(farm_try_harder)};
-            const unsigned income_grade=m->stats.ledger[i][0]>=5000 ? 0u : m->stats.ledger[i][0]>=2000 ? 1u : 2u,
-                expense_grade=m->stats.ledger[i][1]>=5000 ? 0u : m->stats.ledger[i][1]>=2000 ? 1u : 2u,grade=expense_grade*3+income_grade;
-            const bool empty=!m->stats.ledger[i][0] && !m->stats.ledger[i][1];
+            const unsigned income_grade=m->economy->ledger[i][0]>=5000 ? 0u : m->economy->ledger[i][0]>=2000 ? 1u : 2u,
+                expense_grade=m->economy->ledger[i][1]>=5000 ? 0u : m->economy->ledger[i][1]>=2000 ? 1u : 2u,grade=expense_grade*3+income_grade;
+            const bool empty=!m->economy->ledger[i][0] && !m->economy->ledger[i][1];
             if(!hmbtn_ui_text(shared,p,empty ? farm_nothing : grades[grade],empty ? WORDS(farm_nothing) : lengths[grade],172,y,0,3,error,size)) return false;
         }
     } else if(m->page==7) {
@@ -187,7 +187,7 @@ static bool status(HmbtnFarmMenuUI *u,HmbtnNewGameUI *shared,const HmbtnFarmMenu
 }
 bool hmbtn_farm_menu_ui_draw(HmbtnFarmMenuUI *u,HmbtnHouseUI *items,HmbtnNewGameUI *shared,
     const HmbtnFarmMenu *m,const HmbtnHouseInteraction *h,const HmbtnFarmAction *a,
-    const HmbtnNewGame *g,const char *root,unsigned tick,uint8_t *p,char *error,size_t size)
+    const HmbtnRegistration *g,const char *root,unsigned tick,uint8_t *p,char *error,size_t size)
 {
     if(m->mode==HMBTN_MENU_NONE) return true;
     if(m->mode==HMBTN_MENU_STATUS) {
@@ -205,7 +205,7 @@ bool hmbtn_farm_menu_ui_draw(HmbtnFarmMenuUI *u,HmbtnHouseUI *items,HmbtnNewGame
     if(!hmbtn_ui_text(shared,p,farm_swap_equip,WORDS(farm_swap_equip),29,20,0,3,error,size)
         || !hmbtn_ui_text(shared,p,farm_swap_rucksack,WORDS(farm_swap_rucksack),29,94,0,3,error,size)) return false;
     for(unsigned i=0;i<18;++i) {
-        const HmbtnStoredTool *item=hmbtn_inventory_slot((HmbtnHouseInteraction *)h,i);
+        const HmbtnStoredTool *item=hmbtn_inventory_slot_const(h->inventory,i);
         if(!item) continue;
         const HmbtnStorageSpot *spot=hmbtn_storage_spot(i);
         if(!hmbtn_house_ui_item(items,shared,root,p,item->id,spot->x,spot->y,error,size)) return false;

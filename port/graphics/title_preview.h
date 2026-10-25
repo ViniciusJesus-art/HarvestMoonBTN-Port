@@ -13,6 +13,6 @@ bool hmbtn_title_preview_draw(HmbtnTitlePreview *preview, SDL_Renderer *renderer
 void hmbtn_title_preview_destroy(HmbtnTitlePreview *preview);
 void hmbtn_title_preview_discard_input(HmbtnTitlePreview *preview);
 /* Borrowed until destroy; NULL until the original registration fade completes. */
-const HmbtnNewGame *hmbtn_title_preview_registration(const HmbtnTitlePreview *preview);
+const HmbtnRegistration *hmbtn_title_preview_registration(const HmbtnTitlePreview *preview);
 
 #endif

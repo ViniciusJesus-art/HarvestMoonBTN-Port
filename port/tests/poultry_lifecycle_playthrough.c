@@ -44,49 +44,49 @@ int main(int argc,char **argv)
     const uint16_t name[9]={1,0xFFFF,0xFFFF,0xFFFF,0xFFFF,0xFFFF,0xFFFF,0xFFFF,0xFFFF};
     /* Both funeral causes use the original scene and release only flagged records. */
     for(unsigned cause=0;cause<2;++cause) {
-        CHECK(hmbtn_poultry_buy(&s->poultry,name,&s->clock));
-        HmbtnHen *hen=&s->poultry.hens[0];hen->dead=true;hen->died_of_age=cause==0;hen->actor.visible=false;
-        for(unsigned id=1;id<HMBTN_VILLAGERS;++id) { s->village.people[id].friendship=100;s->village.people[id].affection=2000; }
+        CHECK(hmbtn_poultry_buy(&s->session->poultry,name,&s->session->game.clock));
+        HmbtnHen *hen=&s->session->poultry.hens[0];hen->dead=true;hen->died_of_age=cause==0;hen->actor.visible=false;
+        for(unsigned id=1;id<HMBTN_VILLAGERS;++id) { s->session->village.people[id].friendship=100;s->session->village.people[id].affection=2000; }
         s->menu.stats.helper_affection[0]=100;
-        const unsigned minutes=s->clock.hour*60+s->clock.minute;
+        const unsigned minutes=s->session->game.clock.hour*60+s->session->game.clock.minute;
         CHECK(event_run(s,&host,shots,172,error,sizeof(error)));
-        CHECK(!hmbtn_poultry_count(&s->poultry) && hmbtn_poultry_room(&s->poultry) && s->carry.discarded==cause+1);
-        CHECK(s->clock.hour*60+s->clock.minute==minutes+(cause ? 120 : 60));
-        CHECK(s->village.people[3].affection==(cause ? 1000u : 2000u));
-        CHECK(s->village.people[6].friendship==(cause ? 80u : 100u));
+        CHECK(!hmbtn_poultry_count(&s->session->poultry) && hmbtn_poultry_room(&s->session->poultry) && s->carry.discarded==cause+1);
+        CHECK(s->session->game.clock.hour*60+s->session->game.clock.minute==minutes+(cause ? 120 : 60));
+        CHECK(s->session->village.people[3].affection==(cause ? 1000u : 2000u));
+        CHECK(s->session->village.people[6].friendship==(cause ? 80u : 100u));
         CHECK(s->menu.stats.helper_affection[0]==(cause ? 80u : 100u));
     }
     CHECK(travel(s,0,error,sizeof(error)) && travel(s,112,error,sizeof(error)));
     /* A pre-existing egg fixture; no egg is created by the incubator interaction. */
-    s->house.held_item=(HmbtnStoredTool){0x122,0,1};
+    s->house.inventory->held_item=(HmbtnStoredTool){0x122,0,1};
     const uint8_t *zone=NULL;
     for(unsigned i=0;i<50;++i) if(hmbtn_read_le16(s->section+16+44*i+2)==34) { zone=s->section+16+44*i;break; }
     CHECK(zone);at(s,zone);s->intro.player.position[0]+=224;
     CHECK(step(s,HMBTN_PAD_CROSS,error,sizeof(error)) && s->feed.phase==2);
-    CHECK(s->poultry.hens[0].occupied && s->poultry.hens[0].stage==HMBTN_HEN_EGG);
+    CHECK(s->session->poultry.hens[0].occupied && s->session->poultry.hens[0].stage==HMBTN_HEN_EGG);
     for(unsigned i=0;i<100 && s->feed.phase;++i) CHECK(step(s,0,error,sizeof(error)));
-    CHECK(!s->house.held_item.id && !hmbtn_poultry_count(&s->poultry));
+    CHECK(!s->house.inventory->held_item.id && !hmbtn_poultry_count(&s->session->poultry));
     CHECK(capture(s,&host,shots,"incubation",error,sizeof(error)));
     for(unsigned day=1;day<=3;++day) {
         CHECK(travel(s,0,error,sizeof(error)) && travel(s,80,error,sizeof(error)));
-        const unsigned before=s->clock.day;s->house.mode=HMBTN_HOUSE_SLEEP;
-        for(unsigned i=0;i<1200 && (s->clock.day==before || s->morning_fade);++i) CHECK(step(s,0,error,sizeof(error)));
-        CHECK(s->clock.day!=before && s->area==80);
-        if(day<3) CHECK(s->poultry.hens[0].growth==day && travel(s,0,error,sizeof(error)) && travel(s,112,error,sizeof(error)));
+        const unsigned before=s->session->game.clock.day;s->house.mode=HMBTN_HOUSE_SLEEP;
+        for(unsigned i=0;i<1200 && (s->session->game.clock.day==before || s->morning_fade);++i) CHECK(step(s,0,error,sizeof(error)));
+        CHECK(s->session->game.clock.day!=before && s->area==80);
+        if(day<3) CHECK(s->session->poultry.hens[0].growth==day && travel(s,0,error,sizeof(error)) && travel(s,112,error,sizeof(error)));
     }
-    CHECK(s->poultry.hens[0].stage==HMBTN_HEN_CHICK && s->poultry.hens[0].naming_pending);
+    CHECK(s->session->poultry.hens[0].stage==HMBTN_HEN_CHICK && s->session->poultry.hens[0].naming_pending);
     CHECK(event_run(s,&host,shots,299,error,sizeof(error)));
-    CHECK(s->poultry.hens[0].name[0]==0 && !s->poultry.hens[0].naming_pending && !s->poultry.hens[0].incubator);
-    CHECK(s->poultry.hens[0].growth==3 && s->poultry.hens[0].affection==10);
+    CHECK(s->session->poultry.hens[0].name[0]==0 && !s->session->poultry.hens[0].naming_pending && !s->session->poultry.hens[0].incubator);
+    CHECK(s->session->poultry.hens[0].growth==3 && s->session->poultry.hens[0].affection==10);
     CHECK(travel(s,0,error,sizeof(error)) && travel(s,112,error,sizeof(error)));
     CHECK(capture(s,&host,shots,"named-chick",error,sizeof(error)));
     for(unsigned day=1;day<=7;++day) {
         CHECK(travel(s,0,error,sizeof(error)) && sleep_day(s,error,sizeof(error)));
-        CHECK(s->poultry.hens[0].growth==3+day && !s->poultry.eggs[0].item);
+        CHECK(s->session->poultry.hens[0].growth==3+day && !s->session->poultry.eggs[0].item);
         CHECK(travel(s,112,error,sizeof(error)));
         CHECK(capture(s,&host,NULL,"growth",error,sizeof(error)));
     }
-    CHECK(s->poultry.hens[0].stage==HMBTN_HEN_ADULT && !s->poultry.hens[0].fed_yesterday);
+    CHECK(s->session->poultry.hens[0].stage==HMBTN_HEN_ADULT && !s->session->poultry.hens[0].fed_yesterday);
     puts("Original funeral scenes/causes, removal/penalties, incubator zone, three-day hatch, naming and seven-day growth passed.");
     hmbtn_scene_preview_destroy(s);hmbtn_host_close(&host);return 0;
 fail:

@@ -22,6 +22,6 @@ typedef struct HmbtnFarmCarry {
 bool hmbtn_farm_carry_tick(HmbtnFarmCarry *state,HmbtnHouseInteraction *inventory,
     HmbtnFarmField *field,HmbtnIntroActor *player,uint32_t pressed);
 void hmbtn_farm_carry_flight(HmbtnFarmCarry *state,HmbtnFarmField *field,
-    const HmbtnModel *ground,HmbtnFarmShipping *shipping,HmbtnFarmStatistics *stats);
+    const HmbtnModel *ground,HmbtnEconomy *economy);
 void hmbtn_farm_carried_offset(unsigned facing,bool running,int *x,int *y);
 #endif

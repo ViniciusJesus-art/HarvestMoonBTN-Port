@@ -5,13 +5,16 @@
 enum { HMBTN_FARM_TRIGGER_BYTES=36,HMBTN_FARM_TRIGGER_LIMIT=100 };
 /* Borrowed, bounded BIN table. Only events with complete native handlers are eligible. */
 typedef struct HmbtnFarmTriggers { const uint8_t *data;unsigned count; } HmbtnFarmTriggers;
-typedef struct HmbtnFarmVisit { unsigned event;bool active,free,talk;unsigned talk_target,start_area; } HmbtnFarmVisit;
+typedef struct HmbtnFarmVisit {
+    unsigned event;bool active,free,talk;unsigned talk_target,start_area;
+    HmbtnIntroActor actors[HMBTN_VILLAGERS]; /* Current-area event copies, never route records. */
+} HmbtnFarmVisit;
 bool hmbtn_farm_triggers_open(HmbtnFarmTriggers *table,const uint8_t *data,size_t bytes,char *error,size_t size);
 unsigned hmbtn_farm_visit_trigger(const HmbtnFarmTriggers *table,const HmbtnVillage *v,
     const HmbtnFarmClock *clock,unsigned weather,unsigned previous_place,unsigned mode);
 unsigned hmbtn_farm_event_trigger(const HmbtnFarmTriggers *table,const HmbtnVillage *v,
     const HmbtnFarmClock *clock,unsigned weather,unsigned previous_place,unsigned mode,
-    unsigned target,const HmbtnHouseInteraction *inventory);
+    unsigned target,const HmbtnInventory *inventory);
 bool hmbtn_farm_visit_supported(unsigned event);
 bool hmbtn_farm_visit_begin(HmbtnFarmVisit *visit,const HmbtnFarmTriggers *table,unsigned event,HmbtnVillage *v);
 /* Non-visual state commands. Visual commands continue through farm_intro. */

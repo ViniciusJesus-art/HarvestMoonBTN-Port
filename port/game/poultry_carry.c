@@ -44,7 +44,7 @@ static void put_down(HmbtnHen *h,HmbtnHouseInteraction *inventory,unsigned area,
     h->held=false;h->area=area;h->actor.visible=true;h->timer=0;
     memcpy(h->actor.position,point,sizeof(h->actor.position));
     h->actor.sprite=(HmbtnAnimationPlayer){0,(uint16_t)h->actor.facing,0};
-    inventory->held_item=(HmbtnStoredTool){0};
+    inventory->inventory->held_item=(HmbtnStoredTool){0};
 }
 void hmbtn_poultry_carry_sync(HmbtnPoultry *p,HmbtnHouseInteraction *inventory)
 {
@@ -52,9 +52,9 @@ void hmbtn_poultry_carry_sync(HmbtnPoultry *p,HmbtnHouseInteraction *inventory)
     if(slot==HMBTN_HENS) return;
     HmbtnHen *h=&p->hens[slot];
     if(h->dead) {
-        h->held=false;inventory->held_item=(HmbtnStoredTool){0};p->carry_phase=0;return;
+        h->held=false;inventory->inventory->held_item=(HmbtnStoredTool){0};p->carry_phase=0;return;
     }
-    inventory->held_item=(HmbtnStoredTool){(uint16_t)item(h),0,1};
+    inventory->inventory->held_item=(HmbtnStoredTool){(uint16_t)item(h),0,1};
 }
 void hmbtn_poultry_release(HmbtnPoultry *p,HmbtnHouseInteraction *inventory,const HmbtnIntroActor *a,
     unsigned area,const HmbtnModel *ground)
@@ -76,7 +76,7 @@ bool hmbtn_poultry_carry_tick(HmbtnPoultry *p,HmbtnHouseInteraction *inventory,H
             put_down(&p->hens[slot],inventory,area,point);p->sound=9;
         }
         p->carry_phase=0;
-        a->sprite=(HmbtnAnimationPlayer){(uint16_t)(inventory->held_item.id ? 41 : 0),(uint16_t)a->facing,0};
+        a->sprite=(HmbtnAnimationPlayer){(uint16_t)(inventory->inventory->held_item.id ? 41 : 0),(uint16_t)a->facing,0};
         a->animation_done=false;return true;
     }
     if(!(pressed&HMBTN_PAD_CROSS) || a->facing>3) return false;
@@ -87,14 +87,14 @@ bool hmbtn_poultry_carry_tick(HmbtnPoultry *p,HmbtnHouseInteraction *inventory,H
         }
         return true; /* A refused drop conserves both the hand and its animal. */
     }
-    if(inventory->held_item.id) return false;
+    if(inventory->inventory->held_item.id) return false;
     static const int step[4][2]={{0,-128},{-128,0},{0,128},{128,0}};
     for(unsigned i=0;i<HMBTN_HENS;++i) {
         HmbtnHen *h=&p->hens[i];
         if(!on_ground(h,area) || abs(h->actor.position[0]-a->position[0]-step[a->facing][0])>=200
                 || abs(h->actor.position[2]-a->position[2]-step[a->facing][1])>=200) continue;
         h->held=true;h->actor.visible=false;h->timer=0;h->praise=0;
-        inventory->held_item=(HmbtnStoredTool){(uint16_t)item(h),0,1};
+        inventory->inventory->held_item=(HmbtnStoredTool){(uint16_t)item(h),0,1};
         p->carry_phase=1;p->sound=7;
         a->sprite=(HmbtnAnimationPlayer){(uint16_t)(37+a->facing),0,0};a->animation_done=false;return true;
     }

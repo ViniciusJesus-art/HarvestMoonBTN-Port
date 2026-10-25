@@ -1,8 +1,9 @@
-# Visitas de Thomas e entrega da torta
+# Visitas de Thomas, torta e ingredientes
 
-Os eventos **128..133** e **288** executam os roteiros de `12_event_s.bin`, com
-textos de `03_messege1.bin`. Thomas usa ANI e banco gráfico do evento;
-Ellen, Elli e Stu reutilizam os recursos de moradores da área. Não há
+Os eventos **128..133** e **288..289** executam os roteiros de `12_event_s.bin`, com
+textos de `03_messege1.bin` e respostas de moradores em `02_messege0.bin`.
+Thomas usa ANI e banco gráfico das visitas; na entrega dos ingredientes,
+reutiliza `village_art`. Ellen, Elli e Stu também reutilizam os recursos de moradores da área. Não há
 falas recriadas. O roteiro controla chegada, conversa, escolhas, movimentos e
 despedida; `farm_intro` continua sendo o interpretador visual usado pela abertura.
 
@@ -13,11 +14,12 @@ sazonal em `00_gf.bin`. Os campos são lidos como valores little-endian, sem
 converter estruturas ou endereços PS1 em ponteiros host. A tabela tem limite
 de 100 entradas e sentinela `0xFFFF` quando termina antes desse limite.
 
-O recorte avalia somente os sete eventos integrados. Confere janela de anos,
+O recorte avalia somente os oito eventos integrados. Confere janela de anos,
 dias e horas, local anterior, modo de disparo, intervalo de contador e sua
 inversão, amizade, flags exigidas/proibidas, pré-requisitos e máscaras de
 estação, dia da semana e clima. A condição 39 verifica a torta original na
 mão; o bit de mão livre bloqueia a coleta com Doug quando há outro item.
+A condição 83 conta os ingredientes do ciclo anual na mão e na mochila ativa.
 Condições de disponibilidade, variáveis e portas de inventário fora do
 recorte impedem o disparo. Carregar uma tabela
 com outros eventos não os torna executáveis.
@@ -33,6 +35,7 @@ Na edição instalada usada para validação:
 | 131, retorno com bolo | Fazenda, 06:00..11:59; contador 13 entre 1 e 127; entrega registrada |
 | 132, torta buscada mas não entregue | Mesmo intervalo do retorno; coleta registrada e entrega ausente |
 | 133, torta não buscada | Mesmo intervalo do retorno; pedido aceito, coleta e entrega ausentes |
+| 289, entrega dos ingredientes | Casa de Thomas (área 176); primavera, dias 15..21; interação com Thomas (17); pedido aceito (`0xD9`); contador 26 entre 0 e 6; pelo menos três registros de ingredientes elegíveis |
 
 O porte usa os campos do BIN, não essa tabela documental como calendário de
 gameplay. Atalhos de prévia começam sessões novas: mudar a data não concede
@@ -108,6 +111,58 @@ impedem repetição dos retornos; os itens não são apagados por uma cobrança.
 As escolhas, pagamentos e consequências são comandos do BIN, sem condições
 de missão reescritas no coordenador.
 
+## Entrega dos ingredientes
+
+Depois de aceitar o evento 288, leve três ingredientes à casa de Thomas e
+interaja com ele. A condição 83 de `farm_init.c` consulta o ano interno
+(`year % 9`); o roteiro consulta o ano exibido (`(year + 1) % 9`). As duas
+seleções correspondem ao mesmo ciclo, sem adiantar o calendário:
+
+| Ano exibido módulo 9 | Ingrediente | IDs consultados pela condição 83 |
+|---|---|---|
+| 1 | Nabo | 65 |
+| 2 | Milho | 71 |
+| 3 | Pepino | 67 |
+| 4 | Batata-doce | 77 |
+| 5 | Ovos | 290..293 e 232 |
+| 6 | Leite | 139..141 e 227 |
+| 7 | Peixe médio | 162 |
+| 8 | Morango | 68 |
+| 0 | Mel | 151 |
+
+O teste conta registros, sem usar o campo `count` do item como pilha nem abrir
+embrulhos. Somente a mão e os 2/4/8 espaços ativos da mochila participam;
+ferramentas, caixa e posições inativas não contam. A consulta não consome nada.
+
+A escolha vai ao slot 0. Confirmar usa os registros 876/900/904/908/912/916/
+920/924/928 e executa três remoções, uma por comando, seguindo a ordem de
+variantes do próprio roteiro. Sobras permanecem na sessão. Os comandos
+originais acrescentam 20 de amizade aos moradores, 1.000 de afeição às
+candidatas e 20 aos ajudantes, com limites 255/65.535/255, excluindo os
+moradores 27 e 33. Depois, a flag `0xD9` é limpa; novas conversas não repetem
+o ganho. Recusar usa 878 e conserva os itens e a flag, permitindo tentar outra
+vez após sair e voltar, enquanto a tabela ainda permitir.
+
+Há uma diferença real entre a condição C e o BIN instalado: ovos dourados
+`232` e leite dourado `227` contam para iniciar o evento, mas os comandos de
+remoção só procuram `290..293` e `139..141`, respectivamente. O roteiro passa
+ao ganho mesmo se nenhuma dessas variantes for removida. Esse comportamento
+foi preservado e testado, inclusive com somente variantes douradas disponíveis;
+não foi criada uma regra substituta para corrigir o script da cópia instalada.
+
+O evento continua até sair da casa. Conversar novamente com Thomas segue o
+teste original da flag: ligada usa 879; desligada usa o registro do ciclo
+877/901/905/909/913/917/921/925/929. Os alvos 15 e 28 usam banco 0, registros
+923 e 1411; outros moradores usam 1436. O número do banco da mensagem é
+separado do banco do retrato. Atores presentes recebem cópias temporárias,
+animação e colisão existentes; sair devolve-os às agendas atuais sem duplicação.
+
+`event_items_take` foi adaptado em `game/event_item.*` e é compartilhado com os
+comandos de consulta/remoção dos presentes. Retorna o total de registros vistos
+e remove no máximo a quantidade solicitada. Preserva também a particularidade
+original de `which = -1`, que começa no índice 1 da mochila. Depósitos ainda
+não representados continuam sendo fronteiras explícitas, sem consumo parcial.
+
 ## Recursos e limites
 
 `filesystem/event_resources.*` resolve o ID original de evento ou de seção
@@ -123,8 +178,9 @@ a ANI base e as imagens por ID já usadas pelo inventário. A animação continu
 até terminar mesmo quando o roteiro de Doug já devolveu controle.
 
 O pedido da torta inclui coleta, entrega, escolhas e retorno com recompensa
-ou cobrança. A entrega dos ingredientes e o festival completo continuam
-pendentes. Aceitar um pedido não concede itens ou recompensas antecipadamente.
+ou cobrança. O pedido dos ingredientes inclui entrega e respostas posteriores;
+o festival completo continua pendente. Aceitar um pedido não concede itens ou
+recompensas antecipadamente.
 As flags, dinheiro, itens e contadores ficam na sessão; ainda não há save/load.
 Outros eventos da tabela continuam pendentes. Paridade temporal/visual exata
 com o PS1 e execução Windows real não foram verificadas.
@@ -147,7 +203,14 @@ sem conceder itens/flags de missão por fixture. Usa a zona real do balcão,
 percorre ambas as escolhas de Ellen, sincronização do retrato, 300G/livro-caixa,
 bolo/restauração da mão e os dois tipos de cobrança, incluindo ignorar a visita.
 Todas as mensagens são comparadas com os glifos/controles originais. A suíte
-Linux tem 63 testes aprovados: 43 da base e 20 percursos com BINs.
+Linux tem 64 testes aprovados: 43 da base e 21 percursos com BINs.
+
+`native_ingredient_delivery_playthrough` percorre o pedido 288 e a entrega 289
+nas nove variantes, aceitando e recusando, além dos dois casos somente com
+ovos/leite dourados. Datas, inventário e posições são fixtures; flags do pedido
+vêm do roteiro. Confere glifos/controles contra o banco original, desenha as
+mensagens, verifica consumo por registro, sobras, limites de afinidade,
+repetição, conversas dos moradores, saída e devolução às agendas.
 
 Capturas locais de escolhas foram inspecionadas em SDL dummy/software, fora
 do Git. Para configurar, compilar e testar:

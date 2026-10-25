@@ -36,7 +36,7 @@ static bool play(HmbtnScenePreview *s,HmbtnHost *host,unsigned event,bool second
             uint8_t record[8192];HmbtnMessage expected;
             const HmbtnTextResourceId id={HMBTN_TEXT_RECORD,1,message};
             if(!hmbtn_text_resource_read(s->data_root,id,record,sizeof(record),error,size)
-                    || !hmbtn_feed_shop_expand(record,sizeof(record),&s->dialogue)
+                    || !hmbtn_feed_shop_expand(record,sizeof(record),hmbtn_game_registration_const(&s->session->game))
                     || !hmbtn_message_open(&expected,record,sizeof(record),error,size)
                     || expected.count!=s->dialogue.message.count
                     || memcmp(expected.words,s->dialogue.message.words,expected.count*sizeof(*expected.words))) return false;
@@ -52,7 +52,7 @@ static bool play(HmbtnScenePreview *s,HmbtnHost *host,unsigned event,bool second
                 && s->intro.mayor.position[2]<=3959 && !talked && !timeout) {
             memcpy(s->intro.player.position,s->intro.mayor.position,sizeof(s->intro.player.position));
             s->intro.player.position[2]-=300;s->intro.player.facing=2;s->control.mode=0;
-            if(hmbtn_village_target(&s->village,&s->intro.player)!=17) return false;
+            if(hmbtn_village_target(&s->session->village,&s->intro.player)!=17) return false;
             pressed=HMBTN_PAD_CROSS;talked=true;
         }
         if(event==130 && s->intro.message==394 && s->intro.text_bank==145) {
@@ -77,7 +77,7 @@ static bool counter(HmbtnScenePreview *s,char *error,size_t size)
         const unsigned facing=hmbtn_read_le16(p+8);if(facing>3) continue;
         for(unsigned axis=0;axis<3;++axis) s->intro.player.position[axis]=(half(p+14+axis*2)+half(p+20+axis*2))/2;
         s->intro.player.position[facing&1u ? 0 : 2]+=facing<2 ? 224 : -224;s->intro.player.facing=facing;
-        return hmbtn_village_zone_target(&s->village,s->section,s->scene.terrain.size+0x2000,&s->intro.player)==6
+        return hmbtn_village_zone_target(&s->session->village,s->section,s->scene.terrain.size+0x2000,&s->intro.player)==6
             && step(s,HMBTN_PAD_CROSS,error,size);
     }
     return false;
@@ -90,52 +90,52 @@ int main(int argc,char **argv)
     for(scenario=0;scenario<5;++scenario) {
         HmbtnFarmClock clock={0,1,5,0,8,0,0};bool messages[2046]={0};
         s=hmbtn_scene_area_create_at(host.renderer,argv[1],0,&clock,error,sizeof(error));CHECK(s);
-        CHECK(step(s,0,error,sizeof(error)));s->village.people[17].friendship=100;
+        CHECK(step(s,0,error,sizeof(error)));s->session->village.people[17].friendship=100;
         CHECK(step(s,0,error,sizeof(error)) && s->visit.event==128);
-        CHECK(play(s,&host,128,false,false,messages,NULL,error,sizeof(error)) && s->village.flags[203]);
+        CHECK(play(s,&host,128,false,false,messages,NULL,error,sizeof(error)) && s->session->village.flags[203]);
         if(scenario!=2) {
             CHECK(travel(s,204,error,sizeof(error)));
             CHECK(counter(s,error,sizeof(error)) && s->visit.active && s->visit.event==129);
             CHECK(play(s,&host,129,false,false,messages,argc==3 && !scenario ? argv[2] : NULL,error,sizeof(error)));
-            CHECK(messages[390] && s->house.held_item.id==204 && s->village.flags[380]);
-            CHECK(s->village.people[6].friendship==70);
-            HmbtnHouseInteraction empty=s->house;empty.held_item=(HmbtnStoredTool){0};
-            CHECK(!hmbtn_farm_event_trigger(&s->triggers,&s->village,&s->clock,0,s->previous_place,10,6,&empty));
+            CHECK(messages[390] && s->house.inventory->held_item.id==204 && s->session->village.flags[380]);
+            CHECK(s->session->village.people[6].friendship==70);
+            HmbtnInventory empty=*s->house.inventory;empty.held_item=(HmbtnStoredTool){0};
+            CHECK(!hmbtn_farm_event_trigger(&s->triggers,&s->session->village,&s->session->game.clock,0,s->previous_place,10,6,&empty));
         }
         if(scenario<2) {
             CHECK(travel(s,172,error,sizeof(error)));
-            const HmbtnIntroActor *ellen=&s->village.people[23].actor;CHECK(ellen->visible);
+            const HmbtnIntroActor *ellen=&s->session->village.people[23].actor;CHECK(ellen->visible);
             memcpy(s->intro.player.position,ellen->position,sizeof(ellen->position));
             s->intro.player.position[2]-=300;s->intro.player.facing=2;
             CHECK(step(s,HMBTN_PAD_CROSS,error,sizeof(error)) && s->visit.active && s->visit.event==130);
             CHECK(play(s,&host,130,scenario==1,false,messages,argc==3 && scenario==1 ? argv[2] : NULL,error,sizeof(error)));
-            CHECK(messages[391] && s->village.flags[381] && s->menu.stats.gold==800 && s->menu.stats.ledger[0][0]==300);
-            CHECK(s->village.people[23].friendship==70 && s->house.held_item.id==(scenario==1 ? 204u : 0u));
+            CHECK(messages[391] && s->session->village.flags[381] && s->session->game.economy.gold==800 && s->session->game.economy.ledger[0][0]==300);
+            CHECK(s->session->village.people[23].friendship==70 && s->house.inventory->held_item.id==(scenario==1 ? 204u : 0u));
             if(scenario==1) CHECK(messages[393] && messages[394]);
         }
         CHECK(travel(s,80,error,sizeof(error)));
-        hmbtn_farm_clock_advance_notify(&s->clock,hmbtn_farm_clock_sleep_minutes(&s->clock,0),world_clock_events,s);
-        sync_clock(s);CHECK(s->village.days.count0[13]==1);
-        unsigned before[37];for(unsigned i=0;i<37;++i) before[i]=s->village.people[i].friendship;
+        hmbtn_farm_clock_advance_notify(&s->session->game.clock,hmbtn_farm_clock_sleep_minutes(&s->session->game.clock,0),world_clock_events,s);
+        CHECK(s->session->village.days.count0[13]==1);
+        unsigned before[37];for(unsigned i=0;i<37;++i) before[i]=s->session->village.people[i].friendship;
         if(scenario>=3) {
             CHECK(travel(s,172,error,sizeof(error)));
-            CHECK(s->house.held_item.id==204
-                && !hmbtn_farm_event_trigger(&s->triggers,&s->village,&s->clock,0,s->previous_place,3,23,&s->house));
+            CHECK(s->house.inventory->held_item.id==204
+                && !hmbtn_farm_event_trigger(&s->triggers,&s->session->village,&s->session->game.clock,0,s->previous_place,3,23,s->house.inventory));
         }
-        s->farm_action.fatigue=20;const HmbtnStoredTool held=s->house.held_item;
+        s->farm_action.fatigue=20;const HmbtnStoredTool held=s->house.inventory->held_item;
         const unsigned expected=scenario<2 ? 131u : scenario==2 ? 133u : 132u;
         CHECK(travel(s,0,error,sizeof(error)) && s->visit.active && s->visit.event==expected);
         CHECK(play(s,&host,expected,false,scenario==4,messages,argc==3 && scenario==1 ? argv[2] : NULL,error,sizeof(error)));
-        CHECK(s->village.flags[251+expected] && !memcmp(&held,&s->house.held_item,sizeof(held)));
+        CHECK(s->session->village.flags[251+expected] && !memcmp(&held,&s->house.inventory->held_item,sizeof(held)));
         CHECK(s->farm_action.fatigue==(scenario<2 ? 16u : 20u));
         if(scenario<2) CHECK(messages[395] && messages[396] && messages[397]);
         else {
-            CHECK(s->village.people[17].friendship==before[17]-30 && s->village.people[23].friendship==before[23]-20);
-            CHECK(s->village.people[6].friendship==before[6]-(scenario==2 ? 0u : 30u));
+            CHECK(s->session->village.people[17].friendship==before[17]-30 && s->session->village.people[23].friendship==before[23]-20);
+            CHECK(s->session->village.people[6].friendship==before[6]-(scenario==2 ? 0u : 30u));
             CHECK(scenario==4 ? !messages[398] : messages[scenario==2 ? 399 : 398]);
         }
         for(unsigned i=0;i<20;++i) CHECK(step(s,0,error,sizeof(error)) && !s->visit.active);
-        CHECK(!s->village.event_actor && !s->village.event_actors[9] && !s->village.event_actors[23] && !s->village.event_actors[34]);
+        CHECK(!s->session->village.event_actor && !s->session->village.event_actors[9] && !s->session->village.event_actors[23] && !s->session->village.event_actors[34]);
         hmbtn_scene_preview_destroy(s);s=NULL;
     }
     hmbtn_host_close(&host);puts("Original pie quest: Doug counter, both Ellen choices, Elli sequence, 300G, cake and failure visits passed.");return 0;

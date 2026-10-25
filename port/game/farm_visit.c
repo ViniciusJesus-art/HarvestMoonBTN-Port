@@ -1,6 +1,7 @@
 /* event_triggers_fire and the Thomas visits, with serialized LE fields, no PS1 pointers. */
 #include "farm_visit.h"
 #include "psx_data.h"
+#include "event_item.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -42,7 +43,28 @@ static bool window_match(uint32_t packed,const HmbtnFarmClock *c)
     for(unsigned i=0;i<count;++i) if((w[4]+i)%24==c->hour) return true;
     return false;
 }
-bool hmbtn_farm_visit_supported(unsigned event) { return (event>=128 && event<=133) || event==288; }
+bool hmbtn_farm_visit_supported(unsigned event) { return (event>=128 && event<=133) || event==288 || event==289; }
+static bool available(unsigned condition,const HmbtnFarmClock *c,const HmbtnInventory *inventory)
+{
+    if(condition==255) return true;
+    if(!inventory) return false;
+    if(condition==39) return inventory->held_item.id==204;
+    if(condition!=83) return false;
+    /* farm_event_available(YEAR_CYCLE_ITEMS_3) uses the internal year, unlike
+     * EVENT_VAR_YEAR in the script. Preserve the extra egg/milk variants too. */
+    static const unsigned items[9]={65,71,67,77,0,0,162,68,151};
+    int total=0;
+    const unsigned cycle=c->year%9;
+    if(cycle==4) {
+        for(unsigned id=290;id<=293;++id) total+=hmbtn_event_items_count(inventory,(int)id,1,1);
+        total+=hmbtn_event_items_count(inventory,232,1,1);
+    }
+    else if(cycle==5) {
+        for(unsigned id=139;id<=141;++id) total+=hmbtn_event_items_count(inventory,(int)id,1,1);
+        total+=hmbtn_event_items_count(inventory,227,1,1);
+    } else total=hmbtn_event_items_count(inventory,(int)items[cycle],1,1);
+    return total>=3;
+}
 unsigned hmbtn_farm_visit_trigger(const HmbtnFarmTriggers *t,const HmbtnVillage *v,
     const HmbtnFarmClock *c,unsigned weather,unsigned previous_place,unsigned mode)
 {
@@ -50,7 +72,7 @@ unsigned hmbtn_farm_visit_trigger(const HmbtnFarmTriggers *t,const HmbtnVillage 
 }
 unsigned hmbtn_farm_event_trigger(const HmbtnFarmTriggers *t,const HmbtnVillage *v,
     const HmbtnFarmClock *c,unsigned weather,unsigned previous_place,unsigned mode,
-    unsigned target,const HmbtnHouseInteraction *inventory)
+    unsigned target,const HmbtnInventory *inventory)
 {
     static const uint32_t weather_bits[5]={0x80000,0x2000,0x40000,0x1000,0x800};
     if(!t || !t->data || !v || !c || c->season>3 || c->weekday>6 || weather>4) return 0;
@@ -60,7 +82,7 @@ unsigned hmbtn_farm_event_trigger(const HmbtnFarmTriggers *t,const HmbtnVillage 
         const uint32_t flags=hmbtn_read_le32(p+28);
         if((p[34]!=1 && p[34]!=mode) || p[12]!=247 || v->flags[251+id]) continue;
         if(p[34]==3 && p[35]!=target) continue;
-        if(p[33]!=255 && !(p[33]==39 && inventory && inventory->held_item.id==204)) continue;
+        if(!available(p[33],c,inventory)) continue;
         if(!window_match(hmbtn_read_le32(p+8),c)) continue;
         const unsigned place=raw>>10;
         if(place!=63 && ((place==previous_place)==((flags&0x80000000u)!=0))) continue;
@@ -120,18 +142,19 @@ HmbtnEventResult hmbtn_farm_visit_command(HmbtnFarmVisit *visit,HmbtnFarmIntro *
         if(b!=-1) { v->flags[4]=false;v->flags[5]=a==0;v->flags[0xB0]=a==0; }
         return a ? HMBTN_EVENT_DONE : HMBTN_EVENT_WAIT;
     case 10:
-        if(a<0 || a>1 || b || x || y) break;
+        if(a<0 || a>1 || (b!=0 && b!=1) || x || y) break;
         visit->free=s->player_free=a!=0;return HMBTN_EVENT_DONE;
     case 11: {
-        if((a!=-1 && (a<0 || a>=32)) || (b!=0 && b!=1) || x!=1 || y) break;
+        if((a!=-1 && (a<0 || a>=32)) || (b!=0 && b!=1) || (x!=0 && x!=1) || y) break;
         const bool talked=visit->talk;visit->talk=false;visit->free=s->player_free=!talked;
         if(talked) {
-            const unsigned target=visit->event==130 ? visit->talk_target : 17;
+            const unsigned target=visit->event==130 || visit->event==289 ? visit->talk_target : 17;
             if(target>=HMBTN_VILLAGERS || !target) break;
             if(a!=-1) s->slots[a]=(int32_t)target;
             HmbtnIntroActor *actor=hmbtn_farm_intro_actor(s,(int32_t)target);
+            if(visit->event==289 && target!=17) actor=&visit->actors[target];
             if(b && actor) face(actor,&s->player);
-            v->people[target].talk_flags|=HMBTN_VILLAGER_DAILY_GAIN;
+            if(x) v->people[target].talk_flags|=HMBTN_VILLAGER_DAILY_GAIN;
         }
         return talked ? HMBTN_EVENT_DONE : HMBTN_EVENT_WAIT;
     }
@@ -142,6 +165,9 @@ HmbtnEventResult hmbtn_farm_visit_command(HmbtnFarmVisit *visit,HmbtnFarmIntro *
             int n=(int)v->people[b].friendship+x;v->people[b].friendship=(unsigned)(n<0 ? 0 : n>255 ? 255 : n);
         } else break;
         return HMBTN_EVENT_DONE;
+    case 13:
+        if(a<49 || a-48>=HMBTN_VILLAGE_FLAGS || b || x!=4 || (y!=0 && y!=1)) break;
+        return v->flags[a-48]==(y!=0) ? HMBTN_EVENT_DONE : HMBTN_EVENT_WAIT;
     case 22:
         if(b || x<0 || x>=32 || y) break;
         if(a==10) s->slots[x]=(int32_t)clock->hour;
@@ -166,11 +192,13 @@ HmbtnEventResult hmbtn_farm_visit_command(HmbtnFarmVisit *visit,HmbtnFarmIntro *
         if(a!=2 || b || x || y) break;
         v->flags[4]=v->flags[5]=v->flags[0xB0]=false;return HMBTN_EVENT_DONE;
     case 91:
-        if(a!=32 || b!=1 || x!=-20 || y!=-1000) break;
+        if(a!=32 || b!=1 || !((x==-20 && y==-1000) || (x==20 && y==1000))) break;
         for(unsigned id=1;id<HMBTN_VILLAGERS;++id) if(id!=27 && id!=33) {
             HmbtnVillager *p=&v->people[id];
-            if(id==3 || id==7 || id==9 || id==14 || id==20) p->affection=p->affection>1000 ? p->affection-1000 : 0;
-            else p->friendship=p->friendship>20 ? p->friendship-20 : 0;
+            const bool bride=id==3 || id==7 || id==9 || id==14 || id==20;
+            const int n=(int)(bride ? p->affection : p->friendship)+(bride ? y : x),limit=bride ? 65535 : 255;
+            if(bride) p->affection=(unsigned)(n<0 ? 0 : n>limit ? limit : n);
+            else p->friendship=(unsigned)(n<0 ? 0 : n>limit ? limit : n);
         }
         return HMBTN_EVENT_DONE;
     }

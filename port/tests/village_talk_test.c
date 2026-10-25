@@ -21,8 +21,8 @@ int main(void)
     char error[256]={0};uint8_t bytes[512];HmbtnVillageTalk talk;
     HmbtnVillage village;hmbtn_village_init(&village,NULL,0);
     HmbtnIntroActor player={0};HmbtnFarmClock clock={0,0,1,1,16,0,0};
-    HmbtnHouseInteraction inventory;hmbtn_house_interaction_init(&inventory);
-    HmbtnNewGame registration;hmbtn_new_game_init(&registration);
+    HmbtnHouseInteraction inventory;HmbtnGameState inventory_state;hmbtn_game_state_init(&inventory_state);hmbtn_house_interaction_init(&inventory,&inventory_state);
+    HmbtnRegistration registration;hmbtn_registration_init(&registration);
     village.people[18].actor.facing=3;
     size_t length=block(bytes,7);
     /* Presenting a message must suspend this cursor, even when its original
@@ -86,9 +86,9 @@ int main(void)
     CHECK(hmbtn_village_talk_open(&talk,18,bytes,length,&village,&player,&clock,&registration,&inventory,error,sizeof(error)));
     CHECK(hmbtn_village_talk_tick(&talk,error,sizeof(error)) && talk.script.boundary);
     /* Gift effects are transactional across all villagers and product stores. */
-    length=block(bytes,9);inventory.held_item=(HmbtnStoredTool){161,0,7};inventory.event_count1=14;
-    inventory.items[0]=(HmbtnStoredTool){162,2,3};
-    const HmbtnStoredTool gift=inventory.held_item,bag_item=inventory.items[0];
+    length=block(bytes,9);inventory.inventory->held_item=(HmbtnStoredTool){161,0,7};inventory.event_count1=14;
+    inventory.inventory->items[0]=(HmbtnStoredTool){162,2,3};
+    const HmbtnStoredTool gift=inventory.inventory->held_item,bag_item=inventory.inventory->items[0];
     const unsigned lillia=village.people[18].friendship,louis=village.people[31].friendship;
     const uint16_t louis_flags=village.people[31].talk_flags;
     step(bytes,0,58,255,255,0,11,1,0,0);
@@ -101,24 +101,24 @@ int main(void)
     step(bytes,7,81,8,8,0,8,0,0,0);
     CHECK(hmbtn_village_talk_open(&talk,18,bytes,length,&village,&player,&clock,&registration,&inventory,error,sizeof(error)));
     CHECK(hmbtn_village_talk_tick(&talk,error,sizeof(error)) && talk.script.boundary && talk.slots[10]==1);
-    CHECK(!memcmp(&inventory.held_item,&gift,sizeof(gift)) && inventory.event_count1==14
+    CHECK(!memcmp(&inventory.inventory->held_item,&gift,sizeof(gift)) && inventory.event_count1==14
         && village.people[18].friendship==lillia && village.people[31].friendship==louis
         && village.people[31].talk_flags==louis_flags);
     step(bytes,7,37,8,8,1,0,0,0,0);
     CHECK(hmbtn_village_talk_open(&talk,18,bytes,length,&village,&player,&clock,&registration,&inventory,error,sizeof(error)));
     CHECK(hmbtn_village_talk_tick(&talk,error,sizeof(error)) && !talk.active && !talk.script.boundary);
-    CHECK(!inventory.held_item.id && inventory.event_count1==15 && village.people[18].friendship==lillia+9
+    CHECK(!inventory.inventory->held_item.id && inventory.event_count1==15 && village.people[18].friendship==lillia+9
         && village.people[31].friendship==louis+3 && (village.people[31].talk_flags&HMBTN_VILLAGER_TALKED_TODAY)
-        && !memcmp(&inventory.items[0],&bag_item,sizeof(bag_item)));
-    inventory.held_item=gift;
+        && !memcmp(&inventory.inventory->items[0],&bag_item,sizeof(bag_item)));
+    inventory.inventory->held_item=gift;
     step(bytes,0,21,255,255,0,11,0,0x100A1,0); /* Indirect item uses only the signed low halfword. */
     CHECK(hmbtn_village_talk_open(&talk,18,bytes,length,&village,&player,&clock,&registration,&inventory,error,sizeof(error)));
-    CHECK(hmbtn_village_talk_tick(&talk,error,sizeof(error)) && !talk.active && !inventory.held_item.id
+    CHECK(hmbtn_village_talk_tick(&talk,error,sizeof(error)) && !talk.active && !inventory.inventory->held_item.id
         && inventory.event_count1==15);
     /* Invalid held item, malformed blocks and indirect return bounds. */
-    inventory.held_item.id=380;
+    inventory.inventory->held_item.id=380;
     CHECK(!hmbtn_village_talk_open(&talk,18,bytes,length,&village,&player,&clock,&registration,&inventory,error,sizeof(error)));
-    inventory.held_item.id=0;
+    inventory.inventory->held_item.id=0;
     CHECK(!hmbtn_village_talk_open(&talk,18,bytes,59,&village,&player,&clock,&registration,&inventory,error,sizeof(error)));
     length=block(bytes,2);step(bytes,0,80,1,1,0,0,0,0,0);
     CHECK(hmbtn_village_talk_open(&talk,18,bytes,length,&village,&player,&clock,&registration,&inventory,error,sizeof(error)));

@@ -14,14 +14,14 @@ static bool play(HmbtnHost *host,const char *root,const char *captures,bool acce
 {
     HmbtnScenePreview *s=hmbtn_scene_house_create(host->renderer,root,error,error_size);
     CHECK(s);
-    HmbtnNewGame registration;hmbtn_new_game_init(&registration);
+    HmbtnRegistration registration;hmbtn_registration_init(&registration);
     for(unsigned i=0;i<8;++i) registration.player_name[i]=registration.farm_name[i]=registration.dog_name[i]=(uint16_t)(0x20+i);
     hmbtn_scene_intro_registration(s,&registration);
     for(unsigned i=0;i<110;++i) CHECK(tick(s,0,error,error_size));
     /* Use the actual exit trigger and preserve session state across the tour. */
-    s->house.bag[0]=(HmbtnStoredTool){21,0,73};
-    s->field.cells[400].value=0;s->field.cells[400].ground=1;
-    HmbtnFarmTile field[HMBTN_FIELD_CELLS];memcpy(field,s->field.cells,sizeof(field));
+    s->house.inventory->bag[0]=(HmbtnStoredTool){21,0,73};
+    s->session->field.cells[400].value=0;s->session->field.cells[400].ground=1;
+    HmbtnFarmTile field[HMBTN_FIELD_CELLS];memcpy(field,s->session->field.cells,sizeof(field));
     s->intro.player.position[0]=1680;s->intro.player.position[2]=-800;
     for(unsigned i=0;i<23;++i) CHECK(tick(s,0,error,error_size));
     CHECK(s->first_visit_started && s->first_visit_active && !s->control.enabled);
@@ -85,18 +85,18 @@ static bool play(HmbtnHost *host,const char *root,const char *captures,bool acce
     CHECK(messages[64] && messages[80] && marker && banks[159]);
     CHECK(approach_ticks>100);
     CHECK(!s->intro.mayor.visible && !s->intro.ellen.visible && !s->intro.zack.visible && !s->intro.player_marker);
-    CHECK(s->house.bag[0].id==21 && s->house.bag[0].count==73);
-    CHECK(memcmp(field,s->field.cells,sizeof(field))==0);
-    CHECK(memcmp(registration.player_name,s->dialogue.player_name,sizeof(registration.player_name))==0);
+    CHECK(s->house.inventory->bag[0].id==21 && s->house.inventory->bag[0].count==73);
+    CHECK(memcmp(field,s->session->field.cells,sizeof(field))==0);
+    CHECK(memcmp(registration.player_name,s->session->game.registration.player_name,sizeof(registration.player_name))==0);
     CHECK(s->intro.player.position[0]==-4257 && s->intro.player.position[2]==3959);
     if(accept) {
         const unsigned visited[]={0,32,36,40,48,52};
         for(unsigned i=0;i<sizeof(visited)/sizeof(visited[0]);++i) CHECK(areas[visited[i]]);
         for(unsigned i=65;i<=77;++i) CHECK(messages[i]);
-        CHECK(!messages[78] && !messages[79] && s->house.hour==8 && banks[105] && banks[142]);
+        CHECK(!messages[78] && !messages[79] && s->house.clock->hour==8 && banks[105] && banks[142]);
         CHECK(mayor_stairs && player_stairs);
     } else {
-        CHECK(messages[78] && messages[79] && !messages[65] && !areas[32] && s->house.hour==6);
+        CHECK(messages[78] && messages[79] && !messages[65] && !areas[32] && s->house.clock->hour==6);
     }
     /* Re-entering the farm cannot start the consumed encounter again. */
     s->travel_exit=(HmbtnHouseExit){0};s->travel_exit.target=80;
@@ -106,7 +106,7 @@ static bool play(HmbtnHost *host,const char *root,const char *captures,bool acce
     s->intro.player.position[0]=1680;s->intro.player.position[2]=-800;
     for(unsigned i=0;i<23;++i) CHECK(tick(s,0,error,error_size));
     CHECK(s->area==0 && !s->first_visit_active && s->control.enabled);
-    CHECK(memcmp(field,s->field.cells,sizeof(field))==0);
+    CHECK(memcmp(field,s->session->field.cells,sizeof(field))==0);
     hmbtn_scene_preview_destroy(s);return true;
 fail:
     hmbtn_scene_preview_destroy(s);return false;

@@ -29,7 +29,7 @@ int main(int argc,char **argv)
             uint8_t block[8192];uint32_t offset;size_t size;
             CHECK(hmbtn_village_talk_range(id,&offset,&size));
             CHECK(hmbtn_resource_read(argv[1],"A_FILE/12_event_s.bin",offset,block,size,error,sizeof(error)));
-            CHECK(hmbtn_village_talk_open(&s->talk,id,block,size,&v,&s->intro.player,&clock,&s->dialogue,&s->house,error,sizeof(error)));
+            CHECK(hmbtn_village_talk_open(&s->talk,id,block,size,&v,&s->intro.player,&clock,hmbtn_game_registration_const(&s->session->game),&s->house,error,sizeof(error)));
             unsigned seen=0;
             for(unsigned frame=0;frame<4000 && s->talk.active;++frame) {
                 CHECK(village_conversation(s,HMBTN_PAD_CROSS,HMBTN_PAD_CROSS,error,sizeof(error)));
@@ -43,7 +43,7 @@ int main(int argc,char **argv)
                     CHECK(s->talk.bank<5);
                     CHECK(hmbtn_resource_read(argv[1],archives[s->talk.bank],s->talk.request*8192u,
                         original,sizeof(original),error,sizeof(error)));
-                    CHECK(hmbtn_feed_shop_expand(original,sizeof(original),&s->dialogue));
+                    CHECK(hmbtn_feed_shop_expand(original,sizeof(original),hmbtn_game_registration_const(&s->session->game)));
                     CHECK(hmbtn_message_open(&expected,original,sizeof(original),error,sizeof(error)));
                     CHECK(expected.count==s->dialogue.message.count && !memcmp(expected.words,
                         s->dialogue.message.words,expected.count*sizeof(*expected.words)));
@@ -60,16 +60,16 @@ int main(int argc,char **argv)
     }
     /* Actual location: Lillia's closed shop yields an ordinary conversation;
      * movement, menus, schedules and clock are held until the window closes. */
-    s->clock=(HmbtnFarmClock){0,0,2,2,16,0,0};sync_clock(s);
+    s->session->game.clock=(HmbtnFarmClock){0,0,2,2,16,0,0};
     CHECK(step(s,0,0,error,sizeof(error)));
-    HmbtnIntroActor *npc=&s->village.people[18].actor;CHECK(npc->visible);
+    HmbtnIntroActor *npc=&s->session->village.people[18].actor;CHECK(npc->visible);
     memcpy(s->intro.player.position,npc->position,sizeof(npc->position));s->intro.player.position[2]+=300;
     s->intro.player.facing=0;s->control.mode=0;
-    CHECK(hmbtn_village_target(&s->village,&s->intro.player)==18);
+    CHECK(hmbtn_village_target(&s->session->village,&s->intro.player)==18);
     CHECK(step(s,HMBTN_PAD_CROSS,0,error,sizeof(error)) && s->talk.active);
-    const HmbtnFarmClock before=s->clock;int32_t position[3];memcpy(position,s->intro.player.position,sizeof(position));
+    const HmbtnFarmClock before=s->session->game.clock;int32_t position[3];memcpy(position,s->intro.player.position,sizeof(position));
     for(unsigned i=0;i<300;++i) CHECK(step(s,HMBTN_PAD_START,HMBTN_PAD_UP,error,sizeof(error)));
-    CHECK(s->talk.active && s->menu.mode==HMBTN_MENU_NONE && !memcmp(&before,&s->clock,sizeof(before))
+    CHECK(s->talk.active && s->menu.mode==HMBTN_MENU_NONE && !memcmp(&before,&s->session->game.clock,sizeof(before))
         && !memcmp(position,s->intro.player.position,sizeof(position)));
     CHECK(hmbtn_scene_preview_draw(s,host.renderer,0,0,0,error,sizeof(error)));
     if(argc==3) {
@@ -80,17 +80,17 @@ int main(int argc,char **argv)
     CHECK(!s->talk.active && !s->talk.script.boundary && s->house.mode==HMBTN_HOUSE_FREE);
     /* Complete BIN dialogue, repeat the same day, then actually sleep. The
      * original daily flags determine the gain, which is credited only once. */
-    CHECK(s->village.people[18].talk_flags&HMBTN_VILLAGER_DAILY_GAIN);
-    const unsigned friendship=s->village.people[18].friendship;
+    CHECK(s->session->village.people[18].talk_flags&HMBTN_VILLAGER_DAILY_GAIN);
+    const unsigned friendship=s->session->village.people[18].friendship;
     CHECK(step(s,HMBTN_PAD_CROSS,0,error,sizeof(error)) && s->talk.active);
     for(unsigned i=0;i<2000 && s->talk.active;++i) CHECK(step(s,HMBTN_PAD_CROSS,0,error,sizeof(error)));
-    CHECK(!s->talk.active && !s->talk.script.boundary && s->village.people[18].friendship==friendship);
+    CHECK(!s->talk.active && !s->talk.script.boundary && s->session->village.people[18].friendship==friendship);
     CHECK(load_area(s,s->data_root,80,error,sizeof(error)));s->intro.area=80;
-    const unsigned yesterday=s->clock.day;
+    const unsigned yesterday=s->session->game.clock.day;
     s->house.mode=HMBTN_HOUSE_SLEEP;
-    for(unsigned i=0;i<1500 && (s->clock.day==yesterday || s->morning_fade);++i) CHECK(step(s,0,0,error,sizeof(error)));
-    CHECK(s->clock.day==yesterday+1 && !s->sleep.active && !s->morning_fade && s->area==80);
-    CHECK(s->village.people[18].friendship==friendship+1 && s->village.people[18].talk_flags==0x10);
+    for(unsigned i=0;i<1500 && (s->session->game.clock.day==yesterday || s->morning_fade);++i) CHECK(step(s,0,0,error,sizeof(error)));
+    CHECK(s->session->game.clock.day==yesterday+1 && !s->sleep.active && !s->morning_fade && s->area==80);
+    CHECK(s->session->village.people[18].friendship==friendship+1 && s->session->village.people[18].talk_flags==0x10);
     printf("%u original message requests: first/repeat/affinity dialogue, portraits, paused controls and conversation-to-sleep friendship passed.\n",messages);
     hmbtn_scene_preview_destroy(s);hmbtn_host_close(&host);return 0;
 fail:

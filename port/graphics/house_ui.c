@@ -88,18 +88,18 @@ static void position(unsigned cell,int *x,int *y)
 static bool clock_draw(HmbtnNewGameUI *shared,const HmbtnHouseInteraction *h,uint8_t *p,
     char *error,size_t error_size)
 {
-    const unsigned hour=h->hour%12 ? h->hour%12 : 12;
-    const uint16_t time[]={h->hour<12 ? 0 : 15,12,0xffd,
+    const unsigned hour=h->clock->hour%12 ? h->clock->hour%12 : 12;
+    const uint16_t time[]={h->clock->hour<12 ? 0 : 15,12,0xffd,
         hour<10 ? 0xffd : (uint16_t)(0x40+hour/10),(uint16_t)(0x40+hour%10),
-        0xffd,(uint16_t)(0x40+h->minute/10),0x40,0xffff};
+        0xffd,(uint16_t)(0x40+h->clock->minute/10),0x40,0xffff};
     const uint16_t colon[]={0x66,0xffff};
     hmbtn_window_frame_draw(p,320,240,228,16,78,32);
-    return hmbtn_ui_icon(shared,p,43,h->season,232,19,error,error_size)
-        && number(shared,p,h->day+1,252,19,3,error,error_size)
-        && hmbtn_ui_text(shared,p,weekday_text_codes+h->weekday*3,3,276,19,0,
-            h->weekday==0 ? 4u : h->weekday==6 ? 5u : 3u,error,error_size)
+    return hmbtn_ui_icon(shared,p,43,h->clock->season,232,19,error,error_size)
+        && number(shared,p,h->clock->day+1,252,19,3,error,error_size)
+        && hmbtn_ui_text(shared,p,weekday_text_codes+h->clock->weekday*3,3,276,19,0,
+            h->clock->weekday==0 ? 4u : h->clock->weekday==6 ? 5u : 3u,error,error_size)
         && hmbtn_ui_text(shared,p,time,WORDS(time),232,33,0,3,error,error_size)
-        && hmbtn_ui_text_dim(shared,p,colon,WORDS(colon),272,33,h->minute%10>=5,error,error_size);
+        && hmbtn_ui_text_dim(shared,p,colon,WORDS(colon),272,33,h->clock->minute%10>=5,error,error_size);
 }
 static bool options_draw(HmbtnNewGameUI *shared,const HmbtnHouseOptions *o,uint8_t *p,
     char *error,size_t error_size)
@@ -155,11 +155,11 @@ bool hmbtn_house_ui_draw(HmbtnHouseUI *u,HmbtnNewGameUI *shared,
     }
     if(h->mode==HMBTN_HOUSE_CALENDAR) {
         hmbtn_window_frame_draw(p,320,240,16,48,287,116);
-        const unsigned offset=(h->weekday+7-h->day%7)%7;
-        if(!number(shared,p,h->year+1,31,52,3,error,error_size)
+        const unsigned offset=(h->clock->weekday+7-h->clock->day%7)%7;
+        if(!number(shared,p,h->clock->year+1,31,52,3,error,error_size)
                 || !hmbtn_ui_text(shared,p,house_year,5,57,52,1,3,error,error_size)
-                || !hmbtn_ui_icon(shared,p,43,h->season,142,52,error,error_size)
-                || !hmbtn_ui_text(shared,p,season_text_codes+h->season*6,6,158,52,1,3,error,error_size)) return false;
+                || !hmbtn_ui_icon(shared,p,43,h->clock->season,142,52,error,error_size)
+                || !hmbtn_ui_text(shared,p,season_text_codes+h->clock->season*6,6,158,52,1,3,error,error_size)) return false;
         for(unsigned i=0;i<7;++i) {
             if(!hmbtn_ui_text(shared,p,weekday_text_codes+i*3,3,22+(int)i*41,66,1,
                     i==0 ? 4u : i==6 ? 5u : 3u,error,error_size)) return false;
@@ -168,9 +168,9 @@ bool hmbtn_house_ui_draw(HmbtnHouseUI *u,HmbtnNewGameUI *shared,
             const unsigned cell=i+offset, col=cell%7;
             const int x=30+(int)col*41,y=80+(int)(cell/7)*14;
             if(!number(shared,p,i+1,x,y,col==0 ? 4u : col==6 ? 5u : 3u,error,error_size)) return false;
-            if(hmbtn_house_calendar_message(h->season,i)!=0x3dc
+            if(hmbtn_house_calendar_message(h->clock->season,i)!=0x3dc
                     && !hmbtn_ui_icon(shared,p,30,1,x-4,y,error,error_size)) return false;
-            if(i==h->day && !hmbtn_ui_icon(shared,p,30,0,x-4,y,error,error_size)) return false;
+            if(i==h->clock->day && !hmbtn_ui_icon(shared,p,30,0,x-4,y,error,error_size)) return false;
         }
         const unsigned cell=h->calendar_day+offset;
         if(!hmbtn_ui_icon(shared,p,11,1,42+(int)(cell%7)*41,89+(int)(cell/7)*14,error,error_size)) return false;
@@ -194,8 +194,8 @@ bool hmbtn_house_ui_draw(HmbtnHouseUI *u,HmbtnNewGameUI *shared,
         for(unsigned cell=0;cell<17;++cell) {
             if(cell>=3 && cell<9) continue;
             int x,y; position(cell,&x,&y);
-            const unsigned id=cell==0 ? h->equipped.id : cell<9 ? h->bag[cell-1].id
-                : h->toolbox[h->page*8+cell-9].id;
+            const unsigned id=cell==0 ? h->inventory->equipped.id : cell<9 ? h->inventory->bag[cell-1].id
+                : h->inventory->toolbox[h->page*8+cell-9].id;
             if(!hmbtn_house_ui_item(u,shared,root,p,id,x,y,error,error_size)) return false;
         }
         int x,y;

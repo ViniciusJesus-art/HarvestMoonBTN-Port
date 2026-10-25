@@ -118,6 +118,13 @@ docker run --rm --user "$(id -u):$(id -g)" -v "$PWD":/src:ro -v /tmp/hmbtn-build
 
 A verificação `check` confere os hashes dos 14 binários originais. **Quando o port ou alterações de gameplay começarem, os hashes originais não serão mais uma verificação válida para os binários modificados.** Para reconstruir a imagem de disco no fluxo original é necessária uma cópia própria do disco; consulte a documentação upstream.
 
+
+![HMBTN — captura do projeto 1](./docs/prints/Screenshot_20261024_233235.png)
+
+
+![HMBTN — captura do projeto 1](./docs/prints/Screenshot_20261024_233706.png)
+
+
 ## Origem e créditos
 
 Este repositório é um **fork** de [coalslav/hmbtn-decomp](https://github.com/coalslav/hmbtn-decomp). A decompilação e sua estrutura inicial foram produzidas pelo projeto original. O desenvolvimento do port será realizado separadamente e o histórico de autoria será preservado.

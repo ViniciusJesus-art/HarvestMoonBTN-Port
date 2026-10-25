@@ -12,8 +12,9 @@ typedef struct HmbtnVillageTalk {
     int32_t slots[32];
     bool saved_flags[HMBTN_VILLAGE_FLAGS];
     HmbtnEventDays saved_days;
-    HmbtnStoredTool saved_equipped,saved_bag[8],saved_toolbox[64];
-    HmbtnStoredTool saved_held_item,saved_items[8];
+    /* Rollback checkpoint only, never read by gameplay as a second inventory.
+     * Unsupported script actions retain the existing atomic rollback. */
+    HmbtnInventory saved_inventory;
     struct { uint16_t flags;unsigned affection,friendship; } saved_people[HMBTN_VILLAGERS];
     unsigned target,saved_facing,request,bank,message_pc;
     unsigned saved_event_count1;
@@ -23,13 +24,14 @@ typedef struct HmbtnVillageTalk {
     unsigned show_tool,show_frames;
     HmbtnVillage *village;
     const HmbtnFarmClock *clock;
-    const HmbtnNewGame *registration;
+    const HmbtnRegistration *registration;
     const HmbtnIntroActor *player;
-    HmbtnHouseInteraction *inventory;
+    HmbtnInventory *inventory; /* Live authoritative stores, borrowed from the game. */
+    HmbtnHouseInteraction *house; /* Non-inventory event counter; not migrated in MA-01. */
 } HmbtnVillageTalk;
 bool hmbtn_village_talk_range(unsigned id,uint32_t *offset,size_t *size);
 bool hmbtn_village_talk_open(HmbtnVillageTalk *talk,unsigned id,const uint8_t *block,size_t size,
     HmbtnVillage *village,const HmbtnIntroActor *player,const HmbtnFarmClock *clock,
-    const HmbtnNewGame *registration,HmbtnHouseInteraction *inventory,char *error,size_t error_size);
+    const HmbtnRegistration *registration,HmbtnHouseInteraction *inventory,char *error,size_t error_size);
 bool hmbtn_village_talk_tick(HmbtnVillageTalk *talk,char *error,size_t error_size);
 #endif

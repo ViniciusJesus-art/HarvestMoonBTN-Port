@@ -7,6 +7,7 @@ void hmbtn_game_state_init(HmbtnGameState *state)
     memset(state,0,sizeof(*state));
     hmbtn_farm_clock_init(&state->clock);
     hmbtn_registration_init(&state->registration);
+    hmbtn_weather_init(&state->weather,&state->clock,&state->registration);
     /* Current host new-game purse, formerly initialized by farm_menu_init. */
     state->economy.gold=500;
     /* Initial stores moved verbatim from hmbtn_house_interaction_init. Source:
@@ -53,13 +54,23 @@ const HmbtnRegistration *hmbtn_game_registration_const(const HmbtnGameState *sta
 {
     return state ? &state->registration : NULL;
 }
+unsigned hmbtn_inventory_capacity(const HmbtnInventory *inventory)
+{
+    if(!inventory || inventory->rucksack_level>2) return 0;
+    const unsigned capacity=2u<<inventory->rucksack_level;
+    return capacity<=sizeof(inventory->bag)/sizeof(*inventory->bag) ? capacity : 0;
+}
+unsigned hmbtn_inventory_toolbox_capacity(const HmbtnInventory *inventory)
+{
+    return inventory ? (unsigned)(sizeof(inventory->toolbox)/sizeof(*inventory->toolbox)) : 0;
+}
 const HmbtnStoredTool *hmbtn_inventory_slot_const(const HmbtnInventory *inventory,unsigned i)
 {
     /* Slot selection moved from farm_menu.c, without changing its rules. */
-    if(!inventory || i>=18 || inventory->rucksack_level>2) return NULL;
+    if(!hmbtn_inventory_capacity(inventory) || i>=18) return NULL;
     if(i==0) return &inventory->equipped;
     if(i==9) return &inventory->held_item;
-    const unsigned capacity=2u<<inventory->rucksack_level;
+    const unsigned capacity=hmbtn_inventory_capacity(inventory);
     if(i<9) return i<=capacity ? &inventory->bag[i-1] : NULL;
     return i-10<capacity ? &inventory->items[i-10] : NULL;
 }

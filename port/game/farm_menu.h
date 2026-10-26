@@ -1,6 +1,7 @@
 #ifndef HMBTN_FARM_MENU_H
 #define HMBTN_FARM_MENU_H
 #include "farm_action.h"
+#include "inventory.h"
 typedef enum HmbtnFarmMenuMode { HMBTN_MENU_NONE,HMBTN_MENU_STATUS,HMBTN_MENU_RUCKSACK } HmbtnFarmMenuMode;
 typedef struct HmbtnStorageSpot { int x,y;uint8_t next[24]; } HmbtnStorageSpot;
 typedef struct HmbtnFarmStatistics {
@@ -25,6 +26,4 @@ void hmbtn_farm_menu_init(HmbtnFarmMenu *menu,const HmbtnEconomy *economy);
 bool hmbtn_farm_menu_open(HmbtnFarmMenu *menu,uint32_t pressed);
 void hmbtn_farm_menu_tick(HmbtnFarmMenu *menu,HmbtnInventory *inventory,uint32_t pressed,uint32_t held);
 const HmbtnStorageSpot *hmbtn_storage_spot(unsigned index);
-bool hmbtn_inventory_swap(HmbtnInventory *inventory,unsigned from,unsigned to);
-bool hmbtn_inventory_cycle(HmbtnInventory *inventory,bool tools,bool reverse);
 #endif

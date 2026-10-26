@@ -2,106 +2,27 @@
 #include "village_talk.h"
 #include "item_reaction.h"
 #include "event_item.h"
+#include "inventory.h"
+#include "feed_shop.h"
+#include "event_variables.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include "village_talk_tables.inc"
 static bool slot(int i) { return i>=0 && i<32; }
 static bool person(int i) { return i>0 && i<HMBTN_VILLAGERS; }
-static int32_t arithmetic(int32_t a,int32_t b,int op)
-{
-    switch(op) {
-    case 0:return b;
-    case 1:return (int32_t)((uint32_t)a+(uint32_t)b);
-    case 2:return (int32_t)((uint32_t)a-(uint32_t)b);
-    case 3:return (int32_t)((uint32_t)a*(uint32_t)b);
-    case 4:return !b || (a==INT32_MIN && b==-1) ? a : a/b;
-    case 5:return !b || (a==INT32_MIN && b==-1) ? 0 : a%b;
-    default:return a; /* Original switch leaves the value unchanged. */
-    }
-}
-static int compare(int32_t a,int32_t b,int op)
-{
-    switch(op) { case 0:return a>=b;case 1:return a>b;case 2:return a<=b;
-    case 3:return a<b;case 4:return a==b;default:return 1; }
-}
-static bool value(HmbtnVillageTalk *t,int var,int element,int32_t *out)
-{
-    HmbtnVillage *v=t->village;const HmbtnFarmClock *c=t->clock;
-    HmbtnVillager *p=person(element) ? &v->people[element] : NULL;
-    if(var>=49 && var-48<HMBTN_VILLAGE_FLAGS) { *out=v->flags[var-48];return true; }
-    switch(var) {
-    case 3:*out=(int32_t)t->registration->birthday_season;break;
-    case 4:*out=(int32_t)t->registration->birthday_day;break;
-    case 10:*out=(int32_t)c->hour;break;
-    case 11:*out=(int32_t)c->weekday;break;
-    case 12:*out=(int32_t)c->year+1;break;
-    case 13:*out=(int32_t)c->season;break;
-    case 14:*out=(int32_t)c->day+1;break;
-    case 15:*out=(int32_t)v->people[t->target].location;break;
-    /* Family and weather remain at their actual new-game initial values. */
-    case 16:case 17:case 18:case 19:*out=0;break;
-    case 20:*out=-1;break;
-    case 21:case 22:case 23:*out=t->player->position[var-21];break;
-    case 25:*out=(int32_t)t->player->facing;break;
-    case 26:*out=(int32_t)c->minute;break;
-    case 27:if(!p) return false;*out=(int32_t)p->actor.facing;break;
-    case 31:if(!p) return false;*out=(int32_t)p->affection;break;
-    case 32:if(!p) return false;*out=(int32_t)p->friendship;break;
-    case 38:if(!p) return false;*out=(int32_t)p->schedule[p->step][2];break;
-    case 40:if(element<0 || element>=128) return false;*out=v->days.count0[element];break;
-    case 41:if(element<0 || element>=8) return false;*out=v->days.count1[element];break;
-    case 42:if(element<0 || element>=128) return false;*out=v->days.values[element];break;
-    case 44:case 45:case 46:
-        if(!p) return false;
-        *out=(p->talk_flags&(var==44 ? HMBTN_VILLAGER_DAILY_GAIN : var==45 ? HMBTN_VILLAGER_TALKED_TODAY : 0x10u))!=0;break;
-    default:return false;
-    }
-    return true;
-}
-static bool update(HmbtnVillageTalk *t,int var,int element,int32_t operand,int op)
-{
-    int32_t previous;
-    if(!value(t,var,element,&previous)) return false;
-    if(var>=49) { t->village->flags[var-48]=operand!=0;return true; }
-    HmbtnVillager *p=person(element) ? &t->village->people[element] : NULL;
-    if(var>=44 && var<=46 && p) {
-        const uint16_t mask=var==44 ? HMBTN_VILLAGER_DAILY_GAIN : var==45 ? HMBTN_VILLAGER_TALKED_TODAY : 0x10;
-        if(operand) p->talk_flags |= mask;else p->talk_flags &= (uint16_t)~mask;
-        return true;
-    }
-    if(var>=40 && var<=42) {
-        int32_t result=arithmetic(previous,operand,op);
-        if(result<0) result=0;
-        if(result>255) result=255;
-        uint8_t *cell=var==40 ? &t->village->days.count0[element]
-            : var==41 ? &t->village->days.count1[element] : &t->village->days.values[element];
-        *cell=(uint8_t)result;return true;
-    }
-    if((var==31 || var==32) && p) {
-        int32_t result=arithmetic(previous,operand,op),limit=var==31 ? 65535 : 255;
-        if(result<0) result=0;
-        if(result>limit) result=limit;
-        if(var==31) p->affection=(unsigned)result;else p->friendship=(unsigned)result;
-        return true;
-    }
-    return false;
-}
 static void birthday(const HmbtnVillageTalk *t,unsigned id,int *season,int *day)
 {
     *season=*day=0;
     for(unsigned i=0;i<28;++i) if((unsigned)birthdays[i][0]==id) {
         *season=birthdays[i][1];*day=birthdays[i][2];return;
     }
-    for(unsigned i=0;i<5;++i) if((unsigned)bride_birthdays[0][i][0]==id) {
-        const unsigned alternate=t->registration->birthday_season==(unsigned)bride_birthdays[0][i][1]
-            && t->registration->birthday_day==(unsigned)bride_birthdays[0][i][2];
-        *season=bride_birthdays[alternate][i][1];*day=bride_birthdays[alternate][i][2];return;
-    }
+    unsigned s,d;
+    if(hmbtn_bride_birthday(t->registration,id,&s,&d)) { *season=(int)s;*day=(int)d; }
 }
 static HmbtnEventResult command(void *context,const HmbtnEventCommand *c,char *error,size_t size)
 {
-    HmbtnVillageTalk *t=context;int32_t a=0,b=0;int season,day;
+    HmbtnVillageTalk *t=context;int season,day;
     const int v=c->command,e=c->operand,x=c->x,y=c->y;
     bool done=true;
     switch(c->type) {
@@ -121,27 +42,13 @@ static HmbtnEventResult command(void *context,const HmbtnEventCommand *c,char *e
         npc->facing=abs(dx)>abs(dz) ? (dx<0 ? 1u : 3u) : (dz<0 ? 0u : 2u);
         npc->sprite=(HmbtnAnimationPlayer){0,(uint16_t)npc->facing,0};break;
     }
-    case 13:case 14:
-        if(!value(t,v,e,&a) || (c->type==14 && !slot(y))) goto boundary;
-        b=c->type==14 ? t->slots[y] : y;
-        done=v==20 && b!=-1 ? false : compare(a,b,x);break;
-    case 15:case 16:
-        if(!slot(v) || (c->type==16 && !slot(e))) goto invalid;
-        done=compare(t->slots[v],c->type==16 ? t->slots[e] : y,x);break;
-    case 17:if(!value(t,v,e,&a)) goto boundary;done=a>=x && a<=y;break;
-    case 18:
-        if(!slot(e) || ((v&1) && !slot(x)) || ((v&2) && !slot(y))) goto invalid;
-        done=t->slots[e]>=(v&1 ? t->slots[x] : x) && t->slots[e]<=(v&2 ? t->slots[y] : y);break;
-    case 19:case 20:
-        if(c->type==20 && !slot(x)) goto invalid;
-        if(!update(t,v,e,c->type==20 ? t->slots[x] : x,y)) goto boundary;
-        break;
-    case 21:
-        if(!slot(v) || (e && !slot(x))) goto invalid;
-        t->slots[v]=arithmetic(t->slots[v],e ? t->slots[x] : x,y);break;
-    case 22:
-        if(!slot(x) || !value(t,v,e,&a)) goto boundary;
-        t->slots[x]=arithmetic(t->slots[x],a,y);break;
+    case 13:case 14:case 15:case 16:case 17:case 18:case 19:case 20:case 21:case 22: {
+        HmbtnEventVariables variables={t->village,t->clock,t->registration,t->player,t->target,
+            t->slots,sizeof(t->slots)/sizeof(*t->slots)};
+        const HmbtnEventResult result=hmbtn_event_variables_command(&variables,c,error,size);
+        if(result==HMBTN_EVENT_BOUNDARY) goto boundary;
+        return result;
+    }
     case 29:case 30: {
         if(!t->inventory) goto invalid;
         int item=c->type==29 ? 0 : v,where=c->type==29 ? v : e,which=c->type==29 ? e : x;
@@ -156,21 +63,15 @@ static HmbtnEventResult command(void *context,const HmbtnEventCommand *c,char *e
         break;
     }
     case 32: { /* event_item_store: equipped, rucksack, then optional toolbox. */
-        if(t->inventory->rucksack_level>2 || (e && !slot(v))) goto invalid;
+        if(!hmbtn_inventory_capacity(t->inventory) || (e && !slot(v))) goto invalid;
         int item=e ? (int)((uint32_t)t->slots[v]&0xFFFFu) : v;
         if(item>=32768) item-=65536; /* script_vars[item].half */
         if(item<=0 || item>=380) goto boundary;
-        HmbtnStoredTool *destination=NULL;bool spilled=false;
-        if(!t->inventory->equipped.id) destination=&t->inventory->equipped;
-        const unsigned capacity=2u<<t->inventory->rucksack_level;
-        for(unsigned i=0;!destination && i<capacity;++i)
-            if(!t->inventory->bag[i].id) destination=&t->inventory->bag[i];
-        if(!x) for(unsigned i=0;!destination && i<64;++i)
-            if(!t->inventory->toolbox[i].id) { destination=&t->inventory->toolbox[i];spilled=true; }
-        done=destination!=NULL;
-        if(destination) {
-            *destination=(HmbtnStoredTool){(uint16_t)item,(uint16_t)(item<=25 ? (item-1)%5 : 0),1};
-            if(y && !spilled) { t->show_tool=(unsigned)item;t->show_frames=y==1 ? 11 : 61; }
+        HmbtnInventoryPlacement placement;
+        const HmbtnStoredTool record={(uint16_t)item,(uint16_t)(item<=25 ? (item-1)%5 : 0),1};
+        done=hmbtn_inventory_store_tool(t->inventory,record,!x,&placement);
+        if(done && y && placement.store!=HMBTN_STORE_TOOLBOX) {
+            t->show_tool=(unsigned)item;t->show_frames=y==1 ? 11 : 61;
         }
         break;
     }
@@ -212,6 +113,20 @@ static HmbtnEventResult command(void *context,const HmbtnEventCommand *c,char *e
         if(!slot(v) || t->slots[v]<0 || (unsigned)t->slots[v]>=t->script.count) goto invalid;
         t->script.pc=(unsigned)t->slots[v];return HMBTN_EVENT_JUMP;
     case 81:
+        /* event_cmd_dispatch: start Won's seed shop, then wait for its close.
+         * The imported conversation decides when this command is reached. */
+        if(v==8 && t->target==35 && t->shop && !x) {
+            if(!y && e==10) {
+                if(!hmbtn_won_seed_shop_open(t->shop,t->clock)) goto boundary;
+                break;
+            }
+            if(y==1 && !e) {
+                if(t->shop->phase!=HMBTN_SHOP_OFF) return HMBTN_EVENT_WAIT;
+                /* Purchases are committed, not rollback candidates if a later
+                 * unsupported story command occurs in this conversation. */
+                t->saved_inventory=*t->inventory;break;
+            }
+        }
         if(v==22) {
             if(t->house->event_count1<15) ++t->house->event_count1;
             break;
@@ -220,7 +135,7 @@ static HmbtnEventResult command(void *context,const HmbtnEventCommand *c,char *e
         if(v==2 && e==1) { done=false;break; } /* No weddings in this session. */
         if(v==18 && x==0) { done=false;break; } /* No livestock spawn gate armed. */
         if(v==20 && e==0) { done=false;break; } /* No construction order. */
-        if(v==29 && slot(e)) { t->slots[e]=0;done=compare(0,x,y);break; }
+        if(v==29 && slot(e)) { t->slots[e]=0;done=hmbtn_event_comparison(0,x,y);break; }
         goto boundary;
     case 94:
         if(e || !person(v)) goto boundary;

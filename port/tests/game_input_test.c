@@ -29,8 +29,10 @@ int main(void)
     hmbtn_game_input_event(&input, &event, 1);
     event.key.scancode = SDL_SCANCODE_DOWN;
     hmbtn_game_input_event(&input, &event, 1);
-    CHECK(hmbtn_game_input_take_pressed(&input) == (HMBTN_PAD_CROSS | HMBTN_PAD_DOWN));
-    CHECK(hmbtn_game_input_held(&input) == (HMBTN_PAD_CROSS | HMBTN_PAD_DOWN));
+    const HmbtnLogicalInput frame=hmbtn_game_input_take_frame(&input);
+    CHECK(frame.pressed==(HMBTN_PAD_CROSS | HMBTN_PAD_DOWN) && frame.held==frame.pressed);
+    const HmbtnLogicalInput next=hmbtn_game_input_take_frame(&input);
+    CHECK(!next.pressed && next.held==frame.held);
     event.type = SDL_EVENT_WINDOW_FOCUS_LOST;
     event.window.windowID = 1;
     hmbtn_game_input_event(&input, &event, 1);

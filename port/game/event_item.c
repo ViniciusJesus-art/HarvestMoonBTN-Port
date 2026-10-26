@@ -1,33 +1,14 @@
 #include "event_item.h"
-static int scan_items(const HmbtnInventory *h,HmbtnInventory *write,
-    int id,int where,int which,unsigned count)
-{
-    if(!h || h->rucksack_level>2 || (where!=0 && where!=1)
-            || which < -1 || which>2 || (where && which==2)) return -1;
-    const unsigned first=which==-1 ? 1u : 0u,last=which==-1 ? 1u : (unsigned)which;
-    int found=0;
-    for(unsigned kind=first;kind<=last;++kind) {
-        const HmbtnStoredTool *list=kind==0 ? (where ? &h->held_item : &h->equipped)
-            : kind==1 ? (where ? h->items : h->bag) : h->toolbox;
-        HmbtnStoredTool *output=!write ? NULL : kind==0 ? (where ? &write->held_item : &write->equipped)
-            : kind==1 ? (where ? write->items : write->bag) : write->toolbox;
-        const unsigned n=kind==0 ? 1u : kind==1 ? 2u<<h->rucksack_level : 64u;
-        /* The original also starts the rucksack index at one for which=-1. */
-        for(unsigned i=first;i<n;++i) if(list[i].id==id) {
-            if(count && output) { output[i]=(HmbtnStoredTool){0};--count; }
-            ++found;
-        }
-    }
-    return found;
-}
+#include "inventory.h"
+/* Compatibility entry points for current script consumers; all traversal and
+ * removal is authoritative in inventory.c. */
 int hmbtn_event_items_take(HmbtnInventory *inventory,int id,int where,int which,unsigned count)
 {
-    return scan_items(inventory,inventory,id,where,which,count);
+    return hmbtn_inventory_take(inventory,id,where,which,count);
 }
 int hmbtn_event_items_count(const HmbtnInventory *inventory,int id,int where,int which)
 {
-    /* Same traversal/sentinels as the existing command, without a shadow store. */
-    return scan_items(inventory,NULL,id,where,which,0);
+    return hmbtn_inventory_count(inventory,id,where,which);
 }
 bool hmbtn_event_item_begin(HmbtnEventItem *item,HmbtnIntroActor *p,HmbtnInventory *h,unsigned id,bool eat)
 {

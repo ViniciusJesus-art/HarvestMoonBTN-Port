@@ -12,29 +12,37 @@ bool hmbtn_world_area(unsigned selection,unsigned season,unsigned *logical,unsig
     *logical=selection&~3u;*resource=*logical+season;
     return true;
 }
-unsigned hmbtn_world_song(const uint8_t *section,size_t size,unsigned season,unsigned hour)
+unsigned hmbtn_world_song_weather(const uint8_t *section,size_t size,unsigned season,unsigned hour,unsigned weather)
 {
     if(!section || size<16 || season>3) return 0;
     const unsigned kind=hmbtn_read_le16(section+14);
     const bool night=hmbtn_farm_clock_period(hour)==3;
     if(kind==29 || kind==14) return kind;
+    if(weather==3 || weather==4) return 23;
+    if(weather==1) return 22;
+    if(weather==2) return season+1;
     if(kind==24) return night ? 24u : 25u;
     if(night) return 28;
     if(kind==999) return season+1;
     if(kind>=31 && kind<=36) return kind;
     return 27;
 }
-unsigned hmbtn_world_music_volume(const uint8_t *section,size_t size,unsigned season,unsigned hour)
+unsigned hmbtn_world_music_volume_weather(const uint8_t *section,size_t size,unsigned season,unsigned hour,unsigned weather)
 {
     if(!section || size<16) return 0;
     unsigned volume=hmbtn_farm_music_volume(section,size);
     const unsigned place=hmbtn_read_le16(section),location=hmbtn_read_le16(section+2);
     if(hmbtn_farm_clock_period(hour)==3) {
         if(place!=0xB && place!=0x33) volume/=2;
+        if(weather==1 && !(hmbtn_read_le16(section+8)&0x1000u)) volume=100;
         if(location==0xF || season==3) volume=0;
     }
     return location==0x28 ? 100u : volume;
 }
+unsigned hmbtn_world_song(const uint8_t *section,size_t size,unsigned season,unsigned hour)
+{ return hmbtn_world_song_weather(section,size,season,hour,0); }
+unsigned hmbtn_world_music_volume(const uint8_t *section,size_t size,unsigned season,unsigned hour)
+{ return hmbtn_world_music_volume_weather(section,size,season,hour,0); }
 static int32_t half(const uint8_t *p)
 {
     const unsigned value=hmbtn_read_le16(p);return value<32768 ? (int32_t)value : (int32_t)value-65536;

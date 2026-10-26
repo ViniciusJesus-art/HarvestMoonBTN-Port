@@ -3,7 +3,7 @@
 #include "house_interaction.h"
 typedef enum HmbtnFarmActionPhase {
     HMBTN_FARM_ACTION_FREE,HMBTN_FARM_TOOL_CHARGE,HMBTN_FARM_TOOL_SWING,
-    HMBTN_FARM_REFILL,HMBTN_FARM_OVERCHARGE,HMBTN_FARM_MEDICINE
+    HMBTN_FARM_REFILL,HMBTN_FARM_OVERCHARGE,HMBTN_FARM_MEDICINE,HMBTN_FARM_PLANT_SEED
 } HmbtnFarmActionPhase;
 typedef struct HmbtnFarmAction {
     HmbtnFarmActionPhase phase;

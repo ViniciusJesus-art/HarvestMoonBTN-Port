@@ -1,5 +1,6 @@
 /* estate.c's seasonal substitutions, collectible records and per-day reset. */
 #include "farm_gather.h"
+#include "inventory.h"
 #include <stdlib.h>
 #include "gather_tables.inc"
 const HmbtnGatherRecord *hmbtn_farm_gather_record(unsigned i) { return i<197 ? &gather_records[i] : NULL; }
@@ -30,7 +31,8 @@ bool hmbtn_farm_gather_take(HmbtnFarmGather *s,unsigned location,unsigned season
         if(abs(r->position[0]-p->position[0]-step[p->facing][0])>=200
                 || abs(r->position[2]-p->position[2]-step[p->facing][1])>=200
                 || abs(r->position[1]-p->position[1])>=200) continue;
-        h->inventory->held_item=(HmbtnStoredTool){(uint16_t)id,0,1};s->taken[i]=true;
+        if(!hmbtn_inventory_hold(h->inventory,(HmbtnStoredTool){(uint16_t)id,0,1})) return false;
+        s->taken[i]=true;
         carry->phase=1;carry->sound=7;p->animation_done=false;
         p->sprite=(HmbtnAnimationPlayer){(uint16_t)(11+p->facing),0,0};return true;
     }

@@ -77,14 +77,19 @@ bool hmbtn_new_game_ui_message(HmbtnNewGameUI *u, const char *root,
     return hmbtn_resource_read(root,archive,id*8192u,record,sizeof(record),error,error_size)
         && hmbtn_ui_message_record(u,record,sizeof(record),message,error,error_size);
 }
+bool hmbtn_ui_message_art(HmbtnNewGameUI *u,const uint8_t *record,size_t size,char *error,size_t error_size)
+{
+    if(!record || size!=8192) { snprintf(error,error_size,"Invalid message artwork record");return false; }
+    const bool ok=hmbtn_read_le32(record)==UINT32_MAX
+        || hmbtn_bank_apply(record+4,0x1800-4,u->atlas,error,error_size);
+    if(ok && hmbtn_read_le32(record)!=UINT32_MAX) u->portrait_bank=hmbtn_read_le32(record);
+    return ok;
+}
 bool hmbtn_ui_message_record(HmbtnNewGameUI *u,const uint8_t *record,size_t size,
     HmbtnMessage *message,char *error,size_t error_size)
 {
-    const bool ok=hmbtn_message_open(message,record,size,error,error_size)
-        && (hmbtn_read_le32(record) == UINT32_MAX
-            || hmbtn_bank_apply(record+4,0x1800-4,u->atlas,error,error_size));
-    if(ok && hmbtn_read_le32(record)!=UINT32_MAX) u->portrait_bank=hmbtn_read_le32(record);
-    return ok;
+    return hmbtn_message_open(message,record,size,error,error_size)
+        && hmbtn_ui_message_art(u,record,size,error,error_size);
 }
 bool hmbtn_ui_message_portrait(HmbtnNewGameUI *u,const HmbtnMessage *m,char *error,size_t error_size)
 {

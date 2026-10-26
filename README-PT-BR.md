@@ -6,15 +6,24 @@
 
 *Baseado na decompilação [hmbtn-decomp](https://github.com/coalslav/hmbtn-decomp), de coalslav.*
 
-> **Status: título, cadastro, chegada e sequência da infância (M3/M4 parcial).** Já é possível caminhar e correr na casa inicial; gameplay da fazenda permanece pendente. O foco atual é Linux e Windows.
+> **Status: título, cadastro, chegada e sequência da infância (M3/M4 parcial).** Já é possível caminhar e correr na casa inicial; Sistema da Fazendo Plantação ja implementada. 
 
 ---
+
+
+<img src="./docs/prints/animacao_estavel.gif" width="300">
+
+**Port ainda em Progresso...**
 
 ## Instaladores para PC
 
 Os pacotes AppImage, DEB, RPM e EXE distribuem somente o porte e seu extrator nativo. No primeiro uso, selecione seu `.bin`; apenas os recursos são extraídos para a pasta do usuário. Python, SDK e emulador não são necessários. Veja [instalação e GitHub Actions](docs/port/INSTALLERS.md). O jogo completo ainda não está portado.
 
 ## Sobre o projeto
+
+
+
+
 
 A proposta é estudar e adaptar o código C reconstruído de **Harvest Moon: Back to Nature** para executar em plataformas modernas sem depender de um emulador de PlayStation durante a execução. Pretendo preservar a experiência do jogo original e, futuramente, explorar melhorias e suporte a mods.
 

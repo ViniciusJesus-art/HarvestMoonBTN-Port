@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "farm_clock.h"
+#include "weather.h"
 
 /* Runtime values, not a serialized PS1 layout. Reference: FarmStoredItem in
  * src/overlay/11_GF_FARM/menu/item_storage.h and FarmPlayer/estate stores in
@@ -28,6 +29,7 @@ typedef struct HmbtnFarmShipping {
 } HmbtnFarmShipping;
 typedef struct HmbtnEconomy {
     unsigned gold,shipments[25],ledger[4][2];
+    unsigned gold_limit; /* 0: base-game default; native sessions may raise it. */
     HmbtnFarmShipping shipping;
 } HmbtnEconomy;
 
@@ -50,6 +52,7 @@ typedef struct HmbtnGameState {
     /* world/clock.h FarmClock + FarmSystem.clockFrames (farm_state.h). */
     HmbtnFarmClock clock;
     HmbtnRegistration registration;
+    HmbtnWeather weather;
 } HmbtnGameState;
 
 /* New game only. Reopening a UI or loading an area must not call this. */
@@ -63,6 +66,11 @@ HmbtnFarmClock *hmbtn_game_clock(HmbtnGameState *state);
 const HmbtnFarmClock *hmbtn_game_clock_const(const HmbtnGameState *state);
 HmbtnRegistration *hmbtn_game_registration(HmbtnGameState *state);
 const HmbtnRegistration *hmbtn_game_registration_const(const HmbtnGameState *state);
+
+/* Accessible bag capacity; zero for unsupported/invalid current storage levels.
+ * The level mapping belongs to the base-game inventory, not the disk reader. */
+unsigned hmbtn_inventory_capacity(const HmbtnInventory *inventory);
+unsigned hmbtn_inventory_toolbox_capacity(const HmbtnInventory *inventory);
 
 /* Existing farm-menu slot numbering: equipment 0, bag 1..8, hand 9,
  * goods 10..17. Inactive slots and invalid capacity levels return NULL. */

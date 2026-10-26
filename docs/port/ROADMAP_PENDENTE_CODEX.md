@@ -1,9 +1,13 @@
 # Pendências complementares ao roadmap
 
-Atualizado em 2026-10-25. **A fila principal está no [ROADMAP.md](ROADMAP.md).**
-MA-01..03 e MA-04a foram concluídas; MA-04 continua aberta. A próxima tarefa
-é MA-04b (execução e identidade dos atores de evento). Não selecionar uma funcionalidade antiga deste arquivo para
-contornar as dependências da migração arquitetural.
+Atualizado em 2026-10-26. **A fila principal está no [ROADMAP.md](ROADMAP.md).**
+MA-01..06 e PF-01..05 foram concluídas. PF-06 entregou batata, grama/feno e culturas base de verão/outono;
+clima diário/chuva também está integrado; sementes sazonais de Won também integradas; a próxima entrega é **PF-06 — desbloqueios do supermercado**. Nabo/batata/tomate/milho/cebola/berinjela/cenoura/batata-doce têm compra
+até venda; grama tem corte/rebrota, estoque e cochos compartilhados.
+A cadeia MA-07..25 foi substituída por entregas funcionais; a tabela de
+correspondência está no roadmap. IDs MA nas classificações abaixo indicam o
+escopo técnico anterior, não gates ativos. Funcionalidades podem começar com as
+dependências reais de seu domínio, sem terminar toda a migração arquitetural.
 
 As antigas 62 entradas eram consolidações históricas com sobreposições e limites
 de etapas que depois avançaram: por exemplo, incubação, medicamento, transporte,
@@ -22,35 +26,38 @@ alvos atuais; Não exigir compilação PS1, ABI/MIPS ou SHA-1.
 Continuam necessárias leitura LE, endereços serializados de 32 bits e validação
 dos recursos, sem `long` como inteiro PS1 ou ponteiros host vindos do disco.
 
-Não ampliar estado/regra paralelos. Completar primeiro a migração do domínio
-necessário. Trabalho funcional novo deve ganhar tarefa pequena no roadmap,
+Não ampliar estado/regra paralelos. Adaptar as dependências estritamente necessárias ao domínio
+na mesma entrega funcional. Trabalho funcional novo deve ganhar tarefa pequena no roadmap,
 com função de origem, dependências, testes e critério de conclusão.
 
 ## Correspondência do backlog anterior
 
 | Tema anterior | Estado e encaminhamento |
 |---|---|
-| Inventário, ferramentas, mochila e menus | Já parciais; inventário e finanças centrais MA-01/02 concluídos; separação MA-06/08, regras MA-15/16. Melhorias e ações ainda ausentes ficam para a próxima fila funcional. |
-| Endereços fixos, estruturas host, inicialização e módulos nativos | Propriedade inicial MA-01..04a concluída; seguir MA-04b..08, sem portar o `main.c` PS1 inteiro ou simular overlays MIPS. |
-| Comandos, portas, diálogos, eventos e scripts completos | Os roteiros já cobertos são proteção; consolidar MA-10..14 antes de ampliar eventos. |
+| Inventário, ferramentas, mochila e menus | Já parciais; inventário e finanças centrais MA-01/02 concluídos; tick livre MA-06 concluído; apresentação MA-08, regras MA-15/16. Melhorias e ações ainda ausentes ficam para a próxima fila funcional. |
+| Endereços fixos, estruturas host, inicialização e módulos nativos | Propriedade MA-01..04, contratos MA-05 e tick livre MA-06 concluídos; seguir MA-07/08, sem portar o `main.c` PS1 inteiro ou simular overlays MIPS. |
+| Comandos, portas, diálogos, eventos e scripts completos | Os roteiros já cobertos são proteção; compartilhar os comandos necessários ao evento escolhido em PF-03, sem exigir toda a antiga MA-10..14. |
 | Relógio, sono, calendário, cochos e eventos diários | Preservar recorte funcional; calendário/cadastro central MA-03 concluído, regras MA-18/19 e integração MA-20/21. |
-| Plantações, colheita, grama e produção | Ainda incompletas; primeiro cultivo completo MA-20, demais culturas/clima/estufa em tarefas posteriores rastreadas. |
+| Plantações, colheita, grama e produção | Nabo completo em PF-02; batata, grama/feno e culturas base de verão/outono em PF-06; clima diário/chuva integrado; repolho/abacaxi/pimentão de Won integrados; demais culturas/clima completo/estufa em PF-06, sem esperar a antiga MA-20. |
 | Galinhas, pintinhos, ovos, venda, medicina e transporte | Já parciais, não recomeçar do zero. Migrar regras em MA-21; concursos e espécies ausentes são trabalho posterior. |
-| Interiores, agendas, presença e rotas | Já parciais; registros sob sessão em MA-04a; consolidar atores/execução MA-04b/07/08, seleção/movimento MA-22. |
+| Interiores, agendas, presença e rotas | Já parciais; registros sob sessão em MA-04a; identidade de atores MA-04b concluída; separar execução/apresentação MA-07/08, seleção/movimento MA-22. |
 | Conversas, presentes e afinidade | Já parciais; comandos comuns MA-10..14 e ganho/decay MA-23. Família/casamento não implementados por essa migração. |
 | Caixa de venda, lojas e economia | Já parciais; propriedade central MA-02 concluída; regras MA-15..18. Cesta, cavalo, caixas adicionais e outras lojas dependem desses serviços e dos sistemas próprios. |
 | Pesca e entrega da vara | Já parciais; preservar testes/roteiros e reconciliar MA-24, sem segundo sistema de pesca. |
 | Geometria, áudio, formatos e apresentação | Backends preservados MA-05..08; diferenças de fidelidade continuam registradas, sem reescrever a infraestrutura como pré-requisito. |
 | Instalação pelo BIN e pacotes | Fluxo já implementado parcialmente; preservar regressões de importação. Não refazer o instalador nem distribuir recursos proprietários. |
 
-## Entregas posteriores, a detalhar no roadmap em MA-25
+## Áreas abertas, detalhadas continuamente no roadmap
 
 Estas são áreas abertas, não tarefas de implementação suficientemente pequenas.
-Cada uma deve ser decomposta e inventariada antes de começar.
+Cada uma deve ganhar escopo, fontes e critérios no roadmap ao ser selecionada,
+sem aguardar a antiga MA-25. Saves já têm entrega PF-05; demais sistemas PF-06,
+distribuição PF-07. Conteúdos novos e coop são futuros e usam a mesma base,
+sem exigir infraestrutura de rede agora.
 
 | Área | Pré-requisitos e conclusão a definir por tarefa |
 |---|---|
-| Clima completo e demais callbacks diários | Pipeline MA-18/19, campo/animais; portar previsões, tempestades e consequências a partir do original. |
+| Clima completo e demais callbacks diários | Pipeline MA-18/19, campo/animais; previsão/troca diária e irrigação entregues; faltam danos de tempestades, callbacks ausentes e meteorologia integral a partir do original. |
 | Demais culturas, melhorias e ações/ferramentas | MA-15/16/20 e sessão sem desenho; regras originais, produtos e transições completas por recorte. |
 | Vacas, ovelhas, cachorro, cavalo, ajudantes e concursos | Estado/identidade e ciclo diário migrados; adaptar cada espécie/sistema original separadamente. |
 | Família, casamento e progressão de história | Comandos, flags, calendário e relacionamentos comuns; não usar valores iniciais fixos para simular progresso. |

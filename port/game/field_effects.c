@@ -5,6 +5,7 @@ bool hmbtn_field_effect_submit(HmbtnFieldEffect slots[HMBTN_FIELD_EFFECTS],unsig
 {
     unsigned art;
     switch(item) {
+    case 0x36: art=HMBTN_FIELD_EFFECT_GRASS;break;
     case 0x3a: art=0;break;
     case 0x3b: case 0x16c: case 0x16d: case 0x16e: art=1;break;
     case 0x3c: case 0x16f: case 0x170: case 0x171: art=2;break;
@@ -19,10 +20,12 @@ bool hmbtn_field_effect_submit(HmbtnFieldEffect slots[HMBTN_FIELD_EFFECTS],unsig
     }
     return false;
 }
-void hmbtn_field_effect_tick(HmbtnFieldEffect slots[HMBTN_FIELD_EFFECTS],const HmbtnAnimation art[7])
+void hmbtn_field_effect_tick(HmbtnFieldEffect slots[HMBTN_FIELD_EFFECTS],const HmbtnAnimation art[7],
+    const HmbtnAnimation *grass_cut)
 {
     for(unsigned i=0;i<HMBTN_FIELD_EFFECTS;++i) if(slots[i].active) {
-        HmbtnFieldEffect *e=&slots[i];const HmbtnAnimation *a=&art[e->art];
-        if(!a->data || a->count[3]<2 || ++e->tick/3>=hmbtn_read_le16(a->data+a->section[3]+4)) e->active=false;
+        HmbtnFieldEffect *e=&slots[i];
+        const HmbtnAnimation *a=e->art==HMBTN_FIELD_EFFECT_GRASS ? grass_cut : e->art<7 ? &art[e->art] : NULL;
+        if(!a || !a->data || a->count[3]<2 || ++e->tick/3>=hmbtn_read_le16(a->data+a->section[3]+4)) e->active=false;
     }
 }

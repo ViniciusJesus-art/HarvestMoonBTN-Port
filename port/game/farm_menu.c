@@ -3,59 +3,6 @@
 #include <string.h>
 #include "storage_spots.inc"
 const HmbtnStorageSpot *hmbtn_storage_spot(unsigned i) { return i<18 ? &storage_spots[i] : NULL; }
-static bool allowed(const HmbtnStoredTool *item,unsigned dest)
-{
-    if(!item->id) return true;
-    if(item->id==0x109 || item->id==0x10A) return false; /* A live carried animal keeps its reserved record. */
-    const HmbtnFarmItem *info=hmbtn_farm_item(item->id);
-    return info && (dest==0 || dest==9 || (info->class_flags&0x80000000u));
-}
-bool hmbtn_inventory_swap(HmbtnInventory *h,unsigned from,unsigned to)
-{
-    HmbtnStoredTool *a=hmbtn_inventory_slot(h,from),*b=hmbtn_inventory_slot(h,to);
-    if(!a || !b || a==b || !allowed(a,to) || !allowed(b,from)) return false;
-    const HmbtnFarmItem *info=hmbtn_farm_item(a->id);
-    if(a->id && a->id==b->id) {
-        if(!info || info->category!=2) return false;
-        unsigned sum=(unsigned)a->count+b->count;
-        b->count=(uint16_t)(sum>99 ? 99 : sum);
-        if(sum>99) a->count=(uint16_t)(sum-99); else *a=(HmbtnStoredTool){0};
-        return true;
-    }
-    /* Original rejects exchanging a stack of crop goods with a nonempty slot. */
-    const HmbtnFarmItem *other=hmbtn_farm_item(b->id);
-    if(a->id && b->id && ((info && info->category==0 && a->count>=2)
-            || (other && other->category==0 && b->count>=2))) return false;
-    HmbtnStoredTool tmp=*a;*a=*b;*b=tmp;return true;
-}
-static void compact(HmbtnStoredTool items[8])
-{
-    unsigned n=0;for(unsigned i=0;i<8;++i) if(items[i].id) items[n++]=items[i];
-    while(n<8) items[n++]=(HmbtnStoredTool){0};
-}
-bool hmbtn_inventory_cycle(HmbtnInventory *h,bool tools,bool reverse)
-{
-    HmbtnStoredTool *slots=tools ? h->bag : h->items,*hand=tools ? &h->equipped : &h->held_item;
-    const HmbtnFarmItem *info=hmbtn_farm_item(hand->id);
-    if(hand->id && (!info || !(info->class_flags&0x80000000u))) return false;
-    if(!tools && hand->id) {
-        const unsigned capacity=h->rucksack_level<=2 ? 2u<<h->rucksack_level : 0;
-        compact(slots);unsigned n=0;while(n<8 && slots[n].id) ++n;
-        if(n>=capacity) return false;
-        slots[n]=*hand;*hand=(HmbtnStoredTool){0};return true;
-    }
-    compact(slots);
-    if(!slots[0].id && !hand->id) return false;
-    HmbtnStoredTool tmp;
-    if(reverse) {
-        unsigned n=0;while(n<8 && slots[n].id) ++n;
-        if(!n) { slots[0]=*hand;*hand=(HmbtnStoredTool){0};return true; }
-        tmp=slots[n-1];memmove(slots+1,slots,(n-1)*sizeof(*slots));slots[0]=*hand;
-    } else {
-        tmp=slots[0];slots[0]=(HmbtnStoredTool){0};compact(slots);slots[7]=*hand;
-    }
-    *hand=tmp;compact(slots);return true;
-}
 void hmbtn_farm_menu_init(HmbtnFarmMenu *m,const HmbtnEconomy *economy)
 {
     memset(m,0,sizeof(*m));m->sound=-1;m->marked=255;m->economy=economy;

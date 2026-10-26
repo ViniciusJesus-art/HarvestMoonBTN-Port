@@ -6,6 +6,7 @@
 #include "house_interaction.h"
 /* Common conversations and gifts, from event scripts 351..386 and Won 400. Story/shop
  * actions without a native implementation stop at an explicit boundary. */
+struct HmbtnFeedShop;
 typedef struct HmbtnVillageTalk {
     uint8_t code[3296];
     HmbtnEventScript script;
@@ -27,6 +28,7 @@ typedef struct HmbtnVillageTalk {
     const HmbtnRegistration *registration;
     const HmbtnIntroActor *player;
     HmbtnInventory *inventory; /* Live authoritative stores, borrowed from the game. */
+    struct HmbtnFeedShop *shop; /* Borrowed optional session adapter. */
     HmbtnHouseInteraction *house; /* Non-inventory event counter; not migrated in MA-01. */
 } HmbtnVillageTalk;
 bool hmbtn_village_talk_range(unsigned id,uint32_t *offset,size_t *size);

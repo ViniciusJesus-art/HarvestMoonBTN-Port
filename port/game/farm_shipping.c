@@ -1,5 +1,6 @@
 /* estate.c: shipment bins/value, purse and earnings; world/clock.c callbacks. */
 #include "farm_shipping.h"
+#include "economy.h"
 #include "farm_field.h"
 #include <string.h>
 #include "shipping_tables.inc"
@@ -30,8 +31,6 @@ void hmbtn_farm_shipping_clock(HmbtnEconomy *economy,
     s->settled=true;
     for(unsigned i=0;i<14;++i)
         if(c->season==shipping_special_dates[i][0] && c->day==shipping_special_dates[i][1]) return;
-    const uint64_t gold=(uint64_t)economy->gold+s->pending_value;
-    economy->gold=gold>9999999 ? 9999999u : (unsigned)gold;
-    economy->ledger[0][0]+=s->pending_value;
+    hmbtn_economy_gold_change(economy,(int64_t)s->pending_value,false);
     s->pending_value=0;
 }

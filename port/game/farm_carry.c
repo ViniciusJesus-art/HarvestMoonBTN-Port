@@ -1,4 +1,5 @@
 #include "farm_carry.h"
+#include "inventory.h"
 void hmbtn_farm_carried_offset(unsigned facing,bool running,int *x,int *y)
 {
     /* player.c: mark_screen_offsets, groups CARRY_ITEM and POSE_4. */
@@ -79,10 +80,16 @@ bool hmbtn_farm_carry_tick(HmbtnFarmCarry *s,HmbtnHouseInteraction *h,
     c+=step[p->facing][0];r+=step[p->facing][1];
     if(c<0 || c>=45 || r<0 || r>=25) return false;
     unsigned index=(unsigned)(r*45+c);HmbtnFarmTile *tile=&f->cells[index];
+    const unsigned crop=hmbtn_farm_field_harvest_item(f,index);
+    if(crop) {
+        if(!hmbtn_inventory_hold(h->inventory,(HmbtnStoredTool){(uint16_t)crop,0,1})) return false;
+        hmbtn_farm_field_harvest(f,index);
+    } else {
     const HmbtnFarmItem *item=hmbtn_farm_item(tile->value);
     if(!f->active[index] || !item || (item->flags!=0x8000 && item->flags!=0x8010)) return false;
-    h->inventory->held_item=(HmbtnStoredTool){tile->value,0,1};
-    tile->value=tile->ground;tile->kind=0;tile->growth_flags=0;
+    if(!hmbtn_inventory_hold(h->inventory,(HmbtnStoredTool){tile->value,0,1})) return false;
+    tile->value=tile->ground;tile->kind=0;tile->growth_flags=0;tile->watered_days=0;
+    }
     s->changed=true;s->sound=7;s->phase=1;
     p->sprite=(HmbtnAnimationPlayer){(uint16_t)(11+p->facing),0,0};p->animation_done=false;
     return true;

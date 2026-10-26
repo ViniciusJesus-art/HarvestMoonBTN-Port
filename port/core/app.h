@@ -10,6 +10,8 @@ typedef struct HmbtnAppOptions {
     unsigned window_width, window_height; /* Zero uses the default; never game coordinates. */
     const char *screenshot_path; /* Finite run: last frame. Otherwise: first frame. */
     const char *data_root;
+    const char *save_path; /* Native slot, default in user preferences. */
+    bool load_save; /* Load the explicit slot before entering the main loop. */
     bool setup;
     bool window_test; /* M1 diagnostic; does not require game data. */
     bool scene_preview; /* Development view of farm geometry; no gameplay. */
@@ -20,6 +22,8 @@ typedef struct HmbtnAppOptions {
     unsigned preview_area;
     bool preview_date_set,preview_time_set;
     HmbtnFarmClock preview_clock;
+    bool preview_weather_set;
+    unsigned preview_weather,preview_tomorrow;
 } HmbtnAppOptions;
 
 int hmbtn_app_run(const HmbtnAppOptions *options);

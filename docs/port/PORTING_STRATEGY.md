@@ -8,18 +8,40 @@ da ordem, dependências e critérios das próximas tarefas. A
 A arquitetura abaixo é o **alvo**; MA-01..03 centralizaram inventário, economia, calendário e cadastro.
 O restante segue planejado; entregas em [INVENTORY_STATE.md](INVENTORY_STATE.md),
 [ECONOMY_STATE.md](ECONOMY_STATE.md), [CALENDAR_STATE.md](CALENDAR_STATE.md) e
-[SESSION_STATE.md](SESSION_STATE.md) (MA-04a).
+[SESSION_STATE.md](SESSION_STATE.md) (MA-04a), [SESSION_EVENTS.md](SESSION_EVENTS.md) (MA-04b)
+[SERVICE_CONTRACTS.md](SERVICE_CONTRACTS.md) (MA-05 integral) e
+[EXPLORATION_TICK.md](EXPLORATION_TICK.md) (MA-06 integral). PF-01 integrou
+regras compartilhadas adaptadas de inventário/dinheiro; fontes e limites em
+[PF01_SHARED_RULES.md](PF01_SHARED_RULES.md). PF-02 integrou o primeiro cultivo
+completo e processamento diário em [PF02_CROP_CYCLE.md](PF02_CROP_CYCLE.md).
+PF-03 compartilhou comandos e integrou o convite de Duke em
+[PF03_REUSABLE_EVENTS.md](PF03_REUSABLE_EVENTS.md). PF-04 consolidou ticks e
+apresentação separados em [PF04_UPDATE_PRESENTATION.md](PF04_UPDATE_PRESENTATION.md).
+PF-05 entregou saves nativos para exploração estável, com codec versionado e
+retomada transacional em [PF05_NATIVE_SAVES.md](PF05_NATIVE_SAVES.md).
+PF-06 entregou a batata reaproveitando o mesmo motor e catálogo, com duas
+mudanças de integração em produção: filtro de suporte e sprite original.
+Fontes/testes em [PF06_POTATO.md](PF06_POTATO.md). Grama/feno também foram integrados
+no mesmo campo/estoque, com regras originais de crescimento, corte e rebrota:
+[PF06_GRASS.md](PF06_GRASS.md). Tomate/milho/cebola e o menu base de verão
+foram integrados sem outro motor ou estado em [PF06_SUMMER_CROPS.md](PF06_SUMMER_CROPS.md).
+Berinjela/cenoura/batata-doce e o menu base de outono usam os mesmos sistemas em
+[PF06_FALL_CROPS.md](PF06_FALL_CROPS.md), incluindo passagem ao inverno e saves.
+Próximo recorte: clima diário e chuva no campo; a cobertura completa da PF-06 permanece aberta.
 
 ## Objetivo e diretrizes permanentes
 
 Concluir um porte nativo de Harvest Moon: Back to Nature, aproveitando o máximo
 possível do C decompilado como fonte de algoritmos, regras, estruturas e
-comportamentos. A prioridade é preservar o comportamento do jogo e completar
-sua progressão em PC.
+comportamentos. A prioridade é completar sua progressão em PC com o comportamento original
+como referência e permitir expansão posterior de conteúdo. A base nativa atual
+é aproveitada; refatorações entram com necessidades concretas de implementação.
 
 1. Reutilizar diretamente a lógica C original quando tecnicamente viável.
 2. Adaptar funções existentes para remover dependências PS1 antes de considerar
-   uma reimplementação. Preservar decisões, ordem de efeitos e limites numéricos.
+   uma reimplementação. Preservar decisões e ordem de efeitos; distinguir regras do jogo de limites
+   técnicos do PS1. Limites de gameplay são valores iniciais, não tetos permanentes
+   para a expansão do port.
 3. Reimplementar somente quando a adaptação for inviável ou prejudicar a
    arquitetura; registrar a razão concreta, a origem e os testes equivalentes.
 4. Preservar SDL3, renderização, áudio, leitores/decodificadores, instalação e
@@ -54,6 +76,28 @@ As diretrizes desta decisão substituem, para o planejamento futuro, as metas
 anteriores de manutenção/validação do build PS1. Registros históricos continuam
 válidos como registros do que foi feito, não como requisitos atuais. Nenhuma
 alteração do build legado ou das instruções em `AGENTS.md` foi feita nesta etapa.
+
+## Extensão sem herdar restrições de hardware
+
+Novas plantas, itens, áreas e eventos devem usar os mesmos sistemas do conteúdo
+original. Separar definições de conteúdo (identidade, parâmetros e recursos) do
+estado das instâncias (crescimento, posição e progresso). IDs/contagens fixos do
+BIN são tratados na importação/adaptação, sem virar tetos universais do runtime.
+Não é necessário converter todos os arrays em alocações dinâmicas agora; remover
+restrições no domínio que estiver sendo ampliado, sem prometer suporte a novos
+conteúdos antes de integrar seus leitores e consumidores.
+
+Reaproveitar C significa conservar algoritmos úteis, não reproduzir alocação de
+memória, overlays, dependências MIPS, endereços ou orçamento de atores do PS1.
+Câmera, resolução, desempenho e interfaces PC podem evoluir sobre os backends
+existentes, sem exigir emulação de limitações visuais. Formatos originais ainda
+precisam de leitura correta, e capacidades que afetam regras do jogo exigem testes
+quando forem alteradas deliberadamente.
+
+Coop é possibilidade futura. Manter estado e comandos independentes do desenho
+facilita essa evolução; não introduzir rede, replicação, rollback ou determinismo
+global como pré-requisito do port de um jogador. Linux/Windows vêm primeiro,
+Android e expansões recebem suas próprias entregas depois.
 
 ## Critério para escolher como portar uma função
 
@@ -102,7 +146,7 @@ o host fornece os serviços. Pedidos pendentes preservam seu identificador e
 cursor até a conclusão; um carregamento ou uma animação não pode cobrar, dar
 um item ou avançar um script duas vezes.
 
-Distribuição proposta, a ser introduzida conforme as tarefas MA:
+Distribuição proposta, evoluída conforme as entregas funcionais PF do roadmap:
 
 | Local proposto | Responsabilidade |
 |---|---|
@@ -115,20 +159,27 @@ Distribuição proposta, a ser introduzida conforme as tarefas MA:
 
 `port/game/game_state.*` já possui inventário (MA-01), economia (MA-02),
 calendário e cadastro (MA-03). `session.*` já possui o ciclo de vida desse estado
-e de field/village/poultry (MA-04a). Execução/identidade de eventos é MA-04b;
-contratos e tick independente da apresentação ainda são MA-05..08. Não criar
-todas as interfaces de uma vez nem uma camada genérica sem consumidor real.
+e de field/village/poultry (MA-04a) e execução/identidade de eventos (MA-04b);
+contratos mínimos dos consumidores atuais foram introduzidos em MA-05. MA-06
+extraiu controle/mundo/animação livres para `exploration.*`. PF-04 consolidou
+roteiros/portas/sono em `runtime.*`, separou tick/draw da cena e do título/cadastro
+e retirou os adapters provisórios de coordenação dos fluxos PF-02/03.
+MA-07..25 foram substituídas como fila, sem execução ou conclusão presumidas. Não criar todas as
+interfaces de uma vez nem uma camada genérica sem consumidor real.
 
 ## Estado, estruturas e propriedade
 
 `FarmState` e seus subtipos são o mapa conceitual inicial, sem copiar padding,
-endereços fixos ou layouts binários. Preservar identidade dos atores, flags,
-capacidades, sentinelas e regras de atualização. Separar:
+endereços fixos ou layouts binários. Preservar identidade dos atores, flags, sentinelas e regras de atualização.
+Capacidades iniciais seguem o jogo base; representações devem permitir ampliá-las
+sem duplicar sistemas ou transportar layout binário. Separar:
 
 - **Estado do jogo:** cadastro, inventário, carteira, contas, data/clima, campo,
   animais, moradores, flags e progressão. Deve sobreviver a menus e trocas de área.
 - **Execução da sessão:** cursores de scripts, ações em andamento, filas,
-  transições e pausa. Sua persistência futura será decidida no desenho dos saves.
+  transições e pausa. PF-05 bloqueia salvar durante essas execuções; somente
+  estados estáveis são persistidos. Ampliar essa política explicitamente caso
+  haja necessidade futura de retomar scripts/ações em andamento.
 - **Apresentação:** texturas, atlas, pixels, canais de áudio, cursor visual,
   rolagem e caches. Pode ser recriada sem reinicializar os dados do jogo.
 
@@ -138,8 +189,10 @@ colheita ou alterar o tempo de um evento. Caches e leituras em const não devem
 alterar o estado autoritativo. Menus produzem comandos para a mesma regra usada
 por scripts, em vez de aplicarem cópias de regras financeiras ou de inventário.
 
-A primeira mudança será de propriedade, preservando algoritmos e valores
-existentes. Durante a transição, adapters podem emprestar referências ao estado
+A mudança inicial de propriedade já foi realizada em MA-01..06, preservando
+algoritmos e valores existentes. As próximas entregas priorizam regras originais
+e percursos funcionais; não reiniciar a centralização nem exigir o antigo plano
+MA inteiro antes de portar uma função. Durante a transição, adapters podem emprestar referências ao estado
 central. Não manter cópias mutáveis sincronizadas em dois sentidos. Remover o
 armazenamento antigo no mesmo recorte em que o novo assume a propriedade.
 
@@ -167,7 +220,7 @@ binária para testar limites e probabilidades do jogo.
 Recursos continuam little-endian, com offsets/endereços serializados de 32 bits.
 Usar leitores explícitos, tamanhos fixos e validação de limites; não converter
 palavras do disco em ponteiros host nem usar `long` como inteiro PS1. Ponteiros
-host existem apenas em estruturas de runtime; persistência futura terá formato
+host existem apenas em estruturas de runtime; PF-05 usa formato nativo
 versionado explícito, sem dump de structs. Auditar sinal, overflow, shifts,
 alinhamento e bitfields em cada algoritmo adaptado.
 
@@ -199,6 +252,13 @@ sessões independentes, pausa, atualização sem vídeo/áudio, conclusão assí
 idempotente e renderização sem mutação. MA-01..03 introduziram testes de inventário, economia, calendário e cadastro
 compartilhados, persistência em memória e consultas gráficas sem mutação.
 MA-04a acrescentou criação/destruição sem SDL, empréstimos de recursos,
-recriação de UI e registros entre áreas. Os demais recortes ainda serão cobertos
+recriação de UI e registros entre áreas. MA-04b acrescentou bytecode/cursor
+próprios, autoridade dos atores, rebind durante evento ativo, duas sessões
+e retomada de rota. MA-05 acrescentou pedidos/resultados identificados,
+respostas imediatas/atrasadas/erro/cancelamento, buffers próprios e polling sem
+repetir efeitos, com provedores sintéticos e backends reais. MA-06 acrescentou
+tick de exploração sem SDL, conclusão de ações por ANI sem desenho, pausa/relógio
+e equivalência com zero/uma/duas apresentações por tick nos recursos reais.
+Os demais recortes ainda serão cobertos
 nas etapas correspondentes. A referência inicial e os resultados por entrega estão
 no roadmap.

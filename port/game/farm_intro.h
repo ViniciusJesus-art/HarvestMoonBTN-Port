@@ -18,6 +18,11 @@ typedef struct HmbtnFarmIntro {
     HmbtnIntroActor ellen, zack;
     HmbtnIntroActor elli,stu;
     HmbtnIntroActor carter,barley,rick;
+    /* Resolve bound resident identities without adding a field per story NPC.
+     * Borrowed session callback, independent of host resources and SDL. */
+    HmbtnIntroActor *(*resolve_actor)(void *context,int32_t id);
+    void *actor_context;
+    unsigned actor_count;
     int32_t slots[32];
     unsigned message, message_bank, target_area;
     int message_result_slot; /* Original show-message result destination, -1 discards. */

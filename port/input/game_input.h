@@ -3,6 +3,7 @@
 
 #include <SDL3/SDL.h>
 #include "pad_buttons.h"
+#include "services.h"
 
 typedef struct HmbtnGameInput {
     SDL_Gamepad *gamepad;
@@ -19,5 +20,6 @@ void hmbtn_game_input_poll(HmbtnGameInput *input);
 uint32_t hmbtn_game_input_take_pressed(HmbtnGameInput *input);
 
 uint32_t hmbtn_game_input_held(const HmbtnGameInput *input);
+HmbtnLogicalInput hmbtn_game_input_take_frame(HmbtnGameInput *input);
 
 #endif

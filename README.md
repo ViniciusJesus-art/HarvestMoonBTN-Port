@@ -12,6 +12,10 @@
 
 ---
 
+<img src="./docs/prints/animacao_estavel.gif" width="300">
+
+***PC port in progress...***
+
 ## PC installers
 
 AppImage, DEB, RPM and EXE packages contain only the native port and its resource importer. Select your `.bin` on first launch; only resources are extracted into the user data folder. No Python, SDK or emulator is required. See [installation and GitHub Actions](docs/port/INSTALLERS.md). The full game is not yet ported.

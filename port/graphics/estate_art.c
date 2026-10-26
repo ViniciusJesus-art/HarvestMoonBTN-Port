@@ -1,4 +1,5 @@
 #include "estate_art.h"
+#include "farm_field.h"
 #include "resource_file.h"
 #include <stdlib.h>
 #include <stdio.h>
@@ -30,4 +31,43 @@ fail:
 const HmbtnAnimation *hmbtn_estate_art_sprite(const HmbtnEstateArt *a,unsigned index)
 {
     return index<45 && a->sprites[index].data ? &a->sprites[index] : NULL;
+}
+
+/* src/overlay/11_GF_FARM/field/field.c: field_cell_look_* and
+ * field_cell_look_anim; d3c0f38. Resolve original art without GPU calls or
+ * gameplay mutation. Seasons/stages come from the shared crop definition. */
+bool hmbtn_estate_crop_look(unsigned seed,unsigned stage,unsigned season,
+    unsigned *sprite,unsigned *animation)
+{
+    if(!stage || !sprite || !animation || season>2) return false;
+    unsigned live,dead;
+    switch(seed) {
+    case 0x22:live=7;dead=7;break;
+    case 0x23:live=8;dead=8;break;
+    case 0x24:live=9;dead=9;break;
+    case 0x26:live=11;dead=11;break;
+    case 0x27:live=12;dead=7;break;
+    case 0x28:live=13;dead=8;break;
+    case 0x29:live=14;dead=9;break;
+    case 0x2b:live=16;dead=11;break;
+    /* Winter has no crop sprite; season>2 is rejected above. */
+    case 0x2c:live=12;dead=0;break;
+    case 0x2d:live=13;dead=0;break;
+    case 0x2e:live=14;dead=0;break;
+    case 0x30:live=16;dead=0;break;
+    default:return false;
+    }
+    const HmbtnFarmCrop *crop=hmbtn_farm_crop(seed);
+    if(season==crop->season) {
+        *sprite=live;
+        /* Original cabbage ANI has only five ranges. field_cell_look_spring
+         * requests 5 at maturity; anim_draw_sprt_parts reads the first frame's
+         * zero dx as that range's offset, displaying frame zero (the head).
+         * Resolve that visual explicitly instead of copying an out-of-range
+         * PS1 table read into the bounds-checked host ANI decoder. */
+        *animation=seed==0x26 && stage==crop->grown ? 0 : stage+2;
+        return true;
+    }
+    if(season==crop->season+1) { *sprite=dead;*animation=0;return true; }
+    return false;
 }

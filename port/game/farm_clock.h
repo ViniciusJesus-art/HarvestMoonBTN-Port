@@ -28,6 +28,8 @@ bool hmbtn_farm_clock_location_held(unsigned location);
 bool hmbtn_farm_clock_place_held(const uint8_t *section,size_t size);
 unsigned hmbtn_farm_clock_period(unsigned hour);
 unsigned hmbtn_farm_clock_fatigue(unsigned hour);
+void hmbtn_daylight_weather_select(HmbtnDaylight *light,const HmbtnFarmClock *clock,unsigned weather);
+void hmbtn_daylight_weather_tick(HmbtnDaylight *light,const HmbtnFarmClock *clock,unsigned weather,bool held);
 void hmbtn_daylight_select(HmbtnDaylight *light,const HmbtnFarmClock *clock);
 void hmbtn_daylight_tick(HmbtnDaylight *light,const HmbtnFarmClock *clock,bool held);
 /* Match GPU blend 2 in five-bit channels, before drawing UI. */

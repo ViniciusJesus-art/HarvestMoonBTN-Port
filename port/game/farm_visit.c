@@ -2,6 +2,7 @@
 #include "farm_visit.h"
 #include "psx_data.h"
 #include "event_item.h"
+#include "event_variables.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -43,7 +44,7 @@ static bool window_match(uint32_t packed,const HmbtnFarmClock *c)
     for(unsigned i=0;i<count;++i) if((w[4]+i)%24==c->hour) return true;
     return false;
 }
-bool hmbtn_farm_visit_supported(unsigned event) { return (event>=128 && event<=133) || event==288 || event==289; }
+bool hmbtn_farm_visit_supported(unsigned event) { return (event>=128 && event<=133) || event==288 || event==289 || event==140; }
 static bool available(unsigned condition,const HmbtnFarmClock *c,const HmbtnInventory *inventory)
 {
     if(condition==255) return true;
@@ -135,6 +136,10 @@ HmbtnEventResult hmbtn_farm_visit_command(HmbtnFarmVisit *visit,HmbtnFarmIntro *
 {
     const int a=c->command,b=c->operand,x=c->x,y=c->y;
     if(!visit->active) goto unsupported;
+    if(c->type>=13 && c->type<=22) {
+        HmbtnEventVariables variables={v,clock,NULL,&s->player,0,s->slots,sizeof(s->slots)/sizeof(*s->slots)};
+        return hmbtn_event_variables_command(&variables,c,error,size);
+    }
     switch(c->type) {
     case 28:
         if((a!=0 && a!=1) || (b!=0 && b!=-1) || x || y) break;
@@ -158,23 +163,6 @@ HmbtnEventResult hmbtn_farm_visit_command(HmbtnFarmVisit *visit,HmbtnFarmIntro *
         }
         return talked ? HMBTN_EVENT_DONE : HMBTN_EVENT_WAIT;
     }
-    case 19:
-        if(a==40 && b>=0 && b<128 && !y && x>=0 && x<=255) v->days.count0[b]=(uint8_t)x;
-        else if(a>=49 && a-48<HMBTN_VILLAGE_FLAGS && !b && !y) v->flags[a-48]=x!=0;
-        else if(a==32 && b>0 && b<HMBTN_VILLAGERS && y==1) {
-            int n=(int)v->people[b].friendship+x;v->people[b].friendship=(unsigned)(n<0 ? 0 : n>255 ? 255 : n);
-        } else break;
-        return HMBTN_EVENT_DONE;
-    case 13:
-        if(a<49 || a-48>=HMBTN_VILLAGE_FLAGS || b || x!=4 || (y!=0 && y!=1)) break;
-        return v->flags[a-48]==(y!=0) ? HMBTN_EVENT_DONE : HMBTN_EVENT_WAIT;
-    case 22:
-        if(b || x<0 || x>=32 || y) break;
-        if(a==10) s->slots[x]=(int32_t)clock->hour;
-        else if(a==26) s->slots[x]=(int32_t)clock->minute;
-        else if(a==12) s->slots[x]=(int32_t)clock->year+1;
-        else break;
-        return HMBTN_EVENT_DONE;
     case 36: {
         if(a<0 || a>=32 || b<0 || b>=32 || x!=3 || y) break;
         int target=s->slots[a],now=(int)clock->hour;

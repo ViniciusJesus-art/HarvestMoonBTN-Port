@@ -52,6 +52,21 @@ def main(root, output):
     def number(value):
         return names[value] if value in names else int(value, 0)
 
+    grids = fields(body(tables, "picture_grids"))
+    grid = fields(grids[25][1:-1])[0]
+    rows = fields(grid[1:-1])
+    offsets = {}
+    for y, row in enumerate(rows):
+        for x, value in enumerate(fields(row[1:-1])):
+            part = int(value, 0)
+            if part:
+                offsets[part] = (x-6, y-6)
+    if set(offsets) != set(range(1, 10)):
+        raise ValueError("Unexpected original seed grid")
+    Path(output).with_name("seed_grid.inc").write_text(
+        "/* farm_tables.c picture_grids[25], original nine seed targets. */\n"
+        "static const int seed_grid[9][2]={" +
+        ",".join("{%d,%d}" % offsets[i] for i in range(1, 10)) + "};\n")
     out = ["/* Generated from original C tables; do not edit. */"]
     out.append("static const HmbtnFarmItem farm_items[380] = {")
     item_rows = {}
@@ -117,6 +132,7 @@ def main(root, output):
     Path(output).with_name("clock_tables.inc").write_text(
         "/* Original clock/weather data; generated, never PS1 pointers. */\n"
         "static const int32_t drift_by_hour[4][3]={"+body(farm_data,"drift_by_hour")+"};\n"
+        "static const int32_t drift_by_weather[8][3]={"+body(farm_data,"drift_by_weather")+"};\n"
         "static const uint16_t clock_places[78]={"+",".join(places)+"};\n"
         "static const int hour_fatigue[4][2]={"+body(player,"hour_events")+"};\n")
     estate=clean((src / "overlay/11_GF_FARM/estate.c").read_text())
@@ -165,6 +181,50 @@ def main(root, output):
         "static const unsigned shipping_special_dates[14][2]={"+
         ",".join("{"+",".join(row)+"}" for row in dates)+"};\n"
         f"enum {{ SHIPPING_FISH_FIRST={names['ITEM_LARGE_FISH']}, SHIPPING_HONEY={names['ITEM_HONEY']} }};\n")
+    shop = clean((src / "overlay/11_GF_FARM/menu/shop_dialogues.c").read_text())
+    # Base seasonal menus preserve order, ids, descriptions and original names.
+    # Conditional strawberry/pumpkin/spinach need milestone/estate progression not yet
+    # integrated. Never expose their entries as unconditional stock.
+    text_bank = clean((src / "main/text/text_bank.c").read_text())
+    seed_names = text_bank[text_bank.index(".seeds = {"):]
+    seed_menu = ["/* Generated from shop_seed_menu_setup_a/b/c and text_bank.names.seeds. */"]
+    emitted = set()
+    for season, function, following in (("spring", "a", "b"), ("summer", "b", "c"), ("fall", "c", "d")):
+        setup = shop[shop.index(f"static s32 shop_seed_menu_setup_{function}(void) {{"):
+                     shop.index(f"static s32 shop_seed_menu_setup_{following}(void) {{")]
+        entries = re.findall(r"ADD_ENTRY\(SHOP_NAME_AT\(base, text_bank.names.seeds.(\w+)\),\s*(0x[0-9A-Fa-f]+),\s*1,\s*(0x[0-9A-Fa-f]+)\)", setup)
+        if len(entries) != 4:
+            raise ValueError(f"Unexpected original base {season} seed menu")
+        for label, item, description in entries:
+            if label not in emitted:
+                label_words = re.search(r"\." + label + r"\s*=\s*(\{[^}]+\})", seed_names).group(1)
+                seed_menu.append(f"static const uint16_t seed_name_{label}[]={label_words};")
+                emitted.add(label)
+        seed_menu.append(f"static const HmbtnSeedShopEntry {season}_seeds[]={{")
+        for label, item, description in entries:
+            seed_menu.append(f"{{{item},{description},seed_name_{label},sizeof(seed_name_{label})/sizeof(uint16_t)}},")
+        seed_menu.append("};")
+    setup = shop[shop.index("static s32 shop_seed_menu_setup_d(void) {"):shop.index("static s32 shop_wine_menu_setup(void)", shop.index("static s32 shop_seed_menu_setup_d(void) {"))]
+    entries = re.findall(r"text_bank.names.seeds.(\w+)\).*?,\s*(0x[0-9A-Fa-f]+),\s*1,\s*(0x[0-9A-Fa-f]+)\)", setup)
+    if len(entries) != 8 or [int(e[1],16) for e in entries[:3]] != [0x26,0x2b,0x30]:
+        raise ValueError("Unexpected original Won seed menu")
+    for label, item, description in entries:
+        if label not in emitted:
+            label_words = re.search(r"\." + label + r"\s*=\s*(\{[^}]+\})", seed_names).group(1)
+            seed_menu.append(f"static const uint16_t seed_name_{label}[]={label_words};")
+            emitted.add(label)
+    seed_menu.append("static const HmbtnSeedShopEntry won_seeds[]={")
+    for label, item, description in entries:
+        seed_menu.append(f"{{{item},{description},seed_name_{label},sizeof(seed_name_{label})/sizeof(uint16_t)}},")
+    seed_menu.append("};")
+    Path(output).with_name("seed_menu.inc").write_text("\n".join(seed_menu) + "\n")
+    keys = fields(body(shop, "shop_key_values"))
+    if len(keys) % 2:
+        raise ValueError("Unpaired original shop keys")
+    Path(output).with_name("shop_keys.inc").write_text(
+        "/* shop_dialogues.c:shop_key_values, estate record key -> dialogue. */\n"
+        "static const unsigned shop_keys[][2]={" +
+        ",".join("{%d,%d}" % (number(keys[i]), number(keys[i+1])) for i in range(0, len(keys), 2)) + "};\n")
     records=fields(body(tables,"estate_records"))
     positions=[]
     for record in records[14:46]:
@@ -274,13 +334,15 @@ def main(root, output):
         "static const uint32_t event_offsets[]={"+",".join(offsets)+"};\n"
         "static const uint32_t event_tables[255][2]={"+",".join(
             "{%d,%d}" % (section_offsets[i*4+2],section_offsets[i*4+3]) for i in range(255))+"};\n")
+    Path(output).with_name("bride_birthdays.inc").write_text(
+        "/* Original event_commands.c: item_places. */\n"
+        "static const int16_t bride_birthdays[2][5][3]={"+body(commands,"item_places")+"};\n")
     birthdays=re.search(r"birthday_moves\s*=\s*\{\s*(\{.*?\})\s*,\s*-1",commands,re.S).group(1)
     Path(output).with_name("village_talk_tables.inc").write_text(
         "/* Original conversation ranges and birthday tables. */\n"
         "static const uint32_t talk_ranges[37][2]={"+",".join(
             "{0,0}" if i in [0,27,30,33] else "{"+offsets[400 if i==35 else 350+i]+","+offsets[401 if i==35 else 351+i]+"}"
             for i in range(37))+"};\n"
-        "static const int16_t bride_birthdays[2][5][3]={"+body(commands,"item_places")+"};\n"
         "static const int16_t birthdays[28][3]="+birthdays+";\n")
 
 

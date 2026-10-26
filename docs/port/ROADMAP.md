@@ -1,6 +1,6 @@
 # Roadmap do porte nativo — Linux e Windows
 
-Atualizado em 2026-10-25. Android é futuro. **Este arquivo é a fonte principal
+Atualizado em 2026-10-26. Android é futuro. **Este arquivo é a fonte principal
 para selecionar, ordenar e concluir as próximas tarefas.** O produto continua
 parcial; o bootstrap `--diagnostics` não executa o jogo e o runtime ainda não
 executa o jogo completo.
@@ -24,18 +24,467 @@ Priorizar lógica C original: compilar diretamente quando viável, adaptar em
 BIN do usuário. Compatibilidade MIPS/binária, compilação PS1 e SHA-1 do original
 não são critérios de entrega PC. O legado não será removido nesta fase.
 
-## Fase prioritária MA — Migração arquitetural
+## Direção revisada: port funcional e extensível
 
-**Próxima implementação: MA-04b — execução e identidade dos atores de evento (não iniciada).** Executar a próxima tarefa aberta cujas
-prerequisições estejam concluídas. Mudanças de correção necessárias à referência
-podem ocorrer antes, com justificativa e teste; novas funcionalidades devem
-usar a arquitetura migrada de seu domínio, sem ampliar sistemas paralelos.
+O produto é um jogo nativo para Linux/Windows, com Android futuramente. O C
+original acelera a implementação: aproveitar funções prontas, adaptar suas
+dependências e escrever código novo apenas onde necessário. Não reconstruir a
+máquina PS1 nem transportar seus limites de memória, overlays, ABI ou quantidades
+fixas como restrições permanentes do produto.
 
-MA-01..03 estão concluídas; MA-04 está em andamento (04a concluída, 04b aberta);
-MA-05 a MA-25 estão abertas. São recortes de implementação, não autorização
-para migrar vários sistemas numa entrega. As tarefas maiores têm subtarefas
-ordenadas em [Recortes de entrega](#recortes-de-entrega); concluir uma por entrega.
-Se a inspeção exigir nova divisão, registrá-la aqui antes de ampliar o escopo.
+O conteúdo original define o comportamento de referência. Quantidades de plantas,
+itens, áreas e eventos devem poder crescer; índices e limites do BIN pertencem ao
+leitor/adaptador do formato original. Novos conteúdos devem usar as mesmas regras
+e o mesmo estado. Coop é uma possibilidade futura: comandos e estado sem efeitos
+de renderização ajudam, mas rede, lockstep, rollback e determinismo global não
+são requisitos desta fase.
+
+**PF-01..05 concluídas. PF-06 em andamento: batata, grama/feno, culturas base de verão/outono e
+clima diário/chuva entregues; sementes sazonais de Won entregues; próximo recorte, desbloqueios do supermercado.** Nabo e batata têm percurso completo de compra de
+sementes até venda, com saves preservando o crescimento. A PF-04 separou
+atualização e desenho nos fluxos existentes, inclusive título/cadastro. O reaproveitamento
+é feito por funções adaptadas em `port/`, sem compilar módulos `src/` diretamente.
+
+## O que muda no planejamento
+
+MA-01..06 permanecem concluídas e aproveitadas. Elas centralizaram dados e execução,
+definiram serviços e extraíram o tick livre; não adicionaram compilação direta de
+módulos C de `src/`. Não repetir nem desfazer esse trabalho.
+
+MA-07..25 foram **substituídas como fila**, sem serem marcadas como concluídas.
+O [plano MA anterior](ROADMAP_MA_LEGADO.md) preserva seus detalhes. Ele misturava
+refatorações e funcionalidades em uma cadeia longa; isso não demonstra que o
+código atual precise ser refeito ou que existam 25 bloqueios para portar o jogo.
+A base funciona parcialmente e tem testes; há acoplamentos reais em
+`graphics/scene_preview.c`, regras distribuídas e sistemas incompletos. Resolver
+cada impedimento quando ele afetar uma entrega, sem exigir reorganizar todo o
+projeto antes de portar a próxima função.
+
+A PF-04 consolidou a separação de atualização e desenho no recorte jogável
+atual. Novos sistemas devem usar o tick público e manter regras/transações no
+domínio. Registrar qualquer adaptador provisório com o responsável pela retirada;
+não ampliar regras de jogo em código de desenho. Essa separação não conclui os
+sistemas de conteúdo ainda ausentes.
+
+## Fila funcional prioritária
+
+Os IDs PF identificam entregas verificáveis, não uma promessa de poucas alterações
+ou de jogo completo após sete tarefas. Cada entrega pode exigir vários recortes
+internos. Executar a tarefa inteira quando viável; dependências abaixo são as
+reais do domínio, não uma obrigação de concluir todas as linhas anteriores.
+
+| Entrega | Dependências reais | Trabalho e critério de conclusão | Validação |
+|---|---|---|---|
+| **PF-01 — Inventário e dinheiro: concluída** | Estado MA-01/02 existente; verificar dependências das funções selecionadas | Adaptar `event_items_take`, `event_item_store` e `estate_gold_change` em `port/`, reconciliando os algoritmos nativos já equivalentes em vez de duplicá-los. Isolar resolução de operandos de script, mensagens e animações das operações de domínio. Menus, coleta, eventos e lojas cobertos usam as mesmas operações. Registrar origem e diferenças; remover somente os caminhos efetivamente substituídos. Capacidade é consultada no estado e a adaptação não cria novos limites PS1. Não exige generalizar todo o interpretador. | Inventário cheio/vazio, ordem dos slots, remoção/armazenamento, cancelamento, sementes/baú, débito insuficiente, teto configurado, ledger e aplicação única; percursos de inventário, lojas, Greg, presentes e ingredientes; suíte nativa. |
+| **PF-02 — Primeiro cultivo completo e passagem dos dias: concluída** | PF-01 para receber/vender produtos; relógio/campo atuais | Adaptar os recortes necessários de `field_daily_tick`, `clock_advance_minute` e coordenação de `clock_events.c`. Integrar semear → regar → dormir → crescer → colher → vender com uma cultura original. Extrair sono/pernoite da cena no escopo necessário. Preservar alimentação, ovos, flags e pagamentos existentes, com ordem explícita e execução única. Definição da cultura separada do estado de cada célula, sem novo teto fixo do catálogo original. Demais culturas/clima não são declarados completos. | Ciclo completo com recursos instalados; dias sem água, estação inválida/virada, regrowth quando aplicável, sono/múltiplos dias, pausas, ovos/ração e remessa sem repetição. |
+| **PF-03 — Eventos reutilizáveis para ampliar a progressão: concluída** | Runtime/serviços atuais; operações PF-01 apenas para comandos que as usam; PF-02 somente para eventos dependentes de cultivos/dias | Evoluir o interpretador existente a partir de `event_script.c`/`event_commands.c`; compartilhar variáveis, flags, aritmética, mensagens, atores e gatilhos conforme os roteiros selecionados exigirem. Escolher e registrar um evento original ainda não suportado antes de editar, incluindo todos os seus comandos/dependências. Entregá-lo jogável, retirar duplicações dos comandos migrados e proteger abertura/visitas/conversas existentes. Erro/ausência nunca é sucesso. Novos eventos usam esse mesmo runtime. | Vetores originais dos comandos selecionados, operandos inválidos, espera/retorno/desvio, efeito único, cancelamento/erro; novo percurso e regressões de infância, Thomas, funeral, torta e ingredientes. |
+| **PF-04 — Atualização independente da apresentação: concluída** | Sessão/serviços/exploração MA-04..06; coordenadores vigentes no momento da entrega | Consolidar tick público de roteiros, portas, viagens e sono; `app.c` agenda update e draw separadamente, inclusive título/cadastro. Cena guarda recursos/caches/desenho; transações pertencem ao gameplay. Retirar os adapters provisórios de coordenação usados em PF-02/03 e migrar percursos de teste para APIs públicas. Pode ser antecipada se um acoplamento bloquear outra entrega. | Mesmo estado com mesmos ticks e 0/30/60 apresentações; desenho sem mutação; transições/sono/cadastro e falhas de recursos; suíte completa. |
+| **PF-05 — Saves nativos e retomada: concluída** | Proprietários de estado atuais identificados; definir quais estados transitórios são salváveis | Formato versionado explícito, sem dump de structs/ponteiros/layout PS1. Salvar e restaurar todo o recorte jogável declarado, incluindo conteúdo referenciado por IDs estáveis. Permitir evolução por versões e definir a política durante eventos/transições antes de implementar. Não depende de terminar todas as espécies/eventos. | Ida/volta, dois saves/sessões, reinício do processo, inventário/dinheiro/data/campo/animais/flags, arquivos truncados/corrompidos, versões e retomada sem efeitos repetidos. |
+| **PF-06 — Completar sistemas do jogo original: em andamento** | Por sistema: estado, operações, comandos e ciclo diário efetivamente usados | Fila incremental: batata, grama/feno, culturas base de verão/outono e clima diário/chuva entregues; sementes sazonais de Won entregues; desbloqueios do supermercado selecionados a seguir; demais culturas/clima completo, espécies, lojas/ferramentas, moradores/relacionamentos, família, áreas, festivais/minijogos e progressão. Adaptar funções já presentes no original e manter os backends. Antes de cada implementação, publicar aqui o sistema selecionado, fontes, lacunas e percurso de aceite. Galinhas, rotas, afinidade e pesca atuais são reconciliadas no domínio necessário; não recomeçar tudo. | Percurso completo e testes de regras de cada sistema; matriz atualizada distingue completo, parcial e ausente. PF-06 só termina com cobertura declarada de toda a progressão original, não por um exemplo isolado. |
+| **PF-07 — Distribuição Linux/Windows e consolidação** | Recorte publicável e instalação BIN existentes; validação de plataformas começa em cada entrega | Configurar/compilar/testar Linux e Windows durante o desenvolvimento. No marco final, validar instalação limpa, saves, atualização, janela/entrada/áudio e progressão completa; registrar diferenças deliberadas. Preservar BIN do usuário e distribuição sem recursos proprietários. Android, conteúdo novo e coop ganham planejamento próprio posteriormente. | Builds/testes reais das plataformas disponíveis, instalação limpa e percurso manual documentado; não presumir Windows pela execução Linux nem concluir port completo apenas pelos CTests. |
+
+### PF-03 concluída — evento 140, convite de Duke para a vindima
+
+Seleção registrada em 2026-10-26 antes de alterar lógica. Roteiro original 140,
+18 instruções do BIN instalado; gatilho de entrada na fazenda em
+`event_triggers_fire`, lido por `farm_visit.c`. Ano 1, outono, dia 14, janela
+original de horas/clima e flag de execução única; conferir as condições
+empacotadas no teste com a tabela original, sem gatilho inventado.
+
+Fontes: `event_script.c` (dispatch/branches), `event_commands.c`
+(`event_cmd_test_slot`, `event_cmd_set_var`, `event_var_get/update/arith/compare`,
+reset/posição/face/movimento de atores, mensagens, fade e `event_cmd_enter_mode`),
+`event_request.c` (gatilhos), bytecode e mensagens 1:418..421 do BIN.
+Comandos usados: 1, 2, 4, 12, 15, 19, 27, 35, 37 e terminador 255.
+Dependências novas: ator residente Duke (21) ligado à identidade compartilhada;
+variáveis/aritmética/comparações comuns a visitas e conversas. Aceitar define a
+flag 205 e executa as duas alterações originais de amizade; recusar segue a
+outra fala. Não substituir a sequência por uma regra presumida.
+
+Aceite: convite jogável nos dois ramos, recursos e animação originais, controles
+restaurados, estado/flag persistentes entre áreas e execução única. Validar
+operações compartilhadas, operandos inválidos, esperas/desvios, serviços atrasados
+ou com falha e regressões de infância/Thomas/funeral/torta/ingredientes.
+A vindima do dia seguinte e o destino de Cliff são eventos distintos e ficam
+em PF-06; não declarar essa cadeia completa ao concluir o convite.
+
+Validação final: configuração/build `native-debug` aprovados, **86/86 CTests**,
+zero falhas, **52,10 s**. Novo módulo `event_variables.c` compartilha operações
+13..22 entre conversas/visitas e slots da abertura; Duke usa a identidade
+residente ligada à sessão, sem segundo interpretador. Relatório, fontes,
+limites e reprodução em [PF03_REUSABLE_EVENTS.md](PF03_REUSABLE_EVENTS.md).
+Critérios acima atendidos para o convite; a cadeia da vindima não está concluída.
+
+### PF-04 — Entrega validada em 2026-10-26
+
+- [x] `game/runtime.c` coordena o tick público `hmbtn_session_tick`: roteiros,
+  conversas, portas/viagens, sono/manhã e fases livres, preservando a ordem atual.
+  Callbacks persistentes usam a sessão; empréstimos de recursos valem no tick.
+- [x] `core/app.c` agenda atualizações e apresentações separadamente, com entrada
+  consumida uma vez. Título/cadastro também possuem tick e draw distintos.
+- [x] Draw não avança sessão, poses, RNG ou cadastro. Backends SDL/recursos/áudio
+  permanecem no host; animações e conclusão de efeitos avançam sem draw.
+- [x] Percursos migrados para APIs públicas; nenhum teste inclui um `.c` de
+  produção. Removidos os coordenadores e acumuladores antigos substituídos.
+- [x] Comparativos com zero/uma/duas apresentações por tick cobrem Duke sim/não,
+  porta/troca de área, sono, campo/remessa, cadastro e handoff para abertura.
+  Falha de carga retorna erro sem concluir a viagem ou repetir transações.
+- [x] Configuração/build Linux Debug aprovados; **89/89 CTests**, zero falhas,
+  **113,53 s**: 57 independentes de dados opcionais e 32 com recursos instalados.
+  Após ajuste de constância em uma fixture, build sem avisos e seu percurso de
+  vila novamente aprovado (1/1). `src/` e infraestrutura PS1 preservados.
+
+Fontes, interfaces, arquivos, limites e reprodução em
+[PF04_UPDATE_PRESENTATION.md](PF04_UPDATE_PRESENTATION.md). Critérios da PF-04
+atendidos para os fluxos implementados. Não houve validação Windows/Release,
+janela/áudio reais, sanitizadores ou instalação limpa nesta entrega. Conteúdo
+incompleto continua em PF-06; saves ainda não estavam implementados naquela entrega (concluídos em PF-05).
+
+### PF-05 — Entrega validada em 2026-10-26
+
+- [x] Política registrada antes da implementação: save entre ticks em exploração
+  livre; ações/eventos/menus/transições bloqueiam com motivo. Dormir e salvar
+  usa a cama atual e grava após atualizar o dia e concluir o fade da manhã.
+- [x] `game/save.c` codifica campos explícitos em seis seções, com versão,
+  catálogo/IDs lógicos, tamanhos e CRC-32. Não grava structs/ponteiros/tickets.
+  Formato inicial v1; versões desconhecidas são rejeitadas antes da carga.
+- [x] Inventário/suprimentos/capacidades, economia/remessa/ledger, calendário,
+  cadastro, campo, galinhas/ovos/incubação, cochos/coleta, moradores/rotas/
+  relações/flags/contadores, RNGs e estado estável do jogador são retomados.
+  Contadores de ferramenta, controles e chave diária também persistem.
+- [x] `filesystem/save_file.c` escreve temporário/flush/close/rename, sem truncar
+  o slot anterior. Carga usa sessão/cena candidata; recursos e agendas são
+  reassociados sem inicialização de novo jogo ou efeitos de nova entrada na área.
+- [x] Continue do título, Read diary e dormir/salvar usam as mesmas interfaces.
+  Slot padrão nas preferências do usuário; `--save-file` e `--load-save` permitem
+  arquivos independentes. Falha não troca a cena nem anuncia gravação.
+- [x] Configuração/build Linux Debug aprovados; **92/92 CTests**, zero falhas,
+  **123,82 s** (59 independentes de dados opcionais e 33 com recursos locais).
+  Testes incluem processos separados, Continue no app real, cama, falhas,
+  idempotência de campo/remessa e evento original de Duke sem repetição.
+  Após o ajuste final para previews sazonais, save/mapa novamente **4/4**, 14,87 s.
+
+Critérios da PF-05 atendidos no recorte estável declarado; não há saves durante
+execução de scripts/ações, importação de memory card ou seleção/transferência de
+animais. Windows/cross-build (toolchain ausente), Release, Android, sanitizadores,
+instalação limpa e janela/áudio reais não foram executados. Há avisos de constância
+preexistentes na fixture `world_map_playthrough.c`, preservada nesta entrega.
+Fontes, formato, interfaces, arquivos e reprodução em
+[PF05_NATIVE_SAVES.md](PF05_NATIVE_SAVES.md). `src/`/SDK/fluxo PS1/BIN preservados.
+
+### PF-06 — Batata: recorte validado em 2026-10-26
+
+- [x] Conferidos `CROP_POTATO`, itens 0x23/0x42 e funções originais de campo,
+  plantio e desenho. O catálogo já traz 3 + 4 dias regados, sem rebrota,
+  compra por 150 G e venda por 80 G; não houve reescrita do crescimento.
+- [x] `farm_field.c` habilita a batata no mesmo filtro de suporte; todos os
+  consumidores usam as regras existentes. `scene_preview.c` seleciona o sprite
+  original 8, estágio + 2 na primavera e 0 para o talo no verão.
+- [x] Mesmo driver de nabo/batata testa mesa central, lista/descrição/quantidade,
+  compra de três pacotes, plantar/regar/dormir, uma noite seca, maturidade,
+  colher e receber 80 G uma única vez, preservando os pacotes restantes.
+- [x] Save no estágio 1 com um dia regado acumulado; destruição da sessão/recursos
+  e carga nativa sem perda de estado, seguida da conclusão do cultivo. Outro
+  processo abre o mesmo save. Formato v1 preservado, sem novo estado paralelo.
+- [x] Regras de estação/inverno, células inválidas/inativas e grade/consumo único
+  cobertas; vetores de nabo e rebrota de pepino preservados.
+- [x] Configuração/build Debug aprovados; **93/93 CTests**, zero falhas,
+  **124,82 s** (59 independentes dos dados opcionais e 34 com recursos locais).
+  Quatro direcionados: **4/4**, 1,43 s. Quantidade e planta madura inspecionadas
+  nas capturas SDL dummy/software, mantidas somente em `/tmp`.
+
+Critérios do recorte da batata atendidos. **PF-06 continua aberta.** Windows,
+Release, Android, sanitizadores, instalação limpa e janela/áudio reais não foram
+executados. Original/SDK/build PS1/BIN e mudanças anteriores preservados.
+Fontes, arquivos e reprodução em [PF06_POTATO.md](PF06_POTATO.md).
+
+### PF-06 — Grama e feno: recorte validado em 2026-10-26
+
+- [x] Comprar 0x36 na mesa, plantar pela ANI/grade atual e consumir um pacote.
+- [x] Crescer sem rega conforme `CROP_GRASS` (3 + 4 + 4 dias), usando o campo e o observer diário existentes.
+- [x] Cortar apenas madura: produzir uma unidade em `inventory.supplies[0]`, sem duplicação; respeitar capacidade inicial 999 e rebrota/skip-day originais.
+- [x] Conservar grama entre verão/outono; reiniciar progresso no inverno e retomá-lo na primavera; proteger regras de ferramentas/colisão.
+- [x] Usar terreno/UV/CLUT e efeito sazonal originais, sem acoplar crescimento ao desenho ou manter cache paralelo de formas.
+- [x] Retirar/devolver feno e abastecer cocho no celeiro a partir do mesmo estoque.
+- [x] Salvar/carregar crescimento e corte, destruir a sessão antiga, retomar rebrota e abrir o save em outro processo.
+
+`src/` intacto; não houve nova engine de campo, estoque, alimentação ou formato
+de save. **95/95 CTests**, zero falhas, 124,59 s, Linux Debug com dados locais.
+Após ampliação das fixtures sazonais, **9/9 direcionados**, 2,66 s. Capturas
+inspecionadas em SDL dummy/software. Windows real, Release, sanitizers, Android,
+janela/áudio manual e instalação limpa não foram executados nesta entrega.
+Fontes, arquivos, reprodução e limites em [PF06_GRASS.md](PF06_GRASS.md).
+
+Critérios do recorte atendidos; **PF-06 permanece aberta** para a progressão
+original ainda ausente. PNG continua adiado.
+
+### PF-06 — Culturas base de verão: recorte validado em 2026-10-26
+
+- [x] Menu base original do grupo B na mesa: chave 0x129/registro 113, grama, tomate, milho e cebola; saudação 2:0x273 e descrições originais.
+- [x] Gameplay e UI consultam o mesmo catálogo por estação e o relógio autoritativo; não comprar no balcão ou nos conjuntos de outra estação.
+- [x] Habilitar 0x27..0x29 no motor de campo/catálogo atual, sem outro algoritmo de crescimento, inventário ou economia.
+- [x] Plantio/consumo único por ANI e grade original; noites regadas/secas, estágios, colheita e rebrota/skip-day quando previstos.
+- [x] Sprites originais 12/13/14 no verão e 7/8/9 murchos no outono, sem crescimento durante desenho.
+- [x] Remessa, contagem e pagamento únicos; cebola verifica adiamento em data sem coleta.
+- [x] Save/load intermediário, comparação canônica e outro processo; recomposição dos recursos de área sem depender de texturas deixadas pela primavera.
+- [x] Proteger primavera, grama/feno, cochos e saves. Identificar a condição original de abóbora sem liberar conteúdo cuja cadeia ainda está pendente.
+
+**99/99 CTests**, zero falhas, **128,11 s**, Linux Debug com recursos locais;
+**10/10 direcionados**, 5,90 s. Capturas inspecionadas em SDL dummy/software;
+preview da loja no verão executado. Windows real/cross-build, Release,
+sanitizers, Android, janela/áudio manual e instalação limpa não executados.
+
+`src/` e alterações anteriores preservados. Save v1 não mudou. A abóbora depende
+de `ESTATE_STATUS_GROUP_B_DONE`/`milestone_check_group_b` (inclui abacaxi), cadeia
+não implementada neste recorte. Fontes, arquivos, testes e reprodução em
+[PF06_SUMMER_CROPS.md](PF06_SUMMER_CROPS.md).
+
+Critérios do recorte base atendidos; **PF-06 permanece aberta**. PNG continua
+adiado; não foi implementado clima, estufa ou progressão de sementes exóticas.
+
+### PF-06 — Culturas base de outono: recorte validado em 2026-10-26
+
+- [x] Grupo C original na mesa: registro 114/chave 0x12A, grama, berinjela, cenoura e batata-doce; saudação 2:0x274 e descrições 0xCF/CB/CC/CD.
+- [x] Catálogo sazonal compartilhado, nome completo dentro da moldura e quantidade posterior à escolha; manter presença/horários de Jeff e os demais conjuntos/balcão.
+- [x] Habilitar 0x2C..0x2E no campo/catálogo existentes, sem novos proprietários de estado ou simulação.
+- [x] Plantio/consumo únicos por ANI/grade; noites regadas/secas; colheita; rebrota de berinjela no estágio 2 e batata-doce no estágio 1, com skip-day original.
+- [x] Arte original 12/13/14 no outono; remover cultivos ao entrar no inverno, sem sprite de planta na neve.
+- [x] Remessas/pagamento únicos; cenoura verifica adiamento em Outono 9.
+- [x] Save/load no crescimento e rebrota, inclusive progresso não zero, com comparação canônica e outro processo.
+- [x] Dormir de Outono 30 para Inverno 1, retornar à fazenda, conferir limpeza e carregar save de inverno na sessão e em outro processo.
+- [x] Proteger primavera/verão, grama, alimentação, eventos e saves; identificar condição do espinafre sem habilitar sua cadeia incompleta.
+
+Após corrigir a moldura da lista, **103/103 CTests**, zero falhas, **134,40 s**,
+Linux Debug com dados locais; **14/14 direcionados**, 10,68 s. Menu/quantidade,
+maturidade/rebrota e inverno inspecionados em capturas SDL dummy/software;
+preview de outono executado. Windows/cross-build, Release, sanitizers, Android,
+janela/áudio manual e instalação limpa não executados.
+
+`src/` e alterações anteriores preservados; save v1 e instalação pelo BIN não
+mudaram. Espinafre depende do grupo C, incluindo pimentão; esse desbloqueio
+permanece pendente. Relatório, arquivos e reprodução em
+[PF06_FALL_CROPS.md](PF06_FALL_CROPS.md). **PF-06 continua aberta.**
+
+### PF-06 — Clima diário e chuva no campo: recorte concluído
+
+- [x] `HmbtnGameState.weather` possui clima atual, previsão e RNG persistente;
+  casa, TV, ações, pesca, galinhas, gatilhos e agendas/scripts leem esse domínio.
+  As cinco flags meteorológicas são uma projeção para os roteiros.
+- [x] Adaptação de `weather_roll_tomorrow`, `weather_step_today` e calendário:
+  sorteios sazonais, quatorze datas especiais, aniversários das cinco candidatas
+  (incluindo alternativos), véspera de eventos e viradas de estação/ano.
+- [x] Observer existente: crescimento com a rega anterior → produção/limpeza →
+  troca/previsão → irrigação da chuva. Uma passagem por data, no sono, tick e
+  fast-forward. Campo não ganha outro motor; enxada em dia chuvoso deixa terra regada.
+- [x] Regador/chuva usam a mesma elegibilidade; preservam grama estabelecida,
+  células inativas e inverno. Sol/neve/tempestade/nevasca não chamam a irrigação.
+- [x] Tonalidade e partículas com os sprites originais 25/26; atualização cosmética
+  no tick, congelada nos menus/interiores. Draw não sorteia nem altera gameplay.
+- [x] Save v2 grava RNG; v1 é migrado preservando clima/previsão e iniciando a
+  sequência ausente com seed 1, sem novo sorteio na carga. Saves v1 reais de
+  outono também carregados no aplicativo. BIN e backends mantidos.
+- [x] Linux Debug: configuração/build aprovados; **105/105 CTests**, zero
+  falhas, **134,14 s** (63 sem recursos opcionais + 42 com dados).
+  Testes de regras/sono/TV/terreno/save/load/viagem/desenho e cinco apresentações;
+  capturas inspecionadas. `--preview-weather ATUAL:AMANHA` permite teste dirigido.
+
+Limites: casamento ainda não tem domínio ativo; o algoritmo aceita contexto de
+casamento, mas não simula esse sistema. Danos de tempestade/nevasca, estufa,
+trovões/tremor de tempestades e integração meteorológica completa de música e
+falas permanecem abertos. Os cinco valores são representados; isso não conclui
+clima integral nem **PF-06**, que continua aberta. Fontes, arquivos, testes,
+diferenças e reprodução em [PF06_WEATHER.md](PF06_WEATHER.md).
+
+### PF-06 — Sementes sazonais de Won e correção da chuva: recorte concluído
+
+- [x] Conversa original 400, comando 81/dispatch 8: inicia grupo D (10) e espera
+  a loja terminar. A sessão empresta a loja existente; sem outro vendedor/engine.
+- [x] Repolho (500 G/14 dias/250 G), abacaxi (1000 G/20 dias/500 G; rebrota 5)
+  e pimentão (150 G/7 dias/40 G; rebrota 2) reutilizam campo/ações/inventário/
+  economia/remessas. Sprites sazonais originais 11/16/16 e carga em outro processo.
+- [x] Falas/descrições/recibos de Won usam os registros próprios do original;
+  menu com nomes, quantidade, cancelamento, falta de fundos/espaço e envio ao
+  baú usam a máquina compartilhada. Save v2 existente, sem mudar formato.
+- [x] Oito entradas de `shop_seed_menu_setup_d` extraídas/auditadas. O catálogo
+  jogável deste recorte contém somente as três culturas acima; flores, condição
+  da moondrop (`ESTATE_STATUS_BIT23`) e orangecup/estufa permanecem pendentes.
+  Não declarar o estoque inteiro de Won concluído.
+- [x] Chuva corrigida conforme `weather.c`, `player_update_position` e
+  `main_draw_ots`: paleta azul original recebe a luz depois dos sprites;
+  partículas visíveis recebem deslocamento projetado da câmera no tick.
+  Nenhuma mudança de paleta artificial ou movimento durante draw.
+- [x] Configuração/build Linux Debug; **109/109 CTests**, zero falhas,
+  **144,24 s** (64 sem dados opcionais + 45 com dados instalados).
+  Pixel da chuva comparado à paleta/iluminação original; movimento real e draw
+  sem mutação; três percursos de compra/cultivo/remessa/save/load de Won;
+  cancelamento, capacidade/fundos e mensagens próprios protegidos.
+
+Tradução atual é mista: falas/descrições vêm dos arquivos extraídos
+`02_messege0.bin`..`06_messege4.bin`; nomes e rótulos do menu são gerados de
+`src/main/text/text_bank.c`, não lidos automaticamente do BIN traduzido.
+Relatório, arquivos e reprodução em [PF06_WON_SEEDS.md](PF06_WON_SEEDS.md).
+PF-06 continua aberta. Windows, Release, sanitizers, janela/áudio manual e
+instalação limpa não validados; backends/BIN e alterações anteriores preservados.
+
+### PF-06 — Correção de áudio da chuva e portas: recorte concluído
+
+- [x] Seleção meteorológica original na exploração, manhã, viagens e carga:
+  faixa 22 substitui música normal por ambiência da chuva; banco de efeitos preservado.
+- [x] Porta tem prioridade sobre arremesso com item na mão, inclusive recusa;
+  inventário/poses preservados na passagem. Manter o recuo e tempos do usuário.
+- [x] Células originais das rotas acionam portas comuns: abrir, esperar,
+  cruzar e fechar com som; folha dupla, pausas, catch-up e retomada protegidos.
+- [x] Testes de regras e recursos reais para PCM, transporte, recusa,
+  portas de NPCs, persistência e desenho sem avanço. Teste antigo de interiores
+  passa a verificar o recuo atual, em lugar da imobilidade anterior.
+
+Detalhes, origem, arquivos e reprodução em [PF06_RAIN_DOORS.md](PF06_RAIN_DOORS.md).
+Save v2 permanece compatível; animação transitória de porta de NPC pode reiniciar
+na carga, preservando posição/cursor de rota. Não conclui eventos especiais de
+portas nem toda a meteorologia. A próxima entrega continua abaixo.
+
+### Próxima implementação recomendada — PF-06, desbloqueios do supermercado
+
+Reconciliar `event/milestones.c: milestone_check_group_a/b/c` e as entradas
+condicionais de `shop_seed_menu_setup_a/b/c` com as remessas autoritativas.
+Agora repolho/abacaxi/pimentão têm percursos, completando os quatro produtos de
+cada grupo; adaptar os testes e a publicação dos desbloqueios, sem flags ou
+contadores paralelos. No original o limiar é **101 unidades de cada produto**,
+não presumir 100 nem grupos incompletos.
+
+Ordem: rastrear chamadas/ordem e flags de status originais; mapear grupos A/B/C
+para as remessas existentes; persistir somente estado realmente necessário;
+mostrar morango/abóbora/espinafre quando as condições originais forem atendidas;
+habilitar suas regras/sprites pelo motor comum; testar compra/cultivo/colheita/
+remessa, rebrota onde aplicável e save/load.
+
+Aceite: limites 100/101 em cada um dos quatro produtos por grupo, preservação de
+flags não relacionadas, publicação na mesma ocasião do original, seleção e
+índices corretos com catálogo expandido, cancelamento/fundos/espaço, ciclo das
+três culturas e carga em outro processo. Não usar progressão artificial em
+produção. Flores de Won, estufa e efeitos destrutivos do clima permanecem
+pendências próprias, sem bloquear este recorte independente.
+
+### Destino das antigas etapas abertas
+
+| IDs anteriores | Encaminhamento atual; não concluídos |
+|---|---|
+| MA-07/08 | Separação de execução/apresentação entregue em PF-04 para os fluxos atuais; detalhes do plano antigo não são conclusão automática. |
+| MA-09 | Flags/RNG no sistema consumidor de PF-02/03/06. Preservar seeds/sequências atuais até uma mudança deliberada; coop não exige unificação agora. |
+| MA-10..14 | PF-03, por comandos/roteiros reais, sem bloquear regras independentes. |
+| MA-15/16 | PF-01; remessas adicionais no percurso PF-02 e ampliação PF-06. |
+| MA-17 | Consumidores existentes em PF-01; demais lojas conforme PF-03/06. |
+| MA-18/19/20 | PF-02; completar calendário, clima e culturas em PF-06. |
+| MA-21..24 | PF-06, conforme sistema; regressões dos comportamentos atuais protegidas em todas as entregas pertinentes. |
+| MA-25 | Revisão contínua da matriz/roadmap e consolidação PF-07; deixa de ser um bloqueio para planejar funcionalidades. |
+
+## Critério comum de conclusão das entregas PF
+
+- Investigar a função original antes de escrever regra nova; adaptar em `port/`
+  com origem rastreável. Se o código nativo já reaproveita corretamente o
+  algoritmo, preservá-lo e completar apenas as lacunas comprovadas.
+- Integrar aos consumidores reais, com estado autoritativo e uma implementação
+  de produção por regra. Preservar backends, instalação BIN e `src/` intacto.
+- Separar dependências de formato/hardware de regras de conteúdo. Limites
+  originais de gameplay são valores iniciais de referência, configuráveis quando
+  necessário; limites de segurança dos leitores continuam obrigatórios.
+- Testar o percurso e fronteiras do domínio; rodar configuração, build e CTest
+  nativos nos pontos de integração. Registrar plataformas/checks não executados.
+  Usar os grupos de testes da matriz conforme o risco, sem novos gates genéricos.
+- Atualizar roadmap, matriz e arquitetura. Documentar dependências restantes e
+  o destino dos adapters temporários; nenhuma funcionalidade é concluída somente
+  por reorganizar arquivos. Não implementar rede/editor de mods preventivamente.
+
+## PF-01 — Entrega validada em 2026-10-25
+
+- [x] Adaptado `estate_gold_change` em `game/economy.c`: saldo, retorno,
+  insuficiência/reset e ledger, sem duplicações financeiras em lojas/remessas/
+  recompensa de evento. Teto original é default configurável por sessão.
+- [x] `game/inventory.c` reúne consulta/remoção, armazenamento ordenado de
+  ferramentas, compactação, troca/ciclo e colocação na mão. Estado continua
+  em `HmbtnGameState`; nenhuma cópia ativa nova. Conversas/medicina, casa/menu
+  e coleta/campo/ovos compartilham as operações pertinentes.
+- [x] Algoritmos nativos já equivalentes foram conservados; operandos de script,
+  notificações e poses ficam separados das operações de estado. Wrappers de
+  eventos delegam às mesmas regras, sem outro interpretador.
+- [x] Corrigido o ciclo rápido para respeitar a capacidade acessível sem puxar
+  itens de células inativas; sentinelas e contagem por registro conservadas.
+- [x] Configuração e build `native-debug` aprovados; **81/81 CTests**, zero falhas,
+  **51,08 s**, incluindo 28 percursos com recursos locais e 53 testes independentes
+  desses dados. Dois testes novos: `native_economy_rules` e `native_inventory_rules`.
+  Os nove testes selecionados de regras e consumidores também passaram.
+
+Fontes, interfaces, diferenças, arquivos e pendências em
+[PF01_SHARED_RULES.md](PF01_SHARED_RULES.md). `src/`, backends, fluxo BIN e
+alterações locais anteriores preservados. Saves em disco continuam ausentes;
+inicialização e persistência em memória entre UI/áreas/manhã protegidas pelos
+percursos existentes. Nenhum módulo `src/` passou a ser compilado diretamente:
+o reaproveitamento desta entrega é por adaptação rastreável dos algoritmos.
+Capacidades 8/64, catálogo de 380 itens e layout visual atual não foram ampliados.
+Windows/cross-build, Release, Android, sanitizers, instalação limpa e inspeção
+manual de janela/áudio não foram executados. PF-02 não foi iniciada.
+
+## PF-02 — Entrega validada em 2026-10-25
+
+- [x] Nabo comprável por 120 G na mesa central de sementes do supermercado, na primavera,
+  com Jeff presente; menu base de primavera com nomes, seleção e quantidade
+  de 1 a 99, conforme o original. Pilhas/lote inteiro no baú usam `inventory.c`;
+  débito usa `economy.c`. Cancelamento/lotação/insuficiência cobertos.
+- [x] Banco/ANI e grade original de nove alvos no plantio; dias regados separados
+  da definição imutável da cultura. Nabo cresce após quatro dias regados e entra
+  no carry/inventário/remessa comuns; preço original de 60 G e pagamento único.
+- [x] `daily.c` possui observer, avanço de minutos e preparação de manhã sem SDL;
+  a adaptação de relógio existente foi conservada. Campo cresce antes da produção
+  de galinhas/limpeza dos cochos; duplicata da secagem na cena removida. Datas e
+  manhãs repetidas não reaplicam os efeitos; fast-forward entrega cada dia.
+- [x] Sprites originais de broto/maturidade desenhados sem alterar estado de
+  crescimento. Dados sobrevivem à casa/fazenda/sono. Saves continuam ausentes.
+- [x] Testes novos `native_crop_daily` (sem SDL) e `native_crop_playthrough`
+  (recursos reais): ciclo completo, dias secos, estação/inverno/ano, rebrota do
+  pepino/skip-day, pausa, múltiplos dias, produção antes da limpeza e efeitos únicos.
+- [x] Configuração e build `native-debug` aprovados; **84/84 CTests**, zero falhas,
+  **51,58 s**, sendo 55 independentes dos dados opcionais e 29 percursos
+  com `data/`. Capturas locais da mesa de sementes, broto e nabo maduro inspecionadas.
+
+Fontes, adaptações, lista de arquivos e limites em
+[PF02_CROP_CYCLE.md](PF02_CROP_CYCLE.md). Preservados `src/`, infraestrutura
+nativa, instalação pelo BIN e alterações locais anteriores. Não houve novo
+consumo de RNG para simular clima/ervas nem compilação direta de módulos
+originais. A compra cobre o catálogo base de primavera (grama/nabo/batata/pepino)
+com quantidade; cultivo completo das demais culturas, desbloqueios, outras
+estações, lojas completas, clima e estufa continuam em PF-06; grama/feno foram integrados no recorte acima. O runtime completo
+update/render ainda dependia de PF-04, concluída posteriormente. Windows/cross-build, Release, Android,
+sanitizers, instalação limpa e sessão manual de janela/áudio reais não executados.
+Na entrega PF-02, PF-03 ainda não havia sido iniciada; sua conclusão está
+registrada acima.
+
+Correção da compra em 2026-10-25: substituído o gatilho incorreto de entrega
+(zona 36) pelo grupo correto da mesa (zona 37 + registro/chave originais).
+Sprites de pacotes sazonais desenhados com os recursos/posições originais;
+interação não altera a orientação de Jeff. Testes ampliados rejeitam balcão e
+outros grupos e percorrem a compra correta. Configuração/build Linux e **83/83
+CTests** aprovados, zero falhas, **51,22 s**, após a correção e integração dos
+sprites da mesa. Detalhes no relatório PF-02.
+
+
+Correção do menu/falas em 2026-10-26: removidos o comprar/não comprar e a
+abertura pela descrição do nabo. Fluxo adaptado de `shop_menu_open_choose`,
+`shop_menu_choose_next` e `shop_buy_stored_item`: lista original somente com
+nomes → item → quantidade/total → compra/retorno, com IDs/bancos originais,
+informações por Triângulo e cancelamentos. Novo `native_seed_shop` e percurso
+com BIN ampliado para três pacotes, recusas e aviso de baú (3:0x207).
+Configuração/build Linux aprovados; **84/84 CTests**, zero falhas, **51,58 s**
+(55 sem dados opcionais + 29 com `data/`). Preservação dos dois pacotes após
+plantio/áreas/noites também passou no percurso isolado com a asserção adicional.
+Capturas de lista, falas, quantidade e compra inspecionadas via SDL software.
+Windows e sessão manual não verificados. Detalhes e limites no relatório PF-02.
+Na conclusão dessa correção, PF-03 era a próxima entrega. Ela foi concluída
+posteriormente, assim como PF-04; a fila atual está no recorte PF-06 acima.
+
+## Entregas MA já concluídas — histórico preservado
+
+Os registros abaixo descrevem cada entrega na ocasião. Menções a “próxima MA”
+e dependências antigas são históricas; a fila ativa é a tabela PF acima.
 
 ### MA-00 — Planejamento e referência inicial
 
@@ -108,7 +557,7 @@ A unificação dos algoritmos financeiros com funções originais continua em MA
 - [x] Recriar interfaces preserva data/cadastro; defaults, 8 glifos/terminador,
   aniversário zero-based, pausas, avanço, sono e ordem dos callbacks conservados.
 - [x] Configuração e build `native-debug` aprovados; **70/70 CTests**, zero falhas,
-  44,19 s (68 anteriores + `native_calendar_state` e `native_calendar_playthrough`).
+  44,07 s (68 anteriores + `native_calendar_state` e `native_calendar_playthrough`).
   Testes cobrem duas interfaces, variáveis de script, nomes/TV/HUD/calendário,
   áreas, pausa, manhã/virada de ano, limites de save/load e instâncias isoladas.
 
@@ -143,108 +592,128 @@ usou `data/`: 25 percursos opcionais e 47 testes independentes de
 não foram executados. Saves em disco continuam ausentes; `src/`, backends e
 instalação pelo BIN foram preservados.
 
-**MA-04 continua aberta.** Foi executado somente o recorte 04a, conforme a regra
-de uma entrega por recorte. Execução/cópias de atores de evento e seus callbacks
-continuam na cena para MA-04b; não foram introduzidas regras novas nem se iniciou
-MA-05. A coordenação dos ticks permanece para MA-05..08.
+**Estado ao encerrar 04a:** MA-04 continuava aberta, com execução e atores de
+evento na cena. A entrega 04b abaixo resolve essa propriedade; callbacks e
+coordenação continuam previstos em MA-05..08. A regra de um recorte por entrega
+foi preservada.
 
-### Propriedade do estado — preservar regras atuais
+### MA-04b — Execução e identidade de eventos, validado em 2026-10-25
 
-| Tarefa | Depende de | Entrega pequena e critério de conclusão | Validação mínima |
-|---|---|---|---|
-| MA-01 — Inventário autoritativo **concluída** | MA-00 | Introduzir `port/game/game_state.*` com os dados de equipamento, mochila, mão, baú, capacidade e suprimentos hoje pertencentes à casa. Casa/menu/ações/scripts usam referências ao mesmo inventário; retirar o armazenamento antigo, sem alterar algoritmos, preços, PRNG ou comportamento. Separar o tipo de item de headers de UI. | T-ESTADO; `native_house_interaction`, `native_farm_menu`, `native_farm_carry`, `native_event_item`, `native_event_tool_store`; percursos loja/cocho, Greg, presentes e ingredientes. |
-| MA-02 — Carteira, contas e remessas **concluída** | MA-01 | Transferir dados financeiros de `HmbtnFarmMenu.stats` e estado da remessa para o domínio central. Menu passa a consultar; lojas e scripts usam a mesma carteira. Conservar regras financeiras atuais nesta entrega. | T-ESTADO; `native_farm_shipping`, `native_feed_shop`, percursos shipping, shortage, compra/venda de galinhas e torta. |
-| MA-03 — Calendário e cadastro **concluída** | MA-02 | Tornar data/hora e cadastro únicos no estado central; remover a cópia mutável de calendário em `HmbtnHouseInteraction` e `sync_clock`. TV, calendário, scripts e nomes consultam a mesma origem. Não trocar o algoritmo de avanço ainda. | `native_farm_clock`, `native_new_game`, `native_house_interaction`, world-clock e first-morning; data exibida igual à consumida pelos scripts. |
-| MA-04 — Propriedade da sessão e registros **em andamento: 04a concluída** | MA-03 | Introduzir ciclo de vida de `port/game/session.*`, transferindo propriedade dos módulos field/village/poultry e da execução de eventos da cena para a sessão. Manter algoritmos; documentar empréstimos de dados decodificados. Identidades/overrides de atores ficam explícitos, sem duas cópias autoritativas. | T-ESTADO; criar/destruir duas sessões, trocar área, transportar galinha e entrar/sair de eventos sem reinicializar ou duplicar registros. |
+- [x] `HmbtnSession` possui execução de abertura/visitas/conversas/eventos de
+  animais, seus cursores, slots, atores, mensagens transitórias e gatilhos.
+  A casa também pertence à sessão, pois conversas emprestam seus contadores.
+- [x] Bytecode validado é copiado para armazenamento da sessão, mantendo o
+  interpretador existente; falha de validação preserva a execução anterior.
+- [x] Vínculos explícitos selecionam uma transformação ativa por morador;
+  colisão, interação, zonas e desenho usam a mesma consulta. Rotas e sua
+  animação ficam suspensas durante o roteiro e retomam a agenda ao liberar
+  os vínculos. IDs locais da infância não substituem moradores homônimos.
+- [x] Rebind de recursos/UI conserva evento ativo e seus atores. Modelo e
+  callback/contexto do host são empréstimos retirados por unbind; bytecode,
+  jogador e referências internas continuam válidos. Arte/animações ficam no host.
+- [x] Dois novos testes: `native_session_events` sem SDL e
+  `native_session_events_playthrough` com recursos reais; os percursos existentes
+  de visitas, torta, ingredientes, primeira manhã, conversas e funeral passaram.
+- [x] Configuração/build `native-debug` aprovados; **74/74 CTests**, zero falhas,
+  44,07 s (72 anteriores + 2 novos). Referência anterior à edição: 72/72, 44,34 s.
+  Incluídos 26 percursos opcionais com `data/` e 48 testes independentes desse recurso.
 
-### Separação entre sessão e apresentação
+**MA-04 concluída (04a/b).** Não há execução de evento ou estado de ator
+espelhados na cena; o registro de rota fica dormente sob override, sem sincronização
+por frame. Checkpoints transacionais de conversa e estados de apresentação
+continuam com seus papéis existentes. Saves em disco continuam ausentes; não
+houve migração de formato. `src/`, backends e instalação pelo BIN foram preservados.
 
-| Tarefa | Depende de | Entrega pequena e critério de conclusão | Validação mínima |
-|---|---|---|---|
-| MA-05 — Contratos mínimos de serviços | MA-04 | Definir entrada lógica, pedidos/resultados de recursos, mensagem, animação e áudio apenas para os consumidores existentes. Adaptar os backends atuais; tipos públicos da sessão não incluem SDL. Resultados têm identidade e propriedade explícitas; erro/pendência não equivale a sucesso. | T-SERVICOS com resposta imediata/atrasada/erro, repetição de polling e buffers; testes de recursos/áudio existentes. |
-| MA-06 — Tick de exploração livre | MA-05 | Extrair para a sessão atualização de movimento, relógio, ações, pausa e menus da exploração livre. Consulta de chão/animação necessária ao gameplay funciona sem desenhar. Host agenda ticks; não alterar cadência ou ordem de efeitos. | T-SESSAO no recorte livre; controle, campo, carry, feed, fishing, menu e world-clock, com serviços sintéticos. |
-| MA-07 — Tick de roteiros e transições | MA-06 | Extrair coordenação de abertura, mensagens, portas, visitas e sono de `opening_tick` para a sessão, preservando handlers atuais provisoriamente. Efeito de uma ação é concluído pela simulação/contrato, não pelo renderizador. | T-SESSAO/T-SERVICOS; infância, Thomas Sim/Não, funeral/nomeação, torta/ingredientes e sono; cursor/item/débito não repetidos. |
-| MA-08 — Apresentação de leitura e API de testes | MA-07 | `scene_preview` fica com recursos/caches/desenho. Separar também tick do título/cadastro de seu desenho. `app.c` chama atualização e apresentação separadamente; testes de integração passam pela API da sessão, sem incluir `.c` de gráficos. Gameplay não inclui SDL, abre arquivo ou chama áudio/render. | T-SESSAO a 0/30/60 apresentações por segundo com os mesmos ticks; desenho sem mutação; CTests completos, título e prévias preservados. |
+Callbacks específicos, coordenação dos ticks e dependência entre draw e update
+continuam para MA-05..08; o jogo completo ainda não roda sem apresentação.
+Ao encerrar MA-04b, a próxima entrega prevista era MA-05a. A solicitação
+seguinte autorizou MA-05 inteira; sua conclusão está registrada abaixo. APIs, limites e arquivos em
+[SESSION_EVENTS.md](SESSION_EVENTS.md). Windows, Release, Android, sanitizers,
+instalação limpa e inspeção manual de janela/áudio não foram executados.
 
-### Serviços comuns e interpretador de eventos
+### MA-05 — Contratos mínimos de serviços, validado em 2026-10-25
 
-| Tarefa | Depende de | Entrega pequena e critério de conclusão | Validação mínima |
-|---|---|---|---|
-| MA-09 — Flags e propriedade do RNG | MA-08 | Centralizar acesso a flags e seeds. Adaptar `event_flag_get/set`; preservar representação se suficiente. RNG fica em serviço da sessão, conservando por enquanto fórmula e sequência de cada domínio, inclusive galinhas. Registrar divergências deliberadas; nenhum sorteio no render. | Flags em índices-limite e vetores RNG existentes; continuidade de seeds, sessões independentes e `native_village_affinity`. |
-| MA-10 — Variáveis e aritmética de eventos | MA-09 | Adaptar `event_var_*` para acesso tipado ao estado; consolidar comparações, aritmética e clamps dos comandos já cobertos. Não transportar ponteiros PS1. Remover cópias equivalentes nos contextos migrados. | T-EVENTOS: signedness, divisão/resto extremos, sentinelas, índices e clamps; talk/visit/event-item existentes. |
-| MA-11 — Despacho e fluxo comuns | MA-10 | Evoluir `hmbtn_event_tick`, sem segundo interpretador, para despacho único de slots/comparações/aritmética/retorno. Contextos de abertura/conversa/visita usam as mesmas operações; manter validação LE, orçamento e limites explícitos. | `native_event_runtime`; T-EVENTOS com mesmos comandos em contextos diferentes, saltos/STOP/PENDING e subrotinas. |
-| MA-12 — Mensagens, espera e atores | MA-11 | Migrar famílias de mensagens, espera, posição e sprite para handlers comuns, uma família por entrega. IDs escolhem atores/recursos pelo contexto, sem cópia de regras por evento. Preservar escolhas e resultados de mensagem. | T-SERVICOS; abertura, conversas/presentes, Greg, Thomas, funeral e pintinhos; pausas e conclusão de animação. |
-| MA-13 — Áreas, áudio e controle de eventos | MA-12 | Migrar pedidos de área/música/XA e bloqueio/liberação de controle para comandos comuns e contratos host. Retirar casos específicos somente após os roteiros correspondentes passarem. | Infância/XA, passeio, portas, visitas e funeral; erro de recurso mantém cursor/estado coerente, conclusão só uma vez. |
-| MA-14 — Condições e gatilhos | MA-13 | Adaptar predicados de `event_triggers_fire`/`farm_event_available`, começando pelas condições já suportadas. Compartilhar datas, flags e consultas de inventário. Documentar condições ainda ausentes; não liberar todos os eventos sem seus sistemas. | `native_farm_visit`, torta/ingredientes e visitas; fronteiras de data/hora/clima, ano e disparo único. |
+Entrega integral de 05a e 05b, conforme solicitação do usuário:
 
-### Reaproveitamento das regras originais
+- [x] Entrada lógica `HmbtnLogicalInput` sem SDL, produzida pelo adapter existente;
+  pressões são consumidas uma vez e botões mantidos conservam seu comportamento.
+- [x] `HmbtnSession.services` identifica pedidos/resultados com tickets de 64 bits,
+  estados idle/pending/done/failed/cancelled e aquisição única pelo provedor.
+  Polling não resubmete efeitos; respostas terminais só saem por ack explícito.
+- [x] Recursos lógicos de evento/gatilho/ação/texto usam os leitores delimitados
+  existentes. Resultados possuem cópia própria, limite de 1 MiB e liberação
+  explícita; não publicam buffers parciais. Recursos/áudio recebidos ainda
+  seguram o cursor até aplicação e ack pelo consumidor.
+- [x] Mensagens de eventos e conversas, espera de animação de NPC, conclusão de
+  ação do jogador, carregamento/início de música e início/término de XA usam
+  pedidos identificados. Espera, erro e cancelamento não concluem comandos.
+- [x] Backends SDL3/UI/ANI/áudio existentes foram integrados. Unbind republica
+  intenções pendentes com novos tickets e invalida respostas do adapter anterior;
+  novo evento/destruição limpa resultados e buffers.
+- [x] Três testes novos: protocolo sem SDL, sessão com provedores controlados e
+  percurso com recursos/áudio reais. Testam respostas imediatas/atrasadas, erro,
+  cancelamento, polling/resposta repetidos, recursos, IDs, buffers e efeitos
+  únicos em inventário/economia. O teste de entrada lógica também foi ampliado.
+- [x] Configuração e build `native-debug` aprovados; **77/77 CTests**, zero falhas,
+  **44,51 s**: 50 independentes dos dados opcionais e 27 percursos com `data/`.
 
-| Tarefa | Depende de | Entrega pequena e critério de conclusão | Validação mínima |
-|---|---|---|---|
-| MA-15 — Regras de inventário | MA-14 | Portar primeiro consulta/remoção/armazenamento de `event_items_take`/`event_item_store`; em entregas seguintes, troca/empilhamento e ciclo originais. Menus, scripts, lojas e coleta chamam a mesma regra; retirar duplicações de cada recorte substituído. | Inventário/carry/menu/event-tool-store; capacidade, sementes, baú, slot inicial, Greg, presentes e ingredientes, com vetores de origem. |
-| MA-16 — Regras financeiras e remessa | MA-15 | Adaptar `estate_gold_change`; depois `estate_shipment_add/settle` e grupos de produtos em recortes separados. Uma regra de saldo/ledger para todos os consumidores. Preservar diferenças só se documentadas e testadas. | Shipping/feed-shop/shortage; teto/insuficiência, cobrança única, receita integral, datas sem coleta e 17h58. |
-| MA-17 — Integração das lojas existentes | MA-16 | Migrar primeiro o fluxo de um serviço de Lillia para comandos/regras comuns; depois os demais serviços já existentes e Barley. Preservar UI, textos e instalação. Não adicionar novas lojas nesta tarefa. | Feed-shop, poultry e medicina; presença/horário, cancelamento/nome, lotação, débito/estoque únicos e retorno ao mundo. |
-| MA-18 — Avanço e agendamento do calendário | MA-17 | Adaptar `clock_advance_minute` e callbacks/agendamento sobre o calendário central, primeiro avanço normal e depois fast-forward/sono. Manter renderer de luz; não introduzir clima completo junto da refatoração. | Farm-clock/world-clock; 06h, pausa, estação/ano, sono longo, datas especiais, callbacks em ordem e uma única notificação. |
-| MA-19 — Pipeline diário e contadores | MA-18 | Portar coordenação de pernoite e contadores a partir de `clock_events.c`/`event_request.c`, um callback por entrega. Garantir alimentação/produção antes da limpeza e efeitos financeiros/flags sem duplicação. Sistemas ausentes permanecem explicitamente ausentes. | T-DIARIO, event-days e poultry-lifecycle; acordar/sono/avanço de dias, ração, ovos, ledger e flags. |
-| MA-20 — Primeiro cultivo completo | MA-19 | Adaptar crescimento de uma cultura a partir de `field_daily_tick`; depois colheita/regrowth/virada de estação em subtarefas. Reutilizar tabelas e ferramentas existentes; retirar regra antiga só para recortes cobertos. | T-DIARIO, field/carry/shipping; semear → regar → dormir → crescer → colher/vender, falta de água e estação inválida. |
-| MA-21 — Regras das galinhas | MA-20 | Portar alimentação/ovos de `chicken_daily_tick`; depois crescimento/incubação, saúde/morte e cues em entregas separadas. Preservar identidade, transporte e nomeação; política RNG não muda incidentalmente. | Todos os testes e percursos de poultry; consumo antes de limpar, ovos únicos, três noites, sete noites, medicina, funeral e vaga reutilizada. |
-| MA-22 — Agenda e rotas de moradores | MA-21 | Portar seleção/retomada de agenda; depois movimento de uma rota e ampliar por padrão. Conservar presença, atraso, colisões e devolução do ator ao terminar evento. | Village/mapa/interiores; bloqueio por 30 minutos, mudança de hora/data/área e retomada sem duplicar ator. |
-| MA-23 — Relacionamentos já suportados | MA-22 | Portar ganho diário/negligência/decay de `family_flags_update` e `villager_affection_decay`. Usar comandos comuns para presentes/aniversários. Família/casamento completos viram tarefas futuras específicas. | Affinity/item-reaction/gifts; flags diárias, limites, exceções, aniversário alternativo e ganho diário único. |
-| MA-24 — Pesca sobre serviços comuns | MA-23 | Adaptar/reconciliar espera e captura originais com flags, inventário, calendário e RNG comuns. Conservar animação, áudio e recursos; remover dependência da estrutura de UI. | Fishing/Greg; captura, berry, estampas, pré-requisitos, bolsa cheia, cancelamento e consumo de sorteios registrado. |
-| MA-25 — Revisão e próxima fila funcional | MA-24 | Atualizar matriz com o que foi realmente portado e revisar lacunas. Decompor clima, espécies, família, festivais, minijogos, ferramentas, saves e distribuição em tarefas com fontes e dependências. Decidir separadamente a política RNG de fidelidade. Publicar a próxima tarefa no roadmap. | Toda a referência, builds/CTest Linux/Windows disponíveis, sem exigir PS1/SHA-1; registrar diferenças e plataformas não verificadas. |
+**MA-05 concluída.** Ao encerrar aquela entrega, a próxima implementação era
+MA-06. A solicitação seguinte autorizou a tarefa inteira, concluída abaixo. A coordenação continua no adapter da cena e `draw`
+ainda pode atualizar a simulação, conforme MA-06..08. Não foram adicionados
+threads, um scheduler genérico ou outro interpretador; chamadas de desenho,
+recursos de apresentação e efeitos curtos fora dos consumidores migrados seguem
+nos backends existentes até suas etapas. Saves em disco continuam ausentes.
 
-A ordem coloca o inventário sob propriedade central antes do interpretador, mas
-adia a troca de seus algoritmos até que os comandos tenham um contrato comum.
-Isso evita dependência circular. A mesma distinção vale para calendário/economia:
-primeiro transferir dados; depois portar as regras. Um agrupamento acima não
-significa que sistemas não relacionados devam compartilhar uma implementação.
+Arquivos, ownership, limites de integração e origem estão em
+[SERVICE_CONTRACTS.md](SERVICE_CONTRACTS.md). Windows/cross-build, Release,
+Android, sanitizers, instalação limpa e inspeção manual não foram executados.
+`src/`, infraestrutura/recursos existentes e fluxo de instalação pelo BIN foram
+preservados, inclusive as alterações locais de MA-04b presentes no início.
 
-### Recortes de entrega
+### MA-06 — Tick de exploração livre, validado em 2026-10-25
 
-Para as tarefas agrupadoras abaixo, os sufixos identificam subtarefas, com o
-estado indicado nas entregas e na tabela. Executar
-`a` antes de `b`, e assim por diante, após a dependência da tarefa principal.
-Cada recorte deve passar os testes pertinentes da tarefa e conservar os demais
-percursos; a tarefa principal só termina quando todos os recortes terminarem.
-As condições descritas são seus critérios específicos, somados ao aceite comum.
+Entrega integral de 06a, 06b e 06c:
 
-| Tarefa | Subtarefas em ordem e conclusão observável |
-|---|---|
-| MA-04 | **04a concluída:** ciclo de vida possui field/village/poultry atuais e mantém seus valores ao trocar a UI. **04b aberta:** execução/identidade dos atores de evento pertence à sessão e volta à rota sem cópia autoritativa concorrente. |
-| MA-05 | **05a:** pedido de recurso e resultado usam dados/IDs sem SDL, com erro e buffer bem definidos. **05b:** pedidos de mensagem/animação/áudio têm conclusão identificada e idempotente nos consumidores atuais. |
-| MA-06 | **06a:** movimento/colisão avançam sem desenhar. **06b:** ferramentas/coleta/transporte concluem seus efeitos sem render. **06c:** relógio e pausa de menus usam o tick da sessão, sem alterar a cadência. |
-| MA-07 | **07a:** abertura/infância avançam pelo tick público. **07b:** portas e viagens mantêm posição/controle sem depender de desenho. **07c:** visitas/conversas/eventos de animais usam o mesmo tick. **07d:** sono e manhã mantêm a ordem atual de efeitos fora de gráficos. |
-| MA-08 | **08a:** render de cena só consulta o estado e atualiza caches visuais. **08b:** título/cadastro têm tick separado. **08c:** percursos deixam de incluir `.c` de gráficos e exercitam a API pública. |
-| MA-09 | **09a:** acessos a flags passam por uma interface comum com limites testados. **09b:** seeds pertencem à sessão e preservam as sequências atuais sem consumo na apresentação. |
-| MA-10 | **10a:** aritmética/comparações usam algoritmos comuns com vetores de extremos. **10b:** variáveis/flags/calendário já cobertos usam os mesmos acessores tipados em todos os contextos. |
-| MA-12 | **12a:** mensagens/escolhas têm handler comum e resultado único. **12b:** esperas/retornos de animação conservam os ticks do roteiro. **12c:** posição/sprite resolvem atores por identidade e não por cópia específica de evento. |
-| MA-13 | **13a:** carregamento/transição de área preserva cursor e conclui uma vez. **13b:** música/XA usam pedidos/resultados existentes sem avançar prematuramente. **13c:** bloqueio/liberação de controle migram e passam os roteiros antes de retirar os casos antigos. |
-| MA-14 | **14a:** filtros de flags/data/hora/clima reproduzem fronteiras originais já cobertas. **14b:** condições de disponibilidade/inventário e disparo único usam esses filtros, mantendo ausências explícitas. |
-| MA-15 | **15a:** consultar/remover usa `event_items_take` adaptado. **15b:** armazenar usa a regra de `event_item_store`, com capacidade e notificação separadas. **15c:** troca/empilhamento seguem `storage_*`/`item_*`. **15d:** ciclo/compactação de equipamento e itens usa o algoritmo original em todos os consumidores. |
-| MA-16 | **16a:** `estate_gold_change` adaptado atende débitos/créditos e ledger. **16b:** adição/grupos de remessa seguem `estate_shipment_add`. **16c:** liquidação/datas/pagamento seguem a regra original uma única vez. |
-| MA-17 | **17a:** compra de ração de Lillia usa serviços comuns. **17b:** compra/venda/nome de galinhas preservam cancelamento e cobrança única. **17c:** medicina e serviços já existentes de Barley usam as mesmas regras, sem duplicar predicados. |
-| MA-18 | **18a:** avanço normal/calendário e pausas correspondem ao original. **18b:** fast-forward/sono emitem as mesmas notificações ordenadas, sem duplicar datas. |
-| MA-19 | **19a:** contadores mantêm sentinelas e condições originais. **19b:** ledger/callbacks horários são centralizados. **19c:** pernoite conecta callbacks reais na ordem revisada, com consumo/produção antes da limpeza; ausências não são callbacks de sucesso fictício. |
-| MA-20 | **20a:** uma cultura cresce por irrigação/dia conforme `field_daily_tick`. **20b:** sua colheita entra no inventário e economia comuns. **20c:** regrowth quando aplicável e virada de estação são testados antes de ampliar a outras culturas. |
-| MA-21 | **21a:** alimentação/ovos usam a regra diária portada. **21b:** incubação/nomeação/crescimento mantêm identidade e vagas. **21c:** saúde/medicina/morte/funeral seguem regras portadas. **21d:** cues/movimento/repouso são reconciliados sem perder transporte e sem alterar RNG incidentalmente. |
-| MA-22 | **22a:** seleção/retomada de agenda porta os algoritmos originais. **22b:** uma rota porta movimento/espera/atraso; ampliar somente a padrões testados, mantendo handback de eventos. |
-| MA-23 | **23a:** ganho diário/negligência conserva flags, exceções e clamps. **23b:** decay e integração com presentes/aniversários usam as mesmas regras, sem simular família inexistente. |
-| MA-24 | **24a:** espera/captura usam calendário, RNG e flags comuns com vetores originais. **24b:** ação/recebimento/cancelamento integra inventário sem duplicar produto, berry ou estampa. |
+- [x] `game/exploration.*` expõe `hmbtn_session_exploration_tick`, sem SDL,
+  arquivo, renderer, voz host ou relógio de parede. Recebe entrada lógica,
+  seção/terreno e ANI decodificados. A cadência continua agendada pelo host.
+- [x] Estado de controle, ferramentas, pesca, carry/feed/gather, loja/menu e
+  contadores de exploração pertence à sessão. A cena não mantém espelhos;
+  referências de inventário/economia/relógio e registros permanecem únicas.
+- [x] Movimento/colisão, ferramentas, coleta/arremesso/transporte, alimentação,
+  pesca, interação de casa, menus e pausa usam a lógica existente extraída.
+  Texto/expansão/parsing e efeitos de gameplay ficam no domínio; arte e áudio
+  são efeitos de apresentação. Sem apresentação, o tick continua funcionando.
+- [x] Relógio, notificações de remessa/vila/galinhas, fadiga, agendas e avanço
+  das animações necessárias ao gameplay estão na sessão. Ground e ANI são
+  consultados/avançados sem desenhar, sem forçar sinais de animação concluída.
+- [x] O coordenador atual chama as mesmas fases extraídas nos pontos anteriores.
+  Portas, viagens, sono e conversas/roteiros continuam no adapter para MA-07;
+  o tick integral de exploração recusa transições/roteiros pendentes. Um frame
+  emprestado não é reutilizado após trocar uma área. Não há outro fluxo de regras.
+- [x] `native_exploration` roda sem SDL, somente libc/libm, com chão/ANI sintéticos
+  validados e serviços controlados; cobre movimento/colisão, pausa, relógio,
+  ferramentas, coleta, voo, feed, galinha, pesca e remessa única às 17h58.
+- [x] `native_exploration_playthrough` usa três sessões com recursos reais,
+  os mesmos 180 ticks e zero/uma/duas apresentações por tick (~0/30/60 fps).
+  Ferramenta completa sem desenho; posição, ANI, campo, inventário/economia,
+  calendário, moradores e pausa coincidem ao fim de cada tick.
+- [x] Configuração/build `native-debug` aprovados; **79/79 CTests**, zero falhas,
+  **50,88 s**: 51 independentes de dados opcionais e 28 percursos com `data/`.
+  Os 77 anteriores também passaram após a extração, em 44,49 s.
 
-## Critério comum de conclusão
+**MA-06 concluída integralmente. Na ocasião, a próxima prevista era MA-07 —
+tick de roteiros e transições**, ainda não iniciada. Essa fila foi substituída
+pelas entregas PF na revisão de direção acima. A cena ainda agenda as fases durante seu fluxo
+atual e `draw` pode dirigir esse coordenador. A separação global update/render,
+título e migração dos percursos para API pública permanecem para MA-07/08.
+A preparação de recursos livres mantém o host síncrono existente: ausência,
+pendência ou erro não são sucesso. Não foi criado outro scheduler ou runtime.
 
-Uma tarefa MA só termina quando seu recorte está integrado aos consumidores
-reais, a cópia antiga de estado/regra foi removida, a origem está rastreada e os
-testes pertinentes passaram. Atualizar este arquivo, a matriz e a arquitetura
-na mesma entrega. Não concluir uma tarefa de portabilidade apenas com mudança
-de nomes ou movimentação de arquivos; em tarefas de propriedade, demonstrar a
-fonte única de dados. Em tarefas de algoritmo, demonstrar sua correspondência
-com o original e registrar diferenças.
-
-Os grupos T-ESTADO/T-SESSAO/T-SERVICOS/T-EVENTOS/T-DIARIO são definidos na
-[matriz](PORTING_MATRIX.md#testes-novos-exigidos-pela-migração) e são requisitos por etapa. T-ESTADO para o inventário já tem cobertura em
-`native_inventory_state`/`native_inventory_playthrough`; os demais recortes continuam planejados. Somar esses testes à proteção existente no recorte que os
-introduz. Preservar diagnósticos, prévias, sequência normal, leitores e fluxo BIN.
+Regras, RNGs atuais, persistência em memória, limites de saves e fluxo BIN foram
+preservados. `src/` não foi alterado. Windows/cross-build, Release, Android,
+sanitizers, inspeção manual e instalação limpa não foram executados. APIs,
+empréstimos, origem e arquivos em [EXPLORATION_TICK.md](EXPLORATION_TICK.md).
 
 ## Referência inicial
 

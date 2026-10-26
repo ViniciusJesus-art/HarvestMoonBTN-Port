@@ -1,6 +1,7 @@
 /* shop_draw_currency_panel, shop_menu_draw and shop_draw_count_total. */
 #include "feed_shop_ui.h"
 #include "window_frame.h"
+#include <stdio.h>
 #include "feed_shop_labels.inc"
 #define WORDS(a) (unsigned)(sizeof(a)/sizeof(*(a)))
 static bool number(HmbtnNewGameUI *ui,uint8_t *pixels,unsigned value,unsigned width,
@@ -51,6 +52,43 @@ bool hmbtn_feed_shop_ui_draw(const HmbtnFeedShop *s,const HmbtnEconomy *economy,
     HmbtnNewGameUI *ui,uint8_t *p,unsigned tick,char *error,size_t size)
 {
     if(s->phase==HMBTN_SHOP_OFF || s->phase==HMBTN_SHOP_NAME) return true;
+    if(s->seeds) {
+        /* shop_gold_panel_step / shop_gold_choice_step / shop_panel_submit.
+         * Seed entries have flag=1: names only; price belongs to quantity total. */
+        hmbtn_window_frame_draw(p,320,240,227,16,79,34);
+        if(!hmbtn_ui_text(ui,p,shop_money_title,WORDS(shop_money_title),231,20,0,3,error,size)
+                || !number(ui,p,economy->gold,8,shop_gold_unit,231,34,error,size)) return false;
+        if(s->phase==HMBTN_SHOP_GREETING || s->phase==HMBTN_SHOP_LEAVE) return true;
+        const unsigned rows=hmbtn_seed_shop_count(s);
+        if(!rows || s->selection>=rows) { snprintf(error,size,"Unsupported seed shop season/selection");return false; }
+        /* Original setup_c reserves wider columns than setup_a/b. Fit the
+         * imported labels to this renderer's eight-pixel glyph advance, keeping
+         * the existing cursor/text padding and names-only list. */
+        unsigned width=127;
+        for(unsigned i=0;i<rows;++i) {
+            const HmbtnSeedShopEntry *entry=hmbtn_seed_shop_choice(s,i);
+            const unsigned label_width=15+(entry->name_words-1)*8;
+            if(label_width>width) width=label_width;
+        }
+        hmbtn_window_frame_draw(p,320,240,16,16,width,rows*14+6);
+        for(unsigned i=0;i<rows;++i) {
+            const HmbtnSeedShopEntry *entry=hmbtn_seed_shop_choice(s,i);
+            if(!hmbtn_ui_text(ui,p,entry->name,entry->name_words,28,20+(int)i*14,0,3,error,size)) return false;
+        }
+        if(!hmbtn_ui_icon(ui,p,11,1,20,20+(int)s->selection*14,error,size)) return false;
+        const bool quantity=s->phase==HMBTN_SHOP_COUNT
+            || (s->phase==HMBTN_SHOP_INFO && s->after_result==HMBTN_SHOP_COUNT)
+            || (s->phase==HMBTN_SHOP_RESULT && s->after_result==HMBTN_SHOP_COUNT);
+        if(!quantity) return true;
+        /* Keep the native panel below all names; the original selected-row
+         * placement overlaps later labels in this software renderer. */
+        const int y=20+(int)rows*14;
+        hmbtn_window_frame_draw(p,320,240,16,y,116,34);
+        return number(ui,p,s->quantity,3,shop_units,48,y+4,error,size)
+            && hmbtn_ui_icon(ui,p,13,(tick/15)%2,20,y+4,error,size)
+            && hmbtn_ui_icon(ui,p,12,(tick/15)%2,112,y+4,error,size)
+            && number(ui,p,hmbtn_feed_shop_cost(s),5,shop_gold_unit,32,y+18,error,size);
+    }
     if(s->phase==HMBTN_SHOP_SELL_LIST || s->phase==HMBTN_SHOP_SELL_CONFIRM) {
         if(!sale_list(s,registration,ui,p,tick,error,size)) return false;
         if(s->phase!=HMBTN_SHOP_SELL_CONFIRM || s->message.phase!=HMBTN_MESSAGE_WAIT_END || s->closing) return true;

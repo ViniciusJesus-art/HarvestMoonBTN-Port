@@ -9,6 +9,7 @@ typedef struct HmbtnTitleAudio {
     HmbtnSound *sound;
     SDL_AudioStream *stream;
     bool initialized;
+    uint64_t service_wait_ticket; /* Host ownership of a claimed XA wait. */
     HmbtnXAStream *xa; /* Borrowed optional stream, owned by the farm scene. */
 } HmbtnTitleAudio;
 bool hmbtn_title_audio_open(HmbtnTitleAudio *audio, const char *root, char *error, size_t error_size);

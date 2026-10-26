@@ -1,5 +1,6 @@
 /* Adult coop cycle from animals/chicken.c. Names retain original glyphs. */
 #include "poultry.h"
+#include "inventory.h"
 #include <stdlib.h>
 #include <string.h>
 #include "psx_data.h"
@@ -63,7 +64,7 @@ bool hmbtn_poultry_medicine_tick(HmbtnPoultry *p,unsigned area,HmbtnFarmAction *
         }
         /* stored_item_release runs even when the target is absent or healthy. */
         if(h->inventory->equipped.id==0x1E && h->inventory->equipped.count && !--h->inventory->equipped.count) h->inventory->equipped=(HmbtnStoredTool){0};
-        const unsigned fatigue=(h->weather!=0)+(h->clock->hour>=22 ? 1u : h->clock->hour<6 ? 2u : 0u)+(a->stamina==0 ? 2u : 0u);
+        const unsigned fatigue=(h->weather->today!=0)+(h->clock->hour>=22 ? 1u : h->clock->hour<6 ? 2u : 0u)+(a->stamina==0 ? 2u : 0u);
         a->fatigue=a->fatigue+fatigue>100 ? 100 : a->fatigue+fatigue;
         a->sound=17;a->finished_bank=true;a->bank=-1;a->phase=HMBTN_FARM_ACTION_FREE;
         player->sprite=(HmbtnAnimationPlayer){0,(uint16_t)player->facing,0};player->animation_done=false;
@@ -193,7 +194,8 @@ bool hmbtn_poultry_take_egg(HmbtnPoultry *p,unsigned area,HmbtnHouseInteraction 
         if(abs(e->position[0]-a->position[0]-delta[a->facing][0])>=200
                 || abs(e->position[2]-a->position[2]-delta[a->facing][1])>=200
                 || abs(e->position[1]-a->position[1])>=200) continue;
-        h->inventory->held_item=(HmbtnStoredTool){(uint16_t)e->item,0,1};e->item=0;
+        if(!hmbtn_inventory_hold(h->inventory,(HmbtnStoredTool){(uint16_t)e->item,0,1})) return false;
+        e->item=0;
         carry->phase=1;carry->sound=7;a->animation_done=false;
         a->sprite=(HmbtnAnimationPlayer){(uint16_t)(11+a->facing),0,0};return true;
     }

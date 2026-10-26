@@ -104,7 +104,7 @@ int main(void)
     CHECK(!hmbtn_poultry_medicine_tick(&medicine,112,&action,&player,&inventory,HMBTN_PAD_SQUARE));
     inventory.inventory->held_item.id=0;action.fatigue=100;
     CHECK(!hmbtn_poultry_medicine_tick(&medicine,112,&action,&player,&inventory,HMBTN_PAD_SQUARE));
-    action.fatigue=0;inventory_state.clock.hour=23;inventory.weather=1;action.stamina=0;
+    action.fatigue=0;inventory_state.clock.hour=23;inventory_state.weather.today=1;action.stamina=0;
     CHECK(hmbtn_poultry_medicine_tick(NULL,112,&action,&player,&inventory,HMBTN_PAD_SQUARE));
     player.animation_done=true;CHECK(hmbtn_poultry_medicine_tick(NULL,112,&action,&player,&inventory,0));
     CHECK(action.fatigue==4 && !inventory.inventory->equipped.id && medicine.hens[0].days_sick==2);

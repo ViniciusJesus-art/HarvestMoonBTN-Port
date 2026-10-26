@@ -15,11 +15,11 @@ struct HmbtnTitlePreview {
     HmbtnImageAtlas *atlas;
     HmbtnAnimation animation;
     HmbtnAnimationPlayer actors[3], columns[3];
+    HmbtnAnimationPlayer render_actors[3],render_columns[3][5];
+    uint16_t render_scroll_a,render_scroll_b;
     uint16_t actor_timers[3], column_timers[3], scroll_a, scroll_b;
-    uint32_t random_seed, scene_frames;
+    uint32_t random_seed, scene_frames,render_frames;
     SDL_Texture *texture;
-    Uint64 accumulated_ns;
-    uint32_t pending_pressed;
     HmbtnTitleFlow flow;
     HmbtnTitleAudio audio;
     HmbtnGameState game;
@@ -29,7 +29,6 @@ struct HmbtnTitlePreview {
     bool frame_ready;
 };
 
-void hmbtn_title_preview_discard_input(HmbtnTitlePreview *p) { p->pending_pressed = 0; }
 void hmbtn_title_preview_destroy(HmbtnTitlePreview *p)
 {
     if (!p) return;
@@ -68,6 +67,8 @@ HmbtnTitlePreview *hmbtn_title_preview_create(SDL_Renderer *renderer, const char
     if (!hmbtn_title_audio_open(&p->audio, data_root, error, error_size)) goto failed;
     p->actors[0].animation = 0; p->actors[1].animation = 10; p->actors[2].animation = 19;
     for (unsigned i = 0; i < 3; ++i) p->columns[i].animation = (uint16_t)(22 + i * 2);
+    memcpy(p->render_actors,p->actors,sizeof(p->actors));
+    for(unsigned i=0;i<3;++i) for(unsigned j=0;j<5;++j) p->render_columns[i][j]=p->columns[i];
     hmbtn_title_flow_init(&p->flow);
     return p;
 failed:
@@ -96,17 +97,17 @@ static bool still(HmbtnTitlePreview *p, unsigned sequence, int x, int y, char *e
     return sprite(p, &player, x, y, error, error_size);
 }
 
-static bool background(HmbtnTitlePreview *p, bool advance, char *error, size_t error_size)
+static bool background(HmbtnTitlePreview *p, char *error, size_t error_size)
 {
     if (!still(p, 29, 0, 0, error, error_size)) return false;
-    const int phase = ((int)p->scroll_b << 12) / 120;
+    const int phase = ((int)p->render_scroll_b << 12) / 120;
     const double angle = (phase & 4095) * (6.2831853071795864769 / 4096.0);
     /* Same 12-bit angle and integer coordinate arithmetic as title_draw_bg_scroll.
      * Host trig rounding still requires pixel comparison against the SDK table. */
     const int trig[2] = {(int)SDL_round(SDL_cos(angle) * 4096), (int)SDL_round(SDL_sin(angle) * 4096)};
     /* Same-OT entries are prepended on PS1: B is displayed before A. */
     for (int layer = 1; layer >= 0; --layer) {
-        const int scroll = layer ? p->scroll_b : p->scroll_a, band = scroll / 240;
+        const int scroll = layer ? p->render_scroll_b : p->render_scroll_a, band = scroll / 240;
         const int top = layer ? scroll - band * 240 : band * 240 - scroll;
         const int left = 320 - band * 80 + trig[layer] * 12 / 4096;
         for (int row = 2; row >= 0; --row)
@@ -114,23 +115,31 @@ static bool background(HmbtnTitlePreview *p, bool advance, char *error, size_t e
                 if (!still(p, 37, layer ? top + left - col * 320 : top - left + col * 320,
                         layer ? top - row * 240 : top + row * 240, error, error_size)) return false;
     }
-    if (advance) {
-        if (p->scene_frames & 1) p->scroll_a = (uint16_t)((p->scroll_a + 1) % 960);
-        p->scroll_b = (uint16_t)((p->scroll_b + 1) % 960);
-    }
     return true;
 }
 
-static bool characters(HmbtnTitlePreview *p, bool advance, char *error, size_t error_size)
+static bool characters(HmbtnTitlePreview *p, char *error, size_t error_size)
 {
     static const int actor_x[3] = {282,33,51}, actor_y[3] = {173,146,182};
     static const int column_x[3][5] = {{295,258,280,0,0},{63,10,9,295,294},{23,6,36,0,0}};
     static const int column_y[3][5] = {{205,138,121,0,0},{149,188,214,52,30},{30,109,223,0,0}};
-    static const unsigned instances[3] = {3,5,3}, waits[3] = {15,20,30};
-    HmbtnAnimationPlayer actors[3], columns[3][5];
-    memcpy(actors, p->actors, sizeof(actors));
+    static const unsigned instances[3] = {3,5,3};
+    for (int i = 2; i >= 0; --i)
+        for (int j = (int)instances[i] - 1; j >= 0; --j)
+            if (!sprite(p, &p->render_columns[i][j], column_x[i][j], column_y[i][j], error, error_size)) return false;
+    for (int i = 2; i >= 0; --i)
+        if (!sprite(p, &p->render_actors[i], actor_x[i], actor_y[i], error, error_size)) return false;
+    return true;
+}
+
+static bool advance_animation(HmbtnTitlePreview *p,char *error,size_t error_size)
+{
+    static const unsigned instances[3]={3,5,3},waits[3]={15,20,30};
+    p->render_scroll_a=p->scroll_a;p->render_scroll_b=p->scroll_b;
+    if(p->scene_frames&1) p->scroll_a=(uint16_t)((p->scroll_a+1)%960);
+    p->scroll_b=(uint16_t)((p->scroll_b+1)%960);
+    memcpy(p->render_actors,p->actors,sizeof(p->render_actors));
     for (unsigned i = 0; i < 3; ++i) {
-        if (!advance) continue;
         if (!hmbtn_animation_tick(&p->animation, &p->actors[i], error, error_size)) return false;
         if (++p->actor_timers[i] >= (i == 0 ? 90 : 60)) {
             p->actor_timers[i] = 0;
@@ -148,23 +157,17 @@ static bool characters(HmbtnTitlePreview *p, bool advance, char *error, size_t e
     }
     for (unsigned i = 0; i < 3; ++i) {
         for (unsigned j = 0; j < instances[i]; ++j) {
-            columns[i][j] = p->columns[i];
-            if (advance && !hmbtn_animation_tick(&p->animation, &p->columns[i], error, error_size)) return false;
+            p->render_columns[i][j] = p->columns[i];
+            if (!hmbtn_animation_tick(&p->animation, &p->columns[i], error, error_size)) return false;
         }
-        if (advance && ++p->column_timers[i] >= waits[i]) {
+        if (++p->column_timers[i] >= waits[i]) {
             p->column_timers[i] = 0;
             select_animation(&p->columns[i], random_range(p, 2) + 22 + i * 2);
         }
     }
-    for (int i = 2; i >= 0; --i)
-        for (int j = (int)instances[i] - 1; j >= 0; --j)
-            if (!sprite(p, &columns[i][j], column_x[i][j], column_y[i][j], error, error_size)) return false;
-    for (int i = 2; i >= 0; --i)
-        if (!sprite(p, &actors[i], actor_x[i], actor_y[i], error, error_size)) return false;
     return true;
 }
-
-static bool compose(HmbtnTitlePreview *p, bool advance, char *error, size_t error_size)
+static bool compose(HmbtnTitlePreview *p, char *error, size_t error_size)
 {
     const bool publisher = p->flow.step < 0;
     memset(p->pixels, publisher ? 255 : 0, PIXEL_BYTES);
@@ -172,7 +175,7 @@ static bool compose(HmbtnTitlePreview *p, bool advance, char *error, size_t erro
     if (publisher) {
         if (!still(p, 30, 0, 0, error, error_size)) return false;
     } else {
-        if (!background(p, advance, error, error_size) || !characters(p, advance, error, error_size)) return false;
+        if (!background(p, error, error_size) || !characters(p, error, error_size)) return false;
         const bool new_game = p->flow.step >= 11 && p->flow.step <= 28;
         if (!new_game && (p->flow.visible & 1) && !still(p, 31, 0, p->flow.draw_slide, error, error_size)) return false;
         if (!new_game && (p->flow.visible & 2) && !still(p, 32, 0, p->flow.draw_drop, error, error_size)) return false;
@@ -184,7 +187,7 @@ static bool compose(HmbtnTitlePreview *p, bool advance, char *error, size_t erro
         } else if (!new_game && (p->flow.visible & 4) && !still(p, 33, p->flow.draw_wipe, 0, error, error_size)) return false;
     }
     if (p->flow.step >= 11 && p->flow.step <= 28 && p->new_game_ui
-            && !hmbtn_new_game_ui_draw(p->new_game_ui,&p->new_game,p->scene_frames,p->pixels,error,error_size)) return false;
+            && !hmbtn_new_game_ui_draw(p->new_game_ui,&p->new_game,p->render_frames,p->pixels,error,error_size)) return false;
     if (!SDL_UpdateTexture(p->texture, NULL, p->pixels, HMBTN_SCREEN_WIDTH * 4)) {
         snprintf(error, error_size, "Cannot upload title frame: %s", SDL_GetError()); return false;
     }
@@ -192,61 +195,57 @@ static bool compose(HmbtnTitlePreview *p, bool advance, char *error, size_t erro
     return true;
 }
 
-bool hmbtn_title_preview_draw(HmbtnTitlePreview *p, SDL_Renderer *renderer,
-    Uint64 elapsed_ns, uint32_t pressed, uint32_t held, char *error, size_t error_size)
+bool hmbtn_title_preview_tick(HmbtnTitlePreview *p,HmbtnLogicalInput input,char *error,size_t error_size)
 {
-    /* US NTSC title uses VSync(2): about 29.97 logic frames/s. Cache the composed
-     * frame, so presentation frequency cannot advance sprites or scroll twice. */
-    const Uint64 tick_ns = SDL_NS_PER_SECOND * 1001 / 30000;
-    p->accumulated_ns += SDL_min(elapsed_ns, SDL_NS_PER_SECOND / 4);
-    p->pending_pressed |= pressed;
-    if (!p->frame_ready && !compose(p, false, error, error_size)) return false;
-    while (p->accumulated_ns >= tick_ns) {
-        const HmbtnTitleStep previous = p->flow.step;
-        const uint16_t previous_row = p->flow.menu_row;
-        random_range(p, 65535); /* main.c advances the generator every game tick. */
-        hmbtn_title_flow_tick(&p->flow, p->pending_pressed);
-        if (previous == HMBTN_TITLE_NEW_GAME && p->flow.step == HMBTN_TITLE_NEW_GAME_TEXT_OPEN) {
-            hmbtn_game_state_init(&p->game);
-            hmbtn_new_game_init(&p->new_game,hmbtn_game_registration(&p->game));
-            if (!p->new_game_ui) p->new_game_ui = hmbtn_new_game_ui_create(p->data_root,error,error_size);
-            if (!p->new_game_ui) return false;
-        } else if (p->flow.step >= 11 && p->flow.step <= 28) {
-            hmbtn_new_game_tick(&p->new_game,p->pending_pressed,held);
-            if (!hmbtn_new_game_ui_load(p->new_game_ui,p->data_root,&p->new_game,error,error_size)) return false;
-            if (p->new_game.sound >= 0) hmbtn_sound_effect(p->audio.sound,(unsigned)p->new_game.sound);
-            p->flow.step = (HmbtnTitleStep)p->new_game.step;
-            if (p->new_game.step==27 || p->new_game.step==28)
-                p->flow.brightness=(uint16_t)(10-p->new_game.fade);
-            if (p->new_game.finished) {
-                p->flow.destination = HMBTN_TITLE_DESTINATION_NEW_GAME;
-                p->flow.step = HMBTN_TITLE_NEW_GAME_LEAVE;
-                p->flow.brightness = 0;
-                puts("Registration accepted; transferring names and birthday to native farm opening.");
-            }
+    const HmbtnTitleStep previous = p->flow.step;
+    const uint16_t previous_row = p->flow.menu_row;
+    random_range(p, 65535); /* main.c advances the generator every game tick. */
+    hmbtn_title_flow_tick(&p->flow, input.pressed);
+    if (previous == HMBTN_TITLE_NEW_GAME && p->flow.step == HMBTN_TITLE_NEW_GAME_TEXT_OPEN) {
+        hmbtn_game_state_init(&p->game);
+        hmbtn_new_game_init(&p->new_game,hmbtn_game_registration(&p->game));
+        if (!p->new_game_ui) p->new_game_ui = hmbtn_new_game_ui_create(p->data_root,error,error_size);
+        if (!p->new_game_ui) return false;
+    } else if (p->flow.step >= 11 && p->flow.step <= 28) {
+        hmbtn_new_game_tick(&p->new_game,input.pressed,input.held);
+        if (!hmbtn_new_game_ui_load(p->new_game_ui,p->data_root,&p->new_game,error,error_size)) return false;
+        if (p->new_game.sound >= 0) hmbtn_sound_effect(p->audio.sound,(unsigned)p->new_game.sound);
+        p->flow.step = (HmbtnTitleStep)p->new_game.step;
+        if (p->new_game.step==27 || p->new_game.step==28)
+            p->flow.brightness=(uint16_t)(10-p->new_game.fade);
+        if (p->new_game.finished) {
+            p->flow.destination = HMBTN_TITLE_DESTINATION_NEW_GAME;
+            p->flow.step = HMBTN_TITLE_NEW_GAME_LEAVE;
+            p->flow.brightness = 0;
+            puts("Registration accepted; transferring names and birthday to native farm opening.");
         }
-        p->pending_pressed = 0;
-        hmbtn_title_audio_tick(&p->audio, &p->flow, previous);
-        if ((previous == HMBTN_TITLE_INTRO_FADE_OUT && p->flow.step == HMBTN_TITLE_SCENE_FADE_IN)
-                || (previous == HMBTN_TITLE_START_WAIT && p->flow.step == HMBTN_TITLE_MENU)) {
-            memset(p->actor_timers, 0, sizeof(p->actor_timers));
-            memset(p->column_timers, 0, sizeof(p->column_timers));
-        }
-        if (p->flow.step != previous || p->flow.menu_row != previous_row) {
-            printf("Title state: %d, row: %u, destination: %d\n", (int)p->flow.step,
-                (unsigned)p->flow.menu_row, (int)p->flow.destination);
-            if (p->flow.step == HMBTN_TITLE_UNAVAILABLE)
-                puts("Destination not ported (farm scene / saves / demo); Start, Cross or Circle returns to title menu.");
-            fflush(stdout);
-        }
-        if (!compose(p, true, error, error_size)) return false;
-        ++p->scene_frames;
-        p->accumulated_ns -= tick_ns;
     }
+    hmbtn_title_audio_tick(&p->audio, &p->flow, previous);
+    if ((previous == HMBTN_TITLE_INTRO_FADE_OUT && p->flow.step == HMBTN_TITLE_SCENE_FADE_IN)
+            || (previous == HMBTN_TITLE_START_WAIT && p->flow.step == HMBTN_TITLE_MENU)) {
+        memset(p->actor_timers, 0, sizeof(p->actor_timers));
+        memset(p->column_timers, 0, sizeof(p->column_timers));
+    }
+    if (p->flow.step != previous || p->flow.menu_row != previous_row) {
+        printf("Title state: %d, row: %u, destination: %d\n", (int)p->flow.step,
+            (unsigned)p->flow.menu_row, (int)p->flow.destination);
+        if(p->flow.step==HMBTN_TITLE_UNAVAILABLE && p->flow.destination==HMBTN_TITLE_DESTINATION_CONTINUE)
+            puts("Continue requested: loading the native save.");
+        else if(p->flow.step==HMBTN_TITLE_UNAVAILABLE)
+            puts("Demo is not ported; Start, Cross or Circle returns to title menu.");
+        fflush(stdout);
+    }
+    if(p->flow.step>=0 && !advance_animation(p,error,error_size)) return false;
+    p->render_frames=p->scene_frames++;
+    p->frame_ready=false;
+    return hmbtn_title_audio_pump(&p->audio,error,error_size);
+}
+bool hmbtn_title_preview_draw(HmbtnTitlePreview *p,SDL_Renderer *renderer,char *error,size_t error_size)
+{
+    if(!p->frame_ready && !compose(p,error,error_size)) return false;
     const unsigned denominator = p->flow.step < 0 ? HMBTN_TITLE_PUBLISHER_FADE_TICKS : HMBTN_TITLE_FADE_TICKS;
     const Uint8 brightness = p->flow.step == HMBTN_TITLE_UNAVAILABLE ? 255
         : (Uint8)(p->flow.brightness * 255 / denominator);
-    if (!hmbtn_title_audio_pump(&p->audio, error, error_size)) return false;
     if (!SDL_SetTextureColorMod(p->texture, brightness, brightness, brightness)
             || !SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255) || !SDL_RenderClear(renderer)
             || !SDL_RenderTexture(renderer, p->texture, NULL, NULL)) {
@@ -258,4 +257,18 @@ bool hmbtn_title_preview_draw(HmbtnTitlePreview *p, SDL_Renderer *renderer,
 const HmbtnRegistration *hmbtn_title_preview_registration(const HmbtnTitlePreview *p)
 {
     return p && p->new_game.finished ? hmbtn_game_registration_const(&p->game) : NULL;
+}
+
+bool hmbtn_title_preview_continue(const HmbtnTitlePreview *p)
+{ return p && p->flow.step==HMBTN_TITLE_UNAVAILABLE && p->flow.destination==HMBTN_TITLE_DESTINATION_CONTINUE; }
+void hmbtn_title_preview_continue_failed(HmbtnTitlePreview *p)
+{
+    if(!p) return;
+    p->flow.step=HMBTN_TITLE_MENU;p->flow.destination=HMBTN_TITLE_DESTINATION_NONE;
+    p->flow.brightness=HMBTN_TITLE_FADE_TICKS;p->frame_ready=false;
+}
+HmbtnTitleInspection hmbtn_title_preview_inspect(const HmbtnTitlePreview *p)
+{
+    return (HmbtnTitleInspection){&p->flow,&p->new_game,&p->game,p->actors,p->columns,p->actor_timers,p->column_timers,
+        p->random_seed,p->scene_frames,p->scroll_a,p->scroll_b};
 }

@@ -1,6 +1,7 @@
 /* Initial-house branches of player_act_zone_front, messages.c, calendar.c and
  * item_storage.c. State contains native values, never serialized PS1 pointers. */
 #include "house_interaction.h"
+#include "inventory.h"
 #include "psx_data.h"
 #include <string.h>
 
@@ -17,6 +18,7 @@ void hmbtn_house_interaction_init(HmbtnHouseInteraction *h,HmbtnGameState *state
     h->inventory=hmbtn_game_inventory(state);
     h->clock=hmbtn_game_clock_const(state);
     h->registration=hmbtn_game_registration_const(state);
+    h->weather=&state->weather;
 }
 bool hmbtn_house_expand_reading(const HmbtnHouseInteraction *h, uint8_t *record,
     size_t size)
@@ -72,15 +74,15 @@ unsigned hmbtn_house_calendar_message(unsigned season, unsigned day)
 void hmbtn_house_tv_program(const HmbtnHouseInteraction *h, unsigned channel,
     unsigned *message, unsigned *group)
 {
-    if(h->clock->hour<6 || h->weather>=3) {
-        *message=h->weather>=3 ? 0x26a : 0x26b;
-        *group=h->weather>=3 ? 17u : 16u; return;
+    if(h->clock->hour<6 || h->weather->today>=3) {
+        *message=h->weather->today>=3 ? 0x26a : 0x26b;
+        *group=h->weather->today>=3 ? 17u : 16u; return;
     }
     if(channel==0) {
         static const unsigned base[4]={0x26c,0x26e,0x271,0x273};
-        *message=h->tomorrow>=3 ? (h->tomorrow==3 ? 0x270u : 0x275u)
-            : base[h->clock->season]+(h->tomorrow!=0);
-        *group=h->tomorrow>=3 ? h->tomorrow+4 : h->tomorrow==1 ? 5u : h->tomorrow==2 ? 6u : 4u;
+        *message=h->weather->tomorrow>=3 ? (h->weather->tomorrow==3 ? 0x270u : 0x275u)
+            : base[h->clock->season]+(h->weather->tomorrow!=0);
+        *group=h->weather->tomorrow>=3 ? h->weather->tomorrow+4 : h->weather->tomorrow==1 ? 5u : h->weather->tomorrow==2 ? 6u : 4u;
     } else if(channel==1 || channel==3) {
         *message=(channel==1 ? 0x277u : 0x2efu)+h->clock->season*30+h->clock->day;
         *group=channel==1 ? 0u : 1u;
@@ -313,9 +315,7 @@ void hmbtn_house_interaction_tick(HmbtnHouseInteraction *h,uint32_t pressed,uint
             }
         } else if(pressed&HMBTN_PAD_SELECT) {
             if(h->picked!=255) { h->sound=2; return; }
-            unsigned write=0;
-            for(unsigned i=0;i<64;++i) if(h->inventory->toolbox[i].id) h->inventory->toolbox[write++]=h->inventory->toolbox[i];
-            while(write<64) h->inventory->toolbox[write++]=(HmbtnStoredTool){0};
+            hmbtn_inventory_compact(h->inventory->toolbox,hmbtn_inventory_toolbox_capacity(h->inventory));
             h->sound=0;
         } else if(pressed&HMBTN_PAD_TRIANGLE) {
             const unsigned id=tool(h,h->cursor,h->page)->id;

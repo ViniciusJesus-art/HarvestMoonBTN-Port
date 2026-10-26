@@ -14,6 +14,8 @@ static void usage(const char *program)
     printf("Usage: %s --diagnostics | [--data DIR] [--window-test | --scene-preview | --intro-preview | --childhood-preview | --house-preview | --farm-preview | --area-preview ID] [--window-size WIDTHxHEIGHT] [--frames N] [--screenshot file.bmp]\n", program);
     puts("Default: title, registration and the first farm event. Enter=Start, arrows=select, Z=confirm.");
     puts("Data: --data DIR, user resources, executable/project. First launch can import a .bin.");
+    puts("--save-file FILE: native save slot (default: user preferences/farm.hms). Sleep and save writes this slot; Continue/diary reads it.");
+    puts("--load-save FILE: resume this native slot directly; cannot combine with preview/diagnostic modes.");
     puts("--setup: select a .bin and prepare user resources. First launch offers this automatically.");
     puts("--import-bin FILE [--data DIR]: import resources without Python; DIR must not exist.");
     puts("--scene-preview: farm geometry development view; arrows pan camera, Enter resets. No gameplay.");
@@ -22,6 +24,7 @@ static void usage(const char *program)
     puts("--house-preview: house/farm; arrows walk, X runs, Z interacts, C uses tools, Enter opens farm status, V opens rucksack, E cycles tools, 2 cycles items. Native gameplay remains partial.");
     puts("--farm-preview: start outside the house, skipping Thomas's visit.");
     puts("--area-preview ID: start in region 0, 24..76 or 128..212 (steps of 4), 92, 96 or 112; fresh test session.");
+    puts("--preview-weather TODAY:TOMORROW: development weather override (0 sun, 1 rain, 2 snow, 3 storm, 4 blizzard). Requires an area preview.");
     puts("--preview-date SEASON:DAY --preview-time HH:MM: set a region test session's date/time (season 0..3, day 1..30). Requires --area-preview or --farm-preview.");
 }
 static bool pair(const char *value,unsigned *first,unsigned *second)
@@ -86,6 +89,18 @@ int main(int argc, char **argv)
                 fputs("--preview-time requires HH:MM, hour 0..23 and minute 0..59.\n",stderr);return 2;
             }
             options.preview_time_set=true;options.preview_clock.hour=hour;options.preview_clock.minute=minute;
+        } else if(strcmp(argv[i],"--preview-weather")==0 && i+1<argc) {
+            unsigned today,tomorrow;
+            if(!pair(argv[++i],&today,&tomorrow) || today>=5 || tomorrow>=5) {
+                fputs("--preview-weather requires TODAY:TOMORROW, 0 sun, 1 rain, 2 snow, 3 storm, 4 blizzard.\n",stderr);return 2;
+            }
+            options.preview_weather_set=true;options.preview_weather=today;options.preview_tomorrow=tomorrow;
+        } else if(strcmp(argv[i],"--save-file")==0 && i+1<argc) {
+            options.save_path=argv[++i];
+            if(!*options.save_path) { fputs("Empty save path.\n",stderr);return 2; }
+        } else if(strcmp(argv[i],"--load-save")==0 && i+1<argc) {
+            options.load_save=true;options.save_path=argv[++i];
+            if(!*options.save_path) { fputs("Empty save path.\n",stderr);return 2; }
         } else if (strcmp(argv[i], "--data") == 0 && i + 1 < argc) {
             options.data_root = argv[++i];
             data_requested = true;
@@ -123,8 +138,8 @@ int main(int argc, char **argv)
             return 2;
         }
     }
-    if((options.preview_date_set || options.preview_time_set) && !options.area_preview) {
-        fputs("Preview date/time requires --area-preview or --farm-preview.\n",stderr);return 2;
+    if((options.preview_date_set || options.preview_time_set || options.preview_weather_set) && !options.area_preview) {
+        fputs("Preview date/time/weather requires --area-preview or --farm-preview.\n",stderr);return 2;
     }
     if (diagnostics && (options.frame_limit || options.screenshot_path || data_requested || options.window_test || options.scene_preview || options.intro_preview || options.childhood_preview || options.house_preview || options.area_preview || options.window_width)) {
         fputs("--diagnostics cannot be combined with window options.\n", stderr);
@@ -132,6 +147,9 @@ int main(int argc, char **argv)
     }
     const unsigned modes = (unsigned)options.window_test+(unsigned)options.scene_preview
         +(unsigned)options.intro_preview+(unsigned)options.childhood_preview+(unsigned)options.house_preview+(unsigned)options.area_preview;
+    if((options.load_save && modes) || (options.save_path && (diagnostics || options.window_test || options.setup || import_image))) {
+        fputs("Native saves cannot be combined with setup/diagnostics; --load-save also excludes preview modes.\n",stderr);return 2;
+    }
     if((import_image || options.setup) && (modes || diagnostics || options.frame_limit
             || options.screenshot_path || options.window_width || (import_image && options.setup))) {
         fputs("Data setup cannot be combined with game/diagnostic options.\n",stderr);return 2;
@@ -156,6 +174,6 @@ int main(int argc, char **argv)
     puts("Harvest Moon: Back to Nature - PC port");
     puts("Native foundation ready (Linux / Windows target).");
     printf("Host pointer width: %u bits\n", (unsigned)(sizeof(void *) * CHAR_BIT));
-    puts("Partial native port: title, opening, farm/village interiors, outdoor regions, clock, tools, inventory, forage and adult chickens. Remaining world systems and saves are pending.");
+    puts("Partial native port: title, opening, farm/village interiors, outdoor regions, clock, tools, inventory, forage and adult chickens. Native saves support stable gameplay checkpoints; remaining world systems are pending.");
     return diagnostics ? 0 : hmbtn_app_run(&options);
 }

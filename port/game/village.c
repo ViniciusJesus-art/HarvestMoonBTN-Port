@@ -41,12 +41,17 @@ static int history(const HmbtnVillage *v,unsigned id)
     }
     return -1;
 }
+void hmbtn_village_refresh_weather(HmbtnVillage *v)
+{
+    for(unsigned i=0;i<HMBTN_WEATHER_KINDS;++i)
+        v->flags[EVENT_FLAG_WEATHER_SUNNY+i]=i==(v->weather ? v->weather->today : HMBTN_WEATHER_SUNNY);
+}
 bool hmbtn_village_sync(HmbtnVillage *v,const HmbtnFarmClock *c,char *error,size_t size)
 {
     for(unsigned i=0;i<7;++i) v->flags[11+i]=i==c->weekday;
     for(unsigned i=0;i<4;++i) v->flags[23+i]=i==c->season;
     for(unsigned i=0;i<30;++i) v->flags[120+i]=i==c->day;
-    v->flags[EVENT_FLAG_WEATHER_SUNNY]=true;
+    hmbtn_village_refresh_weather(v);
     v->flags[EVENT_FLAG_DATED_EVENT_TODAY]=hmbtn_farm_clock_date_index(c->season,c->day)!=0;
     const unsigned key=(c->year*4+c->season)*30+c->day;
     if(key!=v->date_key) {
@@ -94,14 +99,24 @@ static bool approaching(const int32_t from[3],const int32_t to[3],const int32_t 
     const int64_t nx=(int64_t)to[0]-centre[0],nz=(int64_t)to[2]-centre[2];
     return nx*nx+nz*nz<=dx*dx+dz*dz;
 }
+const HmbtnIntroActor *hmbtn_village_event_actor(const HmbtnVillage *v,unsigned id)
+{
+    if(!v || !id || id>=HMBTN_VILLAGERS) return NULL;
+    return v->event_actor && id==v->event_actor_id ? v->event_actor : v->event_actors[id];
+}
+const HmbtnIntroActor *hmbtn_village_actor(const HmbtnVillage *v,unsigned id)
+{
+    if(!v || !id || id>=HMBTN_VILLAGERS) return NULL;
+    const HmbtnIntroActor *event=hmbtn_village_event_actor(v,id);
+    return event ? event : &v->people[id].actor;
+}
 bool hmbtn_village_blocked(const void *context,const int32_t from[3],const int32_t to[3])
 {
     const HmbtnVillage *v=context;
     if(!v) return false;
     for(unsigned id=1;id<HMBTN_VILLAGERS;++id) {
-        const bool single=v->event_actor && id==v->event_actor_id;
-        const bool scripted=single || v->event_actors[id];
-        const HmbtnIntroActor *actor=single ? v->event_actor : v->event_actors[id] ? v->event_actors[id] : &v->people[id].actor;
+        const bool scripted=hmbtn_village_event_actor(v,id)!=NULL;
+        const HmbtnIntroActor *actor=hmbtn_village_actor(v,id);
         if(actor->visible && (scripted || v->people[id].delay<30) && approaching(from,to,actor->position,200)) return true;
     }
     return false;
@@ -112,8 +127,7 @@ unsigned hmbtn_village_target(const HmbtnVillage *v,const HmbtnIntroActor *p)
     int32_t ahead[3];memcpy(ahead,p->position,sizeof(ahead));
     ahead[p->facing&1u ? 0 : 2]+=p->facing<2 ? -128 : 128;
     for(unsigned id=1;id<HMBTN_VILLAGERS;++id) {
-        const HmbtnIntroActor *actor=v->event_actor && id==v->event_actor_id ? v->event_actor
-            : v->event_actors[id] ? v->event_actors[id] : &v->people[id].actor;
+        const HmbtnIntroActor *actor=hmbtn_village_actor(v,id);
         if(id!=27 && id!=30 && id!=33 && actor->visible && inside(ahead,actor->position,200)) return id;
     }
     return 0;
@@ -130,7 +144,7 @@ unsigned hmbtn_village_zone_target(const HmbtnVillage *v,const uint8_t *section,
                 || (facing!=5 && facing!=player->facing)) continue;
         if(point[0]<=half(p+14) || point[0]>=half(p+20) || point[2]<=half(p+18) || point[2]>=half(p+24)
                 || point[1]<=half(p+16)-128 || point[1]>=half(p+22)+120) continue;
-        const HmbtnIntroActor *actor=v->event_actors[id] ? v->event_actors[id] : &v->people[id].actor;
+        const HmbtnIntroActor *actor=hmbtn_village_actor(v,id);
         const int32_t target[3]={half(p+26),half(p+28),half(p+30)};
         if(actor->visible && inside(target,actor->position,200)) return id;
     }
@@ -176,7 +190,7 @@ void hmbtn_village_clock(HmbtnVillage *v,const HmbtnFarmClock *clock,unsigned ch
     for(unsigned id=1;id<HMBTN_VILLAGERS;++id) {
         HmbtnVillager *p=&v->people[id];
         if(reset) { p->delay=0;p->blocked_by_player=false; }
-        else if((changes&HMBTN_CLOCK_MINUTE) && !v->player_running && p->actor.visible
+        else if(!hmbtn_village_event_actor(v,id) && (changes&HMBTN_CLOCK_MINUTE) && !v->player_running && p->actor.visible
                 && p->blocked_by_player && p->delay<30) ++p->delay;
     }
 }
@@ -238,9 +252,20 @@ static void route_frame(HmbtnVillage *v,HmbtnVillager *p,const uint8_t *section,
             }
             continue;
         }
-        /* Ordinary door cells resume at the next point. Their scripted door
-         * animations, greetings and story cues are not executed by this module. */
-        if(kind==3 || kind==9 || kind==0x11 || kind==0x12) { ++p->column;p->cell_entered=false;continue; }
+        /* villager_event_cell_start / villager_cell_trigger: event IDs in
+         * route cells select the area door, including opposite-side exits.
+         * Historical catch-up skips presentation; live routes wait for OPEN. */
+        if(kind==3 || kind==0x11 || kind==0x12) {
+            const HmbtnDoorPassage passage=resume ? HMBTN_DOOR_UNHANDLED
+                : hmbtn_area_doors_request(v->doors,section,size,param,a->facing);
+            if(passage==HMBTN_DOOR_WAIT) {
+                a->sprite=(HmbtnAnimationPlayer){0,(uint16_t)a->facing,0};return;
+            }
+            if(passage==HMBTN_DOOR_UNHANDLED) { ++p->column;p->cell_entered=false;continue; }
+            /* Cross using the same route movement/collision below, refreshing
+             * the hold while the resident is still passing through. */
+        }
+        if(kind==9) { ++p->column;p->cell_entered=false;continue; } /* Shipment cue. */
         if(kind==0x10) {
             target=cell(section,size,p->row,++p->column);
             if(!target) { stand(p);return; }
@@ -279,6 +304,7 @@ void hmbtn_village_tick(HmbtnVillage *v,const uint8_t *section,size_t size,const
 {
     if(!section || size<0x2000) return;
     for(unsigned id=1;id<37;++id) {
+        if(hmbtn_village_event_actor(v,id)) continue;
         HmbtnVillager *p=&v->people[id];HmbtnIntroActor *a=&p->actor;
         if(!held) p->blocked_by_player=false;
         a->visible=p->location==hmbtn_read_le16(section+2) && p->location!=54;

@@ -67,8 +67,8 @@ int main(void)
     HmbtnFieldEffect effects[25]={0};HmbtnAnimation art[7]={0};uint8_t data[16]={0};
     hmbtn_write_le16(data+4,3);art[4].data=data;art[4].section[3]=0;art[4].count[3]=2;
     CHECK(hmbtn_field_effect_submit(effects,0x3e,3,4));CHECK(effects[0].art==4 && effects[0].position[0]==-3000 && effects[0].position[2]==-200);
-    for(unsigned i=0;i<8;++i) { hmbtn_field_effect_tick(effects,art);CHECK(effects[0].active); }
-    hmbtn_field_effect_tick(effects,art);CHECK(!effects[0].active);
+    for(unsigned i=0;i<8;++i) { hmbtn_field_effect_tick(effects,art,NULL);CHECK(effects[0].active); }
+    hmbtn_field_effect_tick(effects,art,NULL);CHECK(!effects[0].active);
     for(unsigned i=0;i<25;++i) CHECK(hmbtn_field_effect_submit(effects,0x3e,3,4));
     CHECK(!hmbtn_field_effect_submit(effects,0x3e,3,4));CHECK(!hmbtn_field_effect_submit(effects,0x167,3,4));
     puts("Original backpack navigation, swaps/stacks, slot limits, cycling, status fades/pages and bounded break effects passed.");return 0;

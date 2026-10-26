@@ -69,22 +69,26 @@ unsigned hmbtn_farm_clock_fatigue(unsigned hour)
     for(unsigned i=0;i<4;++i) if(hour==(unsigned)hour_fatigue[i][0]) return (unsigned)hour_fatigue[i][1];
     return 0;
 }
-void hmbtn_daylight_select(HmbtnDaylight *l,const HmbtnFarmClock *c)
+void hmbtn_daylight_weather_select(HmbtnDaylight *l,const HmbtnFarmClock *c,unsigned weather)
 {
     memset(l,0,sizeof(*l));l->period=hmbtn_farm_clock_period(c->hour);
-    memcpy(l->rgb,drift_by_hour[l->period],sizeof(l->rgb));
+    memcpy(l->rgb,weather ? drift_by_weather[l->period] : drift_by_hour[l->period],sizeof(l->rgb));
 }
-void hmbtn_daylight_tick(HmbtnDaylight *l,const HmbtnFarmClock *c,bool held)
+void hmbtn_daylight_weather_tick(HmbtnDaylight *l,const HmbtnFarmClock *c,unsigned weather,bool held)
 {
     const unsigned period=hmbtn_farm_clock_period(c->hour);
     if(period!=l->period) {
         l->period=period;l->taken=0;l->total=256;
-        for(unsigned i=0;i<3;++i) l->step[i]=(drift_by_hour[period][i]-l->rgb[i])/256;
+        for(unsigned i=0;i<3;++i) l->step[i]=((weather ? drift_by_weather[period][i] : drift_by_hour[period][i])-l->rgb[i])/256;
     }
     if(!held && l->taken<l->total) {
         ++l->taken;for(unsigned i=0;i<3;++i) l->rgb[i]+=l->step[i];
     }
 }
+void hmbtn_daylight_select(HmbtnDaylight *l,const HmbtnFarmClock *c)
+{ hmbtn_daylight_weather_select(l,c,0); }
+void hmbtn_daylight_tick(HmbtnDaylight *l,const HmbtnFarmClock *c,bool held)
+{ hmbtn_daylight_weather_tick(l,c,0,held); }
 void hmbtn_daylight_apply(const HmbtnDaylight *l,uint8_t *rgba,size_t size)
 {
     if(!(l->rgb[0]|l->rgb[1]|l->rgb[2])) return;

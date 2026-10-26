@@ -10,13 +10,14 @@ int main(void)
     HmbtnHouseInteraction h; HmbtnGameState h_state;hmbtn_game_state_init(&h_state);hmbtn_house_interaction_init(&h,&h_state);
     CHECK(h_state.clock.year==0 && h_state.clock.day==1 && h_state.clock.weekday==1 && h_state.clock.hour==6);
     unsigned message,group;
+    h_state.weather.tomorrow=0; /* Sunny forecast vector; new games now roll a real forecast. */
     hmbtn_house_tv_program(&h,0,&message,&group); CHECK(message==0x26c && group==4);
     hmbtn_house_tv_program(&h,1,&message,&group); CHECK(message==0x278 && group==0);
     hmbtn_house_tv_program(&h,2,&message,&group); CHECK(message==0x263 && group==10);
     hmbtn_house_tv_program(&h,3,&message,&group); CHECK(message==0x2f0 && group==1);
-    h.tomorrow=1; hmbtn_house_tv_program(&h,0,&message,&group); CHECK(message==0x26d && group==5);
-    h.weather=3; hmbtn_house_tv_program(&h,0,&message,&group); CHECK(message==0x26a && group==17);
-    h.weather=0; h_state.clock.hour=5; hmbtn_house_tv_program(&h,3,&message,&group); CHECK(message==0x26b && group==16);
+    h_state.weather.tomorrow=1; hmbtn_house_tv_program(&h,0,&message,&group); CHECK(message==0x26d && group==5);
+    h_state.weather.today=3; hmbtn_house_tv_program(&h,0,&message,&group); CHECK(message==0x26a && group==17);
+    h_state.weather.today=0; h_state.clock.hour=5; hmbtn_house_tv_program(&h,3,&message,&group); CHECK(message==0x26b && group==16);
     CHECK(hmbtn_house_calendar_message(0,7)==0x3cb && hmbtn_house_calendar_message(0,1)==0x3dc);
     CHECK(hmbtn_house_calendar_message(3,29)==0x3db);
     hmbtn_game_state_init(&h_state);hmbtn_house_interaction_init(&h,&h_state);

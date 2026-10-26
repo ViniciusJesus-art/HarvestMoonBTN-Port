@@ -1,6 +1,8 @@
 #ifndef HMBTN_VILLAGE_H
 #define HMBTN_VILLAGE_H
 #include "farm_clock.h"
+#include "weather.h"
+#include "area_doors.h"
 #include "event_days.h"
 #include "farm_intro.h"
 enum { HMBTN_VILLAGERS=37,HMBTN_VILLAGE_FLAGS=37*32 }; /* Original eventFlags[37]. */
@@ -21,6 +23,8 @@ typedef struct HmbtnVillage {
     uint32_t random;
     unsigned date_key,minute,ann_birthday_season,ann_birthday_day;
     bool invitation_available,dog_held,player_running;
+    HmbtnAreaDoors *doors; /* Borrowed session controller, never another route owner. */
+    const HmbtnWeather *weather; /* Shared session domain; NULL in standalone fixtures. */
     const HmbtnIntroActor *player;
     const HmbtnIntroActor *event_actor;
     unsigned event_actor_id;
@@ -29,8 +33,14 @@ typedef struct HmbtnVillage {
 } HmbtnVillage;
 typedef struct HmbtnVillagePack { unsigned count;uint32_t offsets[32]; } HmbtnVillagePack;
 void hmbtn_village_init(HmbtnVillage *v,const uint8_t *data,size_t size);
+/* Derived script flags, never another weather owner. */
+void hmbtn_village_refresh_weather(HmbtnVillage *v);
 bool hmbtn_village_sync(HmbtnVillage *v,const HmbtnFarmClock *clock,char *error,size_t size);
 void hmbtn_village_tick(HmbtnVillage *v,const uint8_t *section,size_t size,const HmbtnModel *ground,bool held);
+/* One active transform per resident. Event aliases point into the session;
+ * the persistent route record remains dormant until the binding is released. */
+const HmbtnIntroActor *hmbtn_village_event_actor(const HmbtnVillage *v,unsigned id);
+const HmbtnIntroActor *hmbtn_village_actor(const HmbtnVillage *v,unsigned id);
 /* Strict original NPC hit box. Overlapping entry positions may move apart. */
 bool hmbtn_village_blocked(const void *context,const int32_t from[3],const int32_t to[3]);
 unsigned hmbtn_village_target(const HmbtnVillage *v,const HmbtnIntroActor *player);

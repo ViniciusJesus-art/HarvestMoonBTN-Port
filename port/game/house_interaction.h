@@ -18,7 +18,7 @@ typedef struct HmbtnHouseInteraction {
     HmbtnHouseMode mode;
     HmbtnMessage message;
     unsigned request, loaded, message_bank, tv_channel, tv_group, tv_ticks;
-    unsigned weather, tomorrow;
+    const HmbtnWeather *weather; /* Borrowed authoritative state. */
     unsigned calendar_day, cursor, page, picked, picked_page, pan;
     unsigned steps;
     unsigned event_count1; /* Original player.counts70[1], capped at 15. */

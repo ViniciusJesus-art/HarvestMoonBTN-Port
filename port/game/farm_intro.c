@@ -2,6 +2,7 @@
  * the cursor pending until the host loads them; unsupported scenes stop. */
 #include "farm_intro.h"
 #include "ground.h"
+#include "event_variables.h"
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
@@ -16,6 +17,10 @@ static void select_sprite(HmbtnIntroActor *a, unsigned animation)
 }
 HmbtnIntroActor *hmbtn_farm_intro_actor(HmbtnFarmIntro *s, int32_t id)
 {
+    if(s->resolve_actor) {
+        HmbtnIntroActor *resolved=s->resolve_actor(s->actor_context,id);
+        if(resolved) return resolved;
+    }
     if (id == 17) return &s->mayor;
     if (id == 23) return &s->ellen;
     if (id == 9) return &s->elli;
@@ -31,14 +36,6 @@ HmbtnIntroActor *hmbtn_farm_intro_actor(HmbtnFarmIntro *s, int32_t id)
     return NULL;
 }
 static bool slot(int32_t i) { return i >= 0 && i < 32; }
-static int compare(int32_t a, int32_t b, int32_t op)
-{
-    switch (op) {
-    case 0: return !(a < b); case 1: return !(a <= b);
-    case 2: return !(a > b); case 3: return !(a >= b); case 4: return a == b;
-    default: return -1;
-    }
-}
 static HmbtnEventResult camera_glide(HmbtnFarmIntro *s,const int32_t target[3],unsigned speed)
 {
     const int32_t dx=target[0]-s->camera[0],dz=target[2]-s->camera[2];
@@ -57,10 +54,21 @@ static HmbtnEventResult command(void *ctx, const HmbtnEventCommand *c,
 {
     HmbtnFarmIntro *s = ctx;
     const int32_t a = c->command, b = c->operand, x = c->x, y = c->y;
-    const bool visit=(s->event>=128 && s->event<=133) || s->event==288 || s->event==289;
+    const bool visit=(s->event>=128 && s->event<=133) || s->event==288 || s->event==289 || s->event==140;
     HmbtnIntroActor *actor = hmbtn_farm_intro_actor(s,a);
     switch (c->type) {
     case 0x23: {
+        if(visit && a==42 && b==0 && x==0 && y==0 && s->resolve_actor) {
+            /* event_cmd_actor_reset(CHARACTER_ALL_VILLAGERS): operate on bound
+             * native identities; no copies of resident gameplay state. */
+            for(unsigned id=1;id<s->actor_count;++id) {
+                HmbtnIntroActor *reset=s->resolve_actor(s->actor_context,(int32_t)id);
+                if(!reset) continue;
+                memset(reset->velocity,0,sizeof(reset->velocity));
+                reset->sprite=(HmbtnAnimationPlayer){0};reset->animation_done=false;reset->marker=0;
+            }
+            return HMBTN_EVENT_DONE;
+        }
         if(visit && a==42 && b==0 && x==0 && y==0) {
             memset(&s->mayor,0,sizeof(s->mayor));return HMBTN_EVENT_DONE;
         }
@@ -102,24 +110,9 @@ static HmbtnEventResult command(void *ctx, const HmbtnEventCommand *c,
         if (!actor || x < -32768 || x > 32767 || y < -32768 || y > 32767) break;
         actor->position[0] = x; actor->position[1] = b; actor->position[2] = y;
         actor->visible = true; return HMBTN_EVENT_DONE;
-    case 0x15: {
-        if (!slot(a) || (b && !slot(x)) || y < 0 || y > 5) break;
-        const int32_t value = b ? s->slots[x] : x;
-        int64_t result = s->slots[a];
-        switch (y) {
-        case 0: result = value; break; case 1: result += value; break;
-        case 2: result -= value; break; case 3: result *= value; break;
-        case 4: if (value) result /= value; break;
-        case 5: if (value) result %= value; break;
-        }
-        if (result < INT32_MIN || result > INT32_MAX) break;
-        s->slots[a] = (int32_t)result; return HMBTN_EVENT_DONE;
-    }
-    case 0xF: case 0x10: {
-        if (!slot(a) || (c->type == 0x10 && !slot(b))) break;
-        const int result = compare(s->slots[a],c->type == 0x10 ? s->slots[b] : y,x);
-        if (result < 0) break;
-        return result ? HMBTN_EVENT_DONE : HMBTN_EVENT_WAIT;
+    case 15:case 16:case 18:case 21: {
+        HmbtnEventVariables variables={.slots=s->slots,.slot_count=sizeof(s->slots)/sizeof(*s->slots)};
+        return hmbtn_event_variables_command(&variables,c,error,error_size);
     }
     case 3: {
         if (!slot(b) || a < 0 || x || y || s->slots[b] == INT32_MAX) break;
@@ -272,7 +265,7 @@ static HmbtnEventResult command(void *ctx, const HmbtnEventCommand *c,
             s->target_area,a == -2 ? "farmhouse interior" : "next scene");
         return HMBTN_EVENT_BOUNDARY;
     case 0x25: /* event_cmd_enter_mode(0,0,0,0): finish the opening event. */
-        if(visit && !a && !b && !x && (y==1 || y==2)) {
+        if(visit && !a && !b && !x && !s->area_pending && (y==0 || y==1 || y==2)) {
             s->event_active=false;s->finish_requested=true;return HMBTN_EVENT_DONE;
         }
         if((s->event==172 || s->event==299) && s->area==80 && !s->area_pending && !x && !y
@@ -454,9 +447,11 @@ bool hmbtn_farm_intro_tick(HmbtnFarmIntro *s, char *error, size_t error_size)
     if (s->event!=12 && s->event!=130 && s->message && !s->message_done) return true;
     if (!hmbtn_event_tick(&s->script,command,s,error,error_size)) return false;
     if (!s->message) {
-        const unsigned ids[] = {1,2,3,4,9,10,15,17,19,23,26,27,33,34};
-        for (unsigned a = 0; a < sizeof(ids)/sizeof(ids[0]); ++a) {
-            HmbtnIntroActor *actor = hmbtn_farm_intro_actor(s,(int32_t)ids[a]);
+        /* Resolve resident bindings as well as local opening actors. */
+        const unsigned actor_count=s->actor_count>35 ? s->actor_count : 35;
+        for (unsigned id=1;id<actor_count;++id) {
+            HmbtnIntroActor *actor = hmbtn_farm_intro_actor(s,(int32_t)id);
+            if(!actor) continue;
             for (unsigned axis = 0; axis < 3; ++axis) {
                 const int64_t value = (int64_t)actor->position[axis]+actor->velocity[axis];
                 if (value < -32768 || value > 32767) {

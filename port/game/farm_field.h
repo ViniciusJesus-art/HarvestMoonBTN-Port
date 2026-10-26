@@ -6,6 +6,7 @@ typedef struct HmbtnFarmTile {
     uint16_t value, ground;
     uint8_t kind;
     uint16_t growth_flags;
+    unsigned watered_days; /* Original FarmGrowth.days, independent of binary layout. */
 } HmbtnFarmTile;
 typedef struct HmbtnFarmField {
     HmbtnFarmTile cells[HMBTN_FIELD_CELLS];
@@ -20,6 +21,16 @@ typedef struct HmbtnFarmItem {
     int stamina, fatigue, plant_animation, half_width, half_depth;
     uint32_t class_flags;
 } HmbtnFarmItem;
+/* Definitions are immutable catalog data; cells only hold instance state. */
+typedef struct HmbtnFarmCrop { unsigned season,grown; int regrow; unsigned days[4]; int harvest; } HmbtnFarmCrop;
+const HmbtnFarmCrop *hmbtn_farm_crop(unsigned seed);
+bool hmbtn_farm_crop_supported(unsigned seed);
+bool hmbtn_farm_field_plant(HmbtnFarmField *field,int column,int row,unsigned seed);
+unsigned hmbtn_farm_field_harvest_item(const HmbtnFarmField *field,unsigned index);
+unsigned hmbtn_farm_field_harvest(HmbtnFarmField *field,unsigned index);
+/* Original nine-cell seed grid, rotated by facing. */
+bool hmbtn_farm_seed_cell(unsigned seed,unsigned part,unsigned facing,int *dx,int *dz);
+
 typedef struct HmbtnFarmTileRule { unsigned power, reach, status, usable; } HmbtnFarmTileRule;
 typedef struct HmbtnFarmSound { unsigned bank, unused1, program, tone, note, unused5, volume; } HmbtnFarmSound;
 void hmbtn_farm_field_init(HmbtnFarmField *field, const uint16_t *layout, size_t count);
@@ -35,6 +46,9 @@ bool hmbtn_farm_field_can_hop(const HmbtnFarmField *field, const int32_t positio
 bool hmbtn_farm_settle(const HmbtnFarmField *field, const HmbtnModel *terrain,
     int32_t position[3], uint16_t mask, unsigned tolerance);
 bool hmbtn_farm_field_retexture(const HmbtnFarmField *field, uint8_t *terrain, size_t size);
+/* field_gate_open / weather.c: field_reset_cells; same eligibility as manual watering. */
+bool hmbtn_farm_field_water(HmbtnFarmField *field,unsigned cell);
+void hmbtn_farm_field_rain(HmbtnFarmField *field);
 bool hmbtn_farm_field_tool(HmbtnFarmField *field, int column, int row, unsigned kind,
     unsigned power, unsigned reach, unsigned supplies[4]);
 #endif

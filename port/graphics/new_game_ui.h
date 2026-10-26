@@ -20,6 +20,8 @@ bool hmbtn_ui_icon(HmbtnNewGameUI *ui,uint8_t *rgba,unsigned animation,unsigned 
     int x,int y,char *error,size_t error_size);
 bool hmbtn_new_game_ui_message(HmbtnNewGameUI *ui, const char *root,
     const char *archive, unsigned id, HmbtnMessage *message, char *error, size_t error_size);
+/* Upload only presentation data; message parsing stays in the game layer. */
+bool hmbtn_ui_message_art(HmbtnNewGameUI *ui,const uint8_t *record,size_t size,char *error,size_t error_size);
 bool hmbtn_ui_message_record(HmbtnNewGameUI *ui,const uint8_t *record,size_t size,
     HmbtnMessage *message,char *error,size_t error_size);
 bool hmbtn_ui_message_portrait(HmbtnNewGameUI *ui,const HmbtnMessage *message,

@@ -4,7 +4,9 @@
 #include "window_input.h"
 #include "title_preview.h"
 #include "game_input.h"
+#include "update_clock.h"
 #include "data_directory.h"
+#include "save_file.h"
 #include "scene_preview.h"
 #include "setup.h"
 #include "app_icon.h"
@@ -20,7 +22,9 @@ int hmbtn_app_run(const HmbtnAppOptions *options)
     bool running = true;
     HmbtnTitlePreview *preview = NULL;
     HmbtnScenePreview *scene = NULL;
+    char *save_path=NULL;
     HmbtnGameInput input = {0};
+    HmbtnUpdateClock clock={0};
     char error[512] = {0};
     /* Presentation cadence for this diagnostic, not the original PS1 game timer. */
     const Uint64 frame_ns = SDL_NS_PER_SECOND / 60;
@@ -56,9 +60,13 @@ int hmbtn_app_run(const HmbtnAppOptions *options)
                 SDL_free(data_root);hmbtn_host_close(&host);return prepared<0 ? 1 : 0;
             }
         }
+        save_path=options->save_path ? SDL_strdup(options->save_path) : hmbtn_save_default_path();
+        if(!save_path) { SDL_free(data_root);hmbtn_host_close(&host);return 1; }
         if (data_root) {
             printf("Game data directory: %s\n", data_root);
-            if (options->area_preview)
+            if(options->load_save)
+                scene=hmbtn_scene_saved_create(host.renderer,data_root,save_path,error,sizeof(error));
+            else if (options->area_preview)
                 scene = hmbtn_scene_area_create_at(host.renderer,data_root,options->preview_area,
                     options->preview_date_set || options->preview_time_set ? &options->preview_clock : NULL,error,sizeof(error));
             else if (options->house_preview)
@@ -75,11 +83,13 @@ int hmbtn_app_run(const HmbtnAppOptions *options)
             snprintf(error, sizeof(error), "Cannot allocate data directory path");
         }
         SDL_free(data_root);
+        if(scene && options->preview_weather_set)
+            hmbtn_scene_preview_set_weather(scene,options->preview_weather,options->preview_tomorrow);
         if (!preview && !scene) {
             fprintf(stderr, "Cannot load game resources: %s\nUse --data DIR or --window-test.\n", error);
             if(!options->frame_limit) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR,
                 "Nao foi possivel carregar os recursos",error,host.window);
-            hmbtn_host_close(&host);
+            SDL_free(save_path);hmbtn_host_close(&host);
             return 1;
         }
         if (!SDL_SetWindowTitle(host.window, options->area_preview ? "Harvest Moon BTN - Region gameplay preview"
@@ -88,7 +98,7 @@ int hmbtn_app_run(const HmbtnAppOptions *options)
                 : scene ? "Harvest Moon BTN - Farm geometry preview" : "Harvest Moon: Back to Nature")) {
             SDL_Log("Cannot update window title: %s", SDL_GetError());
         }
-        if (preview) puts("Title assets loaded: Natsume, intro, menu and registration. New Game reaches the initial house with movement; full gameplay, saves and demo remain pending.");
+        if (preview) puts("Title assets loaded: Natsume, intro, menu and registration. New Game reaches the initial house with movement; native saves use the user slot; full gameplay and demo remain pending.");
         hmbtn_game_input_init(&input);
         if(!options->frame_limit && !options->data_root) hmbtn_app_shortcuts();
     } else {
@@ -106,10 +116,10 @@ int hmbtn_app_run(const HmbtnAppOptions *options)
             if (preview || scene) hmbtn_game_input_event(&input, &event, window_id);
             if (preview && event.type == SDL_EVENT_WINDOW_FOCUS_LOST
                     && event.window.windowID == window_id) {
-                hmbtn_title_preview_discard_input(preview);
+                hmbtn_update_clock_discard_input(&clock);
             }
             if (scene && event.type == SDL_EVENT_WINDOW_FOCUS_LOST && event.window.windowID == window_id)
-                hmbtn_scene_preview_discard_input(scene);
+                hmbtn_update_clock_discard_input(&clock);
             const HmbtnWindowAction action = hmbtn_window_action(&event, window_id);
             if (action == HMBTN_WINDOW_QUIT) {
                 running = false;
@@ -124,15 +134,45 @@ int hmbtn_app_run(const HmbtnAppOptions *options)
             break;
         }
         if (preview || scene) hmbtn_game_input_poll(&input);
-        bool drawn;
-        if (scene)
-            drawn = hmbtn_scene_preview_draw(scene, host.renderer, elapsed_ns,
-                hmbtn_game_input_take_pressed(&input), hmbtn_game_input_held(&input), error, sizeof(error));
-        else if (preview)
-            drawn = hmbtn_title_preview_draw(preview, host.renderer, elapsed_ns,
-                hmbtn_game_input_take_pressed(&input), hmbtn_game_input_held(&input), error, sizeof(error));
-        else
-            drawn = hmbtn_draw_diagnostics(host.renderer, frames);
+        bool drawn=true;
+        hmbtn_update_clock_add(&clock,elapsed_ns,hmbtn_game_input_take_frame(&input));
+        HmbtnLogicalInput tick_input;
+        while(hmbtn_update_clock_take(&clock,&tick_input)) {
+            if(scene) drawn=hmbtn_scene_preview_tick(scene,tick_input,error,sizeof(error));
+            else if(preview) drawn=hmbtn_title_preview_tick(preview,tick_input,error,sizeof(error));
+            if(!drawn || (preview && (hmbtn_title_preview_registration(preview) || hmbtn_title_preview_continue(preview)))
+                || (scene && (hmbtn_scene_preview_load_pending(scene) || hmbtn_scene_preview_save_pending(scene)))) break;
+        }
+        if(drawn && ((preview && hmbtn_title_preview_continue(preview)) || (scene && hmbtn_scene_preview_load_pending(scene)))) {
+            char *root=hmbtn_data_directory(options->data_root);
+            HmbtnScenePreview *loaded=root ? hmbtn_scene_saved_create(host.renderer,root,save_path,error,sizeof(error)) : NULL;
+            SDL_free(root);
+            if(loaded) {
+                hmbtn_scene_preview_destroy(scene);hmbtn_title_preview_destroy(preview);preview=NULL;scene=loaded;
+                puts("Native save loaded; session resources rebound without replaying daily updates.");
+            } else {
+                fprintf(stderr,"Cannot continue: %s\n",error);
+                if(!options->frame_limit) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR,"Nao foi possivel carregar",error,host.window);
+                if(preview) hmbtn_title_preview_continue_failed(preview);
+                if(scene) hmbtn_scene_preview_ack_load(scene);
+            }
+            clock=(HmbtnUpdateClock){0};hmbtn_game_input_take_frame(&input);previous=SDL_GetTicksNS();
+        }
+        if(drawn && scene && hmbtn_scene_preview_take_save_request(scene)) {
+            if(hmbtn_scene_preview_save(scene,save_path,error,sizeof(error))) {
+                printf("Native save written: %s\n",save_path);
+                if(!options->frame_limit) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_INFORMATION,"Jogo salvo","Seu progresso foi salvo.",host.window);
+            } else {
+                fprintf(stderr,"Save failed: %s\n",error);
+                if(!options->frame_limit) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR,"Nao foi possivel salvar",error,host.window);
+            }
+            previous=SDL_GetTicksNS();
+        }
+        if(drawn) {
+            if(scene) drawn=hmbtn_scene_preview_draw(scene,host.renderer,error,sizeof(error));
+            else if(preview) drawn=hmbtn_title_preview_draw(preview,host.renderer,error,sizeof(error));
+            else drawn=hmbtn_draw_diagnostics(host.renderer,frames);
+        }
         if(scene && hmbtn_scene_preview_take_rumble(scene) && input.gamepad
                 && !SDL_RumbleGamepad(input.gamepad,0x5000,0x5000,150))
             SDL_Log("Controller vibration unavailable: %s",SDL_GetError());
@@ -147,7 +187,7 @@ int hmbtn_app_run(const HmbtnAppOptions *options)
             if (!scene) drawn = false;
             else {
                 hmbtn_scene_intro_registration(scene,&registration);
-                drawn = hmbtn_scene_preview_draw(scene,host.renderer,0,0,0,error,sizeof(error));
+                drawn = hmbtn_scene_preview_draw(scene,host.renderer,error,sizeof(error));
             }
         }
         if (!drawn
@@ -172,6 +212,7 @@ int hmbtn_app_run(const HmbtnAppOptions *options)
     hmbtn_title_preview_destroy(preview);
     hmbtn_scene_preview_destroy(scene);
     hmbtn_game_input_close(&input);
+    SDL_free(save_path);
     hmbtn_host_close(&host);
     return result;
 }

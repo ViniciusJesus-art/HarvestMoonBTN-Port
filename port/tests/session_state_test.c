@@ -50,12 +50,12 @@ int main(void)
     hmbtn_farm_menu_init(&menu,hmbtn_game_economy_const(&s->game));menu.poultry=&s->poultry;
     CHECK(game_equal(&s->game,&expected) && &s->poultry.hens[0]==hen);
     /* Rebinding identical resource storage must never reinitialize villagers. */
-    HmbtnIntroActor host_player={0},event_actor={0};
-    s->village.player=&host_player;s->village.event_actor=&event_actor;s->village.event_actor_id=17;
-    s->village.event_actors[9]=&event_actor;
+    CHECK(hmbtn_session_bind_event_actor(s,17,HMBTN_SESSION_ACTOR_PRIMARY,false)==&s->intro.mayor);
+    CHECK(hmbtn_session_bind_event_actor(s,9,HMBTN_SESSION_ACTOR_INTRO,true)==&s->intro.elli);
     hmbtn_session_unbind_resources(s);
     CHECK(!s->village_ready && s->village_initialized && !s->village.schedule_data);
-    CHECK(!s->village.player && !s->village.event_actor && !s->village.event_actors[9]);
+    CHECK(s->village.player==&s->intro.player && s->village.event_actor==&s->intro.mayor
+        && s->village.event_actors[9]==&s->intro.elli);
     first[0]=0xaa; /* Storage is caller-owned and can now be retired. */
     CHECK(hmbtn_session_bind_schedules(s,replacement,sizeof(replacement)));
     CHECK(s->village_ready && s->village.schedule_data==replacement);

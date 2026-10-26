@@ -5,7 +5,7 @@
  * not financial state used by the game. */
 static inline bool economy_equal(const HmbtnEconomy *a,const HmbtnEconomy *b)
 {
-    if(a->gold!=b->gold) return false;
+    if(a->gold!=b->gold || a->gold_limit!=b->gold_limit) return false;
     for(unsigned i=0;i<25;++i) if(a->shipments[i]!=b->shipments[i]) return false;
     for(unsigned i=0;i<4;++i) for(unsigned j=0;j<2;++j)
         if(a->ledger[i][j]!=b->ledger[i][j]) return false;

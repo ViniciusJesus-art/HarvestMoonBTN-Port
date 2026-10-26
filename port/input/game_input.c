@@ -101,3 +101,8 @@ uint32_t hmbtn_game_input_held(const HmbtnGameInput *input)
 {
     return input->focused ? input->keyboard_held | input->previous_gamepad : 0;
 }
+
+HmbtnLogicalInput hmbtn_game_input_take_frame(HmbtnGameInput *input)
+{
+    return (HmbtnLogicalInput){hmbtn_game_input_take_pressed(input),hmbtn_game_input_held(input)};
+}

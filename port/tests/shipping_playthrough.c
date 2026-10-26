@@ -1,11 +1,10 @@
 /* Local game assets only. Fixtures stay in this driver, outside the runtime. */
-#include "scene_preview.c"
+#include "scene_fixture.h"
 #include "sdl_host.h"
 #define CHECK(x) do { if(!(x)) { fprintf(stderr,"Shipping playthrough line %d: %s; %s\n",__LINE__,#x,error);goto fail; } } while(0)
 static bool step(HmbtnScenePreview *s,uint32_t pressed,char *error,size_t size)
 {
-    s->pending_pressed=pressed;hmbtn_scene_data_tick(&s->scene);
-    const bool ok=opening_tick(s,0,error,size);s->pending_pressed=0;return ok;
+    return hmbtn_scene_preview_tick(s,(HmbtnLogicalInput){pressed,0},error,size);
 }
 static bool box_position(const HmbtnModel *model,int32_t point[3])
 {
@@ -35,34 +34,34 @@ int main(int argc,char **argv)
     HmbtnHost host={0};HmbtnScenePreview *s=NULL;char error[512]={0};
     CHECK(hmbtn_host_open(&host));s=hmbtn_scene_house_create(host.renderer,argv[1],error,sizeof(error));CHECK(s);
     for(unsigned i=0;i<130;++i) CHECK(step(s,0,error,sizeof(error)));
-    s->first_visit_started=true;
+    hmbtn_scene_preview_session(s)->first_visit_started=true;
     for(unsigned season=0;season<4;++season) {
-        s->session->game.clock=(HmbtnFarmClock){0,season,1,1,6,0,0};
-        CHECK(load_area(s,s->data_root,0,error,sizeof(error)));s->intro.area=0;
-        int32_t box[3];CHECK(box_position(&s->scene.terrain,box));
+        hmbtn_scene_preview_session(s)->game.clock=(HmbtnFarmClock){0,season,1,1,6,0,0};
+        CHECK(hmbtn_scene_preview_load_area(s,0,error,sizeof(error)));hmbtn_scene_preview_session(s)->intro.area=0;
+        int32_t box[3];CHECK(box_position(&(*hmbtn_scene_preview_resources(s).scene).terrain,box));
         printf("Shipping surface season %u: (%d,%d,%d)\n",season,box[0],box[1],box[2]);
         /* Start far enough from the lip for the actual throw to land in it. */
         int y=-300,v=0;unsigned flight=0;
         do { y+=v;v+=9;if(v>45) v=45;++flight; } while(y<box[1] && flight<100);
-        s->intro.player.position[0]=box[0]-(int32_t)flight*44;
-        s->intro.player.position[1]=0;s->intro.player.position[2]=box[2];
-        s->intro.player.facing=3;s->intro.player.sprite=(HmbtnAnimationPlayer){0,3,0};
-        memcpy(s->intro.camera,s->intro.player.position,sizeof(s->intro.camera));
-        s->house.inventory->held_item=(HmbtnStoredTool){0x41,0,1}; /* Test fixture, turnip 60G. */
-        const unsigned gold=s->session->game.economy.gold,count=s->session->game.economy.shipments[0];
-        const uint32_t pending=s->session->game.economy.shipping.pending_value;
-        CHECK(step(s,HMBTN_PAD_CROSS,error,sizeof(error)) && s->carry.phase>=2 && s->house.inventory->held_item.id==0x41);
-        for(unsigned i=0;i<100 && s->carry.phase;++i) CHECK(step(s,0,error,sizeof(error)));
-        CHECK(!s->carry.phase && !s->house.inventory->held_item.id && s->carry.thrown[0].item.id==0x41);
-        for(unsigned i=0;i<100 && s->carry.thrown[0].item.id;++i) CHECK(step(s,0,error,sizeof(error)));
-        CHECK(!s->carry.thrown[0].item.id && s->session->game.economy.shipping.pending_value==pending+60);
-        CHECK(s->session->game.economy.shipments[0]==count+1 && s->session->game.economy.gold==gold && !s->carry.discarded);
-        s->session->game.clock.hour=17;s->session->game.clock.minute=57;s->session->game.clock.frames=14;
+        hmbtn_scene_preview_session(s)->intro.player.position[0]=box[0]-(int32_t)flight*44;
+        hmbtn_scene_preview_session(s)->intro.player.position[1]=0;hmbtn_scene_preview_session(s)->intro.player.position[2]=box[2];
+        hmbtn_scene_preview_session(s)->intro.player.facing=3;hmbtn_scene_preview_session(s)->intro.player.sprite=(HmbtnAnimationPlayer){0,3,0};
+        memcpy(hmbtn_scene_preview_session(s)->intro.camera,hmbtn_scene_preview_session(s)->intro.player.position,sizeof(hmbtn_scene_preview_session(s)->intro.camera));
+        hmbtn_scene_preview_session(s)->house.inventory->held_item=(HmbtnStoredTool){0x41,0,1}; /* Test fixture, turnip 60G. */
+        const unsigned gold=hmbtn_scene_preview_session(s)->game.economy.gold,count=hmbtn_scene_preview_session(s)->game.economy.shipments[0];
+        const uint32_t pending=hmbtn_scene_preview_session(s)->game.economy.shipping.pending_value;
+        CHECK(step(s,HMBTN_PAD_CROSS,error,sizeof(error)) && hmbtn_scene_preview_session(s)->carry.phase>=2 && hmbtn_scene_preview_session(s)->house.inventory->held_item.id==0x41);
+        for(unsigned i=0;i<100 && hmbtn_scene_preview_session(s)->carry.phase;++i) CHECK(step(s,0,error,sizeof(error)));
+        CHECK(!hmbtn_scene_preview_session(s)->carry.phase && !hmbtn_scene_preview_session(s)->house.inventory->held_item.id && hmbtn_scene_preview_session(s)->carry.thrown[0].item.id==0x41);
+        for(unsigned i=0;i<100 && hmbtn_scene_preview_session(s)->carry.thrown[0].item.id;++i) CHECK(step(s,0,error,sizeof(error)));
+        CHECK(!hmbtn_scene_preview_session(s)->carry.thrown[0].item.id && hmbtn_scene_preview_session(s)->game.economy.shipping.pending_value==pending+60);
+        CHECK(hmbtn_scene_preview_session(s)->game.economy.shipments[0]==count+1 && hmbtn_scene_preview_session(s)->game.economy.gold==gold && !hmbtn_scene_preview_session(s)->carry.discarded);
+        hmbtn_scene_preview_session(s)->game.clock.hour=17;hmbtn_scene_preview_session(s)->game.clock.minute=57;hmbtn_scene_preview_session(s)->game.clock.frames=14;
         CHECK(step(s,0,error,sizeof(error)));
-        CHECK(s->session->game.economy.shipping.settled && !s->session->game.economy.shipping.pending_value && s->session->game.economy.gold==gold+pending+60);
-        CHECK(step(s,HMBTN_PAD_START,error,sizeof(error)) && s->menu.mode==HMBTN_MENU_STATUS);
+        CHECK(hmbtn_scene_preview_session(s)->game.economy.shipping.settled && !hmbtn_scene_preview_session(s)->game.economy.shipping.pending_value && hmbtn_scene_preview_session(s)->game.economy.gold==gold+pending+60);
+        CHECK(step(s,HMBTN_PAD_START,error,sizeof(error)) && hmbtn_scene_preview_session(s)->menu.mode==HMBTN_MENU_STATUS);
         for(unsigned i=0;i<30;++i) CHECK(step(s,0,error,sizeof(error)));
-        CHECK(hmbtn_scene_preview_draw(s,host.renderer,0,0,0,error,sizeof(error)));
+        CHECK(hmbtn_scene_preview_draw(s,host.renderer,error,sizeof(error)));
         if(argc==3 && season==0) {
             char path[1024];snprintf(path,sizeof(path),"%s/shipping-accounts.bmp",argv[2]);
             SDL_Surface *p=SDL_RenderReadPixels(host.renderer,NULL);CHECK(p);
@@ -70,18 +69,18 @@ int main(int argc,char **argv)
         }
         CHECK(step(s,HMBTN_PAD_START,error,sizeof(error)));
         for(unsigned i=0;i<30;++i) CHECK(step(s,0,error,sizeof(error)));
-        CHECK(s->menu.mode==HMBTN_MENU_NONE);
-        s->session->game.economy.shipping.settled=false;
+        CHECK(hmbtn_scene_preview_session(s)->menu.mode==HMBTN_MENU_NONE);
+        hmbtn_scene_preview_session(s)->game.economy.shipping.settled=false;
     }
     /* A sleep before 17:58 must collect in chronological order. */
-    s->session->game.clock=(HmbtnFarmClock){0,0,1,1,16,0,0};
-    CHECK(hmbtn_farm_shipping_add(hmbtn_game_economy(&s->session->game),0x41));
-    const unsigned gold=s->session->game.economy.gold;
-    CHECK(load_area(s,s->data_root,80,error,sizeof(error)));s->intro.area=80;
-    s->house.mode=HMBTN_HOUSE_SLEEP;s->farm_action.fatigue=0;
-    for(unsigned i=0;i<1000 && (s->session->game.clock.day==1 || s->morning_fade);++i) CHECK(step(s,0,error,sizeof(error)));
-    CHECK(s->session->game.clock.day==2 && s->session->game.clock.hour==6 && !s->session->game.economy.shipping.settled && !s->session->game.economy.shipping.pending_value);
-    CHECK(s->session->game.economy.gold==gold+60 && s->control.enabled);
+    hmbtn_scene_preview_session(s)->game.clock=(HmbtnFarmClock){0,0,1,1,16,0,0};
+    CHECK(hmbtn_farm_shipping_add(hmbtn_game_economy(&hmbtn_scene_preview_session(s)->game),0x41));
+    const unsigned gold=hmbtn_scene_preview_session(s)->game.economy.gold;
+    CHECK(hmbtn_scene_preview_load_area(s,80,error,sizeof(error)));hmbtn_scene_preview_session(s)->intro.area=80;
+    hmbtn_scene_preview_session(s)->house.mode=HMBTN_HOUSE_SLEEP;hmbtn_scene_preview_session(s)->farm_action.fatigue=0;
+    for(unsigned i=0;i<1000 && (hmbtn_scene_preview_session(s)->game.clock.day==1 || hmbtn_scene_preview_session(s)->morning_fade);++i) CHECK(step(s,0,error,sizeof(error)));
+    CHECK(hmbtn_scene_preview_session(s)->game.clock.day==2 && hmbtn_scene_preview_session(s)->game.clock.hour==6 && !hmbtn_scene_preview_session(s)->game.economy.shipping.settled && !hmbtn_scene_preview_session(s)->game.economy.shipping.pending_value);
+    CHECK(hmbtn_scene_preview_session(s)->game.economy.gold==gold+60 && hmbtn_scene_preview_session(s)->control.enabled);
     puts("Original shipping surfaces in all seasons, timed throw, accounts and sleep collection passed.");
     hmbtn_scene_preview_destroy(s);hmbtn_host_close(&host);return 0;
 fail:

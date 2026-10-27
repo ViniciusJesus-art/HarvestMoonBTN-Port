@@ -22,7 +22,7 @@ struct HmbtnNewGameUI {
 void hmbtn_new_game_ui_cursor(const HmbtnNewGameUI *u, HmbtnWorldSprite *sprite,
     const int32_t position[3], unsigned variant)
 {
-    *sprite = (HmbtnWorldSprite){&u->icons,u->atlas,{24,(uint16_t)(variant&1u),0},{0},0};
+    *sprite = (HmbtnWorldSprite){&u->icons,u->atlas,{24,(uint16_t)(variant&1u),0},{0},0,0};
     memcpy(sprite->position,position,sizeof(sprite->position));
 }
 bool hmbtn_new_game_ui_cue(const HmbtnNewGameUI *u,HmbtnWorldSprite *sprite,
@@ -32,7 +32,7 @@ bool hmbtn_new_game_ui_cue(const HmbtnNewGameUI *u,HmbtnWorldSprite *sprite,
     if(!phase || icon>=u->icons.count[3]) return false;
     const unsigned frames=hmbtn_read_le16(u->icons.data+u->icons.section[3]+icon*4);
     if(!frames) return false;
-    *sprite=(HmbtnWorldSprite){&u->icons,u->atlas,{(uint16_t)icon,(uint16_t)(frames-1-(phase/10)%frames),0},{0},screen_y};
+    *sprite=(HmbtnWorldSprite){&u->icons,u->atlas,{(uint16_t)icon,(uint16_t)(frames-1-(phase/10)%frames),0},{0},screen_y,0};
     memcpy(sprite->position,position,sizeof(sprite->position));return true;
 }
 HmbtnNewGameUI *hmbtn_new_game_ui_create(const char *root, char *error, size_t error_size)

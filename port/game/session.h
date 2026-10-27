@@ -6,6 +6,7 @@
 #include "farm_field.h"
 #include "village.h"
 #include "poultry.h"
+#include "livestock.h"
 #include "farm_visit.h"
 #include "village_talk.h"
 #include "event_item.h"
@@ -58,6 +59,7 @@ typedef struct HmbtnSession {
     HmbtnVillage village;
     HmbtnPoultry poultry;
     HmbtnConstruction construction;
+    HmbtnLivestock livestock;
     bool village_initialized,village_ready;
     HmbtnFarmIntro intro;
     uint8_t event_code[3296]; /* Validated bytecode, never a loan from event art. */

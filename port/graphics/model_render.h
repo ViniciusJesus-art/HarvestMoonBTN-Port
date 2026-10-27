@@ -23,6 +23,7 @@ typedef struct HmbtnWorldSprite {
     HmbtnAnimationPlayer player;
     int32_t position[3]; /* Actor origin; +150,-100,-150 follows player_draw(). */
     int screen_y; /* field_cell_look's lift, in logical pixels. */
+    unsigned scale; /* Zero/default or 4096 = original size; young cow uses 0xCC8. */
 } HmbtnWorldSprite;
 
 /* Draw immediately after its owner, sharing exactly the owner's world depth.

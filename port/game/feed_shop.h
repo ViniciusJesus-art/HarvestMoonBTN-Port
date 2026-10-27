@@ -4,6 +4,7 @@
 #include "village.h"
 #include "poultry.h"
 #include "construction.h"
+#include "livestock.h"
 typedef enum HmbtnFeedShopPhase {
     HMBTN_SHOP_OFF,HMBTN_SHOP_GREETING,HMBTN_SHOP_SELECT,HMBTN_SHOP_INFO,
     HMBTN_SHOP_OFFER,HMBTN_SHOP_COUNT,HMBTN_SHOP_RESULT,HMBTN_SHOP_LEAVE,HMBTN_SHOP_NAME,
@@ -23,6 +24,7 @@ typedef struct HmbtnFeedShop {
     bool seeds; /* Original seasonal seed-table menu, same shop state. */
     int sound;
     HmbtnPoultry *poultry;
+    HmbtnLivestock *livestock;
     HmbtnNewGame editor;
     const HmbtnEconomy *economy; /* Read-only loan for derived seasonal stock. */
     const HmbtnGameProgress *progress; /* Same story state as event handlers. */
@@ -61,6 +63,8 @@ bool hmbtn_won_seed_shop_open(HmbtnFeedShop *shop,const HmbtnFarmClock *clock);
 /* Original NPC 24 conversation dispatches shop 9; eligibility stays in the script. */
 bool hmbtn_carpenter_shop_open(HmbtnFeedShop *shop,const HmbtnFarmClock *clock);
 unsigned hmbtn_carpenter_shop_rows(const HmbtnFeedShop *shop);
+unsigned hmbtn_barn_shop_rows(const HmbtnFeedShop *);
+unsigned hmbtn_barn_shop_row(const HmbtnFeedShop *,unsigned row);
 unsigned hmbtn_feed_shop_cost(const HmbtnFeedShop *shop);
 bool hmbtn_feed_shop_expand(uint8_t *record,size_t size,const HmbtnRegistration *registration);
 #endif

@@ -61,9 +61,10 @@ bool hmbtn_feed_shop_ui_draw(const HmbtnFeedShop *s,const HmbtnEconomy *economy,
         hmbtn_window_frame_draw(p,320,240,16,16,208,8+rows*14);
         if(!hmbtn_ui_text(ui,p,shop_buy_lumber,WORDS(shop_buy_lumber),30,20,0,3,error,size)
                 || !hmbtn_ui_icon(ui,p,11,1,20,20+(int)s->selection*14,error,size)) return false;
-        const bool house=hmbtn_construction_next(s->construction,s->poultry)==1;
-        if(rows>1 && !hmbtn_ui_text(ui,p,house ? shop_enlarge_own_house : shop_enlarge_hen_house,
-                house ? WORDS(shop_enlarge_own_house) : WORDS(shop_enlarge_hen_house),30,34,0,3,error,size)) return false;
+        const unsigned stage=hmbtn_construction_next(s->construction,s->poultry);
+        const uint16_t *label=stage==2 ? shop_enlarge_barn : stage==1 ? shop_enlarge_own_house : shop_enlarge_hen_house;
+        const unsigned words=stage==2 ? WORDS(shop_enlarge_barn) : stage==1 ? WORDS(shop_enlarge_own_house) : WORDS(shop_enlarge_hen_house);
+        if(rows>1 && !hmbtn_ui_text(ui,p,label,words,30,34,0,3,error,size)) return false;
         if(s->phase==HMBTN_SHOP_BUILD_CONFIRM && !s->closing && s->message.phase==HMBTN_MESSAGE_WAIT_END) {
             hmbtn_window_frame_draw(p,320,240,200,112,48,36);
             return hmbtn_ui_text(ui,p,shop_yes,WORDS(shop_yes),216,116,0,3,error,size)
@@ -132,15 +133,19 @@ bool hmbtn_feed_shop_ui_draw(const HmbtnFeedShop *s,const HmbtnEconomy *economy,
             || !number(ui,p,economy->gold,8,shop_gold_unit,231,34,error,size)) return false;
     if(s->phase==HMBTN_SHOP_GREETING || s->phase==HMBTN_SHOP_LEAVE) return true;
     const bool hens=s->merchant==18 && s->poultry;
-    const unsigned rows=(hens ? 3u : 1u)+s->medicine_available;
-    const unsigned selected=s->selection==3 ? rows-1 : s->selection;
+    const bool livestock=s->merchant==15 && s->livestock;
+    const unsigned rows=livestock ? hmbtn_barn_shop_rows(s) : (hens ? 3u : 1u)+s->medicine_available;
+    unsigned selected=s->selection==3 ? rows-1 : s->selection;
+    if(livestock) { selected=0;while(selected<rows && hmbtn_barn_shop_row(s,selected)!=s->selection) ++selected; }
     hmbtn_window_frame_draw(p,320,240,16,16,208,8+rows*14);
     if(!hmbtn_ui_text(ui,p,name,length,34,20,0,3,error,size)
             || !hmbtn_ui_icon(ui,p,11,1,23,19+(int)selected*14,error,size)) return false;
     if(hens && !hmbtn_ui_text(ui,p,shop_buy_chicken,WORDS(shop_buy_chicken),34,34,0,3,error,size)) return false;
     if(hens && !hmbtn_ui_text(ui,p,shop_sell_chicken,WORDS(shop_sell_chicken),34,48,0,3,error,size)) return false;
+    if(livestock && (!hmbtn_ui_text(ui,p,shop_buy_cow,WORDS(shop_buy_cow),34,34,0,3,error,size)
+            || !hmbtn_ui_text(ui,p,shop_buy_sheep,WORDS(shop_buy_sheep),34,48,0,3,error,size))) return false;
     if(s->medicine_available && !hmbtn_ui_text(ui,p,shop_animal_medicine,WORDS(shop_animal_medicine),34,
-            hens ? 62 : 34,0,3,error,size)) return false;
+            (hens || livestock) ? 62 : 34,0,3,error,size)) return false;
     /* shop_menu_draw prints each item's unit price beside its label. */
     const HmbtnFarmItem *feed=hmbtn_farm_item(s->merchant==15 ? 0x68 : 0x69);
     const HmbtnFarmItem *chicken=hmbtn_farm_item(0x109),*medicine=hmbtn_farm_item(0x1E);
@@ -148,7 +153,9 @@ bool hmbtn_feed_shop_ui_draw(const HmbtnFeedShop *s,const HmbtnEconomy *economy,
             || !number(ui,p,(unsigned)feed->buy_price,5,shop_gold_unit,172,20,error,size)) return false;
     if(hens && !number(ui,p,(unsigned)chicken->buy_price,5,shop_gold_unit,172,34,error,size)) return false;
     if(s->medicine_available && !number(ui,p,(unsigned)medicine->buy_price,5,shop_gold_unit,
-            172,hens ? 62 : 34,error,size)) return false;
+            172,(hens || livestock) ? 62 : 34,error,size)) return false;
+    if(livestock && (!number(ui,p,(unsigned)hmbtn_farm_item(0x161)->buy_price,5,shop_gold_unit,172,34,error,size)
+            || !number(ui,p,(unsigned)hmbtn_farm_item(0x165)->buy_price,5,shop_gold_unit,172,48,error,size))) return false;
     if(s->selection) return true;
     const bool quantity=s->phase==HMBTN_SHOP_COUNT || s->phase==HMBTN_SHOP_OFFER
         || (s->phase==HMBTN_SHOP_RESULT && s->after_result==HMBTN_SHOP_COUNT);

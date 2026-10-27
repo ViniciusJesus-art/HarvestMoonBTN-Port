@@ -37,9 +37,9 @@ int main(void)
     s->morning_fade=0; /* Unit fixture: no host presentation. */
     for(unsigned season=0;season<4;++season) {
         unsigned logical,resource;
-        assert(hmbtn_world_area_buildings(0,season,true,1,&logical,&resource) && logical==0 && resource==8+season);
-        assert(hmbtn_world_area_buildings(80,season,true,1,&logical,&resource) && logical==80 && resource==84+season);
-        assert(hmbtn_world_area_buildings(112,season,true,1,&logical,&resource) && logical==112 && resource==116+season);
+        assert(hmbtn_world_area_buildings(0,season,true,1,0,&logical,&resource) && logical==0 && resource==8+season);
+        assert(hmbtn_world_area_buildings(80,season,true,1,0,&logical,&resource) && logical==80 && resource==84+season);
+        assert(hmbtn_world_area_buildings(112,season,true,1,0,&logical,&resource) && logical==112 && resource==116+season);
     }
     /* item_storage rules, exact item classes, stack/split and refusal atomicity. */
     memset(h->items,0,sizeof(h->items));h->held_item=(HmbtnStoredTool){0x43,7,1};

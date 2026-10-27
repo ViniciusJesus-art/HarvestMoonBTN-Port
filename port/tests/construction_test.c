@@ -102,7 +102,7 @@ int main(void)
     memset(s->poultry.hens,0,sizeof(s->poultry.hens));
     for(unsigned i=0;i<10;++i) assert(hmbtn_poultry_buy(&s->poultry,name,&s->game.clock));
     assert(!hmbtn_poultry_buy(&s->poultry,name,&s->game.clock));
-    s->construction.house_level=1;open(s);assert(hmbtn_carpenter_shop_rows(shop)==1);input(s,HMBTN_PAD_DOWN);assert(!shop->selection);
+    s->construction.house_level=1;s->construction.barn_level=1;open(s);assert(hmbtn_carpenter_shop_rows(shop)==1);input(s,HMBTN_PAD_DOWN);assert(!shop->selection);
     inv->supplies[1]=999;input(s,HMBTN_PAD_CROSS);assert(shop->next_request==0x13a);until(s,HMBTN_SHOP_SELECT);
     inv->supplies[1]=998;s->game.economy.gold=1000;
     input(s,HMBTN_PAD_CROSS);until(s,HMBTN_SHOP_COUNT);input(s,HMBTN_PAD_RIGHT);input(s,HMBTN_PAD_CROSS);

@@ -29,6 +29,8 @@ int main(void)
     finish(&f,&h,&p,s);CHECK(!f.phase && h.inventory->held_item.id==0x68);
     zone(s,41,6,20);p.facing=2;
     CHECK(hmbtn_farm_feed_tick(&f,&h,&p,s,sizeof(s),HMBTN_PAD_CROSS) && !f.phase && !f.barn[20]);
+    CHECK(hmbtn_farm_feed_bins(s,sizeof(s),true)==(1u<<20) && !hmbtn_farm_feed_bins(s,sizeof(s),false));
+    CHECK(!hmbtn_farm_feed_bins(s,16,true) && !hmbtn_farm_feed_bins(NULL,sizeof(s),true));
     p.facing=3;
     CHECK(hmbtn_farm_feed_tick(&f,&h,&p,s,sizeof(s),HMBTN_PAD_CROSS) && f.barn[20]);
     CHECK(f.phase==2 && h.inventory->held_item.id==0x68 && p.sprite.animation==26);
@@ -49,6 +51,7 @@ int main(void)
     finish(&f,&h,&p,s);CHECK(!h.inventory->held_item.id && f.coop[4]);
     zone(s,40,2,10);h.inventory->held_item=(HmbtnStoredTool){0x69,0,1};
     CHECK(hmbtn_farm_feed_tick(&f,&h,&p,s,sizeof(s),HMBTN_PAD_CROSS) && !f.phase && h.inventory->held_item.id==0x69);
+    CHECK(!hmbtn_farm_feed_bins(s,sizeof(s),false)); /* Invalid bin 10 is never rendered. */
     hmbtn_farm_feed_new_day(&f);CHECK(!f.barn[20] && !f.coop[4] && h.inventory->supplies[2]==999);
     int32_t pos[3];CHECK(hmbtn_farm_feed_position(true,20,pos) && pos[0]==2900 && pos[2]==-2450);
     CHECK(hmbtn_farm_feed_position(false,4,pos) && pos[0]==700 && pos[2]==-100);

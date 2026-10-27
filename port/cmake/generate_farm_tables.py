@@ -9,7 +9,7 @@ def clean(text):
 
 
 def body(text, name):
-    match = re.search(r"\b" + name + r"\s*\[[^;=]*=\s*\{", text)
+    match = re.search(r"\b" + name + r"\s*(?:\[[^;=]*)?=\s*\{", text)
     if not match:
         raise ValueError(f"Missing original table: {name}")
     start = match.end()
@@ -202,6 +202,26 @@ def main(root, output):
         "/* Original shop_silo_offers and milestone_arm_countdown (--timer < 0). */\n"
         "static const HmbtnConstructionOffer construction_offers[]={" + ",".join(offers) + "};\n"
         f"enum {{ CONSTRUCTION_MORNINGS={int(timer.group(1))+1}, LUMBER_MAX={limit.group(1)}, LUMBER_ITEM={names['ITEM_LUMBER']} }};\n")
+    livestock = clean((src / "overlay/11_GF_FARM/animals/livestock.c").read_text())
+    animals = clean((src / "overlay/11_GF_FARM/animals/animals.c").read_text())
+    animal_header = clean((src / "overlay/11_GF_FARM/animals/animals.h").read_text())
+    farm_load = clean((src / "overlay/11_GF_FARM/farm_load.c").read_text())
+    farm_data = clean((src / "overlay/11_GF_FARM/farm_data.c").read_text())
+    defines = re.findall(r"#define (LIVESTOCK_\w+)\s+(0x[0-9a-fA-F]+|[0-9]+)\b", livestock + "\n" + animal_header)
+    native = ["/* Original livestock.c constants/frame tables and animals.c placement. */"]
+    native.extend(f"enum {{ {key}={value} }};" for key, value in defines)
+    messages = re.findall(r"(LIVESTOCK_MSG_\w+)\s*=\s*(0x[0-9a-fA-F]+)", animal_header)
+    native.extend(f"enum {{ {key}={value} }};" for key, value in messages)
+    native.append("static const NativeFrameRow cow_frames[9]={"+body(livestock,"livestock_frame_table")+"};")
+    native.append("static const NativeFrame sheep_frames[6][4]={"+body(livestock,"livestock_frame_table_b")+"};")
+    native.append("static const int32_t row_spots[6][4]={"+body(animals,"farm_row_spots")+"};")
+    Path(output).with_name("livestock_tables.inc").write_text("\n".join(native)+"\n")
+    offsets = fields(body(farm_load,"farm_slot_file_offsets"))
+    toc = fields(body(farm_data,"farm_slot_toc_0"))
+    Path(output).with_name("livestock_art_tables.inc").write_text(
+        "/* farm_load.c slot 0 and farm_data.c:farm_slot_toc_0. */\n"
+        f"enum {{ LIVESTOCK_FILE_START={offsets[0]}, LIVESTOCK_FILE_BYTES={offsets[1]}-{offsets[0]} }};\n"
+        "static const unsigned livestock_offsets[]={"+toc[1][1:-1]+"};\n")
     text_bank = clean((src / "main/text/text_bank.c").read_text())
     # Storage navigation from item_storage.c, for all three rucksack levels.
     storage = clean((src / "overlay/11_GF_FARM/menu/item_storage.c").read_text())

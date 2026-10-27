@@ -4,6 +4,7 @@
 #include "resource_file.h"
 #include "window_frame.h"
 #include "poultry.h"
+#include "livestock.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -72,14 +73,14 @@ static bool summary(HmbtnFarmMenuUI *u,HmbtnNewGameUI *shared,const HmbtnFarmMen
         for(unsigned i=0;i<s->dog_affection/25 && i<10;++i) if(!sprite(u,3,4,0,120-(int)i*8,184,p,error,size)) return false;
     }
     const unsigned list_art[5]={1,1,1,1,3},list_anim[5]={4,2,3,5,22};
-    const unsigned list_count[5]={s->animals[0],s->animals[1],s->animals[2],s->fish,s->discarded};
+    const unsigned list_count[5]={hmbtn_farm_menu_animal_count(m,0),hmbtn_farm_menu_animal_count(m,1),hmbtn_farm_menu_animal_count(m,2),s->fish,s->discarded};
     for(unsigned i=0;i<5;++i) if(!sprite(u,list_art[i],list_anim[i],0,140,72+(int)i*24,p,error,size)
         || !number(shared,p,list_count[i]>99 ? 99 : list_count[i],2,-1,164,76+(int)i*24,error,size)) return false;
     const unsigned feed_anim[4]={8,7,6,9},stock[4]={h->inventory->supplies[2],h->inventory->supplies[0],h->inventory->supplies[3],h->inventory->supplies[1]};
     const int feed_y[4]={72,96,144,168};
     for(unsigned i=0;i<4;++i) if(!sprite(u,3,feed_anim[i],0,212,feed_y[i],p,error,size)
         || !number(shared,p,stock[i]>999 ? 999 : stock[i],3,-1,236,feed_y[i]+4,error,size)) return false;
-    const unsigned score=hmbtn_farm_menu_building_score(m)/10+hmbtn_cooking_record_count(m->cooking)/8+s->dog_affection/25+s->animals[0]+s->animals[1]+s->animals[2];
+    const unsigned score=hmbtn_farm_menu_building_score(m)/10+hmbtn_cooking_record_count(m->cooking)/8+s->dog_affection/25+hmbtn_farm_menu_animal_count(m,0)+hmbtn_farm_menu_animal_count(m,1)+hmbtn_farm_menu_animal_count(m,2);
     return number(shared,p,score,3,farm_glyph_8f[0],186,26,error,size);
 }
 static bool chickens(HmbtnFarmMenuUI *u,HmbtnNewGameUI *shared,const HmbtnFarmMenu *m,
@@ -111,6 +112,31 @@ static bool chickens(HmbtnFarmMenuUI *u,HmbtnNewGameUI *shared,const HmbtnFarmMe
     }
     return true;
 }
+static bool livestock(HmbtnFarmMenuUI *u,HmbtnNewGameUI *shared,const HmbtnFarmMenu *m,
+    uint8_t *p,char *error,size_t size)
+{
+    const bool sheep=m->page==4;
+    if(!sprite(u,1,sheep ? 12 : 8,0,186,20,p,error,size)
+            || !hmbtn_ui_text(shared,p,farm_name_panel_title,WORDS(farm_name_panel_title),210,26,0,3,error,size)) return false;
+    if(m->list_top && !sprite(u,3,1,m->cycle/30,288,48,p,error,size)) return false;
+    if(hmbtn_livestock_slot(m->livestock,sheep,m->list_top+7)<HMBTN_LIVESTOCK
+            && !sprite(u,3,3,m->cycle/30,288,200,p,error,size)) return false;
+    for(unsigned row=0;row<7;++row) {
+        const unsigned slot=hmbtn_livestock_slot(m->livestock,sheep,m->list_top+row);if(slot==HMBTN_LIVESTOCK) break;
+        const HmbtnFarmAnimal *a=&m->livestock->animals[slot];const unsigned kind=hmbtn_livestock_kind(a);
+        const unsigned icon=sheep ? (kind==0x164 ? 10 : 12) : kind==0x160 ? 6 : kind==0x161 ? 7 : 8;
+        const int y=48+(int)row*24;const unsigned day=a->day+(sheep ? 1u : 0u);
+        const uint16_t date[]={0xffd,0xffd,0xffd,0xffd,0x71,day<10 ? 0xffd : (uint16_t)(0x40+day/10),
+            (uint16_t)(0x40+day%10),0xffd,0,0x26,0x24,a->age<10 ? 0xffd : (uint16_t)(0x40+(a->age%100)/10),(uint16_t)(0x40+a->age%10),0xffff};
+        if(!number(shared,p,m->list_top+row+1,2,-1,24,y+4,error,size)
+                || !sprite(u,1,icon,0,48,y,p,error,size)
+                || !hmbtn_ui_text(shared,p,a->name,HMBTN_NAME_CHARS+1,72,y+2,0,3,error,size)
+                || !hmbtn_ui_text(shared,p,date,WORDS(date),176,y+4,0,3,error,size)
+                || !hmbtn_ui_icon(shared,p,43,a->season,192,y+4,error,size)) return false;
+        for(unsigned i=0;i<a->affection/25 && i<10;++i) if(!sprite(u,3,4,0,144-(int)i*8,y+16,p,error,size)) return false;
+    }
+    return true;
+}
 static bool status(HmbtnFarmMenuUI *u,HmbtnNewGameUI *shared,const HmbtnFarmMenu *m,
     const HmbtnHouseInteraction *h,const HmbtnFarmAction *a,const HmbtnRegistration *g,uint8_t *p,char *error,size_t size)
 {
@@ -134,7 +160,7 @@ static bool status(HmbtnFarmMenuUI *u,HmbtnNewGameUI *shared,const HmbtnFarmMenu
     } else if(m->page==2) {
         return chickens(u,shared,m,p,error,size);
     } else if(m->page==3 || m->page==4) {
-        snprintf(error,size,"Animal status requires the livestock records not yet ported");return false;
+        return livestock(u,shared,m,p,error,size);
     } else if(m->page==5) {
         const uint16_t *names[7]={farm_chef,farm_nappy,farm_timid,farm_hoggy,farm_staid,farm_bold,farm_aqua};
         const unsigned lengths[7]={WORDS(farm_chef),WORDS(farm_nappy),WORDS(farm_timid),WORDS(farm_hoggy),WORDS(farm_staid),WORDS(farm_bold),WORDS(farm_aqua)};

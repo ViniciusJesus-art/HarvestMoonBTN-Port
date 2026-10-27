@@ -24,6 +24,7 @@ void hmbtn_session_clock_events(void *context,const HmbtnFarmClock *clock,unsign
         s->daily_date=hmbtn_session_date(clock);
         hmbtn_farm_field_new_day(&s->field,clock->season);
         hmbtn_poultry_new_day(&s->poultry,&s->feed,clock);
+        hmbtn_livestock_new_day(&s->livestock,&s->feed,clock);
         hmbtn_poultry_carry_sync(&s->poultry,&s->house);
         hmbtn_farm_feed_new_day(&s->feed);hmbtn_farm_gather_new_day(&s->gather);
         hmbtn_weather_new_day(&s->game.weather,clock,&s->game.registration,NULL);

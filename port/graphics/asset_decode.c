@@ -231,12 +231,13 @@ bool hmbtn_texture_draw(const HmbtnImageAtlas *atlas, unsigned tx, unsigned ty,
     return true;
 }
 
-bool hmbtn_animation_draw(const HmbtnAnimation *a, const HmbtnImageAtlas *atlas,
-    const HmbtnAnimationPlayer *p, int x, int y, uint8_t *rgba,
+bool hmbtn_animation_draw_scaled(const HmbtnAnimation *a, const HmbtnImageAtlas *atlas,
+    const HmbtnAnimationPlayer *p, int x, int y, unsigned scale,uint8_t *rgba,
     unsigned width, unsigned height, size_t rgba_size, char *error, size_t error_size)
 {
     if (!width || !height || width > 4096 || height > 4096
             || !rgba || rgba_size < (size_t)width * height * 4) FAIL("Invalid output image");
+    if(!scale || scale>16384) FAIL("Invalid sprite scale");
     const uint8_t *frame = frame_at(a, p);
     if (!frame) FAIL("Animation player outside range");
     const unsigned index = hmbtn_read_le16(frame);
@@ -260,13 +261,16 @@ bool hmbtn_animation_draw(const HmbtnAnimation *a, const HmbtnImageAtlas *atlas,
         if (hmbtn_read_le16(palette + 4) < (1u << depth)
                 || !hmbtn_read_le16(palette + 6) || cy >= HMBTN_ATLAS_HEIGHT
                 || cx > HMBTN_ATLAS_WIDTH - (1u << depth)) FAIL("Invalid ANI palette dimensions");
-        const int64_t left = (int64_t)x + signed16(frame + 2) + signed16(part + 4);
-        const int64_t top = (int64_t)y + signed16(frame + 4) + signed16(part + 6);
-        for (unsigned row = 0; row < h; ++row) {
-            const int64_t dy = top + row;
+        const int64_t left = (int64_t)x + ((int64_t)signed16(frame + 2)+signed16(part + 4))*scale/4096;
+        const int64_t top = (int64_t)y + ((int64_t)signed16(frame + 4)+signed16(part + 6))*scale/4096;
+        const unsigned scaled_w=(w*scale+4095)/4096,scaled_h=(h*scale+4095)/4096;
+        for (unsigned out_row = 0; out_row < scaled_h; ++out_row) {
+            const unsigned row=out_row*4096/scale;
+            const int64_t dy = top + out_row;
             if (dy < 0 || dy >= (int64_t)height) continue;
-            for (unsigned col = 0; col < w; ++col) {
-                const int64_t dx = left + col;
+            for (unsigned out_col = 0; out_col < scaled_w; ++out_col) {
+                const unsigned col=out_col*4096/scale;
+                const int64_t dx = left + out_col;
                 if (dx < 0 || dx >= (int64_t)width) continue;
                 const unsigned u = ((tx & 63) * per_word + ((attr & 1) ? w - 1 - col : col)) & 255;
                 const unsigned v = ((ty & 255) + ((attr & 2) ? h - 1 - row : row)) & 255;
@@ -289,3 +293,8 @@ bool hmbtn_animation_draw(const HmbtnAnimation *a, const HmbtnImageAtlas *atlas,
     }
     return true;
 }
+
+bool hmbtn_animation_draw(const HmbtnAnimation *a,const HmbtnImageAtlas *atlas,
+    const HmbtnAnimationPlayer *p,int x,int y,uint8_t *rgba,unsigned width,unsigned height,
+    size_t bytes,char *error,size_t size)
+{ return hmbtn_animation_draw_scaled(a,atlas,p,x,y,4096,rgba,width,height,bytes,error,size); }

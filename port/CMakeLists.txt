@@ -55,8 +55,8 @@ foreach(label swap_equip swap_rucksack farm pieces gold amount_shipped help stat
 endforeach()
 file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/generated/farm_menu_labels.inc" "${farm_labels}")
 set(shop_labels "/* Original feed shop labels. */\n")
-foreach(label money_title gold_unit units fodder chicken_feed buy_chicken sell_chicken animal_medicine
-        farm name_panel_title yes no buy_lumber enlarge_hen_house enlarge_own_house lumber)
+foreach(label money_title gold_unit units fodder chicken_feed buy_chicken sell_chicken buy_cow buy_sheep animal_medicine
+        farm name_panel_title yes no buy_lumber enlarge_hen_house enlarge_own_house enlarge_barn lumber)
     string(REGEX MATCH "\\.${label} = \\{[^}]+\\}" shop_label "${farm_text_source}")
     if(NOT shop_label)
         message(FATAL_ERROR "Missing original feed shop label ${label}")
@@ -65,7 +65,7 @@ foreach(label money_title gold_unit units fodder chicken_feed buy_chicken sell_c
     string(APPEND shop_labels "${shop_label};\n")
 endforeach()
 file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/generated/feed_shop_labels.inc" "${shop_labels}")
-add_library(hmbtn_port_core STATIC game/game_state.c game/cooking.c game/construction.c game/weather.c game/weather_effects.c game/save.c game/update_clock.c game/runtime.c game/inventory.c game/economy.c game/services.c game/session.c game/daily.c game/exploration.c core/psx_data.c core/psx_random.c graphics/asset_decode.c graphics/window_frame.c
+add_library(hmbtn_port_core STATIC game/livestock.c game/game_state.c game/cooking.c game/construction.c game/weather.c game/weather_effects.c game/save.c game/update_clock.c game/runtime.c game/inventory.c game/economy.c game/services.c game/session.c game/daily.c game/exploration.c core/psx_data.c core/psx_random.c graphics/asset_decode.c graphics/window_frame.c
     graphics/model_decode.c graphics/model_render.c graphics/scene_decode.c game/title_flow.c game/new_game.c
     game/event_script.c game/event_variables.c game/event_item.c game/farm_visit.c game/fishing.c game/item_reaction.c game/farm_intro.c game/ground.c game/house_control.c game/house_interaction.c
     game/house_sleep.c game/farm_field.c game/farm_action.c game/field_effects.c game/farm_menu.c game/farm_carry.c game/farm_feed.c game/farm_gather.c game/poultry.c game/poultry_carry.c game/feed_shop.c game/event_days.c game/farm_clock.c game/farm_shipping.c game/world_map.c game/area_doors.c game/village.c game/village_talk.c audio/psx_audio.c audio/xa_decode.c)
@@ -101,6 +101,9 @@ set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
     "${CMAKE_SOURCE_DIR}/src/overlay/common/farm_section_table.h"
     "${CMAKE_SOURCE_DIR}/src/overlay/11_GF_FARM/people/player.c")
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+    "${CMAKE_SOURCE_DIR}/src/overlay/11_GF_FARM/animals/animals.c"
+    "${CMAKE_SOURCE_DIR}/src/overlay/11_GF_FARM/animals/animals.h"
+    "${CMAKE_SOURCE_DIR}/src/overlay/11_GF_FARM/animals/livestock.c"
     "${CMAKE_SOURCE_DIR}/src/overlay/11_GF_FARM/menu/shop_dialogues.c"
     "${CMAKE_SOURCE_DIR}/src/overlay/11_GF_FARM/estate.c"
     "${CMAKE_SOURCE_DIR}/src/overlay/11_GF_FARM/event/milestones.c"
@@ -123,7 +126,7 @@ add_library(hmbtn_host STATIC core/app.c platform/sdl_host.c platform/app_icon.c
     installer/disc_import.c installer/sha256.c installer/setup.c
     graphics/diagnostic_screen.c graphics/title_preview.c input/window_input.c
     input/game_input.c filesystem/resource_file.c filesystem/service_resources.c filesystem/event_resources.c filesystem/action_resources.c filesystem/text_resources.c filesystem/data_directory.c filesystem/save_file.c audio/title_audio.c audio/service_audio.c audio/xa_stream.c
-    graphics/new_game_ui.c graphics/house_ui.c graphics/farm_menu_ui.c graphics/feed_shop_ui.c graphics/village_art.c graphics/estate_art.c graphics/poultry_art.c graphics/scene_preview.c)
+    graphics/new_game_ui.c graphics/house_ui.c graphics/farm_menu_ui.c graphics/feed_shop_ui.c graphics/village_art.c graphics/estate_art.c graphics/poultry_art.c graphics/livestock_art.c graphics/scene_preview.c)
 target_include_directories(hmbtn_host PUBLIC core platform graphics input filesystem game installer)
 target_include_directories(hmbtn_host PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated")
 target_link_libraries(hmbtn_host PUBLIC hmbtn_port_core SDL3::SDL3)
@@ -162,6 +165,16 @@ if(BUILD_TESTING)
     add_test(NAME native_save_files COMMAND "${Python3_EXECUTABLE}"
         "${CMAKE_CURRENT_SOURCE_DIR}/tests/save_file_process_test.py" "$<TARGET_FILE:hmbtn_save_file_test>")
     set_tests_properties(native_save_files PROPERTIES TIMEOUT 120)
+    add_executable(hmbtn_livestock_playthrough tests/livestock_playthrough.c)
+    target_link_libraries(hmbtn_livestock_playthrough PRIVATE hmbtn_host)
+    add_executable(hmbtn_livestock_test tests/livestock_test.c)
+    target_link_libraries(hmbtn_livestock_test PRIVATE hmbtn_port_core)
+    add_test(NAME native_livestock COMMAND hmbtn_livestock_test)
+    add_executable(hmbtn_barn_upgrade_playthrough tests/barn_upgrade_playthrough.c)
+    target_link_libraries(hmbtn_barn_upgrade_playthrough PRIVATE hmbtn_host)
+    add_executable(hmbtn_barn_upgrade_test tests/barn_upgrade_test.c)
+    target_link_libraries(hmbtn_barn_upgrade_test PRIVATE hmbtn_port_core)
+    add_test(NAME native_barn_upgrade COMMAND hmbtn_barn_upgrade_test)
     add_executable(hmbtn_house_upgrade_playthrough tests/house_upgrade_playthrough.c)
     target_link_libraries(hmbtn_house_upgrade_playthrough PRIVATE hmbtn_host)
     add_executable(hmbtn_house_upgrade_test tests/house_upgrade_test.c)
@@ -485,6 +498,16 @@ if(BUILD_TESTING)
             set_tests_properties(native_seed_unlock_${crop_index}_playthrough PROPERTIES TIMEOUT 180
                 ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_RENDER_DRIVER=software;SDL_AUDIO_DRIVER=dummy")
         endforeach()
+        add_test(NAME native_livestock_playthrough COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/won_process_playthrough.py"
+            "$<TARGET_FILE:hmbtn_livestock_playthrough>" "$<TARGET_FILE:hmbtn_native>" "${HMBTN_TEST_GAME_DATA}" "0")
+        set_tests_properties(native_livestock_playthrough PROPERTIES TIMEOUT 240
+            ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_RENDER_DRIVER=software;SDL_AUDIO_DRIVER=dummy")
+        add_test(NAME native_barn_upgrade_playthrough COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/won_process_playthrough.py"
+            "$<TARGET_FILE:hmbtn_barn_upgrade_playthrough>" "$<TARGET_FILE:hmbtn_native>" "${HMBTN_TEST_GAME_DATA}" "0")
+        set_tests_properties(native_barn_upgrade_playthrough PROPERTIES TIMEOUT 240
+            ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_RENDER_DRIVER=software;SDL_AUDIO_DRIVER=dummy")
         add_test(NAME native_house_upgrade_playthrough COMMAND "${Python3_EXECUTABLE}"
             "${CMAKE_CURRENT_SOURCE_DIR}/tests/won_process_playthrough.py"
             "$<TARGET_FILE:hmbtn_house_upgrade_playthrough>" "$<TARGET_FILE:hmbtn_native>" "${HMBTN_TEST_GAME_DATA}" "0")

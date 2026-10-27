@@ -34,6 +34,7 @@
 #include "farm_gather.h"
 #include "estate_art.h"
 #include "poultry_art.h"
+#include "livestock_art.h"
 #include "feed_shop_ui.h"
 #include "farm_menu_ui.h"
 #include "house_sleep.h"
@@ -79,6 +80,7 @@ struct HmbtnScenePreview {
     uint64_t watering_voice;
     HmbtnEstateArt estate_art;
     HmbtnPoultryArt poultry_art;
+    HmbtnLivestockArt livestock_art;
     uint8_t *feed_block;
     HmbtnImageAtlas *feed_atlas;
     HmbtnAnimation feed_art[2];
@@ -144,7 +146,7 @@ void hmbtn_scene_preview_destroy(HmbtnScenePreview *s)
 {
     if (!s) return;
     hmbtn_session_destroy(s->session);
-    hmbtn_estate_art_close(&s->estate_art);hmbtn_poultry_art_close(&s->poultry_art);
+    hmbtn_estate_art_close(&s->estate_art);hmbtn_poultry_art_close(&s->poultry_art);hmbtn_livestock_art_close(&s->livestock_art);
     hmbtn_village_art_close(&s->village_art);free(s->schedule_block);
     free(s->feed_block);free(s->feed_atlas);
     SDL_DestroyTexture(s->texture);
@@ -189,7 +191,7 @@ static bool load_area(HmbtnScenePreview *s, const char *root, unsigned area,
     char *error, size_t error_size)
 {
     unsigned logical,resource_area;
-    if(!hmbtn_world_area_buildings(area,s->session->game.clock.season,s->session->poultry.upgraded,s->session->construction.house_level,&logical,&resource_area)) {
+    if(!hmbtn_world_area_buildings(area,s->session->game.clock.season,s->session->poultry.upgraded,s->session->construction.house_level,s->session->construction.barn_level,&logical,&resource_area)) {
         if(area==230 || area==231 || area==232) logical=resource_area=area;
         else {
             snprintf(error,error_size,"Area %u is not integrated",area);return false;
@@ -259,6 +261,7 @@ static bool load_area(HmbtnScenePreview *s, const char *root, unsigned area,
     s->section = section; s->scene = scene; s->geometry = geometry; s->session->area = area;s->dirty=true;
     if(s->opening && !hmbtn_estate_art_update(&s->estate_art,root,hmbtn_read_le16(section+10),error,error_size)) return false;
     s->session->triggers.field=&s->session->field;
+    if(s->opening && area==96 && !hmbtn_livestock_art_load(&s->livestock_art,root,error,error_size)) return false;
     bool hens_here=area==112 || hmbtn_poultry_held_slot(&s->session->poultry)<HMBTN_HENS;
     for(unsigned i=0;i<HMBTN_HENS;++i) hens_here|=s->session->poultry.hens[i].occupied && s->session->poultry.hens[i].area==area;
     if(s->opening && hens_here && !hmbtn_poultry_art_load(&s->poultry_art,root,error,error_size)) return false;
@@ -594,6 +597,7 @@ static const HmbtnAnimation *exploration_animation(void *context,HmbtnExploratio
     case HMBTN_EXP_VILLAGER:return hmbtn_village_art_actor(&s->village_art,id,&atlas);
     case HMBTN_EXP_CHICK:return &s->poultry_art.chick;
     case HMBTN_EXP_HEN:return &s->poultry_art.adult;
+    case HMBTN_EXP_LIVESTOCK:return id<10 ? &s->livestock_art.animation[id] : NULL;
     default:return NULL;
     }
 }
@@ -792,7 +796,7 @@ bool hmbtn_scene_preview_draw(HmbtnScenePreview *s,SDL_Renderer *renderer,char *
             const int art=hmbtn_estate_item_art(item);
             const HmbtnAnimation *ani=art>=0 ? hmbtn_estate_art_sprite(&s->estate_art,(unsigned)art) : NULL;
             if(!item || !ani) continue;
-            actors[count]=(HmbtnWorldSprite){ani,s->estate_art.atlas,{0},{0},0};
+            actors[count]=(HmbtnWorldSprite){ani,s->estate_art.atlas,{0},{0},0,0};
             memcpy(actors[count++].position,hmbtn_farm_gather_record(i)->position,sizeof(actors[0].position));
         }
         /* estate.c:estate_record_tables_refresh / estate_code_status and
@@ -805,21 +809,21 @@ bool hmbtn_scene_preview_draw(HmbtnScenePreview *s,SDL_Renderer *renderer,char *
                 const HmbtnAnimation *ani=hmbtn_estate_art_sprite(&s->estate_art,15+s->session->game.clock.season);
                 if(!ani || count>=512) { snprintf(error,error_size,"Original supermarket seed sprites unavailable");return false; }
                 actors[count++]=(HmbtnWorldSprite){ani,s->estate_art.atlas,{0},
-                    {record->position[0]+150,record->position[1]-100,record->position[2]-150},0};
+                    {record->position[0]+150,record->position[1]-100,record->position[2]-150},0,0};
             }
         }
         for(unsigned i=0;i<HMBTN_HENS;++i) {
             const HmbtnHen *hen=&s->session->poultry.hens[i];
             if(hen->occupied && !hen->dead && !hen->held && hen->area==s->session->area && hen->stage!=HMBTN_HEN_EGG) {
                 actors[count]=(HmbtnWorldSprite){hen->stage==HMBTN_HEN_CHICK ? &s->poultry_art.chick : &s->poultry_art.adult,
-                    s->poultry_art.atlas,hen->actor.sprite,{0},0};
+                    s->poultry_art.atlas,hen->actor.sprite,{0},0,0};
                 memcpy(actors[count++].position,hen->actor.position,sizeof(actors[0].position));
                 if(hen->praise && hmbtn_new_game_ui_cue(s->ui,&actors[count],hen->actor.position,37,hen->praise,-20)) ++count;
             }
             if(hen->occupied && hen->area==s->session->area && hen->stage==HMBTN_HEN_EGG) {
                 const HmbtnAnimation *ani=hmbtn_estate_art_sprite(&s->estate_art,hen->golden_egg ? 6 : 5);
                 if(ani) {
-                    actors[count]=(HmbtnWorldSprite){ani,s->estate_art.atlas,{0},{0},0};
+                    actors[count]=(HmbtnWorldSprite){ani,s->estate_art.atlas,{0},{0},0,0};
                     memcpy(actors[count++].position,hen->actor.position,sizeof(actors[0].position));
                 }
             }
@@ -829,15 +833,23 @@ bool hmbtn_scene_preview_draw(HmbtnScenePreview *s,SDL_Renderer *renderer,char *
             const int art=s->session->area==0 ? (int)(farm_egg[s->session->game.clock.season]+(egg->item==0xE8)) : hmbtn_estate_item_art(egg->item);
             const HmbtnAnimation *ani=art>=0 ? hmbtn_estate_art_sprite(&s->estate_art,(unsigned)art) : NULL;
             if(egg->item && egg->area==s->session->area && ani) {
-                actors[count]=(HmbtnWorldSprite){ani,s->estate_art.atlas,{0},{0},0};
+                actors[count]=(HmbtnWorldSprite){ani,s->estate_art.atlas,{0},{0},0,0};
                 memcpy(actors[count++].position,egg->position,sizeof(actors[0].position));
             }
+        }
+        for(unsigned i=0;i<HMBTN_LIVESTOCK;++i) {
+            const HmbtnFarmAnimal *a=&s->session->livestock.animals[i];
+            if(!a->occupied || a->dead || a->area!=s->session->area) continue;
+            actors[count]=(HmbtnWorldSprite){&s->livestock_art.animation[hmbtn_livestock_pack(a)],s->livestock_art.atlas,a->actor.sprite,{0},0,hmbtn_livestock_scale(a)};
+            memcpy(actors[count++].position,a->actor.position,sizeof(a->actor.position));
+            if(a->praise && hmbtn_new_game_ui_cue(s->ui,&actors[count],a->actor.position,37,a->praise,-20)) ++count;
         }
         if(s->feed_block && (s->session->area==96 || s->session->area==112)) {
             const bool barn=s->session->area==96;const bool *bins=barn ? s->session->feed.barn : s->session->feed.coop;
             const unsigned capacity=barn ? 22 : 10;
-            for(unsigned i=0;i<capacity;++i) if(bins[i]) {
-                actors[count]=(HmbtnWorldSprite){&s->feed_art[barn ? 0 : 1],s->feed_atlas,{0},{0},0};
+            const uint32_t available=hmbtn_farm_feed_bins(s->section,0x2000,barn);
+            for(unsigned i=0;i<capacity;++i) if(bins[i] && (available&(1u<<i))) {
+                actors[count]=(HmbtnWorldSprite){&s->feed_art[barn ? 0 : 1],s->feed_atlas,{0},{0},0,0};
                 hmbtn_farm_feed_position(barn,i,actors[count++].position);
             }
         }
@@ -848,14 +860,14 @@ bool hmbtn_scene_preview_draw(HmbtnScenePreview *s,SDL_Renderer *renderer,char *
             const HmbtnImageAtlas *atlas;
             const HmbtnAnimation *ani=hmbtn_village_art_actor(&s->village_art,id,&atlas);
             if(!a->visible || !ani) continue;
-            actors[count]=(HmbtnWorldSprite){ani,atlas,a->sprite,{0},0};
+            actors[count]=(HmbtnWorldSprite){ani,atlas,a->sprite,{0},0,0};
             memcpy(actors[count++].position,a->position,sizeof(a->position));
         }
         unsigned player_sprite=0;bool player_drawn=false;
         if (s->opening && s->session->intro.player.visible) {
             player_sprite=count;player_drawn=true;
             actors[count] = (HmbtnWorldSprite){s->session->intro.action_active ? &s->action_animation : s->session->first_visit_active ? &s->event_player_animation : &s->player_animation,
-                s->session->intro.action_active ? s->action_atlas : s->session->first_visit_active ? s->mayor_atlas : s->player_atlas,s->session->intro.player.sprite,{0},0};
+                s->session->intro.action_active ? s->action_atlas : s->session->first_visit_active ? s->mayor_atlas : s->player_atlas,s->session->intro.player.sprite,{0},0,0};
             memcpy(actors[count++].position,s->session->intro.player.position,sizeof(actors[0].position));
             hmbtn_new_game_ui_cursor(s->ui,&actors[count++],s->session->intro.player.position,0);
         }
@@ -866,7 +878,7 @@ bool hmbtn_scene_preview_draw(HmbtnScenePreview *s,SDL_Renderer *renderer,char *
             const HmbtnAnimation *animation=s->actor_animation[id].data ? &s->actor_animation[id]
                 : s->session->visit.active && (s->session->visit.event==130 || s->session->visit.event==289 || s->session->visit.event==140) ? hmbtn_village_art_actor(&s->village_art,id,&atlas) : NULL;
             if (!actor || !actor->visible || !animation) continue;
-            actors[count] = (HmbtnWorldSprite){animation,atlas,actor->sprite,{0},0};
+            actors[count] = (HmbtnWorldSprite){animation,atlas,actor->sprite,{0},0,0};
             memcpy(actors[count++].position,actor->position,sizeof(actors[0].position));
             if (actor->marker != 1) hmbtn_new_game_ui_cursor(s->ui,&actors[count++],actor->position,actor->marker == 2);
         }
@@ -874,7 +886,7 @@ bool hmbtn_scene_preview_draw(HmbtnScenePreview *s,SDL_Renderer *renderer,char *
             if(!s->event_prop_animation.data || count>=512) {
                 snprintf(error,error_size,"Staged event item art unavailable");return false;
             }
-            actors[count]=(HmbtnWorldSprite){&s->event_prop_animation,s->mayor_atlas,{0},{0},0};
+            actors[count]=(HmbtnWorldSprite){&s->event_prop_animation,s->mayor_atlas,{0},{0},0,0};
             memcpy(actors[count++].position,s->session->visit.prop.position,sizeof(s->session->visit.prop.position));
         }
         const uint16_t *layout = s->field_layout == 1 ? title_layout1_cells
@@ -891,7 +903,7 @@ bool hmbtn_scene_preview_draw(HmbtnScenePreview *s,SDL_Renderer *renderer,char *
                 const HmbtnAnimation *ani=hmbtn_estate_art_sprite(&s->estate_art,sprite);
                 if(!ani) { snprintf(error,error_size,"Original crop art unavailable");return false; }
                 if(count>=512) { snprintf(error,error_size,"Field sprite capacity exceeded");return false; }
-                actors[count++]=(HmbtnWorldSprite){ani,s->estate_art.atlas,{(uint16_t)anim,0,0},{x,0,z},0};
+                actors[count++]=(HmbtnWorldSprite){ani,s->estate_art.atlas,{(uint16_t)anim,0,0},{x,0,z},0,0};
                 continue;
             }
             unsigned art; int lift = 0;
@@ -906,7 +918,7 @@ bool hmbtn_scene_preview_draw(HmbtnScenePreview *s,SDL_Renderer *renderer,char *
             default: continue;
             }
             if (count >= 512) { snprintf(error,error_size,"Field sprite capacity exceeded"); return false; }
-            actors[count++] = (HmbtnWorldSprite){&s->field_art[art],s->field_atlas,{0},{x,0,z},lift};
+            actors[count++] = (HmbtnWorldSprite){&s->field_art[art],s->field_atlas,{0},{x,0,z},lift,0};
         }
         HmbtnModelInstance instances[HMBTN_SCENE_MODELS+1];
         if(s->session->area==0) for(unsigned i=0;i<HMBTN_FIELD_EFFECTS;++i) if(s->session->field_effects[i].active) {
@@ -916,7 +928,7 @@ bool hmbtn_scene_preview_draw(HmbtnScenePreview *s,SDL_Renderer *renderer,char *
             const HmbtnAnimation *ani=grass ? hmbtn_estate_art_sprite(&s->estate_art,
                 s->session->game.clock.season==0 ? 14 : 19) : &s->field_art[e->art];
             if(!ani) { snprintf(error,error_size,"Original grass cut art unavailable");return false; }
-            actors[count]=(HmbtnWorldSprite){ani,grass ? s->estate_art.atlas : s->field_atlas,{1,(uint16_t)(e->tick/3),0},{0},0};
+            actors[count]=(HmbtnWorldSprite){ani,grass ? s->estate_art.atlas : s->field_atlas,{1,(uint16_t)(e->tick/3),0},{0},0,0};
             memcpy(actors[count++].position,e->position,sizeof(e->position));
         }
         HmbtnWorldAttachment attachment={0};unsigned attached=0;
@@ -1036,7 +1048,7 @@ bool hmbtn_scene_preview_rebind(HmbtnScenePreview *s,const uint8_t *data,size_t 
 bool hmbtn_scene_preview_area_location(HmbtnScenePreview *s,unsigned area,unsigned *location,char *error,size_t size)
 {
     unsigned logical,resource;uint8_t header[16];
-    if(!location || !hmbtn_world_area_buildings(area,s->session->game.clock.season,s->session->poultry.upgraded,s->session->construction.house_level,&logical,&resource)) return false;
+    if(!location || !hmbtn_world_area_buildings(area,s->session->game.clock.season,s->session->poultry.upgraded,s->session->construction.house_level,s->session->construction.barn_level,&logical,&resource)) return false;
     if(!hmbtn_resource_read(s->data_root,"A_FILE/00_gf.bin",scene_sections[resource][0],header,sizeof(header),error,size)) return false;
     *location=hmbtn_read_le16(header+2);return true;
 }

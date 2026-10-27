@@ -218,7 +218,7 @@ bool hmbtn_model_render(HmbtnModelRenderer *r, const HmbtnModel *m,
 static bool draw_actor(const HmbtnWorldSprite *s,const ScreenVertex *screen,unsigned index,
     const HmbtnWorldAttachment *attachments,unsigned count,uint8_t *rgba,size_t bytes,char *error,size_t size)
 {
-    if(!hmbtn_animation_draw(s->animation,s->atlas,&s->player,screen->x,screen->y,
+    if(!hmbtn_animation_draw_scaled(s->animation,s->atlas,&s->player,screen->x,screen->y,s->scale ? s->scale : 4096,
             rgba,320,240,bytes,error,size)) return false;
     for(unsigned i=0;i<count;++i) if(attachments[i].sprite==index) {
         const HmbtnWorldAttachment *a=&attachments[i];

@@ -13,7 +13,7 @@ continuam concluídas; referências futuras a MA-07..25 identificam escopos do
 plano anterior, substituído pelas entregas PF do roadmap. PF-01 (inventário/dinheiro) e PF-02 (primeiro cultivo/ciclo diário) foram
 concluídas; PF-03 integrou comandos compartilhados e o convite de Duke.
 PF-04 consolidou a coordenação em `game/runtime.c` e separou atualização/desenho,
-inclusive título/cadastro. PF-05 entregou saves nativos estáveis; PF-06 entregou batata, grama/feno e culturas base de verão/outono; clima diário/chuva também integrado; sementes sazonais de Won, desbloqueios do supermercado e Pink Cat/Toy Flower integrados; Magic Red e suas variantes também integradas; Moondrop e visitas de Karen também integradas; carpintaria, galinheiro e primeira casa integrados como dependências da estufa, incluindo depósitos e núcleo da cozinha; próxima entrega: celeiro. Aquisição de utensílios e apresentação completa da cozinha continuam pendentes. Não há requisito de
+inclusive título/cadastro. PF-05 entregou saves nativos estáveis; PF-06 entregou batata, grama/feno e culturas base de verão/outono; clima diário/chuva também integrado; sementes sazonais de Won, desbloqueios do supermercado e Pink Cat/Toy Flower integrados; Magic Red e suas variantes também integradas; Moondrop e visitas de Karen também integradas; carpintaria, galinheiro e primeira casa integrados como dependências da estufa, incluindo depósitos e núcleo da cozinha; obra/mapas/cochos do celeiro também integrados; aquisição/presença/alimentação de vacas e ovelhas também integradas; produção/reprodução/ciclo completo ainda parciais; próxima entrega: segunda casa. Aquisição de utensílios e apresentação completa da cozinha continuam pendentes. Não há requisito de
 concluir toda a reorganização antes de aproveitar uma função original.
 
 A arquitetura atual tem uma base nativa reutilizável e acoplamentos por resolver;
@@ -132,9 +132,10 @@ completa à SPU continuam parciais. Preservar esses backends durante a migraçã
 | Nomes e aniversário do jogador | `HmbtnGameState.registration` (MA-03) | Editor recebe referência mutável; gameplay e apresentação recebem leituras. Buffer em edição é transitório. |
 | Atores e eventos | `HmbtnSession.intro`, `.visit`, `.talk`, bytecode e atores, junto aos registros persistentes (MA-04b) | Uma consulta escolhe o ator ativo; rotas ficam suspensas durante overrides. Fases livres em `exploration.c`; callbacks e coordenação em `game/runtime.c` desde PF-04; renderer consulta a identidade ativa. |
 | Campo, moradores e galinhas | `HmbtnSession.field`, `.village`, `.poultry` (MA-04a) | Registros/ticks e roteiros no gameplay; host fornece recursos por empréstimos/serviços. |
-| Construções | `HmbtnSession.construction` (nível da casa/tipo/prazo); `poultry.upgraded` (galinheiro) | Loja/daily/scripts/mapa consultam os mesmos níveis; flags e pontuação derivados. |
+| Construções | `HmbtnSession.construction` (níveis da casa/celeiro, tipo/prazo); `poultry.upgraded` (galinheiro) | Loja/daily/scripts/mapa consultam os mesmos níveis; flags e pontuação derivados. |
+| Vacas/ovelhas | `HmbtnSession.livestock` | Registros e RNG próprios; capacidade deriva da construção, contagens/estágio/arte derivados. Loja/menu/cena emprestam, feno usa os cochos existentes. |
 | Cozinha | `HmbtnGameState.cooking` | Utensílios e receitas aprendidas; casa e menu emprestam referências. Contagem derivada dos registros. |
-| RNG | Estados em moradores, pesca e galinhas | Moradores/pesca usam fórmula original com estados locais; galinhas usam outro PRNG host. |
+| RNG | Estados em moradores, pesca, galinhas e gado | Moradores/pesca/gado usam fórmula original com estados locais; galinhas usam outro PRNG host. |
 
 O estado original `FarmState` não é o estado de runtime do PC. Copiar seu layout
 integral também não resolveria dependências de ponteiros, headers PSY-Q e buffers.
@@ -491,10 +492,11 @@ limites em [PF04_UPDATE_PRESENTATION.md](PF04_UPDATE_PRESENTATION.md).
 ## Saves nativos e retomada — PF-05
 
 `game/save.c/.h` define disponibilidade e codec nativo sem SDL/arquivos.
-A versão atual é **v6**, com depósitos, utensílios e receitas em GAME; prazo,
-tipo de obra e nível da casa em AUXI, junto aos RNGs e progressão de Moondrop.
-O leitor aceita somente v6: a compatibilidade entre versões de desenvolvimento
-foi dispensada pelo usuário em 2026-10-27. Versões v1..v5/futuras são recusadas
+A versão atual é **v8**, com depósitos, utensílios e receitas em GAME; prazo,
+tipo de obra e níveis da casa/celeiro em AUXI, junto aos RNGs e progressão de Moondrop.
+Vacas/ovelhas e seu RNG ficam na seção LSTK. PLAY não grava mais contagens de
+gado: status as deriva da coleção. O leitor aceita somente v8: a compatibilidade entre versões de desenvolvimento
+foi dispensada pelo usuário em 2026-10-27. Versões v1..v7/futuras são recusadas
 com mensagem para iniciar jogo novo; nenhum arquivo antigo é apagado/consertado.
 `menu.stats.building_score` foi removido do estado/codec: o status deriva a
 contribuição dos níveis autoritativos. `menu.stats.recipes` também foi removido:
@@ -771,7 +773,7 @@ segura da faixa zero madura; inverno limpa as plantas. Produto azul `0x53`
 não gera renda; vermelho `0x54` gera 200 G no sistema de remessas existente,
 sem um contador dedicado no mapeamento original. Won tem seis entradas, com
 Magic Red visível 4/fonte 5/descrição `0x16a`; Toy Flower passa à visível 5.
-Na entrega de Magic Red, v3 acrescentou o RNG e leu v1/v2 com seed 1; o formato atual é v6, sem leitura de versões anteriores.
+Na entrega de Magic Red, v3 acrescentou o RNG e leu v1/v2 com seed 1; o formato atual é v8, sem leitura de versões anteriores.
 Fonte, arquivos e evidências em [PF06_MAGIC_RED.md](PF06_MAGIC_RED.md).
 
 
@@ -781,7 +783,7 @@ Fonte, arquivos e evidências em [PF06_MAGIC_RED.md](PF06_MAGIC_RED.md).
 `estate.statusFlags`, separado de `village.flags[269/270]` (visitas concluídas).
 Casa/loja emprestam esse campo. `hmbtn_event_progress_command` em
 `event_variables.c` adapta 81/27 e atende visitas e conversas. A conversa mantém
-um checkpoint de rollback, sem usá-lo como estado de gameplay. A entrega usou v4 para o booleano de AUXI. O codec atual v6 mantém esse campo, sem migrar versões anteriores.
+um checkpoint de rollback, sem usá-lo como estado de gameplay. A entrega usou v4 para o booleano de AUXI. O codec atual v8 mantém esse campo, sem migrar versões anteriores.
 
 Os blocos instalados 18/19 usam a mesma execução de visitas: Karen é vinculada
 à identidade 3, com ANI/texturas originais e entrega pela API de inventário.
@@ -809,7 +811,7 @@ limites e arquivos em [PF06_MOONDROP.md](PF06_MOONDROP.md).
 
 `game/construction.c/.h` adapta `shop_lumber_deal_step` e
 `milestone_arm_countdown`/`milestone_tick`. `HmbtnSession.construction` possui
-`mornings_left`, `pending` e `house_level`. O nível do galinheiro é exclusivamente
+`mornings_left`, `pending`, `house_level` e `barn_level`. O nível do galinheiro é exclusivamente
 `HmbtnPoultry.upgraded`; madeira é `game.inventory.supplies[1]`, dinheiro/ledger
 são `game.economy`. O pedido valida todos os recursos antes de debitar uma vez.
 `daily.c` aplica a conclusão após clima, uma vez por data; o timer original 3
@@ -822,24 +824,25 @@ de inventário. Não há novo NPC, contador de madeira, dinheiro ou motor de loj
 A variável 38 agora lê o byte alto de `schedule[step][1]`, como
 `villager_set_destination`, em vez de confundir destino com `place.value`.
 
-`village.c:hmbtn_village_flag` deriva 0x38 (obra), 0x3A (galinheiro) e 0x3B (primeira casa) dos
+`village.c:hmbtn_village_flag` deriva 0x38 (obra), 0x3A (galinheiro), 0x3B (primeira casa) e 0x3C (celeiro) dos
 proprietários; consultas compartilhadas de eventos, agendas/portas e gatilhos
 usam essa interface. Os slots do vetor de flags não são espelhos de estado;
 a interface recusa sua alteração direta quando há vínculo de domínio.
 O comando 95 consulta os mesmos níveis. O status calcula 20 pontos por melhoria entregue,
 sem armazenar outro total de construções.
 
-`world_map.c:hmbtn_world_area_buildings` resolve os IDs lógicos 0/80/112:
-fazenda 0..3, 4..7 ou 8..11 conforme casa/galinheiro; casa 80..83 ou 84..87;
-galinheiro 112..115 ou 116..119. O wrapper antigo delega a essa resolução. `scene_preview.c` carrega modelos,
+`world_map.c:hmbtn_world_area_buildings` resolve os IDs lógicos 0/80/96/112:
+fazenda 0..3, 4..7, 8..11 ou 12..15 conforme casa/galinheiro/celeiro; casa
+80..83 ou 84..87; galinheiro 112..115 ou 116..119; celeiro 96..99 ou 100..103. O wrapper antigo delega a essa resolução. `scene_preview.c` carrega modelos,
 zonas, colisões e texturas desse recurso; a composição sazonal usa a base da
 variante, conservando as áreas especiais da abertura. A mesma seleção é aplicada
 na carga de um save. Dez vagas/cochos e segunda incubadora usam `poultry.c` e
 `farm_feed.c`, sem outras regras. `farm_menu.c` deriva a pontuação do estado.
 
-Galinheiro e primeira casa são ofertas funcionais. Após a casa, Gotz oferece
-madeira até integrar o celeiro; as três ofertas seguintes permanecem dados
-rastreáveis, sem desbloqueio fictício. Estufa, Orangecup e espécies ainda não
+Galinheiro, primeira casa e obra do celeiro são ofertas funcionais. Depois disso,
+Gotz oferece madeira até integrar a segunda casa; as duas ofertas seguintes
+permanecem dados rastreáveis, sem desbloqueio fictício. Aquisição/capacidade/alimentação
+bovina/ovina foram integradas no recorte base; ciclo animal completo segue parcial. Estufa, Orangecup e espécies ainda não
 portadas continuam abertas. Origem: [PF06_CARPENTRY.md](PF06_CARPENTRY.md) e
 [PF06_HOUSE_EXPANSION.md](PF06_HOUSE_EXPANSION.md). A próxima fila está no roadmap.
 
@@ -871,3 +874,55 @@ Compra de utensílios pela TV, indicadores completos da ficha e animação/som d
 preparo ainda não foram integrados. Nenhum utensílio é concedido ao concluir a
 obra; receitas sem utensílios funcionam com ingredientes disponíveis. Detalhes,
 matriz, arquivos e resultados em [PF06_HOUSE_EXPANSION.md](PF06_HOUSE_EXPANSION.md).
+
+
+## PF-06 — Obra e abastecimento do celeiro ampliado
+
+A terceira obra usa o controlador existente, acrescentando `barn_level` e o tipo
+`HMBTN_BUILD_BARN`. `daily.c` conclui pela mesma chamada, sem outro prazo.
+`world_map.c` aplica os offsets originais da fazenda e do celeiro; a cena usa a
+mesma resolução para carga, restauração e localização de portas. A tabela de
+nome `enlarge_barn` é extraída da fonte original no configure.
+
+`feed.barn` e `game.inventory.supplies[0]` continuam como donos de cochos/feno.
+`hmbtn_farm_feed_bins` consulta as zonas 41 da seção ativa para restringir a
+apresentação aos cochos reais, sem armazenar outra capacidade. Cochos comuns
+10→20 e maternidade 1→2; esse total não é o número de animais. Novos cochos usam
+as mesmas ações/ANI/posições, retirada/devolução, transições e limpeza diária.
+
+A entrega seguinte acrescentou a coleção nativa de vacas/ovelhas e aquisição/
+alimentação reais descritas abaixo. A obra não concede animais gratuitamente:
+Barley os vende pelo modal/editor existente. Alimentação executa antes de
+`hmbtn_farm_feed_new_day`. O nível introduzido em v7 permanece no formato atual
+v8 com validação dos pré-requisitos/obra pendente. Resultado, arquivos,
+testes e limites em [PF06_BARN_EXPANSION.md](PF06_BARN_EXPANSION.md).
+
+
+## PF-06 — Coleção de vacas/ovelhas e aquisição/alimentação
+
+`game/livestock.c/.h` adapta os blocos de inicialização/posicionamento, consulta
+livre, ciclo diário, fala/medicina e poses de `animals.c`/`livestock.c` originais.
+`session.livestock` possui registros e RNG explícito; empresta `construction`
+para capacidade 10/20 compartilhada entre espécies. Tipo por crescimento,
+contagens e arte são derivados, sem replicar o nível do celeiro.
+
+Barley usa o mesmo `feed_shop`/editor; parâmetros vêm do catálogo/textos originais.
+Preços, cancelamento e vagas são validados antes do débito/criação. `daily.c`
+visita vacas antes de ovelhas e consome os mesmos cochos antes de limpá-los,
+sem segundo estoque ou observador. `poultry.c` generaliza a medicina já existente
+para alvos bovinos/ovinos, mantendo o wrapper anterior para galinhas. Cross abre
+mensagens originais com nome e marca conversa diária; não concede afeição a cada
+abertura. `farm_menu` empresta registros e deriva listas/contagens. Os dois
+contadores vazios de gado foram removidos de `stats`/codec.
+
+`graphics/livestock_art.c` carrega o pacote original de slot 0 por TOC/offsets
+extraídos no configure. Renderer e decodificador ANI aceitam escala explícita,
+incluindo 0xCC8 da vaca jovem; consumidores anteriores usam escala padrão 4096.
+Cenário/atores mantêm ordenação compartilhada. Movimento/ANI pertencem ao tick;
+draw não atualiza regras. Sequência integral de cues/vozes e pastagem permanecem
+parciais; produção, venda, reprodução e eventos de morte ainda ausentes. Registros
+mortos permanecem reservados aguardando o fluxo de remoção/eventos.
+
+Saves v8 serializam registros/RNG em LSTK e refazem vínculos, sem atlas/ponteiros.
+Campo, construções e recursos existentes são preservados. Relatório, arquivos,
+testes e alcance: [PF06_LIVESTOCK.md](PF06_LIVESTOCK.md).

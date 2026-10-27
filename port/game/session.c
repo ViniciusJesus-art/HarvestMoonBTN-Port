@@ -31,6 +31,7 @@ HmbtnSession *hmbtn_session_create(const uint16_t *layout,size_t count)
     s->village.poultry=&s->poultry;s->village.construction=&s->construction;s->village.cooking=&s->game.cooking;
     hmbtn_farm_action_init(&s->farm_action);
     hmbtn_farm_menu_init(&s->menu,hmbtn_game_economy_const(&s->game));
+    s->livestock.construction=&s->construction;s->feed_shop.livestock=&s->livestock;s->menu.livestock=&s->livestock;
     s->menu.poultry=&s->poultry;s->feed_shop.poultry=&s->poultry;s->feed_shop.economy=&s->game.economy;
     s->feed_shop.progress=&s->game.progress;s->feed_shop.construction=&s->construction;s->menu.construction=&s->construction;s->menu.cooking=&s->game.cooking;
     /* Preserve zeroed poultry and the pre-handoff village. The village's

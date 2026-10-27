@@ -36,6 +36,9 @@ unsigned hmbtn_poultry_sale_slot(const HmbtnPoultry *p,unsigned row);
 unsigned hmbtn_poultry_sell(HmbtnPoultry *p,unsigned slot);
 /* Player mode 0x51: latch a target in the current area, play bank 22, then
  * consume a dose. A missed use still consumes medicine. */
+struct HmbtnLivestock;
+bool hmbtn_animal_medicine_tick(HmbtnPoultry *,struct HmbtnLivestock *,unsigned area,HmbtnFarmAction *,
+    HmbtnIntroActor *,HmbtnHouseInteraction *,uint32_t pressed);
 bool hmbtn_poultry_medicine_tick(HmbtnPoultry *p,unsigned area,HmbtnFarmAction *action,
     HmbtnIntroActor *player,HmbtnHouseInteraction *inventory,uint32_t pressed);
 void hmbtn_poultry_new_day(HmbtnPoultry *p,HmbtnFarmFeed *feed,const HmbtnFarmClock *clock);

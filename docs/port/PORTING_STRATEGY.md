@@ -35,8 +35,11 @@ foram integradas: [PF06_MAGIC_RED.md](PF06_MAGIC_RED.md) e
 galinheiro são a primeira dependência entregue da cadeia da estufa:
 [PF06_CARPENTRY.md](PF06_CARPENTRY.md). A primeira casa, geladeira/armário e núcleo
 da cozinha foram integrados em [PF06_HOUSE_EXPANSION.md](PF06_HOUSE_EXPANSION.md).
-Próximo: celeiro, conforme o roadmap; aquisição de utensílios/cozinha completa e
-PF-06 permanecem abertas.
+Obra/mapas/cochos do celeiro foram integrados em
+[PF06_BARN_EXPANSION.md](PF06_BARN_EXPANSION.md). Aquisição/presença/alimentação bovina e ovina foram integradas em
+[PF06_LIVESTOCK.md](PF06_LIVESTOCK.md). Próximo: segunda casa, conforme o roadmap;
+venda/produção/reprodução/ciclo animal completo permanecem pendentes.
+Aquisição de utensílios/cozinha completa e PF-06 permanecem abertas.
 
 ## Objetivo e diretrizes permanentes
 
@@ -79,8 +82,9 @@ repetidos, validação de dados e publicação transacional que preserve o arqui
 anterior em caso de falha. Migradores entre versões não são pré-requisito de uma
 entrega. Compatibilidade para uma versão publicada poderá ser definida depois.
 Os relatórios anteriores descrevem a compatibilidade existente naquelas entregas;
-não são compromissos de manutenção. A construção introduziu v5; casa/depósitos/cozinha usam o formato atual v6, que
-não lê versões anteriores.
+não são compromissos de manutenção. A construção introduziu v5; casa/depósitos/cozinha introduziram o formato v6, que
+não lê versões anteriores. O celeiro acrescentou nível em v7; a coleção animal e RNG usam o formato atual v8,
+sem leitura de versões anteriores.
 
 ## Escopo PC e legado PS1
 

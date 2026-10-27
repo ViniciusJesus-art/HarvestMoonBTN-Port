@@ -43,4 +43,9 @@ bool hmbtn_animation_draw(const HmbtnAnimation *animation, const HmbtnImageAtlas
     const HmbtnAnimationPlayer *player, int x, int y, uint8_t *rgba,
     unsigned width, unsigned height, size_t rgba_size, char *error, size_t error_size);
 
+/* Explicit native sprite scale: 4096 = original size. */
+bool hmbtn_animation_draw_scaled(const HmbtnAnimation *,const HmbtnImageAtlas *,
+    const HmbtnAnimationPlayer *,int x,int y,unsigned scale,uint8_t *,unsigned width,unsigned height,
+    size_t rgba_size,char *,size_t);
+
 #endif

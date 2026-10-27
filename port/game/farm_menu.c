@@ -1,5 +1,6 @@
 #include "farm_menu.h"
 #include "poultry.h"
+#include "livestock.h"
 #include "construction.h"
 #include <string.h>
 #include "storage_spots.inc"
@@ -33,11 +34,11 @@ void hmbtn_farm_menu_tick(HmbtnFarmMenu *m,HmbtnInventory *h,uint32_t pressed,ui
         if(pressed&(HMBTN_PAD_START|HMBTN_PAD_CIRCLE|HMBTN_PAD_CROSS)) { m->phase=4;m->fade=0;m->sound=3;return; }
         if(pressed&(HMBTN_PAD_RIGHT|HMBTN_PAD_LEFT)) {
             do { m->page=(m->page+((pressed&HMBTN_PAD_RIGHT) ? 1u : 7u))%8; }
-            while(m->page>=2 && m->page<=4 && !m->stats.animals[m->page-2]);
+            while(m->page>=2 && m->page<=4 && !hmbtn_farm_menu_animal_count(m,m->page-2));
             m->list_top=0;m->sound=5;
         }
-        if(m->page==2 && m->poultry) {
-            const unsigned count=hmbtn_poultry_count(m->poultry);
+        if(m->page>=2 && m->page<=4) {
+            const unsigned count=hmbtn_farm_menu_animal_count(m,m->page-2);
             if(count<=7) m->list_top=0;
             else {
                 const unsigned last=count-7;
@@ -92,8 +93,15 @@ void hmbtn_farm_menu_tick(HmbtnFarmMenu *m,HmbtnInventory *h,uint32_t pressed,ui
 }
 
 /* status_pages.c: represented building levels contribute twenty each.
- * Barn/greenhouse levels remain at their actual initial values. */
+ * Greenhouse level remains at its actual initial value. */
 unsigned hmbtn_farm_menu_building_score(const HmbtnFarmMenu *m)
 {
-    return m ? ((m->poultry && m->poultry->upgraded ? 1u : 0u)+(m->construction ? m->construction->house_level : 0u))*20u : 0;
+    return m ? ((m->poultry && m->poultry->upgraded ? 1u : 0u)+(m->construction ? m->construction->house_level+m->construction->barn_level : 0u))*20u : 0;
+}
+
+unsigned hmbtn_farm_menu_animal_count(const HmbtnFarmMenu *m,unsigned kind)
+{
+    if(!m || kind>2) return 0;
+    if(kind==0) return m->poultry ? hmbtn_poultry_count(m->poultry) : m->stats.animals[0];
+    return hmbtn_livestock_count(m->livestock,kind==2);
 }

@@ -1,6 +1,8 @@
 # PF-06 — Primeira ampliação da casa
 
 Entrega de 2026-10-27. A ordem executável continua no [ROADMAP.md](ROADMAP.md).
+Registro histórico da entrega com save v6. A obra/cochos do celeiro usam agora
+save v7; detalhes em [PF06_BARN_EXPANSION.md](PF06_BARN_EXPANSION.md).
 Primeira casa funcional no recorte abaixo; PF-06, a cadeia da estufa e a aquisição
 completa dos utensílios de cozinha continuam abertas.
 
@@ -119,8 +121,8 @@ explicitamente descritas, não uma nova aquisição gratuita no jogo normal:
 
 ```sh
 mkdir -p /tmp/house-shots
-./build/native-debug/port/hmbtn_house_upgrade_playthrough data 0 /tmp/house-v6.hms /tmp/house-shots
-./build/native-debug/port/hmbtn_native --data data --load-save /tmp/house-v6.hms
+./build/native-debug/port/hmbtn_house_upgrade_playthrough data 0 /tmp/house-current.hms /tmp/house-shots
+./build/native-debug/port/hmbtn_native --data data --load-save /tmp/house-current.hms
 ```
 
 `--area-preview 80` isoladamente continua criando estado inicial; não concede

@@ -2,7 +2,7 @@
 
 Atualizado em 2026-10-27. **A fila principal está no [ROADMAP.md](ROADMAP.md).**
 MA-01..06 e PF-01..05 foram concluídas. PF-06 entregou batata, grama/feno e culturas base de verão/outono;
-clima diário/chuva também está integrado; sementes sazonais de Won também integradas; desbloqueios do supermercado e flores simples também integrados; Magic Red e suas variantes também integradas; Moondrop e visitas de Karen também integradas; carpintaria/galinheiro e primeira casa/depósitos/núcleo da cozinha também entregues; a próxima entrega é **PF-06 — celeiro**, na cadeia da estufa/Orangecup. Nabo/batata/tomate/milho/cebola/berinjela/cenoura/batata-doce têm compra
+clima diário/chuva também está integrado; sementes sazonais de Won também integradas; desbloqueios do supermercado e flores simples também integrados; Magic Red e suas variantes também integradas; Moondrop e visitas de Karen também integradas; carpintaria/galinheiro e primeira casa/depósitos/núcleo da cozinha também entregues; obra/cochos do celeiro também entregues; aquisição/capacidade/alimentação bovina/ovina também entregues; a próxima entrega é **PF-06 — segunda casa**, na cadeia da estufa/Orangecup. Nabo/batata/tomate/milho/cebola/berinjela/cenoura/batata-doce têm compra
 até venda; grama tem corte/rebrota, estoque e cochos compartilhados.
 A cadeia MA-07..25 foi substituída por entregas funcionais; a tabela de
 correspondência está no roadmap. IDs MA nas classificações abaixo indicam o
@@ -59,10 +59,10 @@ sem exigir infraestrutura de rede agora.
 |---|---|
 | Clima completo e demais callbacks diários | Pipeline MA-18/19, campo/animais; previsão/troca diária e irrigação entregues; faltam danos de tempestades, callbacks ausentes e meteorologia integral a partir do original. |
 | Demais culturas, melhorias e ações/ferramentas | MA-15/16/20 e sessão sem desenho; regras originais, produtos e transições completas por recorte. |
-| Vacas, ovelhas, cachorro, cavalo, ajudantes e concursos | Estado/identidade e ciclo diário migrados; adaptar cada espécie/sistema original separadamente. |
+| Vacas, ovelhas, cachorro, cavalo, ajudantes e concursos | Vacas/ovelhas: coleção/compra/nome/arte/capacidade/alimentação/crescimento/conversa/medicina/status/saves entregues no recorte base. Produção/venda/reprodução/pastagem/funerais pendentes; pets/ajudantes/concursos continuam separados. |
 | Família, casamento e progressão de história | Comandos, flags, calendário e relacionamentos comuns; não usar valores iniciais fixos para simular progresso. |
 | Festivais, minijogos, minas e serviços restantes | Inventário de módulos originais e contratos nativos; selecionar um roteiro/sistema e seu percurso verificável. |
-| Saves host versionados | Estado central estável, sem dump de structs/ponteiros; testar ida/volta e corrupção da versão atual em Linux/Windows. Compatibilidade entre versões de desenvolvimento não é exigida; v6 rejeita versões diferentes claramente. Importação de save PS1 é decisão separada, não requisito implícito de compatibilidade binária. |
+| Saves host versionados | Estado central estável, sem dump de structs/ponteiros; testar ida/volta e corrupção da versão atual em Linux/Windows. Compatibilidade entre versões de desenvolvimento não é exigida; v8 rejeita versões diferentes claramente. Importação de save PS1 é decisão separada, não requisito implícito de compatibilidade binária. |
 | Traduções com alterações de código | Identificar dados/scripts versus regras alteradas; definir compatibilidade sem assumir que substituir recursos basta. |
 | Fidelidade gráfica, áudio e RNG | Comparações reproduzíveis de imagem/ritmo/afinação/volumes; registrar decisões de interpolação/reverb/sequência RNG sem exigir rebuild PS1. |
 | Distribuição Linux/Windows | Validar instalação limpa, atualização, dados ausentes/corrompidos, cancelamento e janela/áudio em Windows real; executar workflow de pacotes com autorização adequada para publicação quando aplicável. |
@@ -104,3 +104,19 @@ de apresentação do preparo/ficha continuam pendentes; não repetir os algoritm
 já adaptados em `cooking.c`. Próxima entrega: celeiro, com auditoria de espécies,
 capacidade e cochos, conforme o [ROADMAP.md](ROADMAP.md). Fonte/resultado:
 [PF06_HOUSE_EXPANSION.md](PF06_HOUSE_EXPANSION.md).
+
+
+Atualização posterior de 2026-10-27: obra do celeiro, mapas ampliados e cochos
+adicionais integrados, save v7 atual. A criação bovina/ovina ainda não existe no
+runtime nativo; aquisição/presença/alimentação reais são a próxima dependência
+antes de concluir o item do celeiro/avançar para casa2. Não refazer obra/feno/loja
+nem simular vagas/animais. Seguir critérios do [ROADMAP.md](ROADMAP.md) e fontes
+em [PF06_BARN_EXPANSION.md](PF06_BARN_EXPANSION.md).
+
+
+Atualização posterior de 2026-10-27: aquisição/presença/alimentação bovina e ovina
+integradas em [PF06_LIVESTOCK.md](PF06_LIVESTOCK.md), save v8 atual. O requisito de
+uso real do celeiro foi atendido no recorte base; próximos critérios de construção
+são da segunda casa no [ROADMAP.md](ROADMAP.md). Venda/produção/reprodução,
+pastagem/cues completas/vozes e funeral ainda precisam de integração, usando a
+mesma coleção e ações. Não declarar criação integral nem duplicar seus estados.

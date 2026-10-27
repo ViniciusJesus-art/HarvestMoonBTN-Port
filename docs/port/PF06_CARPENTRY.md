@@ -6,7 +6,9 @@ O recorte madeira/galinheiro está funcional; a cadeia inteira e PF-06 continuam
 
 Este é o registro histórico da entrega com save v5. A primeira casa foi integrada
 posteriormente em [PF06_HOUSE_EXPANSION.md](PF06_HOUSE_EXPANSION.md), com save v6
-atual. A próxima obra agora é o celeiro; as limitações da primeira casa citadas
+naquela entrega. Obra/cochos do celeiro foram integrados posteriormente com v7
+em [PF06_BARN_EXPANSION.md](PF06_BARN_EXPANSION.md); criação bovina/ovina é a próxima
+dependência. As limitações da primeira casa citadas
 abaixo descrevem o estado anterior.
 
 ## O que foi rastreado antes de implementar

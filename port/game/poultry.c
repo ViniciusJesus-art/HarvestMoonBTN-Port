@@ -1,6 +1,7 @@
 /* Adult coop cycle from animals/chicken.c. Names retain original glyphs. */
 #include "poultry.h"
 #include "inventory.h"
+#include "livestock.h"
 #include <stdlib.h>
 #include <string.h>
 #include "psx_data.h"
@@ -49,7 +50,7 @@ unsigned hmbtn_poultry_sell(HmbtnPoultry *p,unsigned slot)
     const unsigned price=p->hens[slot].prize ? 2000 : 500;
     memset(&p->hens[slot],0,sizeof(p->hens[slot]));return price;
 }
-bool hmbtn_poultry_medicine_tick(HmbtnPoultry *p,unsigned area,HmbtnFarmAction *a,HmbtnIntroActor *player,
+bool hmbtn_animal_medicine_tick(HmbtnPoultry *p,HmbtnLivestock *livestock,unsigned area,HmbtnFarmAction *a,HmbtnIntroActor *player,
     HmbtnHouseInteraction *h,uint32_t pressed)
 {
     a->sound=-1;a->changed=a->finished_bank=a->release_sound=false;a->broken_item=0;
@@ -62,6 +63,8 @@ bool hmbtn_poultry_medicine_tick(HmbtnPoultry *p,unsigned area,HmbtnFarmAction *
                 hen->actor.sprite=(HmbtnAnimationPlayer){0,(uint16_t)hen->actor.facing,0};a->changed=true;
             }
         }
+        else if(a->target>=HMBTN_HENS && a->target<HMBTN_HENS+HMBTN_LIVESTOCK)
+            a->changed=hmbtn_livestock_cure(livestock,a->target-HMBTN_HENS);
         /* stored_item_release runs even when the target is absent or healthy. */
         if(h->inventory->equipped.id==0x1E && h->inventory->equipped.count && !--h->inventory->equipped.count) h->inventory->equipped=(HmbtnStoredTool){0};
         const unsigned fatigue=(h->weather->today!=0)+(h->clock->hour>=22 ? 1u : h->clock->hour<6 ? 2u : 0u)+(a->stamina==0 ? 2u : 0u);
@@ -81,6 +84,11 @@ bool hmbtn_poultry_medicine_tick(HmbtnPoultry *p,unsigned area,HmbtnFarmAction *
         if(!hen->occupied || hen->dead || hen->held || hen->area!=area || hen->stage==HMBTN_HEN_EGG || hen->naming_pending) continue;
         if(abs(hen->actor.position[0]-player->position[0]-step[player->facing][0])<200
                 && abs(hen->actor.position[2]-player->position[2]-step[player->facing][1])<200) { a->target=i;break; }
+    }
+    if(livestock) {
+        const unsigned target=hmbtn_livestock_target(livestock,area,player,128);
+        if(target<HMBTN_LIVESTOCK) a->target=HMBTN_HENS+target;
+        else if(a->target==HMBTN_HENS) a->target=HMBTN_HENS+HMBTN_LIVESTOCK;
     }
     a->phase=HMBTN_FARM_MEDICINE;a->kind=5;a->bank=22;a->bank_pending=true;
     player->sprite=(HmbtnAnimationPlayer){(uint16_t)player->facing,0,0};player->animation_done=false;return true;
@@ -307,3 +315,7 @@ bool hmbtn_poultry_expand_dead(const HmbtnPoultry *p,uint8_t *record,size_t size
     }
     return true;
 }
+
+bool hmbtn_poultry_medicine_tick(HmbtnPoultry *p,unsigned area,HmbtnFarmAction *action,
+    HmbtnIntroActor *player,HmbtnHouseInteraction *house,uint32_t pressed)
+{ return hmbtn_animal_medicine_tick(p,NULL,area,action,player,house,pressed); }

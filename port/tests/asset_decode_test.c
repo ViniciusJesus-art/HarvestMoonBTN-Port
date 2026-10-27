@@ -78,6 +78,11 @@ int main(void)
     CHECK(pixels[8] == 0 && pixels[9] == 255 && pixels[10] == 0);
     CHECK(pixels[14] == 255);
     CHECK(pixels[16] == 0 && pixels[17] == 0 && pixels[18] == 0 && pixels[19] == 255);
+    memset(pixels,91,sizeof(pixels));
+    CHECK(hmbtn_animation_draw_scaled(&animation,atlas,&player,0,0,2048,pixels,4,2,sizeof(pixels),error,sizeof(error)));
+    CHECK(pixels[0]==91 && pixels[4]==0 && pixels[5]==255 && pixels[6]==0);
+    CHECK(pixels[8]==91 && pixels[16]==91); /* Half-size bounds, transparent origin. */
+    CHECK(!hmbtn_animation_draw_scaled(&animation,atlas,&player,0,0,0,pixels,4,2,sizeof(pixels),error,sizeof(error)));
     ani[64] = 3; /* mirror X and Y: first output pixel is bottom-right red */
     CHECK(hmbtn_animation_draw(&animation, atlas, &player, 0, 0, pixels, 4, 2,
         sizeof(pixels), error, sizeof(error)));

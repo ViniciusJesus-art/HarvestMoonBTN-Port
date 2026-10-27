@@ -5,8 +5,8 @@
 **Prioridade:** port funcional com reaproveitamento do C original, conforme a fila PF do [ROADMAP.md](ROADMAP.md).
 **Concluídas:** MA-01..06 e PF-01..05 — base central, regras compartilhadas, cultivo, evento, atualização independente do desenho e saves nativos estáveis.
 
-**PF-06 em andamento:** batata, grama/feno, culturas base de verão/outono, clima diário/chuva, sementes sazonais de Won, desbloqueios do supermercado, Pink Cat/Toy Flower, variantes de Magic Red e Moondrop/visitas de Karen, carpintaria, ampliação do galinheiro e primeira casa (depósitos/núcleo da cozinha) concluídos nos respectivos recortes; demais sistemas originais ainda parciais/ausentes.
-**Próxima implementação:** PF-06 — celeiro, após auditar espécies/capacidade/cochos. Casa/galinheiro entregues; aquisição de utensílios e apresentação completa da cozinha pendentes. Saves atuais v6, sem compatibilidade exigida com versões anteriores.
+**PF-06 em andamento:** batata, grama/feno, culturas base de verão/outono, clima diário/chuva, sementes sazonais de Won, desbloqueios do supermercado, Pink Cat/Toy Flower, variantes de Magic Red e Moondrop/visitas de Karen, carpintaria, ampliação do galinheiro e primeira casa (depósitos/núcleo da cozinha) concluídos nos respectivos recortes; obra/mapas/cochos do celeiro também entregues; aquisição/capacidade/alimentação bovina/ovina integradas, demais sistemas originais ainda parciais/ausentes.
+**Próxima implementação:** PF-06 — segunda casa. Recorte base do celeiro/criação entregue; venda/produção/reprodução/eventos animais e cozinha completa continuam pendentes. Saves atuais v8, sem compatibilidade exigida com versões anteriores.
 MA-07..25 foram substituídas como fila, não concluídas. Refatorações necessárias
 acompanham as entregas funcionais; PF-04 separou atualização/desenho nos fluxos atuais.
 
@@ -32,7 +32,7 @@ Compilar PS1, manter MIPS/ABI ou reproduzir SHA-1 não são critérios do produt
 
 | Marco | Situação | Próximo encaminhamento |
 |---|---|---|
-| Base MA | MA-01..06 concluídas; plano restante substituído | Preservar estado/sessão/serviços/tick; PF-01..05 concluídas; seguir PF-06 (Celeiro na cadeia da estufa/Orangecup a seguir; primeira casa/depósitos/núcleo da cozinha e carpintaria/galinheiro, Moondrop, Magic Red, flores simples, desbloqueios do supermercado, sementes sazonais de Won, clima diário/chuva, culturas base de verão/outono, batata e grama/feno entregues), sem uma nova fase geral de reorganização. |
+| Base MA | MA-01..06 concluídas; plano restante substituído | Preservar estado/sessão/serviços/tick; PF-01..05 concluídas; seguir PF-06 (Segunda casa a seguir (celeiro/aquisição/alimentação entregues); primeira casa/depósitos/núcleo da cozinha e carpintaria/galinheiro, Moondrop, Magic Red, flores simples, desbloqueios do supermercado, sementes sazonais de Won, clima diário/chuva, culturas base de verão/outono, batata e grama/feno entregues), sem uma nova fase geral de reorganização. |
 | M1 — Aplicação nativa | Funcional no recorte atual | Preservar entrada/janela; validar Windows real. |
 | M2 — Recursos e apresentação | Funcional parcialmente | Preservar leitores/backends; ampliar fidelidade com comparação reproduzível. |
 | M3 — Título/cadastro | Funcional parcialmente | Tick/apresentação separados na PF-04; preservar fluxos e rastrear algoritmos/inicialização. |
@@ -45,7 +45,38 @@ checklists sobrepostos. São registros históricos, não contagem atual de siste
 nem denominador de progresso da migração. O [backlog complementar](ROADMAP_PENDENTE_CODEX.md)
 reconcilia esses temas; a ordem executável e o aceite estão no roadmap principal.
 
-## Última referência — PF-06, primeira casa
+## Última referência — PF-06, aquisição/alimentação de vacas e ovelhas
+
+Configure/build Linux Debug aprovados. Regras iniciais **4/4** e seleção final
+**25/25 CTests**, **18,58 s**, com **46 processos de teste** incluindo wrappers,
+filhos e dois percursos diretos. Limite de 50 respeitado; suíte inteira não rodada.
+
+Compra/nomeação/cancelamento e fundos com Barley, coleção comum 10/20, posições/
+ANI originais, crescimento, alimentação diária antes da limpeza, fala/medicina,
+status derivado e save v8. Obra com animais presentes, novos cochos consumidos e
+retomada do app aprovados. Produção/venda/reprodução/pastagem/funerais e sequência
+integral de cues/vozes continuam pendentes. Windows/Release/sanitizers/Android,
+instalação limpa e sessão manual de janela/áudio não executados.
+
+[Relatório, arquivos e reprodução](PF06_LIVESTOCK.md). Próxima: segunda casa;
+PF-06 continua aberta.
+
+## Referência histórica — PF-06, obra/cochos do celeiro
+
+Configure/build Linux Debug aprovados. Seleções **8/8 + 20/20 CTests** passaram;
+repetição final do novo percurso **1/1**, após ajustar apenas a captura. Total
+**49 processos de teste**, incluindo wrappers/filhos/tentativas. Não executada a
+suíte inteira. Windows/Release/sanitizers/Android, instalação limpa e sessão
+manual de janela/áudio não executados.
+
+Gotz, 6.800 G/500 madeiras, quatro manhãs, nível único, flags/scripts/status,
+recursos 12..15/100..103, dez novos cochos abastecidos, portas com feno, quatro
+estações e save v7 com retomada pelo app aprovados. Vacas/ovelhas ainda ausentes;
+não declarar capacidade/consumo animal apenas pela obra. Próximo: aquisição,
+presença e alimentação reais antes de concluir o item do celeiro.
+[Relatório e arquivos](PF06_BARN_EXPANSION.md). PF-06 continua aberta.
+
+## Referência histórica — PF-06, primeira casa
 
 Configure/build Linux Debug aprovados. Seleção final **23/23 CTests aprovados,
 18,24 s**; total **48 processos de teste** incluindo wrappers, filhos e tentativas

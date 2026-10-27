@@ -239,7 +239,7 @@ int main(void)
         atlas->present[row*1024+col]=1; atlas->words[row*1024+col]=0x1111;
     }
     atlas->present[8*1024+1]=1; atlas->words[8*1024+1]=0x03E0;
-    HmbtnWorldSprite sprite={&animation,atlas,{0},{-186,64,1950},0};
+    HmbtnWorldSprite sprite={&animation,atlas,{0},{-186,64,1950},0,0};
     size=make_model(bytes,0x2101);
     CHECK(hmbtn_model_open(&model,bytes,size,error,sizeof(error)));
     clear_pixels(pixels);

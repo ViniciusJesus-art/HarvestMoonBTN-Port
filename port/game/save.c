@@ -12,7 +12,7 @@
 #include <stdio.h>
 #include <limits.h>
 
-enum { HEADER=24,CHUNKS=6,CATALOG_BTN=1 };
+enum { HEADER=24,CHUNKS=7,CATALOG_BTN=1 };
 static const uint8_t magic[8]={'H','M','B','T','N','S','V',0};
 typedef struct Codec { uint8_t *out;const uint8_t *in;size_t pos,end;bool read,ok; } Codec;
 static uint32_t read32(Codec *c)
@@ -112,6 +112,19 @@ static void poultry(Codec *c,HmbtnSession *d,const HmbtnSession *s)
         for(unsigned j=0;j<3;++j) S(poultry.eggs[i].position[j]);
     }
 }
+static void animal(Codec *c,HmbtnFarmAnimal *d,const HmbtnFarmAnimal *s)
+{
+    B(occupied);B(sheep);B(dead);B(died_of_age);B(fed_today);B(fed_yesterday);B(talked_today);
+    U(growth);U(affection);U(age);U(season);U(day);U(days_sick);U(days_since_shearing);
+    U(area);U(timer);U(state);U(praise);
+    for(unsigned i=0;i<=HMBTN_NAME_CHARS;++i) W(name[i]);
+    CHILD(actor,actor);
+}
+static void livestock(Codec *c,HmbtnSession *d,const HmbtnSession *s)
+{
+    U(livestock.random);COUNT(HMBTN_LIVESTOCK);
+    for(unsigned i=0;i<HMBTN_LIVESTOCK;++i) { COUNT(i);CHILD(animal,livestock.animals[i]); }
+}
 static void player(Codec *c,HmbtnSession *d,const HmbtnSession *s)
 {
     U(area);U(previous_place);B(trigger_entry);B(first_visit_started);S(refused_zone);
@@ -123,7 +136,7 @@ static void player(Codec *c,HmbtnSession *d,const HmbtnSession *s)
     for(unsigned i=0;i<5;++i) U(farm_action.experience[i]);
     U(carry.discarded);B(carry.small_fish_placed);
     U(fishing.random);U(fishing.streak);U(fishing.catch_flags);B(fishing.berry_eaten);
-    for(unsigned i=0;i<3;++i) U(menu.stats.animals[i]);
+    U(menu.stats.animals[0]);
     U(menu.stats.fish);U(menu.stats.discarded);U(menu.stats.power_berries);
     U(menu.stats.dog_affection);
     for(unsigned i=0;i<7;++i) U(menu.stats.helper_affection[i]);
@@ -140,7 +153,7 @@ static void auxiliary(Codec *c,HmbtnSession *d,const HmbtnSession *s)
     for(unsigned i=0;i<3;++i) { S(daylight.rgb[i]);S(daylight.step[i]); }
     U(daylight.period);U(daylight.taken);U(daylight.total);
     U(game.weather.random);U(field.plant_random);B(game.progress.moondrop_seeds);
-    U(construction.mornings_left);U(construction.house_level);U(construction.pending);
+    U(construction.mornings_left);U(construction.house_level);U(construction.barn_level);U(construction.pending);
 }
 #undef U
 #undef S
@@ -151,7 +164,7 @@ static void auxiliary(Codec *c,HmbtnSession *d,const HmbtnSession *s)
 #undef COUNT
 static const struct { uint32_t id;void (*visit)(Codec *,HmbtnSession *,const HmbtnSession *); } chunks[]={
     {0x454d4147,game},{0x444c4946,field},{0x4c4c4956,village},
-    {0x4c554f50,poultry},{0x59414c50,player},{0x49585541,auxiliary}
+    {0x4c554f50,poultry},{0x4b54534c,livestock},{0x59414c50,player},{0x49585541,auxiliary}
 };
 static uint32_t checksum(const uint8_t *data,size_t bytes)
 {
@@ -221,9 +234,11 @@ static bool valid(const HmbtnSession *s,char *error,size_t size)
         && s->game.economy.gold<=hmbtn_economy_gold_limit(&s->game.economy)
         && s->construction.mornings_left<=hmbtn_construction_mornings()
         && s->construction.house_level<=1 && (!s->construction.house_level || s->poultry.upgraded)
+        && s->construction.barn_level<=1 && (!s->construction.barn_level || s->construction.house_level==1)
         && (s->construction.mornings_left ?
             (s->construction.pending==HMBTN_BUILD_COOP && !s->poultry.upgraded)
             || (s->construction.pending==HMBTN_BUILD_HOUSE && s->poultry.upgraded && !s->construction.house_level)
+            || (s->construction.pending==HMBTN_BUILD_BARN && s->construction.house_level==1 && !s->construction.barn_level)
             : s->construction.pending==HMBTN_BUILD_NONE)
         && s->game.inventory.held_item.id!=0x109 && s->game.inventory.held_item.id!=0x10A;
     ok=ok && s->game.cooking.utensils<=255;
@@ -261,6 +276,14 @@ static bool valid(const HmbtnSession *s,char *error,size_t size)
             && (!h->occupied || (h->season<4 && h->day<30 && h->affection<=255 && (h->area==0 || h->area==112)
                 && valid_name(h->name) && valid_actor(&h->actor)))
             && (!e->item || (hmbtn_farm_item(e->item) && (e->area==0 || e->area==112)));
+    }
+    for(unsigned i=0;i<HMBTN_LIVESTOCK;++i) {
+        const HmbtnFarmAnimal *a=&s->livestock.animals[i];
+        if(!a->occupied) continue;
+        ok=ok && i<hmbtn_livestock_capacity(&s->livestock) && a->growth<=31 && a->affection<=255
+            && a->age<=1000000 && a->season<4 && a->day<30 && a->days_sick<=31
+            && a->days_since_shearing<=7 && a->area==96 && a->timer<=300 && a->state<=3 && a->praise<=45
+            && (!a->died_of_age || a->dead) && valid_name(a->name) && valid_actor(&a->actor);
     }
     if(!ok) snprintf(error,size,"Save contains invalid or unsupported gameplay values");
     return ok;

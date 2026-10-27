@@ -16,6 +16,18 @@ bool hmbtn_farm_feed_position(bool barn,unsigned bin,int32_t position[3])
     if(bin>=(barn ? 22u : 10u) || !position) return false;
     memcpy(position,feed_positions[bin+(barn ? 0 : 22)],3*sizeof(*position));return true;
 }
+uint32_t hmbtn_farm_feed_bins(const uint8_t *section,size_t size,bool barn)
+{
+    if(!section || size<16+50*44) return 0;
+    uint32_t mask=0;
+    for(unsigned i=0;i<50;++i) {
+        const uint8_t *zone=section+16+i*44;
+        const unsigned index=hmbtn_read_le16(zone+4);
+        if(hmbtn_read_le16(zone)==0x4000 && hmbtn_read_le16(zone+2)==(barn ? 41u : 40u)
+                && index<(barn ? 22u : 10u)) mask|=1u<<index;
+    }
+    return mask;
+}
 bool hmbtn_farm_feed_tick(HmbtnFarmFeed *f,HmbtnHouseInteraction *h,HmbtnIntroActor *p,
     const uint8_t *section,size_t size,uint32_t pressed)
 {

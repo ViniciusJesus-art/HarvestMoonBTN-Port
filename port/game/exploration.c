@@ -93,6 +93,11 @@ static bool feed_shop_message(HmbtnSession *s,const HmbtnExplorationFrame *f,cha
     s->intro.player.sprite=(HmbtnAnimationPlayer){0,(uint16_t)s->intro.player.facing,0};
     s->control.mode=0;return true;
 }
+static bool world_blocked(const void *context,const int32_t from[3],const int32_t to[3])
+{
+    const HmbtnSession *s=context;
+    return hmbtn_village_blocked(&s->village,from,to) || hmbtn_livestock_blocked(&s->livestock,s->area,from,to);
+}
 static bool fishing_frame(HmbtnSession *s,const HmbtnExplorationFrame *f,HmbtnLogicalInput input,char *error,size_t size)
 {
     const bool active=hmbtn_fishing_tick(&s->fishing,&s->intro.player,&s->house,&s->farm_action,
@@ -222,6 +227,17 @@ bool hmbtn_session_exploration_controls(HmbtnSession *s,const HmbtnExplorationFr
                 (void)emit(f,(HmbtnExplorationEffect){.kind=HMBTN_EXP_UI_SOUND,.id=3},error,error_size);goto house_done;
             }
         }
+        if(!s->carry.phase && !s->feed.phase && !s->house.inventory->held_item.id && !s->quick_ticks
+                && !s->travel_tick && !s->door_tick && !s->control.jumping && !s->control.exit_pending
+                && s->house.mode==HMBTN_HOUSE_FREE && s->farm_action.phase==HMBTN_FARM_ACTION_FREE
+                && (input.pressed&HMBTN_PAD_CROSS)) {
+            const unsigned target=hmbtn_livestock_target(&s->livestock,s->area,&s->intro.player,224);
+            if(target<HMBTN_LIVESTOCK) {
+                s->house.mode=HMBTN_HOUSE_BOOK;s->house.message_bank=0;
+                s->house.request=hmbtn_livestock_talk(&s->livestock,target);s->house.loaded=0;
+                s->house.closing=s->house.detail=false;s->house.sound=3;opened=true;goto house_interaction;
+            }
+        }
         if(!s->carry.phase && !s->house.inventory->held_item.id && !s->quick_ticks && !s->travel_tick && !s->door_tick
                 && !s->control.jumping && !s->control.exit_pending && s->house.mode==HMBTN_HOUSE_FREE
                 && s->farm_action.phase==HMBTN_FARM_ACTION_FREE
@@ -296,7 +312,7 @@ bool hmbtn_session_exploration_controls(HmbtnSession *s,const HmbtnExplorationFr
                 && !s->feed.phase && !s->house.inventory->held_item.id && !s->control.exit_pending && !s->control.jumping && s->house.mode==HMBTN_HOUSE_FREE
                 && (!(input.pressed&HMBTN_PAD_CROSS) || s->farm_action.phase!=HMBTN_FARM_ACTION_FREE)) {
             const bool medicine=s->farm_action.phase==HMBTN_FARM_MEDICINE || s->house.inventory->equipped.id==0x1E;
-            const bool acting=medicine ? hmbtn_poultry_medicine_tick(&s->poultry,s->area,
+            const bool acting=medicine ? hmbtn_animal_medicine_tick(&s->poultry,&s->livestock,s->area,
                 &s->farm_action,&s->intro.player,&s->house,input.pressed)
                 : hmbtn_farm_action_tick(&s->farm_action,&s->intro.player,&s->house,
                     &s->field,f->ground,input.pressed,held);
@@ -372,6 +388,10 @@ house_interaction:
                         && !hmbtn_house_expand_reading(&s->house,record,sizeof(record))) {
                     snprintf(error,error_size,"Cannot expand original house message");return false;
                 }
+                if(s->house.message_bank==0 && s->house.request>=0x6bd && s->house.request<=0x6c1
+                        && !hmbtn_livestock_expand(&s->livestock,record,sizeof(record))) {
+                    snprintf(error,error_size,"Cannot expand original livestock message");return false;
+                }
                 if(!message(f,record,&s->house.message,error,error_size)) return false;
                 s->house.loaded=s->house.request;
                 s->house.message.suppress_cursor=s->house.mode==HMBTN_HOUSE_TV_SELECT
@@ -385,7 +405,7 @@ house_interaction:
             if(s->house.mode!=HMBTN_HOUSE_SLEEP)
                 s->intro.player.sprite=(HmbtnAnimationPlayer){0,(uint16_t)s->intro.player.facing,0};
         } else if(!opened) {
-            s->control.npc_blocked=hmbtn_village_blocked;s->control.collision_context=&s->village;
+            s->control.npc_blocked=world_blocked;s->control.collision_context=s;
             s->control.carrying=s->house.inventory->held_item.id!=0;
             s->control.carrying_big=hmbtn_poultry_held_slot(&s->poultry)<HMBTN_HENS;
             hmbtn_farm_control_tick(&s->control,&s->intro.player,f->ground,s->area==0 ? &s->field : NULL,
@@ -461,6 +481,12 @@ bool hmbtn_session_exploration_world(HmbtnSession *s,const HmbtnExplorationFrame
         hmbtn_session_clock_events(s,&s->game.clock,changes);
         s->menu.stats.animals[0]=hmbtn_poultry_count(&s->poultry);
         if(!held_clock) {
+            hmbtn_livestock_tick(&s->livestock,s->area,f->ground,&s->intro.player,s->game.clock.hour);
+            for(unsigned i=0;i<HMBTN_LIVESTOCK;++i) {
+                HmbtnFarmAnimal *a=&s->livestock.animals[i];
+                if(a->occupied && !a->dead && a->area==s->area
+                        && !animate(f,HMBTN_EXP_LIVESTOCK,hmbtn_livestock_pack(a),&a->actor.sprite,error,error_size)) return false;
+            }
             hmbtn_poultry_tick(&s->poultry,s->area,f->ground,s->area==0 ? &s->field : NULL,&s->intro.player,s->game.clock.hour);
             for(unsigned i=0;i<HMBTN_HENS;++i) if(s->poultry.hens[i].occupied && !s->poultry.hens[i].dead
                     && !s->poultry.hens[i].held && s->poultry.hens[i].area==s->area

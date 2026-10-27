@@ -8,10 +8,10 @@
 #include <stdio.h>
 int main(void)
 {
-    const unsigned seeds[]={0x32,0x34},products[]={0x52,0x55},seasons[]={1,0},prices[]={200,500},days[]={6,12};
-    const uint8_t stages[2][12]={{0,1,1,2,2,3},{0,0,1,1,1,2,2,2,3,3,3,4}};
-    const uint8_t progress[2][12]={{1,0,1,0,1,0},{1,2,0,1,2,0,1,2,0,1,2,0}};
-    for(unsigned n=0;n<2;++n) {
+    const unsigned seeds[]={0x32,0x34,0x31},products[]={0x52,0x55,0x51},seasons[]={1,0,0},prices[]={200,500,300},days[]={6,12,6};
+    const uint8_t stages[3][12]={{0,1,1,2,2,3},{0,0,1,1,1,2,2,2,3,3,3,4},{0,1,1,2,2,3}};
+    const uint8_t progress[3][12]={{1,0,1,0,1,0},{1,2,0,1,2,0,1,2,0,1,2,0},{1,0,1,0,1,0}};
+    for(unsigned n=0;n<3;++n) {
         HmbtnSession *s=save_fixture(0);char error[512]={0};
         s->game.clock.season=seasons[n];s->daily_date=hmbtn_session_date(&s->game.clock);
         s->field.season=seasons[n];s->field.cells[460]=(HmbtnFarmTile){.value=0x168,.ground=0x168};
@@ -51,6 +51,6 @@ int main(void)
         hmbtn_farm_field_new_day(&s->field,3);assert(s->field.cells[460].value==0x168 && !s->field.cells[460].kind);
         hmbtn_session_destroy(s);
     }
-    assert(!hmbtn_farm_crop_supported(0x31) && hmbtn_farm_crop_supported(0x33) && !hmbtn_farm_crop_supported(0x35));
-    puts("Flowers: original prices/daily vectors, dry mornings, one harvest, inventory, gifts, no shipping income, seasons/winter and save v2 passed.");return 0;
+    assert(hmbtn_farm_crop_supported(0x31) && hmbtn_farm_crop_supported(0x33) && !hmbtn_farm_crop_supported(0x35));
+    puts("Flowers: original prices/daily vectors, dry mornings, one harvest, inventory, gifts, no shipping income, seasons/winter and native save passed.");return 0;
 }

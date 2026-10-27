@@ -14,6 +14,9 @@ typedef struct HmbtnVillager {
     uint16_t schedule[30][4];
     bool placed,standing,cell_entered,blocked_by_player;
 } HmbtnVillager;
+struct HmbtnPoultry;
+struct HmbtnConstruction;
+struct HmbtnCooking;
 typedef struct HmbtnVillage {
     HmbtnVillager people[HMBTN_VILLAGERS];
     HmbtnEventDays days;
@@ -23,6 +26,9 @@ typedef struct HmbtnVillage {
     uint32_t random;
     unsigned date_key,minute,ann_birthday_season,ann_birthday_day;
     bool invitation_available,dog_held,player_running;
+    const struct HmbtnPoultry *poultry;
+    const struct HmbtnConstruction *construction;
+    const struct HmbtnCooking *cooking;
     HmbtnAreaDoors *doors; /* Borrowed session controller, never another route owner. */
     const HmbtnWeather *weather; /* Shared session domain; NULL in standalone fixtures. */
     const HmbtnIntroActor *player;
@@ -33,6 +39,11 @@ typedef struct HmbtnVillage {
 } HmbtnVillage;
 typedef struct HmbtnVillagePack { unsigned count;uint32_t offsets[32]; } HmbtnVillagePack;
 void hmbtn_village_init(HmbtnVillage *v,const uint8_t *data,size_t size);
+/* Construction flags are derived from session owners, never copied into flags[].
+ * Managed flags are read-only through this interface. Standalone fixtures retain
+ * the raw original flags when no domain loan is bound. */
+bool hmbtn_village_flag(const HmbtnVillage *v,unsigned id);
+bool hmbtn_village_flag_set(HmbtnVillage *v,unsigned id,bool value);
 /* Derived script flags, never another weather owner. */
 void hmbtn_village_refresh_weather(HmbtnVillage *v);
 bool hmbtn_village_sync(HmbtnVillage *v,const HmbtnFarmClock *clock,char *error,size_t size);

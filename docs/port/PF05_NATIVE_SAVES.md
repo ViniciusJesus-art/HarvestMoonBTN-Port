@@ -3,6 +3,14 @@
 Política definida em 2026-10-26, antes da implementação. Próxima fila e aceite
 continuam no [ROADMAP.md](ROADMAP.md). Alvos Linux/Windows; Android depois.
 
+**Atualização de política — 2026-10-27:** o usuário dispensou compatibilidade
+entre saves durante o desenvolvimento. O codec atual v6 aceita somente v6;
+versões antigas/futuras são recusadas com indicação de jogo novo. Os detalhes
+v1 abaixo registram a entrega original. Migradores não são requisito atual;
+integridade, publicação transacional e retomada da versão vigente continuam
+obrigatórias. Ver [PORTING_STRATEGY.md](PORTING_STRATEGY.md) e
+[PF06_HOUSE_EXPANSION.md](PF06_HOUSE_EXPANSION.md).
+
 ## Política de salvamento
 
 O save representa uma sessão em exploração livre, entre ticks, depois da abertura,
@@ -51,7 +59,7 @@ flags não passam pela inicialização de novo jogo. O carregamento de recursos 
 pode ser tratado como entrada nova na área para disparar eventos ou limpar flags.
 Dados de conteúdo usam IDs lógicos estáveis; contagens da versão inicial descrevem
 as estruturas nativas existentes, sem transformar o layout PS1 em contrato futuro.
-Novas versões deverão migrar esses campos explicitamente.
+Na política inicial, novas versões migrariam esses campos. Essa exigência foi retirada em 2026-10-27; o desenvolvimento pode exigir jogo novo.
 
 ## Implementação e formato v1
 

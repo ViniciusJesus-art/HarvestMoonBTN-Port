@@ -4,6 +4,8 @@
 #include "save.h"
 #include "world_map.h"
 #include "economy.h"
+#include "inventory.h"
+#include "cooking.h"
 #include "psx_data.h"
 #include <stdlib.h>
 #include <string.h>
@@ -12,7 +14,7 @@
 
 enum { HEADER=24,CHUNKS=6,CATALOG_BTN=1 };
 static const uint8_t magic[8]={'H','M','B','T','N','S','V',0};
-typedef struct Codec { uint8_t *out;const uint8_t *in;size_t pos,end;unsigned version;bool read,ok; } Codec;
+typedef struct Codec { uint8_t *out;const uint8_t *in;size_t pos,end;bool read,ok; } Codec;
 static uint32_t read32(Codec *c)
 {
     if(!c->ok || c->pos>c->end || c->end-c->pos<4) { c->ok=false;return 0; }
@@ -43,7 +45,14 @@ static void game(Codec *c,HmbtnSession *d,const HmbtnSession *s)
 {
     COUNT(CATALOG_BTN);CHILD(tool,game.inventory.equipped);CHILD(tool,game.inventory.held_item);
     COUNT(8);for(unsigned i=0;i<8;++i) { CHILD(tool,game.inventory.bag[i]);CHILD(tool,game.inventory.items[i]); }
-    COUNT(64);for(unsigned i=0;i<64;++i) CHILD(tool,game.inventory.toolbox[i]);
+    COUNT(64);for(unsigned i=0;i<64;++i) {
+        CHILD(tool,game.inventory.toolbox[i]);CHILD(tool,game.inventory.icebox[i]);CHILD(tool,game.inventory.cabinet[i]);
+    }
+    U(game.cooking.utensils);COUNT(HMBTN_RECIPE_RECORDS);
+    for(unsigned i=0;i<HMBTN_RECIPE_RECORDS;++i) {
+        W(game.cooking.records[i].id);W(game.cooking.records[i].quality);W(game.cooking.records[i].options);
+        for(unsigned j=0;j<8;++j) W(game.cooking.records[i].values[j]);
+    }
     U(game.inventory.rucksack_level);for(unsigned i=0;i<4;++i) U(game.inventory.supplies[i]);
     U(game.economy.gold);U(game.economy.gold_limit);
     COUNT(25);for(unsigned i=0;i<25;++i) U(game.economy.shipments[i]);
@@ -116,7 +125,7 @@ static void player(Codec *c,HmbtnSession *d,const HmbtnSession *s)
     U(fishing.random);U(fishing.streak);U(fishing.catch_flags);B(fishing.berry_eaten);
     for(unsigned i=0;i<3;++i) U(menu.stats.animals[i]);
     U(menu.stats.fish);U(menu.stats.discarded);U(menu.stats.power_berries);
-    U(menu.stats.building_score);U(menu.stats.recipes);U(menu.stats.dog_affection);
+    U(menu.stats.dog_affection);
     for(unsigned i=0;i<7;++i) U(menu.stats.helper_affection[i]);
     U(quick_id);B(quick_tool);
 }
@@ -130,10 +139,8 @@ static void auxiliary(Codec *c,HmbtnSession *d,const HmbtnSession *s)
     U(runtime.house_music_ticks);U(runtime.ticks);
     for(unsigned i=0;i<3;++i) { S(daylight.rgb[i]);S(daylight.step[i]); }
     U(daylight.period);U(daylight.taken);U(daylight.total);
-    if(c->version>=2) { U(game.weather.random); }
-    else if(c->read) d->game.weather.random=1; /* v1 had no weather stream. Preserve its forecast. */
-    if(c->version>=3) { U(field.plant_random); }
-    /* v1/v2 retain the constructor's initial stream, without changing cells. */
+    U(game.weather.random);U(field.plant_random);B(game.progress.moondrop_seeds);
+    U(construction.mornings_left);U(construction.house_level);U(construction.pending);
 }
 #undef U
 #undef S
@@ -212,7 +219,27 @@ static bool valid(const HmbtnSession *s,char *error,size_t size)
         && s->farm_action.target<=HMBTN_FIELD_CELLS && s->refused_zone>=-1 && s->refused_zone<50
         && s->daylight.period<4 && s->daylight.total<=256 && s->daylight.taken<=s->daylight.total
         && s->game.economy.gold<=hmbtn_economy_gold_limit(&s->game.economy)
+        && s->construction.mornings_left<=hmbtn_construction_mornings()
+        && s->construction.house_level<=1 && (!s->construction.house_level || s->poultry.upgraded)
+        && (s->construction.mornings_left ?
+            (s->construction.pending==HMBTN_BUILD_COOP && !s->poultry.upgraded)
+            || (s->construction.pending==HMBTN_BUILD_HOUSE && s->poultry.upgraded && !s->construction.house_level)
+            : s->construction.pending==HMBTN_BUILD_NONE)
         && s->game.inventory.held_item.id!=0x109 && s->game.inventory.held_item.id!=0x10A;
+    ok=ok && s->game.cooking.utensils<=255;
+    for(unsigned i=0;i<64;++i) {
+        const HmbtnStoredTool *ice=&s->game.inventory.icebox[i],*cab=&s->game.inventory.cabinet[i];
+        ok=ok && hmbtn_inventory_storage_accepts(2,ice->id) && hmbtn_inventory_storage_accepts(1,cab->id)
+            && (!ice->id || (ice->count>0 && ice->count<=99)) && (!cab->id || (cab->count>0 && cab->count<=99));
+    }
+    for(unsigned i=0;i<HMBTN_RECIPE_RECORDS;++i) {
+        const HmbtnRecipeRecord *r=&s->game.cooking.records[i];
+        if(!r->id) continue;
+        HmbtnRecipeRecord expected;
+        ok=ok && hmbtn_cooking_evaluate(r->options,r->values,&expected) && r->id==expected.id && r->quality==expected.quality;
+        for(unsigned j=0;j<8;++j) ok=ok && (!r->values[j] || hmbtn_farm_item(r->values[j]));
+        for(unsigned j=0;j<i;++j) ok=ok && r->id!=s->game.cooking.records[j].id;
+    }
     for(unsigned i=0;i<3;++i) ok=ok && s->intro.camera[i]>=-1000000 && s->intro.camera[i]<=1000000
         && s->daylight.rgb[i]>=0 && s->daylight.rgb[i]<=31*32768 && s->daylight.step[i]>=-32768 && s->daylight.step[i]<=32768;
     ok=ok && s->intro.camera_height>=-100000 && s->intro.camera_height<=100000
@@ -243,7 +270,7 @@ bool hmbtn_save_encode(const HmbtnSession *s,uint8_t **data,size_t *bytes,char *
     if(!data || !bytes) { snprintf(error,size,"Missing save output");return false; }
     *data=NULL;*bytes=0;
     if(!hmbtn_save_available(s,error,size) || !valid(s,error,size)) return false;
-    Codec c={.version=HMBTN_SAVE_VERSION,.pos=HEADER,.end=HMBTN_SAVE_MAX_BYTES,.ok=true};
+    Codec c={.pos=HEADER,.end=HMBTN_SAVE_MAX_BYTES,.ok=true};
     for(unsigned pass=0;pass<2;++pass) {
         for(unsigned i=0;i<CHUNKS;++i) {
             write32(&c,chunks[i].id);size_t length_at=c.pos;write32(&c,0);size_t start=c.pos;
@@ -264,12 +291,12 @@ bool hmbtn_save_encode(const HmbtnSession *s,uint8_t **data,size_t *bytes,char *
 HmbtnSession *hmbtn_save_decode(const uint8_t *data,size_t bytes,char *error,size_t size)
 {
     if(!data || bytes<HEADER || bytes>HMBTN_SAVE_MAX_BYTES || memcmp(data,magic,8)) { snprintf(error,size,"Invalid native save header");return NULL; }
-    if(hmbtn_read_le32(data+8)<1 || hmbtn_read_le32(data+8)>HMBTN_SAVE_VERSION) { snprintf(error,size,"Unsupported native save version %u",hmbtn_read_le32(data+8));return NULL; }
+    if(hmbtn_read_le32(data+8)!=HMBTN_SAVE_VERSION) { snprintf(error,size,"Unsupported native save version %u (expected %u); start a new game",hmbtn_read_le32(data+8),HMBTN_SAVE_VERSION);return NULL; }
     if(hmbtn_read_le32(data+12)!=bytes-HEADER || hmbtn_read_le32(data+16)!=CHUNKS
         || hmbtn_read_le32(data+20)!=checksum(data+HEADER,bytes-HEADER)) { snprintf(error,size,"Save length or checksum mismatch");return NULL; }
     HmbtnSession *s=hmbtn_session_create(NULL,0);
     if(!s) { snprintf(error,size,"Cannot allocate loaded session");return NULL; }
-    Codec c={.version=hmbtn_read_le32(data+8),.in=data,.pos=HEADER,.end=bytes,.read=true,.ok=true};unsigned seen=0;
+    Codec c={.in=data,.pos=HEADER,.end=bytes,.read=true,.ok=true};unsigned seen=0;
     for(unsigned i=0;i<CHUNKS && c.ok;++i) {
         uint32_t id=read32(&c),length=read32(&c);unsigned k=0;
         for(;k<CHUNKS && chunks[k].id!=id;++k) {}
@@ -282,7 +309,6 @@ HmbtnSession *hmbtn_save_decode(const uint8_t *data,size_t bytes,char *error,siz
         snprintf(error,size,"Invalid, missing or duplicate save section");hmbtn_session_destroy(s);return NULL;
     }
     if(!valid(s,error,size)) { hmbtn_session_destroy(s);return NULL; }
-    if(c.version==1) hmbtn_village_refresh_weather(&s->village);
     /* Resource-detached candidate. Constructors already bound all domain views
      * to THIS object. Never memcpy/move HmbtnSession or initialize village again. */
     s->village_initialized=true;s->completion_reported=true;s->control.enabled=true;

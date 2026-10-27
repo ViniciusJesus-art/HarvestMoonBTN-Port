@@ -65,6 +65,7 @@ struct HmbtnScenePreview {
     HmbtnImageAtlas *player_atlas, *mayor_atlas;
     HmbtnAnimation player_animation, actor_animation[35];
     HmbtnAnimation event_player_animation;
+    HmbtnAnimation event_prop_animation;
     HmbtnHouseUI *house_ui;
     unsigned tv_frame;
     uint8_t tv_sectors[0x1800];
@@ -188,7 +189,7 @@ static bool load_area(HmbtnScenePreview *s, const char *root, unsigned area,
     char *error, size_t error_size)
 {
     unsigned logical,resource_area;
-    if(!hmbtn_world_area(area,s->session->game.clock.season,&logical,&resource_area)) {
+    if(!hmbtn_world_area_buildings(area,s->session->game.clock.season,s->session->poultry.upgraded,s->session->construction.house_level,&logical,&resource_area)) {
         if(area==230 || area==231 || area==232) logical=resource_area=area;
         else {
             snprintf(error,error_size,"Area %u is not integrated",area);return false;
@@ -199,9 +200,10 @@ static bool load_area(HmbtnScenePreview *s, const char *root, unsigned area,
      * untouched (e.g. summer farm page 8, UV 128,242). Compose the area's base
      * pack before the seasonal upload instead of depending on earlier visits
      * or retaining renderer memory in a save. Keep strict missing-data checks. */
-    if(resource_area!=logical) {
-        const uint32_t base=scene_sections[logical][1];
-        const size_t bytes=scene_sections[logical][2]-base;
+    const unsigned base_area=resource_area>=230 ? resource_area : resource_area-s->session->game.clock.season;
+    if(resource_area!=base_area) {
+        const uint32_t base=scene_sections[base_area][1];
+        const size_t bytes=scene_sections[base_area][2]-base;
         uint8_t *baseline=malloc(bytes);
         if(!baseline) { snprintf(error,error_size,"Cannot allocate base area texture pack");return false; }
         const bool ready=hmbtn_resource_read(root,"A_FILE/00_gf.bin",base,baseline,bytes,error,error_size)
@@ -256,6 +258,7 @@ static bool load_area(HmbtnScenePreview *s, const char *root, unsigned area,
     hmbtn_model_renderer_destroy(s->geometry); free(s->section);
     s->section = section; s->scene = scene; s->geometry = geometry; s->session->area = area;s->dirty=true;
     if(s->opening && !hmbtn_estate_art_update(&s->estate_art,root,hmbtn_read_le16(section+10),error,error_size)) return false;
+    s->session->triggers.field=&s->session->field;
     bool hens_here=area==112 || hmbtn_poultry_held_slot(&s->session->poultry)<HMBTN_HENS;
     for(unsigned i=0;i<HMBTN_HENS;++i) hens_here|=s->session->poultry.hens[i].occupied && s->session->poultry.hens[i].area==area;
     if(s->opening && hens_here && !hmbtn_poultry_art_load(&s->poultry_art,root,error,error_size)) return false;
@@ -333,6 +336,7 @@ static bool load_event(HmbtnScenePreview *s, unsigned event, char *error, size_t
     memset(s->mayor_atlas,0,sizeof(*s->mayor_atlas));
     memset(s->actor_animation,0,sizeof(s->actor_animation));
     memset(&s->event_player_animation,0,sizeof(s->event_player_animation));
+    memset(&s->event_prop_animation,0,sizeof(s->event_prop_animation));
     const uint8_t *script = NULL; size_t script_size = 0;
     uint64_t actor_mask = 0; unsigned banks = 0;
     for (unsigned i = 0; i < block.count; ++i) {
@@ -350,17 +354,20 @@ static bool load_event(HmbtnScenePreview *s, unsigned event, char *error, size_t
             actor_mask |= bit;
             HmbtnAnimation *animation = &s->actor_animation[id];
             if (!hmbtn_animation_open(animation,entry,size,error,error_size)) return false;
+        } else if(event==18 && flags==0x831) {
+            if(s->event_prop_animation.data || !hmbtn_animation_open(&s->event_prop_animation,entry,size,error,error_size)) return false;
         } else if(event==12 && flags==0x401) {
             if(!hmbtn_animation_open(&s->event_player_animation,entry,size,error,error_size)) return false;
         } else { snprintf(error,error_size,"Unsupported opening actor flags 0x%04x",flags); return false; }
     }
     const bool world_event=event==129 || event==130 || event==289;
-    const uint64_t expected = event==140 ? UINT64_C(1)<<21 : event==299 || world_event ? 0 : event==172 ? (UINT64_C(1)<<10)|(UINT64_C(1)<<15)|(UINT64_C(1)<<19)
+    const uint64_t expected = event==18 || event==19 ? UINT64_C(1)<<3 : event==140 ? UINT64_C(1)<<21 : event==299 || world_event ? 0 : event==172 ? (UINT64_C(1)<<10)|(UINT64_C(1)<<15)|(UINT64_C(1)<<19)
         : event==12 ? (UINT64_C(1)<<17)|(UINT64_C(1)<<23)|(UINT64_C(1)<<26)
         : event == 116 || event == 121 || hmbtn_farm_visit_supported(event) ? UINT64_C(1)<<17
         : event == 117 ? 14u : event == 118 ? 2u : event == 120 ? 30u
         : (UINT64_C(1)<<27)|(UINT64_C(1)<<33);
-    if (!script || actor_mask != expected || banks != (event==299 || world_event ? 0u : 1u)) {
+    if (!script || actor_mask != expected || banks != (event==299 || world_event ? 0u : 1u)
+            || (event==18 && !s->event_prop_animation.data)) {
         snprintf(error,error_size,"Opening event is missing its expected actors, textures or script"); return false;
     }
     if(!hmbtn_session_open_event(s->session,event,script,script_size,error,error_size)) return false;
@@ -863,6 +870,13 @@ bool hmbtn_scene_preview_draw(HmbtnScenePreview *s,SDL_Renderer *renderer,char *
             memcpy(actors[count++].position,actor->position,sizeof(actors[0].position));
             if (actor->marker != 1) hmbtn_new_game_ui_cursor(s->ui,&actors[count++],actor->position,actor->marker == 2);
         }
+        if(s->session->visit.active && s->session->visit.prop.visible) {
+            if(!s->event_prop_animation.data || count>=512) {
+                snprintf(error,error_size,"Staged event item art unavailable");return false;
+            }
+            actors[count]=(HmbtnWorldSprite){&s->event_prop_animation,s->mayor_atlas,{0},{0},0};
+            memcpy(actors[count++].position,s->session->visit.prop.position,sizeof(s->session->visit.prop.position));
+        }
         const uint16_t *layout = s->field_layout == 1 ? title_layout1_cells
             : s->field_layout == 2 ? title_layout2_cells : title_layout0_cells;
         if (s->session->area == 0) for (unsigned row = 0; row < 25; ++row) for (unsigned col = 0; col < 45; ++col) {
@@ -1022,7 +1036,7 @@ bool hmbtn_scene_preview_rebind(HmbtnScenePreview *s,const uint8_t *data,size_t 
 bool hmbtn_scene_preview_area_location(HmbtnScenePreview *s,unsigned area,unsigned *location,char *error,size_t size)
 {
     unsigned logical,resource;uint8_t header[16];
-    if(!location || !hmbtn_world_area(area,s->session->game.clock.season,&logical,&resource)) return false;
+    if(!location || !hmbtn_world_area_buildings(area,s->session->game.clock.season,s->session->poultry.upgraded,s->session->construction.house_level,&logical,&resource)) return false;
     if(!hmbtn_resource_read(s->data_root,"A_FILE/00_gf.bin",scene_sections[resource][0],header,sizeof(header),error,size)) return false;
     *location=hmbtn_read_le16(header+2);return true;
 }

@@ -102,8 +102,8 @@ static HmbtnEventResult command(void *context,const HmbtnEventCommand *c,char *e
     }
     case 66:
         if(x<0 || x>=HMBTN_VILLAGE_FLAGS) goto invalid;
-        if(v==0) t->village->flags[x]=e!=0;
-        else done=t->village->flags[x];
+        if(v==0) { if(!hmbtn_village_flag_set(t->village,(unsigned)x,e!=0)) goto boundary; }
+        else done=hmbtn_village_flag(t->village,(unsigned)x);
         break;
     case 71:
         if(v!=(int)t->target || e) goto boundary;
@@ -113,11 +113,17 @@ static HmbtnEventResult command(void *context,const HmbtnEventCommand *c,char *e
         if(!slot(v) || t->slots[v]<0 || (unsigned)t->slots[v]>=t->script.count) goto invalid;
         t->script.pc=(unsigned)t->slots[v];return HMBTN_EVENT_JUMP;
     case 81:
-        /* event_cmd_dispatch: start Won's seed shop, then wait for its close.
+        if(v==27) return hmbtn_event_progress_command(t->house->progress,c,error,size);
+        /* event_cmd_dispatch: start Won/Gotz shops, then wait for their close.
          * The imported conversation decides when this command is reached. */
-        if(v==8 && t->target==35 && t->shop && !x) {
-            if(!y && e==10) {
-                if(!hmbtn_won_seed_shop_open(t->shop,t->clock)) goto boundary;
+        if(v==8 && (t->target==35 || t->target==24) && t->shop) {
+            if(t->target==24 && e==9 && x==1 && !y) {
+                done=t->shop->construction && t->shop->construction->mornings_left;break;
+            }
+            if(x) goto boundary;
+            if(!y && ((t->target==35 && e==10) || (t->target==24 && e==9))) {
+                if(!(t->target==35 ? hmbtn_won_seed_shop_open(t->shop,t->clock)
+                    : hmbtn_carpenter_shop_open(t->shop,t->clock))) goto boundary;
                 break;
             }
             if(y==1 && !e) {
@@ -143,11 +149,17 @@ static HmbtnEventResult command(void *context,const HmbtnEventCommand *c,char *e
         if(x!=-1) { if(!slot(x)) goto invalid;t->slots[x]=season; }
         if(y!=-1) { if(!slot(y)) goto invalid;t->slots[y]=day; }
         done=t->clock->season==(unsigned)season && t->clock->day==(unsigned)day;break;
-    case 95:
-        /* The native session has no house/barn/greenhouse upgrades yet. */
-        if(v!=-1) { if(!slot(v)) goto invalid;t->slots[v]=0; }
-        if(e!=-1 || x!=-1 || y!=-1) goto boundary;
+    case 95: {
+        /* Original house,barn,coop,greenhouse slots; barn/greenhouse remain at zero. */
+        const int args[4]={v,e,x,y};
+        for(unsigned i=0;i<4;++i) if(args[i]!=-1) {
+            if(!slot(args[i])) goto invalid;
+            if(i==2 && !t->village->poultry) goto boundary;
+            t->slots[args[i]]=i==0 && t->village->construction ? (int32_t)t->village->construction->house_level
+                : i==2 && t->village->poultry->upgraded ? 1 : 0;
+        }
         break;
+    }
     default:goto boundary;
     }
     return done ? HMBTN_EVENT_DONE : HMBTN_EVENT_WAIT;
@@ -177,6 +189,7 @@ bool hmbtn_village_talk_open(HmbtnVillageTalk *t,unsigned id,const uint8_t *data
     memcpy(t->saved_flags,v->flags,sizeof(t->saved_flags));t->saved_days=v->days;
     t->saved_inventory=*inventory;
     t->saved_event_count1=house->event_count1;
+    if(house->progress) t->saved_progress=*house->progress;
     for(unsigned i=0;i<HMBTN_VILLAGERS;++i) {
         t->saved_people[i].flags=v->people[i].talk_flags;t->saved_people[i].affection=v->people[i].affection;
         t->saved_people[i].friendship=v->people[i].friendship;
@@ -206,6 +219,7 @@ bool hmbtn_village_talk_tick(HmbtnVillageTalk *t,char *error,size_t size)
             live->held_item=t->saved_inventory.held_item;
             memcpy(live->items,t->saved_inventory.items,sizeof(live->items));
             t->house->event_count1=t->saved_event_count1;
+            if(t->house->progress) *t->house->progress=t->saved_progress;
             t->show_tool=t->show_frames=0;
         }
         HmbtnIntroActor *a=&t->village->people[t->target].actor;

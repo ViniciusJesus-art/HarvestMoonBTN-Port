@@ -58,6 +58,7 @@ bool hmbtn_estate_crop_look(unsigned seed,unsigned stage,unsigned season,
     case 0x2e:live=14;dead=0;break;
     case 0x2f:live=15;dead=0;break;
     case 0x30:live=16;dead=0;break;
+    case 0x31:live=12;dead=40;break; /* Moondrop: spring / summer remains. */
     case 0x32:live=17;dead=37;break; /* Pink Cat: summer / fall remains. */
     case 0x34:live=13;dead=41;break; /* Toy Flower: spring / summer remains. */
     case 0x33:case 0x178:live=17;dead=0;break; /* Magic Red, blue variant (fall). */
@@ -67,12 +68,12 @@ bool hmbtn_estate_crop_look(unsigned seed,unsigned stage,unsigned season,
     const HmbtnFarmCrop *crop=hmbtn_farm_crop(seed);
     if(season==crop->season) {
         *sprite=live;
-        /* Cabbage/Pink Cat ANI has five ranges; Toy/Magic Red have six.
+        /* Cabbage/Moondrop/Pink Cat have five ranges; Toy/Magic Red have six.
          * field_cell_look_* requests grown+2 at maturity, just past ranges.
          * anim_draw_sprt_parts reads the first frame's zero dx as the offset
          * and displays frame zero (the mature head/flower). Resolve that
          * result explicitly; never relax the native decoder's bounds. */
-        const bool mature_zero=seed==0x26 || seed==0x32 || seed==0x34 || seed==0x33 || seed==0x178 || seed==0x179;
+        const bool mature_zero=seed==0x26 || seed==0x31 || seed==0x32 || seed==0x34 || seed==0x33 || seed==0x178 || seed==0x179;
         *animation=mature_zero && stage==crop->grown ? 0 : stage+2;
         return true;
     }

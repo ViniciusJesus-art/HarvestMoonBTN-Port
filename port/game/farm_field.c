@@ -56,7 +56,17 @@ const HmbtnFarmCrop *hmbtn_farm_crop(unsigned seed)
  * Source: farm_tables.c CROP_PINK_CAT / CROP_TOY_FLOWER, field.c.
  * Their zero-price products remain flowers, not saleable vegetables. */
 bool hmbtn_farm_crop_supported(unsigned seed)
-{ return (seed>=0x22 && seed<=0x30) || (seed>=0x32 && seed<=0x34) || seed==GRASS || seed==0x178 || seed==0x179; }
+{ return (seed>=0x22 && seed<=0x34) || seed==GRASS || seed==0x178 || seed==0x179; }
+bool hmbtn_farm_field_has_grown(const HmbtnFarmField *f,unsigned seed)
+{
+    /* farm_event_available(7), field_find_free_tile(flags=2): value and
+     * grown stage match; ground is ignored. Existence needs no random start. */
+    const HmbtnFarmCrop *crop=hmbtn_farm_crop(seed);
+    if(!f || !crop) return false;
+    for(unsigned i=0;i<HMBTN_FIELD_CELLS;++i)
+        if(f->cells[i].value==seed && f->cells[i].kind==crop->grown) return true;
+    return false;
+}
 static void dry(HmbtnFarmTile *t)
 {
     if(t->ground==WATERED) { t->ground=TILLED;if(t->value==WATERED) t->value=TILLED; }

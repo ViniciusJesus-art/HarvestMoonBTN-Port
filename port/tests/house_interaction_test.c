@@ -121,7 +121,7 @@ int main(void)
     CHECK(h.mode==HMBTN_HOUSE_SLEEP && h.save_requested && h.message.phase==HMBTN_MESSAGE_CLOSED);
     HmbtnHouseSleep sleep;
     p.position[0]=-1000; p.position[1]=0; p.position[2]=-500;
-    hmbtn_house_sleep_start(&sleep,&p);
+    hmbtn_house_sleep_start(&sleep,&p,0);
     CHECK(p.facing==0 && p.sprite.animation==0 && p.pose);
     for(unsigned i=0;i<9;++i) hmbtn_house_sleep_tick(&sleep,&p);
     CHECK(sleep.link_step==8 && !sleep.second_bed);

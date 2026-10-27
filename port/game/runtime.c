@@ -7,8 +7,11 @@
 #include "ground.h"
 #include "world_map.h"
 #include "psx_data.h"
+#include "inventory.h"
+#include "event_variables.h"
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #define HMBTN_TEXT_RECORD_BYTES 8192
 static bool effect(HmbtnSessionFrame *s,HmbtnRuntimeEffect e)
 { return !s->effect || s->effect(s,&e,s->error,s->error_size); }
@@ -112,6 +115,29 @@ static HmbtnEventResult visit_command(void *context,const HmbtnEventCommand *c,c
     HmbtnSession *owner=context;
     HmbtnSessionFrame *s=owner->active_frame;
     if(!s) { snprintf(error,size,"Event command outside session tick");return HMBTN_EVENT_ERROR; }
+    if(c->type==81 && c->command==27)
+        return hmbtn_event_progress_command(&owner->game.progress,c,error,size);
+    if(owner->visit.event==18) {
+        if(c->type==55 && !c->command && c->operand==5 && !c->x && !c->y) {
+            owner->intro.slots[5]=(int32_t)owner->visit.prop.item;return HMBTN_EVENT_DONE;
+        }
+        if(c->type==54 && !c->command && c->operand==3 && !c->x && c->y==1) {
+            const HmbtnIntroActor *actor=hmbtn_village_actor(&owner->village,3);
+            memcpy(owner->visit.prop.position,actor->position,sizeof(actor->position));
+            const int dx=owner->intro.player.position[0]-actor->position[0],dz=owner->intro.player.position[2]-actor->position[2];
+            const unsigned side=abs(dx)>abs(dz) ? (dx<0 ? 1u : 3u) : (dz<0 ? 0u : 2u);
+            static const int offset[4][2]={{0,-100},{-100,0},{0,100},{100,0}};
+            owner->visit.prop.position[0]+=offset[side][0];owner->visit.prop.position[1]-=100;
+            owner->visit.prop.position[2]+=offset[side][1];owner->visit.prop.visible=true;return HMBTN_EVENT_DONE;
+        }
+        if(c->type==53 && !c->command && !c->operand && !c->x && !c->y) {
+            owner->visit.prop.visible=false;return HMBTN_EVENT_DONE;
+        }
+        if(c->type==32 && c->command==5 && c->operand==1 && !c->x && !c->y) {
+            const HmbtnStoredTool item={(uint16_t)owner->intro.slots[5],0,1};
+            return hmbtn_inventory_store_tool(&owner->game.inventory,item,true,NULL) ? HMBTN_EVENT_DONE : HMBTN_EVENT_WAIT;
+        }
+    }
     if(s->session->visit.event==289) {
         if(c->type==7 && c->command==42 && c->operand==-1 && c->x==-1 && c->y==3) {
             for(unsigned id=1;id<HMBTN_VILLAGERS;++id) {
@@ -168,7 +194,7 @@ static bool visit_begin(HmbtnSessionFrame *s,unsigned event,char *error,size_t s
     if(!load_event(s,event,error,size) || !hmbtn_farm_visit_begin(&s->session->visit,&s->session->triggers,event,&s->session->village)) return false;
     s->session->visit.start_area=s->session->area;
     s->session->intro.game_command=visit_command;s->session->intro.game_context=s->session;
-    if(event!=129 && event!=130 && event!=140 && !hmbtn_session_bind_event_actor(s->session,17,
+    if(event!=18 && event!=19 && event!=129 && event!=130 && event!=140 && !hmbtn_session_bind_event_actor(s->session,17,
             HMBTN_SESSION_ACTOR_PRIMARY,event==289)) {
         snprintf(error,size,"Conflicting visitor actor 17");return false;
     }
@@ -177,6 +203,15 @@ static bool visit_begin(HmbtnSessionFrame *s,unsigned event,char *error,size_t s
         if(!actor || !s->animation(s->context,21,false)) {
             snprintf(error,size,"Original Duke event actor/art unavailable");return false;
         }
+    }
+    if(event==18 || event==19) {
+        /* The previous event's music_mode is not the current world song. */
+        s->session->intro.music_mode=s->session->runtime.audio_song;
+        if(!hmbtn_session_bind_event_actor(s->session,3,HMBTN_SESSION_ACTOR_VISIT,true)
+                || !s->animation(s->context,3,false)) {
+            snprintf(error,size,"Original Karen event actor/art unavailable");return false;
+        }
+        if(event==18) s->session->visit.prop.item=0x31; /* Validated staged slot 0x0831. */
     }
     if(event==289) {
         s->session->visit.talk=true;s->session->visit.talk_target=17;
@@ -291,7 +326,7 @@ static bool exploration_boundary(void *context,HmbtnSession *session,HmbtnExplor
                 }
 
                 //s->session->intro.player.sprite=(HmbtnAnimationPlayer){(uint16_t)(s->session->control.carrying_big ? 41 : 0),(uint16_t)s->session->intro.player.facing,0};
-                s->session->door_speed+=5;    // Velocidade de abertura portas 
+                s->session->door_speed+=8;    // Velocidade de abertura portas 
                 s->session->door_angle-=s->session->door_speed;
                 if(s->session->door_angle<-0x420) s->session->door_angle=-0x420; // Angulo de aberturas
 
@@ -377,7 +412,7 @@ static bool exploration_boundary(void *context,HmbtnSession *session,HmbtnExplor
             if(!s->session->sleep.active) {
                 hmbtn_poultry_release(&s->session->poultry,&s->session->house,&s->session->intro.player,s->session->area,&s->scene->terrain);
                 if(!load_action_bank(s,15,error,error_size)) return false;
-                hmbtn_house_sleep_start(&s->session->sleep,&s->session->intro.player); s->session->intro.action_active=true;
+                hmbtn_house_sleep_start(&s->session->sleep,&s->session->intro.player,s->session->construction.house_level); s->session->intro.action_active=true;
             }
             hmbtn_house_sleep_tick(&s->session->sleep,&s->session->intro.player);
             /* scene_link_handback: eight steps to lift, then twelve to settle. */
@@ -543,7 +578,7 @@ static bool opening_tick(HmbtnSessionFrame *s, uint32_t held, char *error, size_
         s->session->intro.action_pending=false;s->session->intro.action_ready=true;
     }
     if (s->session->intro.song_pending) {
-        const unsigned song=s->session->animal_event==172 ? 10 : 34;
+        const unsigned song=s->session->intro.requested_song;
         const HmbtnServiceResult *r=service_audio(s,HMBTN_SERVICE_LOAD_SONG,song,error,error_size);
         if(!r) return false;
         if(r->status==HMBTN_SERVICE_PENDING) goto opening_done;

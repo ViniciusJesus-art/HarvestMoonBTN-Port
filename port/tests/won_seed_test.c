@@ -1,5 +1,6 @@
 #include "feed_shop.h"
 #include "inventory.h"
+#include "event_variables.h"
 #ifdef NDEBUG
 #undef NDEBUG
 #endif
@@ -103,6 +104,30 @@ int main(void)
         const unsigned before=g.economy.gold;input(&s,&h,&g.economy,HMBTN_PAD_CROSS);
         assert(s.next_request==0x54 && g.economy.gold==before);
     }
+    /* Technical support alone never unlocks Moondrop. Shared story command
+     * mutates the same progress loan, including through shop resets. */
+    hmbtn_game_state_init(&g);s=(HmbtnFeedShop){.progress=&g.progress};
+    assert(hmbtn_won_seed_shop_open(&s,&g.clock) && hmbtn_seed_shop_count(&s)==6);
+    char error[128]={0};HmbtnEventCommand unlock={.type=81,.command=27};
+    unlock.y=1;
+    assert(hmbtn_event_progress_command(&g.progress,&unlock,error,sizeof(error))==HMBTN_EVENT_ERROR && !g.progress.moondrop_seeds);
+    unlock.y=0;assert(hmbtn_event_progress_command(&g.progress,&unlock,error,sizeof(error))==HMBTN_EVENT_DONE);
+    assert(hmbtn_event_progress_command(&g.progress,&unlock,error,sizeof(error))==HMBTN_EVENT_DONE && hmbtn_seed_shop_count(&s)==7);
+    for(unsigned row=0;row<7;++row) assert(hmbtn_seed_shop_choice(&s,row)==hmbtn_won_seed_entry(row));
+    assert(!hmbtn_seed_shop_choice(&s,7));
+    until(&s,&h,&g.economy,HMBTN_SHOP_SELECT);
+    for(unsigned i=0;i<3;++i) input(&s,&h,&g.economy,HMBTN_PAD_DOWN);
+    assert(s.item==0x31);input(&s,&h,&g.economy,HMBTN_PAD_TRIANGLE);assert(s.next_request==0x168);
+    until(&s,&h,&g.economy,HMBTN_SHOP_SELECT);
+    inv=g.inventory;
+    input(&s,&h,&g.economy,HMBTN_PAD_CROSS);until(&s,&h,&g.economy,HMBTN_SHOP_COUNT);
+    input(&s,&h,&g.economy,HMBTN_PAD_CIRCLE);until(&s,&h,&g.economy,HMBTN_SHOP_SELECT);
+    assert(!memcmp(&inv,&g.inventory,sizeof(inv)) && g.economy.gold==500);
+    input(&s,&h,&g.economy,HMBTN_PAD_CROSS);until(&s,&h,&g.economy,HMBTN_SHOP_COUNT);
+    input(&s,&h,&g.economy,HMBTN_PAD_CROSS);assert(g.economy.gold==200 && g.inventory.equipped.id==0x31);
+    until(&s,&h,&g.economy,HMBTN_SHOP_SELECT);input(&s,&h,&g.economy,HMBTN_PAD_CIRCLE);
+    until(&s,&h,&g.economy,HMBTN_SHOP_OFF);
+    assert(hmbtn_won_seed_shop_open(&s,&g.clock) && s.progress==&g.progress && hmbtn_seed_shop_count(&s)==7);
     /* The seasonal merchant/catalog/profile remains independent of Won's group. */
     assert(hmbtn_seed_shop_entries(0)==4 && hmbtn_seed_shop_entry(0,0)->item==0x36);
     puts("Won: all eight source entries audited, supported stock, descriptions, quantities, funds/space/cancel, shared inventory and distinct receipts passed.");

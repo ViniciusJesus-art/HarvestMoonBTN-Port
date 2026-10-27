@@ -15,7 +15,8 @@ static inline bool inventory_equal(const HmbtnInventory *a,const HmbtnInventory 
             || a->rucksack_level!=b->rucksack_level) return false;
     for(unsigned i=0;i<8;++i)
         if(!inventory_item_equal(a->bag[i],b->bag[i]) || !inventory_item_equal(a->items[i],b->items[i])) return false;
-    for(unsigned i=0;i<64;++i) if(!inventory_item_equal(a->toolbox[i],b->toolbox[i])) return false;
+    for(unsigned i=0;i<64;++i) if(!inventory_item_equal(a->toolbox[i],b->toolbox[i])
+            || !inventory_item_equal(a->icebox[i],b->icebox[i]) || !inventory_item_equal(a->cabinet[i],b->cabinet[i])) return false;
     for(unsigned i=0;i<4;++i) if(a->supplies[i]!=b->supplies[i]) return false;
     return true;
 }

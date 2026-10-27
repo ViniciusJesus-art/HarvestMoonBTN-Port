@@ -27,6 +27,7 @@ void hmbtn_session_clock_events(void *context,const HmbtnFarmClock *clock,unsign
         hmbtn_poultry_carry_sync(&s->poultry,&s->house);
         hmbtn_farm_feed_new_day(&s->feed);hmbtn_farm_gather_new_day(&s->gather);
         hmbtn_weather_new_day(&s->game.weather,clock,&s->game.registration,NULL);
+        hmbtn_construction_new_day(&s->construction,&s->poultry);
         hmbtn_village_refresh_weather(&s->village);
         if(s->game.weather.today==HMBTN_WEATHER_RAIN) hmbtn_farm_field_rain(&s->field);
         hmbtn_daylight_weather_select(&s->daylight,clock,s->game.weather.today);
@@ -60,7 +61,9 @@ bool hmbtn_session_morning(HmbtnSession *s,bool slept)
     memset(&s->dialogue.message,0,sizeof(s->dialogue.message));
     s->intro.action_active=false;s->intro.player.pose=false;s->intro.player.visible=true;s->intro.player.facing=0;
     hmbtn_fishing_cancel(&s->fishing);s->intro.player.sprite=(HmbtnAnimationPlayer){0};
-    s->intro.player.position[0]=-90;s->intro.player.position[1]=0;s->intro.player.position[2]=541;
+    /* farm_data.c:house_door_positions, after the overnight work completes. */
+    s->intro.player.position[0]=s->construction.house_level ? 791 : -90;
+    s->intro.player.position[1]=0;s->intro.player.position[2]=s->construction.house_level ? 258 : 541;
     memset(s->intro.player.velocity,0,sizeof(s->intro.player.velocity));
     s->control=(HmbtnHouseControl){0};s->control.enabled=true;
     s->farm_action.phase=HMBTN_FARM_ACTION_FREE;s->farm_action.bank=-1;

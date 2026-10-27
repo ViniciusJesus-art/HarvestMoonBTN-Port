@@ -36,7 +36,7 @@ static bool carried_entry(HmbtnScenePreview *s,HmbtnHost *host,const char *shots
     const int32_t start=g->intro.player.position[axis];
     REQUIRE(step(s,0,error,size));
     REQUIRE(g->intro.player.position[axis]==start+(facing<2 ? 30 : -30));
-    REQUIRE(g->door_speed==5 && g->door_angle==-5 && clamped_camera(s));
+    REQUIRE(g->door_speed>0 && g->door_angle==-g->door_speed && clamped_camera(s));
     REQUIRE(capture(s,host,shots,"carried-door-retreat",error,size));
     const bool big=(hmbtn_farm_item(item)->flags&0x180u)!=0;
     REQUIRE(g->intro.player.sprite.animation==(facing+2)%4+(big ? 42u : 15u));

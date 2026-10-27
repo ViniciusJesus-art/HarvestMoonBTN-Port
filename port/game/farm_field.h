@@ -26,6 +26,7 @@ typedef struct HmbtnFarmItem {
 typedef struct HmbtnFarmCrop { unsigned season,grown; int regrow; unsigned days[4]; int harvest; } HmbtnFarmCrop;
 const HmbtnFarmCrop *hmbtn_farm_crop(unsigned seed);
 bool hmbtn_farm_crop_supported(unsigned seed);
+bool hmbtn_farm_field_has_grown(const HmbtnFarmField *field,unsigned seed);
 bool hmbtn_farm_field_plant(HmbtnFarmField *field,int column,int row,unsigned seed);
 unsigned hmbtn_farm_field_harvest_item(const HmbtnFarmField *field,unsigned index);
 unsigned hmbtn_farm_field_harvest(HmbtnFarmField *field,unsigned index);

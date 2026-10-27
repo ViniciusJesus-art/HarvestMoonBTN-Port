@@ -5,6 +5,10 @@ struct HmbtnVillage;
 struct HmbtnFarmClock;
 struct HmbtnRegistration;
 struct HmbtnIntroActor;
+struct HmbtnGameProgress;
+/* Shared event_cmd_dispatch story mutations. Unknown commands are boundaries. */
+HmbtnEventResult hmbtn_event_progress_command(struct HmbtnGameProgress *progress,
+    const HmbtnEventCommand *command,char *error,size_t error_size);
 /* Borrow authoritative state and this execution's local slots; owns no values. */
 typedef struct HmbtnEventVariables {
     struct HmbtnVillage *village;

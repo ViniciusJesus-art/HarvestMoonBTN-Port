@@ -191,6 +191,60 @@ def main(root, output):
         ",".join("{"+",".join(row)+"}" for row in dates)+"};\n"
         f"enum {{ SHIPPING_FISH_FIRST={names['ITEM_LARGE_FISH']}, SHIPPING_HONEY={names['ITEM_HONEY']} }};\n")
     shop = clean((src / "overlay/11_GF_FARM/menu/shop_dialogues.c").read_text())
+    # Building offers and overnight countdown, not the unrelated tool-upgrade screen.
+    offers = fields(body(shop, "shop_silo_offers"))
+    if len(offers) != 5:
+        raise ValueError("Unexpected original construction sequence")
+    milestones = clean((src / "overlay/11_GF_FARM/event/milestones.c").read_text())
+    timer = re.search(r"void milestone_arm_countdown\(void\)\s*\{\s*game_state.progress.estate.stampTimer = (\d+);", milestones)
+    limit = re.search(r"#define SHOP_LUMBER_MAX (\d+)", shop)
+    Path(output).with_name("construction_tables.inc").write_text(
+        "/* Original shop_silo_offers and milestone_arm_countdown (--timer < 0). */\n"
+        "static const HmbtnConstructionOffer construction_offers[]={" + ",".join(offers) + "};\n"
+        f"enum {{ CONSTRUCTION_MORNINGS={int(timer.group(1))+1}, LUMBER_MAX={limit.group(1)}, LUMBER_ITEM={names['ITEM_LUMBER']} }};\n")
+    text_bank = clean((src / "main/text/text_bank.c").read_text())
+    # Storage navigation from item_storage.c, for all three rucksack levels.
+    storage = clean((src / "overlay/11_GF_FARM/menu/item_storage.c").read_text())
+    links = [fields(row[1:-1])[2] for row in fields(body(storage, "item_markers"))]
+    if len(links) != 18:
+        raise ValueError("Unexpected storage cursor table")
+    Path(output).with_name("storage_links.inc").write_text(
+        "/* item_storage.c:item_markers, directions by rucksack level. */\n"
+        "static const uint8_t storage_links[18][12]={" + ",".join(links) + "};\n")
+    # Reuse the complete original recipe definitions, bonuses and priority order.
+    kitchen_header = clean((src / "overlay/11_GF_FARM/menu/house.h").read_text())
+    for enum_text, enum_name in ((kitchen_header,"Utensil"),(kitchen_header,"UtensilFlag"),(header,"SeasoningFlag")):
+        section = re.search(r"enum " + enum_name + r"\s*\{([^}]+)\}",enum_text).group(1)
+        current = -1
+        for entry in fields(section):
+            pair = entry.split("=",1)
+            if len(pair)==2:
+                expression = re.sub(r"\b[A-Za-z_]\w*\b",lambda m:str(names[m[0]]),pair[1])
+                current = eval(expression,{"__builtins__":{}},{})
+            else:
+                current += 1
+            names[pair[0].strip()] = current
+    recipes_source = clean((src / "main/game/cooking_recipes.c").read_text())
+    recipe_data = recipes_source[recipes_source.index("static RecipeBonus"):]
+    recipe_labels = list(dict.fromkeys(re.findall(r"DISH_NAME\((\w+)\)",recipe_data)))
+    kitchen = ["/* Original cooking_recipes.c tables, numeric ids and native pointers. */"]
+    for label in recipe_labels:
+        words = re.search(r"\."+label+r"\s*=\s*(\{[^}]+\})",text_bank).group(1)
+        kitchen.append(f"static const uint16_t dish_{label}[]={words};")
+    recipe_data = recipe_data.replace("static RecipeBonus", "static const HmbtnRecipeBonus")
+    recipe_data = recipe_data.replace("Recipe recipes[RECIPE_COUNT]", "static const HmbtnRecipe recipes[]")
+    recipe_data = re.sub(r"DISH_NAME\((\w+)\)",r"dish_\1",recipe_data)
+    recipe_data = re.sub(r"\b(?:ITEM|UTENSIL_FLAG|SEASONING_FLAG)_\w+\b",lambda m:str(names[m[0]]),recipe_data)
+    recipe_data = recipe_data.replace("COOKING_FIASCO_QUALITY","246").replace("{}","{0}")
+    kitchen.append(recipe_data)
+    original_house = clean((src / "overlay/11_GF_FARM/menu/house.c").read_text())
+    groups = re.sub(r"\bITEM_\w+\b",lambda m:str(names[m[0]]),body(original_house,"cooking_value_codes"))
+    kitchen.append("static const uint16_t cooking_groups[4][4]={"+groups+"};")
+    kitchen.append("static const unsigned cooking_option_items[12]={" + ",".join(str(names[n]) for n in
+        ("ITEM_KNIFE","ITEM_FRYING_PAN","ITEM_POT","ITEM_MIXER","ITEM_WHISK","ITEM_ROLLING_PIN","ITEM_OVEN",
+         "ITEM_SUGAR","ITEM_SALT","ITEM_VINEGAR","ITEM_SOY_SAUCE","ITEM_MISO")) + "};")
+    kitchen.append(f"enum {{ COOKING_FIASCO={names['ITEM_FOOD_FIASCO']} }};")
+    Path(output).with_name("cooking_tables.inc").write_text("\n".join(kitchen)+"\n")
     # Base seasonal menus preserve order, ids, descriptions and original names.
     # Conditional entries are metadata; runtime gates them by authoritative shipments.
     text_bank = clean((src / "main/text/text_bank.c").read_text())

@@ -3,10 +3,11 @@
 #include "farm_menu.h"
 #include "village.h"
 #include "poultry.h"
+#include "construction.h"
 typedef enum HmbtnFeedShopPhase {
     HMBTN_SHOP_OFF,HMBTN_SHOP_GREETING,HMBTN_SHOP_SELECT,HMBTN_SHOP_INFO,
     HMBTN_SHOP_OFFER,HMBTN_SHOP_COUNT,HMBTN_SHOP_RESULT,HMBTN_SHOP_LEAVE,HMBTN_SHOP_NAME,
-    HMBTN_SHOP_SELL_LIST,HMBTN_SHOP_SELL_CONFIRM,HMBTN_SHOP_CANCEL_COUNT
+    HMBTN_SHOP_SELL_LIST,HMBTN_SHOP_SELL_CONFIRM,HMBTN_SHOP_CANCEL_COUNT,HMBTN_SHOP_BUILD_CONFIRM
 } HmbtnFeedShopPhase;
 typedef struct HmbtnFeedShop {
     HmbtnFeedShopPhase phase,next,after_result;
@@ -17,11 +18,14 @@ typedef struct HmbtnFeedShop {
     uint32_t previous_arrows;
     bool closing;
     bool medicine_available;
+    bool carpenter;
+    HmbtnConstruction *construction; /* Loan from this session, not a shop-owned copy. */
     bool seeds; /* Original seasonal seed-table menu, same shop state. */
     int sound;
     HmbtnPoultry *poultry;
     HmbtnNewGame editor;
     const HmbtnEconomy *economy; /* Read-only loan for derived seasonal stock. */
+    const HmbtnGameProgress *progress; /* Same story state as event handlers. */
     const HmbtnFarmClock *clock; /* Live session clock; modal shop pauses it. */
     unsigned selection;
     unsigned sale_cursor,sale_top,sale_slot,answer;
@@ -46,14 +50,17 @@ bool hmbtn_seed_shop_open(HmbtnFeedShop *shop,HmbtnVillage *village,
     const HmbtnIntroActor *player,const HmbtnFarmClock *clock,unsigned area,
     const uint8_t *section,size_t section_size,unsigned held_item);
 /* Raw original group D has eight rows. Contextual count/choice filters to
- * supported field crops (three vegetables, Pink Cat, Magic Red, Toy Flower).
- * Moondrop's progression and greenhouse remain pending. */
+ * supported crops and the shared Moondrop unlock (six base rows, seven after
+ * Karen's event). Greenhouse remains pending. */
 const HmbtnSeedShopEntry *hmbtn_won_seed_entry(unsigned index);
 unsigned hmbtn_seed_shop_count(const HmbtnFeedShop *shop);
 const HmbtnSeedShopEntry *hmbtn_seed_shop_choice(const HmbtnFeedShop *shop,unsigned index);
 /* Called by Won's original event_cmd_dispatch(8,10,0,0); the event script
  * selects whether to open the shop. No separate merchant interaction engine. */
 bool hmbtn_won_seed_shop_open(HmbtnFeedShop *shop,const HmbtnFarmClock *clock);
+/* Original NPC 24 conversation dispatches shop 9; eligibility stays in the script. */
+bool hmbtn_carpenter_shop_open(HmbtnFeedShop *shop,const HmbtnFarmClock *clock);
+unsigned hmbtn_carpenter_shop_rows(const HmbtnFeedShop *shop);
 unsigned hmbtn_feed_shop_cost(const HmbtnFeedShop *shop);
 bool hmbtn_feed_shop_expand(uint8_t *record,size_t size,const HmbtnRegistration *registration);
 #endif

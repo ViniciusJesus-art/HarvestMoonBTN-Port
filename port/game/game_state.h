@@ -14,6 +14,7 @@ typedef struct HmbtnStoredTool { uint16_t id, modifier, count; } HmbtnStoredTool
 typedef struct HmbtnInventory {
     HmbtnStoredTool equipped, bag[8], toolbox[64];
     HmbtnStoredTool held_item, items[8];
+    HmbtnStoredTool icebox[64],cabinet[64]; /* Original content capacity; one owner, no UI copies. */
     unsigned rucksack_level;
     unsigned supplies[4]; /* Fodder, lumber, chicken feed, fish food. */
 } HmbtnInventory;
@@ -46,6 +47,11 @@ typedef struct HmbtnRegistration {
 
 /* HmbtnSession owns gameplay state since MA-04a. The title owns a provisional
  * instance until its one-time registration handoff to a new session. */
+/* estate.statusFlags bit 23, independently of event done flags. */
+typedef struct HmbtnGameProgress { bool moondrop_seeds; } HmbtnGameProgress;
+enum { HMBTN_RECIPE_RECORDS=80 };
+typedef struct HmbtnRecipeRecord { uint16_t id,quality,options,values[8]; } HmbtnRecipeRecord;
+typedef struct HmbtnCooking { unsigned utensils;HmbtnRecipeRecord records[HMBTN_RECIPE_RECORDS]; } HmbtnCooking;
 typedef struct HmbtnGameState {
     HmbtnInventory inventory;
     HmbtnEconomy economy;
@@ -53,6 +59,8 @@ typedef struct HmbtnGameState {
     HmbtnFarmClock clock;
     HmbtnRegistration registration;
     HmbtnWeather weather;
+    HmbtnGameProgress progress;
+    HmbtnCooking cooking;
 } HmbtnGameState;
 
 /* New game only. Reopening a UI or loading an area must not call this. */

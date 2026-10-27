@@ -19,6 +19,7 @@ typedef struct HmbtnVillageTalk {
     struct { uint16_t flags;unsigned affection,friendship; } saved_people[HMBTN_VILLAGERS];
     unsigned target,saved_facing,request,bank,message_pc;
     unsigned saved_event_count1;
+    HmbtnGameProgress saved_progress; /* Rollback checkpoint, not gameplay state. */
     bool active,pending,loaded,message_done,released;
     unsigned result,boundary_type;
     /* Presentation request from event_item_store; consumed by the world UI. */

@@ -1,10 +1,13 @@
 #include "house_sleep.h"
 #include <string.h>
 #include <stdlib.h>
-void hmbtn_house_sleep_start(HmbtnHouseSleep *s,HmbtnIntroActor *p)
+void hmbtn_house_sleep_start(HmbtnHouseSleep *s,HmbtnIntroActor *p,unsigned house_level)
 {
     memset(s,0,sizeof(*s)); s->active=true;
     memcpy(s->from,p->position,sizeof(s->from)); memcpy(s->camera,p->position,sizeof(s->camera));
+    /* player_result_camera_points: house0 {-800,-1400}, house1 {-2400,-1400},
+     * then player_result_camera_start shifts -550 X/+440 Z. */
+    s->target[0]=house_level ? -2950 : -1350;s->target[1]=p->position[1];s->target[2]=-960;
     p->facing=0; p->pose=true; p->animation_done=false;
     p->sprite=(HmbtnAnimationPlayer){0};
 }
@@ -19,7 +22,7 @@ void hmbtn_house_sleep_tick(HmbtnHouseSleep *s,HmbtnIntroActor *p)
     if(!s->active || s->boundary) return;
     if(s->phase==0 && p->animation_done) next(s,p);
     else if(s->phase==1) {
-        const int32_t target[3]={-1350,s->from[1],-960};
+        const int32_t *target=s->target;
         const int frame=(int)s->travel;
         for(unsigned i=0;i<3;++i) s->camera[i]=(s->from[i]-target[i])*(17-frame)/17+target[i];
         if(s->camera[1]<s->from[1]-40) s->camera[1]=s->from[1]-40;

@@ -43,7 +43,7 @@ int main(void)
     CHECK(hmbtn_inventory_take(&inventory,65,1,-1,1)==1 && !inventory.items[1].id
         && inventory.items[0].count==99 && inventory.held_item.id==65);
     HmbtnInventory before=inventory;
-    CHECK(hmbtn_inventory_take(&inventory,65,1,2,1)==-1 && inventory_equal(&inventory,&before));
+    CHECK(hmbtn_inventory_take(&inventory,65,1,4,1)==-1 && inventory_equal(&inventory,&before));
     CHECK(!hmbtn_inventory_hold(&inventory,(HmbtnStoredTool){64,0,1}) && inventory_equal(&inventory,&before));
     CHECK(hmbtn_event_items_take(&inventory,65,1,0,1)==1);
     CHECK(hmbtn_inventory_hold(&inventory,(HmbtnStoredTool){64,2,3}) && inventory.held_item.modifier==2);

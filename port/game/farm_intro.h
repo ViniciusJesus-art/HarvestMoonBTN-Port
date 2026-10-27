@@ -41,6 +41,7 @@ typedef struct HmbtnFarmIntro {
     unsigned music_volume, music_from, music_to, music_time, music_length;
     bool stop_music;
     unsigned music_mode;
+    unsigned requested_song;
     bool song_pending, start_music;
     bool action_pending, action_ready, action_active, action_finished;
     unsigned text_bank;

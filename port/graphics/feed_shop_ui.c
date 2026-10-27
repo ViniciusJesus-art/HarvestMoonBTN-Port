@@ -52,6 +52,34 @@ bool hmbtn_feed_shop_ui_draw(const HmbtnFeedShop *s,const HmbtnEconomy *economy,
     HmbtnNewGameUI *ui,uint8_t *p,unsigned tick,char *error,size_t size)
 {
     if(s->phase==HMBTN_SHOP_OFF || s->phase==HMBTN_SHOP_NAME) return true;
+    if(s->carpenter) {
+        hmbtn_window_frame_draw(p,320,240,227,16,79,34);
+        if(!hmbtn_ui_text(ui,p,shop_money_title,WORDS(shop_money_title),231,20,0,3,error,size)
+                || !number(ui,p,economy->gold,8,shop_gold_unit,231,34,error,size)) return false;
+        if(s->phase==HMBTN_SHOP_GREETING || s->phase==HMBTN_SHOP_LEAVE) return true;
+        const unsigned rows=hmbtn_carpenter_shop_rows(s);
+        hmbtn_window_frame_draw(p,320,240,16,16,208,8+rows*14);
+        if(!hmbtn_ui_text(ui,p,shop_buy_lumber,WORDS(shop_buy_lumber),30,20,0,3,error,size)
+                || !hmbtn_ui_icon(ui,p,11,1,20,20+(int)s->selection*14,error,size)) return false;
+        const bool house=hmbtn_construction_next(s->construction,s->poultry)==1;
+        if(rows>1 && !hmbtn_ui_text(ui,p,house ? shop_enlarge_own_house : shop_enlarge_hen_house,
+                house ? WORDS(shop_enlarge_own_house) : WORDS(shop_enlarge_hen_house),30,34,0,3,error,size)) return false;
+        if(s->phase==HMBTN_SHOP_BUILD_CONFIRM && !s->closing && s->message.phase==HMBTN_MESSAGE_WAIT_END) {
+            hmbtn_window_frame_draw(p,320,240,200,112,48,36);
+            return hmbtn_ui_text(ui,p,shop_yes,WORDS(shop_yes),216,116,0,3,error,size)
+                && hmbtn_ui_text(ui,p,shop_no,WORDS(shop_no),216,130,0,3,error,size)
+                && hmbtn_ui_icon(ui,p,11,1,208,116+(int)s->answer*14,error,size);
+        }
+        const bool quantity=s->phase==HMBTN_SHOP_COUNT
+            || ((s->phase==HMBTN_SHOP_INFO || s->phase==HMBTN_SHOP_RESULT) && s->after_result==HMBTN_SHOP_COUNT);
+        if(!quantity) return true;
+        hmbtn_window_frame_draw(p,320,240,16,56,116,48);
+        return hmbtn_ui_text(ui,p,shop_lumber,WORDS(shop_lumber),20,60,0,3,error,size)
+            && number(ui,p,s->quantity,3,shop_units,48,74,error,size)
+            && hmbtn_ui_icon(ui,p,13,(tick/15)%2,20,74,error,size)
+            && hmbtn_ui_icon(ui,p,12,(tick/15)%2,112,74,error,size)
+            && number(ui,p,hmbtn_feed_shop_cost(s),5,shop_gold_unit,32,88,error,size);
+    }
     if(s->seeds) {
         /* shop_gold_panel_step / shop_gold_choice_step / shop_panel_submit.
          * Seed entries have flag=1: names only; price belongs to quantity total. */

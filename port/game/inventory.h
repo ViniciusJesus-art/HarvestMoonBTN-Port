@@ -7,9 +7,10 @@ typedef enum HmbtnInventoryStore { HMBTN_STORE_EQUIPPED,HMBTN_STORE_BAG,HMBTN_ST
 typedef struct HmbtnInventoryPlacement { HmbtnInventoryStore store;unsigned index; } HmbtnInventoryPlacement;
 
 /* event_items_take's represented stores only: where=0 tools, where=1 goods;
- * which=0 hand, 1 hand+bag, 2 tools+toolbox, -1 bag starting at slot ONE.
+ * which=0 hand, 1 hand+bag, 2 adds toolbox/icebox, 3 adds cabinet when where=0;
+ * -1 bag starting at slot ONE.
  * Count matching records, not stack units; remove at most count records.
- * Unsupported stores/capacity return -1 before mutation. */
+ * Invalid operands/capacity return -1 before mutation. */
 int hmbtn_inventory_count(const HmbtnInventory *inventory,int id,int where,int which);
 int hmbtn_inventory_take(HmbtnInventory *inventory,int id,int where,int which,unsigned count);
 
@@ -29,6 +30,12 @@ bool hmbtn_inventory_add_seeds(HmbtnInventory *inventory,unsigned seed,unsigned 
 bool hmbtn_inventory_add_seed_packet(HmbtnInventory *inventory,unsigned seed,HmbtnInventoryPlacement *placement);
 /* Empty-hand collection shared by field, gather and eggs; no pose effects. */
 bool hmbtn_inventory_hold(HmbtnInventory *inventory,HmbtnStoredTool item);
+/* item_storage.c modes: toolbox=0, cabinet=1, icebox=2. Cells 0=hand,
+ * 1..capacity=bag, 9..16=current page. Move/split/merge rules share live stores. */
+HmbtnStoredTool *hmbtn_inventory_storage_slot(HmbtnInventory *,unsigned store,unsigned cell,unsigned page);
+const HmbtnStoredTool *hmbtn_inventory_storage_slot_const(const HmbtnInventory *,unsigned store,unsigned cell,unsigned page);
+bool hmbtn_inventory_storage_swap(HmbtnInventory *,unsigned store,unsigned from,unsigned from_page,unsigned to,unsigned to_page);
+bool hmbtn_inventory_storage_accepts(unsigned store,unsigned item);
 void hmbtn_inventory_compact(HmbtnStoredTool *items,size_t count);
 bool hmbtn_inventory_swap(HmbtnInventory *inventory,unsigned from,unsigned to);
 bool hmbtn_inventory_cycle(HmbtnInventory *inventory,bool tools,bool reverse);

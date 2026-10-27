@@ -1,5 +1,6 @@
 #include "farm_menu.h"
 #include "poultry.h"
+#include "construction.h"
 #include <string.h>
 #include "storage_spots.inc"
 const HmbtnStorageSpot *hmbtn_storage_spot(unsigned i) { return i<18 ? &storage_spots[i] : NULL; }
@@ -88,4 +89,11 @@ void hmbtn_farm_menu_tick(HmbtnFarmMenu *m,HmbtnInventory *h,uint32_t pressed,ui
         unsigned next=storage_spots[m->cursor].next[h->rucksack_level+dir*3];
         if(hmbtn_inventory_slot(h,next)) { m->cursor=next;m->sound=5; }
     }
+}
+
+/* status_pages.c: represented building levels contribute twenty each.
+ * Barn/greenhouse levels remain at their actual initial values. */
+unsigned hmbtn_farm_menu_building_score(const HmbtnFarmMenu *m)
+{
+    return m ? ((m->poultry && m->poultry->upgraded ? 1u : 0u)+(m->construction ? m->construction->house_level : 0u))*20u : 0;
 }

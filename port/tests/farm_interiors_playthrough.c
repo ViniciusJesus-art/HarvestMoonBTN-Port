@@ -35,12 +35,14 @@ int main(int argc,char **argv)
         /* The native player retreats while opening (user's runtime change).
          * Validate that motion instead of requiring the old stationary pose. */
         const unsigned facing=hmbtn_scene_preview_session(s)->intro.player.facing,axis=facing&1u ? 0 : 2;
+        int acceleration=0; /* Preserve the user's tuned door speed; validate its curve. */
         for(unsigned i=0;i<16;++i) {
             CHECK(step(s,0,error,sizeof(error)));
             const int32_t *position=hmbtn_scene_preview_session(s)->intro.player.position;
             CHECK(position[axis]==start[axis]+(facing<2 ? 30 : -30)*(int32_t)(i+1));
             CHECK(position[1]==start[1] && position[2-axis]==start[2-axis]);
-            CHECK(hmbtn_scene_preview_session(s)->door_speed==(int)(i+1)*5);
+            if(!i) acceleration=hmbtn_scene_preview_session(s)->door_speed;
+            CHECK(acceleration>0 && hmbtn_scene_preview_session(s)->door_speed==(int)(i+1)*acceleration);
         }
         for(unsigned i=0;i<100 && (hmbtn_scene_preview_session(s)->area==0 || hmbtn_scene_preview_session(s)->travel_tick);++i) CHECK(step(s,0,error,sizeof(error)));
         CHECK(hmbtn_scene_preview_session(s)->area==buildings[b] && !hmbtn_scene_preview_session(s)->control.exit_pending && !hmbtn_scene_preview_session(s)->door_tick && hmbtn_scene_preview_session(s)->control.enabled);

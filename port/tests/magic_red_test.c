@@ -76,7 +76,7 @@ int main(void)
     assert(!hmbtn_farm_field_plant(f,-1,10,0x33) && !hmbtn_farm_field_plant(f,45,10,0x33));
     f->active[460]=false;assert(!hmbtn_farm_field_plant(f,10,10,0x33));f->active[460]=true;
     f->season=3;assert(!hmbtn_farm_field_plant(f,10,10,0x33));f->season=2;
-    assert(!hmbtn_farm_field_plant(f,10,10,0x31) && !hmbtn_farm_field_plant(f,10,10,0x35));
+    assert(!hmbtn_farm_field_plant(f,10,10,0x35));
     assert(f->plant_random==rng);
     assert(hmbtn_farm_field_plant(f,10,10,0x32) && f->plant_random==rng);
     assert(!hmbtn_farm_field_plant(f,10,10,0x33) && f->plant_random==rng);

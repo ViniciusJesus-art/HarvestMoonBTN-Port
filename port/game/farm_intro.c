@@ -3,6 +3,7 @@
 #include "farm_intro.h"
 #include "ground.h"
 #include "event_variables.h"
+#include "farm_visit.h"
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
@@ -54,7 +55,7 @@ static HmbtnEventResult command(void *ctx, const HmbtnEventCommand *c,
 {
     HmbtnFarmIntro *s = ctx;
     const int32_t a = c->command, b = c->operand, x = c->x, y = c->y;
-    const bool visit=(s->event>=128 && s->event<=133) || s->event==288 || s->event==289 || s->event==140;
+    const bool visit=hmbtn_farm_visit_supported(s->event);
     HmbtnIntroActor *actor = hmbtn_farm_intro_actor(s,a);
     switch (c->type) {
     case 0x23: {
@@ -286,9 +287,13 @@ static HmbtnEventResult command(void *ctx, const HmbtnEventCommand *c,
         s->queued_event = (unsigned)a; s->event_pending = true;
         return HMBTN_EVENT_PENDING;
     case 0x18: /* Load the mode's actual VAB/SEQ before acknowledging it. */
+        if((s->event==18 || s->event==19) && a==5 && b==1 && x==1 && !y) {
+            if(s->music_mode==5) { s->start_music=true;return HMBTN_EVENT_DONE; }
+            s->requested_song=5;s->song_pending=true;return HMBTN_EVENT_PENDING;
+        }
         if ((a!=34 && !(s->event==172 && a==10)) || b || x || y) break;
         if (s->music_mode == (unsigned)a) return HMBTN_EVENT_DONE;
-        s->song_pending = true; return HMBTN_EVENT_PENDING;
+        s->requested_song=(unsigned)a;s->song_pending = true; return HMBTN_EVENT_PENDING;
     case 0x19:
         if (a || b || x || y || (s->music_mode!=34 && !(s->event==172 && s->music_mode==10))) break;
         s->start_music = true; return HMBTN_EVENT_DONE;

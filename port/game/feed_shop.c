@@ -22,13 +22,18 @@ const HmbtnSeedShopEntry *hmbtn_seed_shop_entry(unsigned season,unsigned index)
 }
 const HmbtnSeedShopEntry *hmbtn_won_seed_entry(unsigned index)
 { return index<sizeof(won_seeds)/sizeof(*won_seeds) ? &won_seeds[index] : NULL; }
+static bool won_available(const HmbtnFeedShop *s,const HmbtnSeedShopEntry *entry)
+{
+    return hmbtn_farm_crop_supported(entry->item)
+        && (entry->item!=0x31 || (s->progress && s->progress->moondrop_seeds));
+}
 unsigned hmbtn_seed_shop_count(const HmbtnFeedShop *s)
 {
     if(!s || !s->seeds) return 0;
     if(s->merchant==35) {
         unsigned count=0;
         for(unsigned i=0;i<sizeof(won_seeds)/sizeof(*won_seeds);++i)
-            if(hmbtn_farm_crop_supported(won_seeds[i].item)) ++count;
+            if(won_available(s,&won_seeds[i])) ++count;
         return count;
     }
     return s->clock ? hmbtn_seed_shop_entries(s->clock->season)
@@ -42,7 +47,7 @@ const HmbtnSeedShopEntry *hmbtn_seed_shop_choice(const HmbtnFeedShop *s,unsigned
          * visible row is not a source row (Pink Cat=4, Toy Flower=6). Keep
          * each source entry's own description/name rather than index math. */
         for(unsigned i=0;i<sizeof(won_seeds)/sizeof(*won_seeds);++i) {
-            if(!hmbtn_farm_crop_supported(won_seeds[i].item)) continue;
+            if(!won_available(s,&won_seeds[i])) continue;
             if(!index) return &won_seeds[i];
             --index;
         }
@@ -103,7 +108,10 @@ static bool buy_medicine(HmbtnHouseInteraction *h)
 static void reset_shop(HmbtnFeedShop *s)
 {
     HmbtnPoultry *poultry=s->poultry;const HmbtnEconomy *economy=s->economy;
+    const HmbtnGameProgress *progress=s->progress;
+    HmbtnConstruction *construction=s->construction;
     memset(s,0,sizeof(*s));s->poultry=poultry;s->economy=economy;
+    s->progress=progress;s->construction=construction;
 }
 bool hmbtn_feed_shop_open(HmbtnFeedShop *s,HmbtnVillage *v,const HmbtnIntroActor *p,
     const HmbtnFarmClock *clock,unsigned area,unsigned held_item)
@@ -284,10 +292,112 @@ static void seed_tick(HmbtnFeedShop *s,HmbtnHouseInteraction *h,HmbtnEconomy *ec
     }
     if(quantity!=(int)s->quantity) { s->quantity=quantity>99 ? 1 : quantity<=0 ? 99 : (unsigned)quantity;s->sound=5; }
 }
+bool hmbtn_carpenter_shop_open(HmbtnFeedShop *s,const HmbtnFarmClock *clock)
+{
+    if(!s || !clock || !s->construction || !s->poultry || s->phase!=HMBTN_SHOP_OFF) return false;
+    reset_shop(s);s->carpenter=true;s->merchant=24;s->clock=clock;
+    s->item=hmbtn_carpenter_lumber_item();s->quantity=1;s->sound=3;
+    start_message(s,HMBTN_SHOP_GREETING,0x132);return true;
+}
+unsigned hmbtn_carpenter_shop_rows(const HmbtnFeedShop *s)
+{
+    /* Offer only implemented work. The barn is the next delivery after house1. */
+    return s && s->poultry && s->construction ? (hmbtn_construction_next(s->construction,s->poultry)<2 ? 2u : 1u) : 0;
+}
+/* shop_lumber_deal_step/shop_menu_choose, using the existing modal shop.
+ * No money, materials or building levels live in the presentation state. */
+static void carpenter_tick(HmbtnFeedShop *s,HmbtnHouseInteraction *h,HmbtnEconomy *economy,
+    uint32_t pressed,uint32_t held)
+{
+    if(s->phase==HMBTN_SHOP_OFF || s->loaded!=s->request) return;
+    const bool input=s->phase==HMBTN_SHOP_SELECT || s->phase==HMBTN_SHOP_COUNT
+        || s->phase==HMBTN_SHOP_BUILD_CONFIRM;
+    const bool ready=s->message.phase==HMBTN_MESSAGE_WAIT_END;
+    s->sound=hmbtn_message_tick(&s->message,input && !s->closing ? 0 : pressed,held);
+    if(s->closing) {
+        if(s->message.phase==HMBTN_MESSAGE_CLOSED) start_message(s,s->next,s->next_request);
+        return;
+    }
+    if(!input) {
+        if(s->message.phase!=HMBTN_MESSAGE_CLOSED) return;
+        switch(s->phase) {
+        case HMBTN_SHOP_GREETING:start_message(s,HMBTN_SHOP_SELECT,0x139);break;
+        case HMBTN_SHOP_OFFER:start_message(s,HMBTN_SHOP_COUNT,0x4D);break;
+        case HMBTN_SHOP_INFO:case HMBTN_SHOP_RESULT:
+            if(s->after_result==HMBTN_SHOP_OFF) { s->phase=HMBTN_SHOP_OFF;s->request=0; }
+            else start_message(s,s->after_result,s->after_result==HMBTN_SHOP_SELECT ? 0x139
+                : s->after_result==HMBTN_SHOP_BUILD_CONFIRM ? 0x5F : 0x4D);
+            break;
+        case HMBTN_SHOP_LEAVE:s->phase=HMBTN_SHOP_OFF;s->request=0;break;
+        default:break;
+        }
+        return;
+    }
+    if(!ready) return;
+    const uint32_t arrows=held&(HMBTN_PAD_UP|HMBTN_PAD_DOWN|HMBTN_PAD_LEFT|HMBTN_PAD_RIGHT);
+    uint32_t action=pressed;
+    if(arrows!=s->previous_arrows) { s->repeat=0;action|=arrows;s->previous_arrows=arrows; }
+    else if(arrows && ++s->repeat>=12 && (s->repeat-12)%3==0) action|=arrows;
+    if(s->phase==HMBTN_SHOP_SELECT) {
+        const unsigned rows=hmbtn_carpenter_shop_rows(s);
+        if(action&(HMBTN_PAD_UP|HMBTN_PAD_DOWN)) { s->selection=(s->selection+1)%rows;s->sound=5; }
+        else if(pressed&HMBTN_PAD_TRIANGLE) {
+            s->after_result=HMBTN_SHOP_SELECT;s->sound=0;next(s,HMBTN_SHOP_INFO,s->selection ? 0x134+hmbtn_construction_next(s->construction,s->poultry) : 0x133);
+        } else if(pressed&HMBTN_PAD_CIRCLE) { s->sound=1;next(s,HMBTN_SHOP_LEAVE,0x141); }
+        else if(pressed&HMBTN_PAD_CROSS) {
+            s->sound=0;s->after_result=HMBTN_SHOP_SELECT;
+            if(!s->selection) {
+                if(h->inventory->supplies[1]>=hmbtn_carpenter_lumber_limit()) next(s,HMBTN_SHOP_RESULT,0x13A);
+                else { s->quantity=1;next(s,HMBTN_SHOP_OFFER,0x13B); }
+            } else if(s->construction->mornings_left) next(s,HMBTN_SHOP_RESULT,0x144);
+            else {
+                s->answer=0;s->after_result=HMBTN_SHOP_BUILD_CONFIRM;next(s,HMBTN_SHOP_INFO,0x13C+hmbtn_construction_next(s->construction,s->poultry));
+            }
+        }
+        return;
+    }
+    if(s->phase==HMBTN_SHOP_BUILD_CONFIRM) {
+        if(action&(HMBTN_PAD_UP|HMBTN_PAD_DOWN)) { s->answer^=1;s->sound=5; }
+        else if(pressed&(HMBTN_PAD_CROSS|HMBTN_PAD_CIRCLE)) {
+            s->sound=0;s->after_result=HMBTN_SHOP_SELECT;
+            if(s->answer || (pressed&HMBTN_PAD_CIRCLE)) next(s,HMBTN_SHOP_RESULT,0x141);
+            else {
+                const HmbtnConstructionResult result=hmbtn_construction_order(s->construction,s->poultry,h->inventory,economy);
+                if(result==HMBTN_BUILD_OK) s->after_result=HMBTN_SHOP_OFF;
+                next(s,HMBTN_SHOP_RESULT,result==HMBTN_BUILD_GOLD ? 0x4F
+                    : result==HMBTN_BUILD_LUMBER ? 0x145 : result==HMBTN_BUILD_COMPLETE ? 0x146 : 0x144);
+            }
+        }
+        return;
+    }
+    int quantity=(int)s->quantity;
+    if(action&HMBTN_PAD_RIGHT) ++quantity;
+    else if(action&HMBTN_PAD_LEFT) --quantity;
+    else if(action&HMBTN_PAD_UP) quantity+=10;
+    else if(action&HMBTN_PAD_DOWN) quantity-=10;
+    else if(pressed&HMBTN_PAD_TRIANGLE) {
+        s->sound=0;s->after_result=HMBTN_SHOP_COUNT;next(s,HMBTN_SHOP_INFO,0x133);return;
+    } else if(pressed&HMBTN_PAD_CIRCLE) {
+        s->sound=1;s->after_result=HMBTN_SHOP_SELECT;next(s,HMBTN_SHOP_RESULT,0x141);return;
+    } else if(pressed&HMBTN_PAD_CROSS) {
+        s->sound=0;s->after_result=HMBTN_SHOP_COUNT;
+        const unsigned cost=hmbtn_feed_shop_cost(s),wood=h->inventory->supplies[1],limit=hmbtn_carpenter_lumber_limit();
+        if(economy->gold<cost) next(s,HMBTN_SHOP_RESULT,0x4F);
+        else if(wood>limit || s->quantity>limit-wood) next(s,HMBTN_SHOP_RESULT,0x142);
+        else {
+            h->inventory->supplies[1]+=s->quantity;
+            hmbtn_economy_gold_change(economy,-(int64_t)cost,true);
+            s->after_result=HMBTN_SHOP_OFF;next(s,HMBTN_SHOP_RESULT,0x143);
+        }
+        return;
+    }
+    if(quantity!=(int)s->quantity) { s->quantity=quantity>99 ? 1 : quantity<=0 ? 99 : (unsigned)quantity;s->sound=5; }
+}
 void hmbtn_feed_shop_tick(HmbtnFeedShop *s,HmbtnHouseInteraction *h,HmbtnEconomy *economy,HmbtnFarmStatistics *stats,
     uint32_t pressed,uint32_t held)
 {
     s->sound=-1;
+    if(s->carpenter) { carpenter_tick(s,h,economy,pressed,held);return; }
     if(s->seeds) { seed_tick(s,h,economy,pressed,held);return; }
     s->medicine_available=!has_medicine(h);
     if(!s->medicine_available && s->selection==3) {

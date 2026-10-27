@@ -2,7 +2,7 @@
 
 Atualizado em 2026-10-27. **A fila principal está no [ROADMAP.md](ROADMAP.md).**
 MA-01..06 e PF-01..05 foram concluídas. PF-06 entregou batata, grama/feno e culturas base de verão/outono;
-clima diário/chuva também está integrado; sementes sazonais de Won também integradas; desbloqueios do supermercado e flores simples também integrados; Magic Red e suas variantes também integradas; a próxima entrega é **PF-06 — Moondrop condicional**. Nabo/batata/tomate/milho/cebola/berinjela/cenoura/batata-doce têm compra
+clima diário/chuva também está integrado; sementes sazonais de Won também integradas; desbloqueios do supermercado e flores simples também integrados; Magic Red e suas variantes também integradas; Moondrop e visitas de Karen também integradas; carpintaria/galinheiro e primeira casa/depósitos/núcleo da cozinha também entregues; a próxima entrega é **PF-06 — celeiro**, na cadeia da estufa/Orangecup. Nabo/batata/tomate/milho/cebola/berinjela/cenoura/batata-doce têm compra
 até venda; grama tem corte/rebrota, estoque e cochos compartilhados.
 A cadeia MA-07..25 foi substituída por entregas funcionais; a tabela de
 correspondência está no roadmap. IDs MA nas classificações abaixo indicam o
@@ -62,7 +62,7 @@ sem exigir infraestrutura de rede agora.
 | Vacas, ovelhas, cachorro, cavalo, ajudantes e concursos | Estado/identidade e ciclo diário migrados; adaptar cada espécie/sistema original separadamente. |
 | Família, casamento e progressão de história | Comandos, flags, calendário e relacionamentos comuns; não usar valores iniciais fixos para simular progresso. |
 | Festivais, minijogos, minas e serviços restantes | Inventário de módulos originais e contratos nativos; selecionar um roteiro/sistema e seu percurso verificável. |
-| Saves host versionados | Estado central estável, sem dump de structs/ponteiros; definir o que se salva e testar ida/volta, corrupção e versões em Linux/Windows. Importação de save PS1 é decisão separada, não requisito implícito de compatibilidade binária. |
+| Saves host versionados | Estado central estável, sem dump de structs/ponteiros; testar ida/volta e corrupção da versão atual em Linux/Windows. Compatibilidade entre versões de desenvolvimento não é exigida; v6 rejeita versões diferentes claramente. Importação de save PS1 é decisão separada, não requisito implícito de compatibilidade binária. |
 | Traduções com alterações de código | Identificar dados/scripts versus regras alteradas; definir compatibilidade sem assumir que substituir recursos basta. |
 | Fidelidade gráfica, áudio e RNG | Comparações reproduzíveis de imagem/ritmo/afinação/volumes; registrar decisões de interpolação/reverb/sequência RNG sem exigir rebuild PS1. |
 | Distribuição Linux/Windows | Validar instalação limpa, atualização, dados ausentes/corrompidos, cancelamento e janela/áudio em Windows real; executar workflow de pacotes com autorização adequada para publicação quando aplicável. |
@@ -90,3 +90,17 @@ Atualização posterior de 2026-10-27: Magic Red concluída, com sorteio origina
 por célula e save v3 que lê v1/v2. Próxima: Moondrop e condição de progressão;
 Orangecup depende da estufa. Esta nota atualiza a seleção histórica anterior;
 seguir somente a ordem e os critérios do [ROADMAP.md](ROADMAP.md).
+
+
+Atualização posterior de 2026-10-27: Moondrop e as visitas 18/19 de Karen
+concluídas, com save v4 que lê v1..v3. A próxima entrega é estufa/Orangecup,
+começando pelo percurso original de aquisição. Esta nota substitui a seleção
+histórica anterior; ordem e aceite continuam somente no [ROADMAP.md](ROADMAP.md).
+
+
+Atualização posterior de 2026-10-27: primeira casa, geladeira/armário e núcleo da
+cozinha integrados com save v6 atual. Aquisição de utensílios pela TV e detalhes
+de apresentação do preparo/ficha continuam pendentes; não repetir os algoritmos
+já adaptados em `cooking.c`. Próxima entrega: celeiro, com auditoria de espécies,
+capacidade e cochos, conforme o [ROADMAP.md](ROADMAP.md). Fonte/resultado:
+[PF06_HOUSE_EXPANSION.md](PF06_HOUSE_EXPANSION.md).

@@ -127,7 +127,7 @@ int main(void)
     CHECK(hmbtn_farm_seed_cell(34,2,1,&x,&z) && x==-1 && z==1);
     CHECK(hmbtn_farm_seed_cell(35,0,0,&x,&z));
     CHECK(hmbtn_farm_seed_cell(37,0,0,&x,&z)); /* Strawberry now has its unlock/crop path. */
-    CHECK(!hmbtn_farm_seed_cell(0x31,0,0,&x,&z)); /* Moondrop progression is still pending. */
+    CHECK(!hmbtn_farm_seed_cell(0x35,0,0,&x,&z)); /* Greenhouse crop remains pending. */
     /* A complete packet reaches all nine original targets once, at animation
      * completion. Repeating the finished action cannot plant/consume again. */
     for(unsigned seed=34;seed<=35;++seed) {

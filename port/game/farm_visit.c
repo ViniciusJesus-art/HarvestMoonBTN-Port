@@ -10,11 +10,11 @@ bool hmbtn_farm_triggers_open(HmbtnFarmTriggers *t,const uint8_t *data,size_t by
 {
     if(t) *t=(HmbtnFarmTriggers){0};
     if(t && data) for(unsigned i=0;i<HMBTN_FARM_TRIGGER_LIMIT && i*36u+2<=bytes;++i) {
-        if(hmbtn_read_le16(data+i*36u)==65535) { *t=(HmbtnFarmTriggers){data,i};return true; }
+        if(hmbtn_read_le16(data+i*36u)==65535) { *t=(HmbtnFarmTriggers){.data=data,.count=i};return true; }
         if(i*36u+36>bytes) break;
     }
     if(t && data && bytes>=HMBTN_FARM_TRIGGER_LIMIT*36u) {
-        *t=(HmbtnFarmTriggers){data,HMBTN_FARM_TRIGGER_LIMIT};return true;
+        *t=(HmbtnFarmTriggers){.data=data,.count=HMBTN_FARM_TRIGGER_LIMIT};return true;
     }
     snprintf(error,size,"Truncated farm trigger table or missing sentinel");return false;
 }
@@ -22,7 +22,7 @@ static bool flags_match(const HmbtnVillage *v,uint32_t packed,unsigned base,bool
 {
     for(unsigned i=0;i<count;++i) {
         const unsigned id=(packed>>(i*10u))&1023u;
-        if(id!=1023u && (base+id>=HMBTN_VILLAGE_FLAGS || v->flags[base+id]!=set)) return false;
+        if(id!=1023u && (base+id>=HMBTN_VILLAGE_FLAGS || hmbtn_village_flag(v,base+id)!=set)) return false;
     }
     return true;
 }
@@ -44,10 +44,11 @@ static bool window_match(uint32_t packed,const HmbtnFarmClock *c)
     for(unsigned i=0;i<count;++i) if((w[4]+i)%24==c->hour) return true;
     return false;
 }
-bool hmbtn_farm_visit_supported(unsigned event) { return (event>=128 && event<=133) || event==288 || event==289 || event==140; }
-static bool available(unsigned condition,const HmbtnFarmClock *c,const HmbtnInventory *inventory)
+bool hmbtn_farm_visit_supported(unsigned event) { return event==18 || event==19 || (event>=128 && event<=133) || event==288 || event==289 || event==140; }
+static bool available(unsigned condition,const HmbtnFarmClock *c,const HmbtnInventory *inventory,const HmbtnFarmField *field)
 {
     if(condition==255) return true;
+    if(condition==7) return hmbtn_farm_field_has_grown(field,0x31);
     if(!inventory) return false;
     if(condition==39) return inventory->held_item.id==204;
     if(condition!=83) return false;
@@ -81,9 +82,11 @@ unsigned hmbtn_farm_event_trigger(const HmbtnFarmTriggers *t,const HmbtnVillage 
         const uint8_t *p=t->data+i*36;const unsigned raw=hmbtn_read_le16(p),id=raw&1023u;
         if(!hmbtn_farm_visit_supported(id)) continue;
         const uint32_t flags=hmbtn_read_le32(p+28);
-        if((p[34]!=1 && p[34]!=mode) || p[12]!=247 || v->flags[251+id]) continue;
+        /* event_wedding_role_match: current native family is single. Accept
+         * wildcard kind enabled for single; do not pretend other roles exist. */
+        if((p[34]!=1 && p[34]!=mode) || (p[12]&7)!=7 || !(p[12]&0x40) || v->flags[251+id]) continue;
         if(p[34]==3 && p[35]!=target) continue;
-        if(!available(p[33],c,inventory)) continue;
+        if(!available(p[33],c,inventory,t->field)) continue;
         if(!window_match(hmbtn_read_le32(p+8),c)) continue;
         const unsigned place=raw>>10;
         if(place!=63 && ((place==previous_place)==((flags&0x80000000u)!=0))) continue;
@@ -97,7 +100,9 @@ unsigned hmbtn_farm_event_trigger(const HmbtnFarmTriggers *t,const HmbtnVillage 
         if(!range) continue;
         if(p[13]!=255) {
             if(p[13]>=HMBTN_VILLAGERS) continue;
-            const unsigned bond=v->people[p[13]].friendship,amount=hmbtn_read_le16(p+14);
+            const unsigned who=p[13];
+            const bool bride=who==3 || who==7 || who==9 || who==14 || who==20;
+            const unsigned bond=bride ? v->people[who].affection : v->people[who].friendship,amount=hmbtn_read_le16(p+14);
             if((flags&0x4000u) ? bond>amount : bond<amount) continue;
         }
         if(!flags_match(v,hmbtn_read_le32(p+16),251,true,3)
@@ -108,7 +113,7 @@ unsigned hmbtn_farm_event_trigger(const HmbtnFarmTriggers *t,const HmbtnVillage 
         if(!(flags&(0x40000000u>>c->season)) || !(flags&(0x4000000u>>c->weekday))) continue;
         if((flags&0xC3800u)!=0xC3800u && !(flags&weather_bits[weather])) continue;
         if((flags&0x10000u) && (!inventory || inventory->held_item.id)) continue;
-        if(flags&0x20000u) continue; /* No integrated event requires a tool-room gate. */
+        if((flags&0x20000u) && (!inventory || hmbtn_event_items_count(inventory,0,0,1)<=0)) continue;
         return id;
     }
     return 0;
@@ -142,7 +147,7 @@ HmbtnEventResult hmbtn_farm_visit_command(HmbtnFarmVisit *visit,HmbtnFarmIntro *
     }
     switch(c->type) {
     case 28:
-        if((a!=0 && a!=1) || (b!=0 && b!=-1) || x || y) break;
+        if((a!=0 && a!=1) || (b!=0 && b!=-1 && !(visit->event==18 && !a && b==2)) || x || y) break;
         s->event_active=a==0;v->flags[3]=s->event_active;
         if(b!=-1) { v->flags[4]=false;v->flags[5]=a==0;v->flags[0xB0]=a==0; }
         return a ? HMBTN_EVENT_DONE : HMBTN_EVENT_WAIT;
@@ -153,7 +158,7 @@ HmbtnEventResult hmbtn_farm_visit_command(HmbtnFarmVisit *visit,HmbtnFarmIntro *
         if((a!=-1 && (a<0 || a>=32)) || (b!=0 && b!=1) || (x!=0 && x!=1) || y) break;
         const bool talked=visit->talk;visit->talk=false;visit->free=s->player_free=!talked;
         if(talked) {
-            const unsigned target=visit->event==130 || visit->event==289 ? visit->talk_target : 17;
+            const unsigned target=visit->event==130 || visit->event==289 || visit->event==18 || visit->event==19 ? visit->talk_target : 17;
             if(target>=HMBTN_VILLAGERS || !target) break;
             if(a!=-1) s->slots[a]=(int32_t)target;
             HmbtnIntroActor *actor=hmbtn_farm_intro_actor(s,(int32_t)target);

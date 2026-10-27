@@ -5,8 +5,8 @@
 **Prioridade:** port funcional com reaproveitamento do C original, conforme a fila PF do [ROADMAP.md](ROADMAP.md).
 **Concluídas:** MA-01..06 e PF-01..05 — base central, regras compartilhadas, cultivo, evento, atualização independente do desenho e saves nativos estáveis.
 
-**PF-06 em andamento:** batata, grama/feno, culturas base de verão/outono, clima diário/chuva, sementes sazonais de Won, desbloqueios do supermercado, Pink Cat/Toy Flower e variantes de Magic Red concluídos nos respectivos recortes; demais sistemas originais ainda parciais/ausentes.
-**Próxima implementação:** PF-06 — Moondrop e seu desbloqueio por evento.
+**PF-06 em andamento:** batata, grama/feno, culturas base de verão/outono, clima diário/chuva, sementes sazonais de Won, desbloqueios do supermercado, Pink Cat/Toy Flower, variantes de Magic Red e Moondrop/visitas de Karen, carpintaria, ampliação do galinheiro e primeira casa (depósitos/núcleo da cozinha) concluídos nos respectivos recortes; demais sistemas originais ainda parciais/ausentes.
+**Próxima implementação:** PF-06 — celeiro, após auditar espécies/capacidade/cochos. Casa/galinheiro entregues; aquisição de utensílios e apresentação completa da cozinha pendentes. Saves atuais v6, sem compatibilidade exigida com versões anteriores.
 MA-07..25 foram substituídas como fila, não concluídas. Refatorações necessárias
 acompanham as entregas funcionais; PF-04 separou atualização/desenho nos fluxos atuais.
 
@@ -32,7 +32,7 @@ Compilar PS1, manter MIPS/ABI ou reproduzir SHA-1 não são critérios do produt
 
 | Marco | Situação | Próximo encaminhamento |
 |---|---|---|
-| Base MA | MA-01..06 concluídas; plano restante substituído | Preservar estado/sessão/serviços/tick; PF-01..05 concluídas; seguir PF-06 (Moondrop condicional a seguir; Magic Red, flores simples, desbloqueios do supermercado, sementes sazonais de Won, clima diário/chuva, culturas base de verão/outono, batata e grama/feno entregues), sem uma nova fase geral de reorganização. |
+| Base MA | MA-01..06 concluídas; plano restante substituído | Preservar estado/sessão/serviços/tick; PF-01..05 concluídas; seguir PF-06 (Celeiro na cadeia da estufa/Orangecup a seguir; primeira casa/depósitos/núcleo da cozinha e carpintaria/galinheiro, Moondrop, Magic Red, flores simples, desbloqueios do supermercado, sementes sazonais de Won, clima diário/chuva, culturas base de verão/outono, batata e grama/feno entregues), sem uma nova fase geral de reorganização. |
 | M1 — Aplicação nativa | Funcional no recorte atual | Preservar entrada/janela; validar Windows real. |
 | M2 — Recursos e apresentação | Funcional parcialmente | Preservar leitores/backends; ampliar fidelidade com comparação reproduzível. |
 | M3 — Título/cadastro | Funcional parcialmente | Tick/apresentação separados na PF-04; preservar fluxos e rastrear algoritmos/inicialização. |
@@ -45,7 +45,23 @@ checklists sobrepostos. São registros históricos, não contagem atual de siste
 nem denominador de progresso da migração. O [backlog complementar](ROADMAP_PENDENTE_CODEX.md)
 reconcilia esses temas; a ordem executável e o aceite estão no roadmap principal.
 
-## Última referência de implementação — PF-06, culturas base de outono
+## Última referência — PF-06, primeira casa
+
+Configure/build Linux Debug aprovados. Seleção final **23/23 CTests aprovados,
+18,24 s**; total **48 processos de teste** incluindo wrappers, filhos e tentativas
+corrigidas, dentro do limite de 50. Não foi executada a suíte inteira.
+
+Gotz cobra 4.700 G/370 madeiras; quatro manhãs; recursos 8..11/84..87,
+despertar/cama/móveis, depósitos autoritativos e núcleo da cozinha, receitas e
+save v6 atuais. Percurso com dados instalados e retomada pelo app em outro
+processo aprovados. Compra de utensílios e apresentação completa da cozinha
+continuam pendentes, sem posse gratuita. Windows/Release/sanitizers/Android,
+instalação limpa e sessão manual de janela/áudio não executados.
+
+Detalhes e arquivos: [PF06_HOUSE_EXPANSION.md](PF06_HOUSE_EXPANSION.md).
+Próximo: celeiro, segundo os critérios do roadmap. PF-06 continua aberta.
+
+## Referência histórica — PF-06, culturas base de outono
 
 Linux x86-64, Debug, SDL3 3.4.18 local, árvore com alterações preexistentes:
 
@@ -479,3 +495,44 @@ Foram **44 processos** contando repetições/wrappers/filhos, abaixo do máximo 
 Suíte completa de 121 testes, Windows, Release, sanitizers, janela/áudio físicos
 e instalação limpa não executados. Próximo: Moondrop e seu desbloqueio por evento,
 conforme [ROADMAP.md](ROADMAP.md). Fontes e arquivos em [PF06_MAGIC_RED.md](PF06_MAGIC_RED.md).
+
+
+## PF-06 — Moondrop e Karen — 2026-10-27
+
+Recorte concluído, incluindo a dependência descoberta no original: visita 18
+fornece o primeiro pacote (afeição 15.000 e espaço acessível); visita 19 exige
+flor madura e libera a loja na chegada. Roteiros/arte/falas/música originais,
+mesmo interpretador e inventário. Desbloqueio único em `game.progress`,
+emprestado por casa/loja; save v4 lê v1/v2/v3 sem inferir progresso de outro flag.
+Compra 300 G, cultivo em seis manhãs regadas, coleta/mochila/presente, ambos os
+ramos de espera, ausência de repetição e retomada em outro processo validados.
+
+Configuração/build Linux Debug passaram. Seleção de 20/20 CTests em 22,41 s;
+após corrigir o modo musical retido entre visitas, repetição do percurso afetado:
+1/1 em 2,50 s. Foram 48 processos efetivamente executados, incluindo repetições,
+wrappers e filhos; uma tentativa anterior ocorreu antes de o binário estar pronto.
+49 tentativas no total, respeitando o máximo 50. Capturas de pacote, flor e menu
+inspecionadas. Suíte completa de 122 testes, Windows, Release, sanitizers,
+janela/áudio físicos e instalação limpa não executados. PF-06 permanece aberta.
+Próximo: estufa/Orangecup, conforme o [roadmap](ROADMAP.md). Detalhes e arquivos
+em [PF06_MOONDROP.md](PF06_MOONDROP.md).
+
+
+## PF-06 — Carpintaria e galinheiro — 2026-10-27
+
+Primeira dependência da cadeia da estufa entregue: loja original de Gotz,
+madeira, pedido de 5.000 G/420 madeiras, quatro manhãs e galinheiro ampliado real.
+Sessão possui o prazo; `poultry.upgraded` possui o nível; dinheiro/madeira são
+os mesmos consumidos por todos os sistemas. Flags e status derivam desse estado.
+Save v5 preserva obra/melhoria; versões antigas não são mais migradas, conforme
+solicitação do usuário. Primeira casa é a próxima entrega do roadmap.
+
+CMake/configuração e build Linux Debug passaram. Seleção intermediária 13/13;
+seleção final **14/16 CTests em 67,42 s**. Os dois testes de portas falharam por
+esperarem incremento 5 enquanto a edição atual de `runtime.c` usa 8; a alteração,
+feita durante esta rodada, foi preservada. Carpintaria, saves/Continue em outro
+processo, Moondrop, sessão/calendário/inventário, conversas, feed e primeira manhã
+passaram. **49 processos** incluindo repetições/wrappers/filhos; limite 50.
+Capturas de menu, fala de custo e interior inspecionadas. Suíte completa de 124,
+Windows, Release, sanitizers, instalação limpa e janela/áudio físicos não
+executados. Detalhes e lista de arquivos em [PF06_CARPENTRY.md](PF06_CARPENTRY.md).

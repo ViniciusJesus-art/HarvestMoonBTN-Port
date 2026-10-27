@@ -118,5 +118,24 @@ int main(void)
     v.people[27].friendship=200;c=(HmbtnEventCommand){.type=91,.command=32,.operand=1,.x=20,.y=1000};
     assert(hmbtn_farm_visit_command(&visit,&intro,&v,&clock,&c,error,sizeof(error))==HMBTN_EVENT_DONE
         && v.people[17].friendship==255 && v.people[3].affection==65535 && v.people[27].friendship==200);
+    /* Karen's native single-state role, affection and accessible tool room. */
+    entry(bytes,18,all|0x20000);bytes[12]=0x77;bytes[13]=3;hmbtn_write_le16(bytes+14,15000);
+    assert(hmbtn_farm_triggers_open(&t,bytes,sizeof(bytes),error,sizeof(error)));
+    HmbtnGameState game;hmbtn_game_state_init(&game);v.people[3].friendship=255;v.people[3].affection=14999;
+    assert(!hmbtn_farm_event_trigger(&t,&v,&clock,0,2,0,0,&game.inventory));
+    v.people[3].affection=15000;
+    assert(hmbtn_farm_event_trigger(&t,&v,&clock,0,2,0,0,&game.inventory)==18);
+    game.inventory.equipped.id=1;for(unsigned i=0;i<2;++i) game.inventory.bag[i].id=1;
+    assert(!hmbtn_farm_event_trigger(&t,&v,&clock,0,2,0,0,&game.inventory));
+    entry(bytes,19,all);bytes[12]=0x77;bytes[33]=7;
+    assert(hmbtn_farm_triggers_open(&t,bytes,sizeof(bytes),error,sizeof(error)));
+    HmbtnFarmField field;hmbtn_farm_field_init(&field,NULL,0);t.field=&field;
+    assert(!hmbtn_farm_event_trigger(&t,&v,&clock,0,2,0,0,&game.inventory));
+    field.cells[460]=(HmbtnFarmTile){.value=0x31,.ground=0x168,.kind=2};
+    assert(!hmbtn_farm_event_trigger(&t,&v,&clock,0,2,0,0,&game.inventory));
+    field.cells[460].kind=3;const uint32_t rng=field.plant_random;
+    assert(hmbtn_farm_event_trigger(&t,&v,&clock,0,2,0,0,&game.inventory)==19 && field.plant_random==rng);
+    assert(hmbtn_farm_visit_begin(&visit,&t,19,&v) && v.flags[251+19]);
+    assert(!hmbtn_farm_event_trigger(&t,&v,&clock,0,2,0,0,&game.inventory));
     puts("Farm visit trigger gates, state effects, repeat policy and logical resource identities passed.");return 0;
 }

@@ -13,6 +13,16 @@ static void record(uint8_t *data,const uint16_t *text,size_t count)
 int main(void)
 {
     uint8_t data[8192]; char error[256]={0};
+    /* text.c's original choice prefixes: 2/3/4 rows, leading newline is not
+     * a fifth scrolling line. Kitchen prompts exercise 3 rows in real data. */
+    for(unsigned count=2;count<=4;++count) {
+        uint16_t choices[10]={0};unsigned used=0;choices[used++]=(uint16_t)(0xffc-count);
+        for(unsigned row=0;row<count;++row) { choices[used++]=0xfffe;choices[used++]=(uint16_t)row; }
+        choices[used++]=0xffff;record(data,choices,used);HmbtnMessage m;
+        CHECK(hmbtn_message_open(&m,data,sizeof(data),error,sizeof(error)));
+        for(unsigned i=0;i<18;++i) hmbtn_message_tick(&m,0,0);
+        CHECK(m.phase==HMBTN_MESSAGE_WAIT_END && m.choices==count && m.page==2);
+    }
     HmbtnNewGame g;HmbtnGameState game;hmbtn_game_state_init(&game);hmbtn_new_game_init(&g,hmbtn_game_registration(&game));
     CHECK(g.step==11 && g.name[0]==0xffff);
     tick(&g,0);CHECK(g.step==12 && g.request==0x3a2);

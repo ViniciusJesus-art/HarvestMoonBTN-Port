@@ -3,6 +3,9 @@
 #include "psx_data.h"
 #include "psx_random.h"
 #include "ground.h"
+#include "construction.h"
+#include "cooking.h"
+#include "poultry.h"
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -12,7 +15,25 @@ typedef struct HmbtnDoorRule { unsigned a,b,x,y,result; } HmbtnDoorRule;
 typedef struct HmbtnDoorScript { unsigned id,count;const HmbtnDoorRule *rules; } HmbtnDoorScript;
 #include "village_tables.inc"
 static bool girl(unsigned id) { return id==3 || id==7 || id==9 || id==14 || id==20; }
-static bool flag(const HmbtnVillage *v,unsigned id) { return id<HMBTN_VILLAGE_FLAGS && v->flags[id]; }
+bool hmbtn_village_flag(const HmbtnVillage *v,unsigned id)
+{
+    if(!v || id>=HMBTN_VILLAGE_FLAGS) return false;
+    if(id==0x38 && v->construction) return v->construction->mornings_left!=0;
+    if(id==0x3B && v->construction) return v->construction->house_level>=1;
+    if(id==0x3A && v->poultry) return v->poultry->upgraded;
+    if(v->cooking && id>=0x5b && id<=0x5d) {
+        const unsigned dishes[3]={0xd6,0xd7,0xd1};
+        return hmbtn_cooking_record_slot(v->cooking,dishes[id-0x5b])<HMBTN_RECIPE_RECORDS;
+    }
+    return v->flags[id];
+}
+bool hmbtn_village_flag_set(HmbtnVillage *v,unsigned id,bool value)
+{
+    if(!v || id>=HMBTN_VILLAGE_FLAGS || ((id==0x38 || id==0x3B) && v->construction) || (id==0x3A && v->poultry)
+        || (id>=0x5b && id<=0x5d && v->cooking)) return false;
+    v->flags[id]=value;return true;
+}
+static bool flag(const HmbtnVillage *v,unsigned id) { return hmbtn_village_flag(v,id); }
 static int half(const uint8_t *p) { const unsigned x=hmbtn_read_le16(p);return x<32768 ? (int)x : (int)x-65536; }
 void hmbtn_village_init(HmbtnVillage *v,const uint8_t *data,size_t size)
 {

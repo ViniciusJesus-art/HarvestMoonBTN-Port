@@ -9,6 +9,15 @@
 #include "game_state.h"
 #include <stdio.h>
 static bool person(int i) { return i>0 && i<HMBTN_VILLAGERS; }
+HmbtnEventResult hmbtn_event_progress_command(HmbtnGameProgress *p,
+    const HmbtnEventCommand *c,char *error,size_t size)
+{
+    if(!c || c->type!=81 || c->command!=27) return HMBTN_EVENT_BOUNDARY;
+    if(!p || c->operand || c->x || c->y) {
+        snprintf(error,size,"Invalid SET_STATUS_BIT23 operands or missing progress");return HMBTN_EVENT_ERROR;
+    }
+    p->moondrop_seeds=true;return HMBTN_EVENT_DONE;
+}
 static int32_t signed_word(uint32_t v)
 {
     return v<=INT32_MAX ? (int32_t)v : -1-(int32_t)(UINT32_MAX-v);
@@ -35,7 +44,7 @@ bool hmbtn_event_variable_get(const HmbtnEventVariables *t,int var,int element,i
     if(!t || !out) return false;
     HmbtnVillage *v=t->village;const HmbtnFarmClock *c=t->clock;
     HmbtnVillager *p=v && person(element) ? &v->people[element] : NULL;
-    if(v && var>=49 && var-48<HMBTN_VILLAGE_FLAGS) { *out=v->flags[var-48];return true; }
+    if(v && var>=49 && var-48<HMBTN_VILLAGE_FLAGS) { *out=hmbtn_village_flag(v,(unsigned)(var-48));return true; }
     if((var==3 || var==4) && !t->registration) return false;
     if((var==10 || var==11 || var==12 || var==13 || var==14 || var==26) && !c) return false;
     if((var==15 || var==40 || var==41 || var==42) && !v) return false;
@@ -59,7 +68,10 @@ bool hmbtn_event_variable_get(const HmbtnEventVariables *t,int var,int element,i
     case 27:if(!p) return false;*out=(int32_t)hmbtn_village_actor(v,(unsigned)element)->facing;break;
     case 31:if(!p) return false;*out=(int32_t)p->affection;break;
     case 32:if(!p) return false;*out=(int32_t)p->friendship;break;
-    case 38:if(!p || p->step>=sizeof(p->schedule)/sizeof(*p->schedule)) return false;*out=(int32_t)p->schedule[p->step][2];break;
+    case 38:
+        if(!p || p->step>=sizeof(p->schedule)/sizeof(*p->schedule)) return false;
+        /* villager_set_destination: route's high byte, not place.value. */
+        *out=(int32_t)(p->schedule[p->step][1]>>8);break;
     case 40:if(element<0 || element>=128) return false;*out=v->days.count0[element];break;
     case 41:if(element<0 || element>=8) return false;*out=v->days.count1[element];break;
     case 42:if(element<0 || element>=128) return false;*out=v->days.values[element];break;
@@ -74,7 +86,7 @@ bool hmbtn_event_variable_update(HmbtnEventVariables *t,int var,int element,int3
 {
     int32_t previous;
     if(!hmbtn_event_variable_get(t,var,element,&previous)) return false;
-    if(var>=49) { t->village->flags[var-48]=((uint32_t)operand&0xFFFFu)!=0;return true; }
+    if(var>=49) { return hmbtn_village_flag_set(t->village,(unsigned)(var-48),((uint32_t)operand&0xFFFFu)!=0); }
     HmbtnVillager *p=t->village && person(element) ? &t->village->people[element] : NULL;
     if(var>=44 && var<=46 && p) {
         const uint16_t mask=var==44 ? HMBTN_VILLAGER_DAILY_GAIN : var==45 ? HMBTN_VILLAGER_TALKED_TODAY : 0x10;

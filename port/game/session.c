@@ -28,9 +28,11 @@ HmbtnSession *hmbtn_session_create(const uint16_t *layout,size_t count)
     hmbtn_house_interaction_init(&s->house,&s->game);
     hmbtn_new_game_init(&s->dialogue,hmbtn_game_registration(&s->game));
     s->village.player=&s->intro.player;s->village.weather=&s->game.weather;s->village.doors=&s->area_doors;
+    s->village.poultry=&s->poultry;s->village.construction=&s->construction;s->village.cooking=&s->game.cooking;
     hmbtn_farm_action_init(&s->farm_action);
     hmbtn_farm_menu_init(&s->menu,hmbtn_game_economy_const(&s->game));
     s->menu.poultry=&s->poultry;s->feed_shop.poultry=&s->poultry;s->feed_shop.economy=&s->game.economy;
+    s->feed_shop.progress=&s->game.progress;s->feed_shop.construction=&s->construction;s->menu.construction=&s->construction;s->menu.cooking=&s->game.cooking;
     /* Preserve zeroed poultry and the pre-handoff village. The village's
      * existing defaults are installed only when its schedules arrive. */
     return s;
@@ -41,6 +43,7 @@ bool hmbtn_session_bind_schedules(HmbtnSession *s,const uint8_t *data,size_t siz
     if(!s->village_initialized) {
         hmbtn_village_init(&s->village,data,size);s->village_initialized=true;
         s->village.player=&s->intro.player;s->village.weather=&s->game.weather;s->village.doors=&s->area_doors;
+        s->village.poultry=&s->poultry;s->village.construction=&s->construction;s->village.cooking=&s->game.cooking;
         hmbtn_village_refresh_weather(&s->village);
     } else {
         s->village.schedule_data=data;s->village.schedule_size=size;

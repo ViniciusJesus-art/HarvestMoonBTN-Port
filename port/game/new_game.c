@@ -26,7 +26,7 @@ bool hmbtn_message_open(HmbtnMessage *m, const uint8_t *record, size_t size,
         if(c==0xff1) m->scroll_hold=true;
         m->words[m->count++] = c;
         if (c == 0xffff) { m->phase = HMBTN_MESSAGE_OPENING; return true; }
-        if (c == 0xffc || c == 0xffb) { lines = 0; page_leading = true; }
+        if (c == 0xffc || c == 0xffb || (c>=0xff8 && c<=0xffa)) { lines = 0; page_leading = true; }
         if (c == 0xfffe) {
             /* WAIT_PAGE consumes the first line break after FFB. It is a
              * separator before the new page, not an extra displayed line. */
@@ -35,7 +35,7 @@ bool hmbtn_message_open(HmbtnMessage *m, const uint8_t *record, size_t size,
         }
         if (c < 256 || c == 0xffd) page_leading = false;
         if (c < 256 || c == 0xfffe || c == 0xffd || c == 0xffc || c == 0xffb
-                || c == 0xffa || c == 0xff1 || c == 0xff2 || c == 0xff3 || c == 0xff7 || c == 0xff4 || c == 0xff6 || c == 0xff5
+                || (c >= 0xff8 && c <= 0xffa) || c == 0xff1 || c == 0xff2 || c == 0xff3 || c == 0xff7 || c == 0xff4 || c == 0xff6 || c == 0xff5
                 || (c >= 0xe25 && c <= 0xe2f)
                 || (c >= 0xe38 && c <= 0xfef)) continue;
         FAIL("Unsupported message command in new-game slice");
@@ -46,8 +46,8 @@ bool hmbtn_message_open(HmbtnMessage *m, const uint8_t *record, size_t size,
  * without typing or blips. Used by editor help and confirmation prompts. */
 static void fixed_page(HmbtnMessage *m)
 {
-    if (m->words[m->page] == 0xffa) {
-        m->choices = 2; m->cursor = m->page+1;
+    if (m->words[m->page] >= 0xff8 && m->words[m->page] <= 0xffa) {
+        m->choices = 0xffcu-m->words[m->page]; m->cursor = m->page+1;
         if (m->words[m->cursor] == 0xfffe) ++m->cursor;
         m->page = m->cursor;
     }
@@ -80,7 +80,7 @@ int hmbtn_message_tick(HmbtnMessage *m, uint32_t pressed, uint32_t held)
     case HMBTN_MESSAGE_OPENING:
         if (++m->box_frame >= 18) {
             m->phase = HMBTN_MESSAGE_PRINTING; m->timer = 0;
-            if (m->words[0] == 0xff3 || m->words[0] == 0xffa) {
+            if (m->words[0] == 0xff3 || (m->words[0]>=0xff8 && m->words[0]<=0xffa)) {
                 m->no_scroll = true; fixed_page(m);
             }
         }
@@ -104,7 +104,7 @@ int hmbtn_message_tick(HmbtnMessage *m, uint32_t pressed, uint32_t held)
         else if (code >= 0xe38 && code <= 0xfef) m->face_bank=0xfefu-code;
         else if (code == 0xff7) m->bank=m->face_bank;
         else if (code == 0xff3) m->no_scroll = true;
-        else if (code == 0xffa) { m->no_scroll=true;m->page=m->cursor-1;fixed_page(m); }
+        else if (code >= 0xff8 && code <= 0xffa) { m->no_scroll=true;m->page=m->cursor-1;fixed_page(m); }
         else if(code==0xfffe && m->scroll_hold && ++m->lines>=4) m->phase=HMBTN_MESSAGE_SCROLLING;
         else if (code >= 0xe25 && code <= 0xe2f) m->wait_frames = (0xe2f-code+1)/2;
         /* The source alternates its text blip per typing timer. */

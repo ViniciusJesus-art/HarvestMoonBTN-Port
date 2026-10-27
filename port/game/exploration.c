@@ -132,7 +132,7 @@ bool hmbtn_session_exploration_controls(HmbtnSession *s,const HmbtnExplorationFr
         if(s->feed_shop.phase!=HMBTN_SHOP_OFF) {
             hmbtn_feed_shop_tick(&s->feed_shop,&s->house,hmbtn_game_economy(&s->game),&s->menu.stats,input.pressed,held);
             if(s->feed_shop.phase==HMBTN_SHOP_OFF) {
-                if(!s->feed_shop.seeds) {
+                if(!s->feed_shop.seeds && !s->feed_shop.carpenter) {
                     HmbtnIntroActor *merchant=&s->village.people[s->feed_shop.merchant].actor;
                     merchant->facing=s->feed_shop.saved_facing;
                     merchant->sprite=(HmbtnAnimationPlayer){0,(uint16_t)merchant->facing,0};
@@ -196,7 +196,7 @@ bool hmbtn_session_exploration_controls(HmbtnSession *s,const HmbtnExplorationFr
             if(hmbtn_seed_shop_open(&s->feed_shop,&s->village,&s->intro.player,&s->game.clock,s->area,
                     f->section,f->section_size,s->house.inventory->held_item.id)
                     || hmbtn_feed_shop_open(&s->feed_shop,&s->village,&s->intro.player,&s->game.clock,s->area,s->house.inventory->held_item.id)) {
-                if(!s->feed_shop.seeds) {
+                if(!s->feed_shop.seeds && !s->feed_shop.carpenter) {
                     HmbtnIntroActor *merchant=&s->village.people[s->feed_shop.merchant].actor;
                     merchant->facing=(s->intro.player.facing+2)&3u;
                     merchant->sprite=(HmbtnAnimationPlayer){0,(uint16_t)merchant->facing,0};
@@ -207,7 +207,8 @@ bool hmbtn_session_exploration_controls(HmbtnSession *s,const HmbtnExplorationFr
             unsigned id=hmbtn_village_zone_target(&s->village,f->section,f->section_size,&s->intro.player);
             if(!id) id=hmbtn_village_target(&s->village,&s->intro.player);
             if(id) {
-                if(s->visit.active && (id==17 || s->visit.event==130 || s->visit.event==289)) {
+                if(s->visit.active && (id==17 || s->visit.event==130 || s->visit.event==289
+                            || ((s->visit.event==18 || s->visit.event==19) && id==3))) {
                     s->visit.talk=true;s->visit.talk_target=id;input.pressed&=~HMBTN_PAD_CROSS;
                     (void)emit(f,(HmbtnExplorationEffect){.kind=HMBTN_EXP_UI_SOUND,.id=3},error,error_size);goto house_done;
                 }
@@ -345,6 +346,13 @@ bool hmbtn_session_exploration_controls(HmbtnSession *s,const HmbtnExplorationFr
                 } else { s->control.mode=0;goto house_done; }
             }
         }
+        /* House furniture has the original zone priority over throwing an item:
+         * depositing the held item in the fridge/cabinet must not discard it. */
+        if(s->area==80 && !opened && !s->control.exit_pending && !s->control.jumping
+                && !s->quick_ticks && s->house.mode==HMBTN_HOUSE_FREE && (input.pressed&HMBTN_PAD_CROSS)
+                && hmbtn_house_interact(&s->house,f->section,f->section_size,&s->intro.player)) {
+            opened=true;goto house_interaction;
+        }
         if(s->area!=0 && s->house.inventory->held_item.id && !s->control.exit_pending && !s->control.jumping
                 && s->house.mode==HMBTN_HOUSE_FREE && !s->quick_ticks
                 && hmbtn_farm_carry_tick(&s->carry,&s->house,NULL,&s->intro.player,input.pressed)) {
@@ -368,6 +376,7 @@ house_interaction:
                 s->house.loaded=s->house.request;
                 s->house.message.suppress_cursor=s->house.mode==HMBTN_HOUSE_TV_SELECT
                     || s->house.mode==HMBTN_HOUSE_TOOLBOX
+                    || s->house.mode==HMBTN_HOUSE_COOKING
                     || s->house.mode==HMBTN_HOUSE_BED
                     || (s->house.mode==HMBTN_HOUSE_OPTIONS && !s->house.detail)
                     || (s->house.mode==HMBTN_HOUSE_CALENDAR && !s->house.detail);
@@ -404,6 +413,7 @@ house_interaction:
         if(s->house.mode==HMBTN_HOUSE_SLEEP && !boundary(s,f,HMBTN_EXP_SLEEP,0,input,NULL,error,error_size)) return false;
         if(!emit(f,(HmbtnExplorationEffect){.kind=HMBTN_EXP_HOUSE_ART},error,error_size)) return false;
         s->dialogue.message=s->house.message;
+        if(s->house.mode==HMBTN_HOUSE_COOKING) s->dialogue.choice=s->house.kitchen.choice;
         HmbtnHouseExit exit;
         if(s->house.mode==HMBTN_HOUSE_FREE && !s->control.exit_pending && s->village_ready) {
             if(hmbtn_world_gate_at(f->section,f->section_size,s->intro.player.position,&exit)) {

@@ -13,7 +13,7 @@ continuam concluídas; referências futuras a MA-07..25 identificam escopos do
 plano anterior, substituído pelas entregas PF do roadmap. PF-01 (inventário/dinheiro) e PF-02 (primeiro cultivo/ciclo diário) foram
 concluídas; PF-03 integrou comandos compartilhados e o convite de Duke.
 PF-04 consolidou a coordenação em `game/runtime.c` e separou atualização/desenho,
-inclusive título/cadastro. PF-05 entregou saves nativos estáveis; PF-06 entregou batata, grama/feno e culturas base de verão/outono; clima diário/chuva também integrado; sementes sazonais de Won, desbloqueios do supermercado e Pink Cat/Toy Flower integrados; Magic Red e suas variantes também integradas; próximo recorte: Moondrop condicional. Não há requisito de
+inclusive título/cadastro. PF-05 entregou saves nativos estáveis; PF-06 entregou batata, grama/feno e culturas base de verão/outono; clima diário/chuva também integrado; sementes sazonais de Won, desbloqueios do supermercado e Pink Cat/Toy Flower integrados; Magic Red e suas variantes também integradas; Moondrop e visitas de Karen também integradas; carpintaria, galinheiro e primeira casa integrados como dependências da estufa, incluindo depósitos e núcleo da cozinha; próxima entrega: celeiro. Aquisição de utensílios e apresentação completa da cozinha continuam pendentes. Não há requisito de
 concluir toda a reorganização antes de aproveitar uma função original.
 
 A arquitetura atual tem uma base nativa reutilizável e acoplamentos por resolver;
@@ -126,12 +126,14 @@ completa à SPU continuam parciais. Preservar esses backends durante a migraçã
 
 | Dado | Proprietário atual | Problema de integração |
 |---|---|---|
-| Equipamento, mochila, mão, baú, capacidade e suprimentos | `HmbtnGameState.inventory` (MA-01) | Casa empresta `HmbtnInventory *`; alguns consumidores ainda recebem contexto de casa para dados não migrados. |
+| Equipamento, mochila, mão, baú, geladeira, armário, capacidade e suprimentos | `HmbtnGameState.inventory` (MA-01) | Casa empresta `HmbtnInventory *`; alguns consumidores ainda recebem contexto de casa para dados não migrados. |
 | Dinheiro, contadores de remessas e contas | `HmbtnGameState.economy` (MA-02) | Menu empresta `const HmbtnEconomy *`; remessa pendente e controle de coleta pertencem à mesma economia. Operação financeira compartilhada em `economy.c` desde PF-01. |
 | Data/hora e contador de frames | `HmbtnGameState.clock` (MA-03) | Casa/loja/conversas emprestam referência const ao mesmo relógio; `sync_clock` foi removida. Regras de avanço continuam em `farm_clock.c`. |
 | Nomes e aniversário do jogador | `HmbtnGameState.registration` (MA-03) | Editor recebe referência mutável; gameplay e apresentação recebem leituras. Buffer em edição é transitório. |
 | Atores e eventos | `HmbtnSession.intro`, `.visit`, `.talk`, bytecode e atores, junto aos registros persistentes (MA-04b) | Uma consulta escolhe o ator ativo; rotas ficam suspensas durante overrides. Fases livres em `exploration.c`; callbacks e coordenação em `game/runtime.c` desde PF-04; renderer consulta a identidade ativa. |
 | Campo, moradores e galinhas | `HmbtnSession.field`, `.village`, `.poultry` (MA-04a) | Registros/ticks e roteiros no gameplay; host fornece recursos por empréstimos/serviços. |
+| Construções | `HmbtnSession.construction` (nível da casa/tipo/prazo); `poultry.upgraded` (galinheiro) | Loja/daily/scripts/mapa consultam os mesmos níveis; flags e pontuação derivados. |
+| Cozinha | `HmbtnGameState.cooking` | Utensílios e receitas aprendidas; casa e menu emprestam referências. Contagem derivada dos registros. |
 | RNG | Estados em moradores, pesca e galinhas | Moradores/pesca usam fórmula original com estados locais; galinhas usam outro PRNG host. |
 
 O estado original `FarmState` não é o estado de runtime do PC. Copiar seu layout
@@ -489,10 +491,14 @@ limites em [PF04_UPDATE_PRESENTATION.md](PF04_UPDATE_PRESENTATION.md).
 ## Saves nativos e retomada — PF-05
 
 `game/save.c/.h` define disponibilidade e codec nativo sem SDL/arquivos.
-PF-05 introduziu v1 e o recorte meteorológico de PF-06 introduziu v2. Magic Red
-escreve v3 e aceita v1/v2, com migração explícita dos RNGs ausentes e preservação
-de clima/previsão/células. AUXI acrescenta `field.plant_random` após o RNG do
-clima; nas versões anteriores o construtor fornece seed 1 sem sortear. Somente
+A versão atual é **v6**, com depósitos, utensílios e receitas em GAME; prazo,
+tipo de obra e nível da casa em AUXI, junto aos RNGs e progressão de Moondrop.
+O leitor aceita somente v6: a compatibilidade entre versões de desenvolvimento
+foi dispensada pelo usuário em 2026-10-27. Versões v1..v5/futuras são recusadas
+com mensagem para iniciar jogo novo; nenhum arquivo antigo é apagado/consertado.
+`menu.stats.building_score` foi removido do estado/codec: o status deriva a
+contribuição dos níveis autoritativos. `menu.stats.recipes` também foi removido:
+a quantidade de receitas é derivada de `game.cooking.records`. Somente
 exploração estável entre ticks é salvável; eventos, diálogos, ações, transporte
 animal, menus, portas/viagens e sono/fades bloqueiam. O save contém campos
 explícitos de todos os sistemas cobertos, IDs de conteúdo, versão, tamanhos e
@@ -673,15 +679,16 @@ avança após a compra comprometida para não desfazê-la numa eventual fronteir
 posterior. Fora de uma sessão com adapter, comandos de loja continuam fronteiras
 explícitas. Não há outro estoque, economia, proprietário de loja ou interpretador.
 
-O grupo D é extraído de `shop_seed_menu_setup_d`; a seleção atual filtra seis
-culturas suportadas: repolho, abacaxi, pimentão, Pink Cat, Magic Red e Toy Flower,
-com os nomes e descrições originais. Índices visíveis 0..5 correspondem às linhas
-fonte 0/1/2/4/5/6. Moondrop condicional e Orangecup/estufa continuam pendentes
-entre as oito entradas auditadas. Os recibos/saída/cancelamento diferem dos de Jeff e são selecionados
+O grupo D é extraído de `shop_seed_menu_setup_d`. Antes do desbloqueio, as seis
+linhas são repolho/abacaxi/pimentão/Pink Cat/Magic Red/Toy Flower, fonte
+0/1/2/4/5/6. Após a visita 19, Moondrop aparece na linha visível 3 e as sete
+linhas passam a corresponder à fonte 0..6. Nomes e descrições são preservados.
+`HmbtnFeedShop.progress` empresta `HmbtnGameState.progress`; suporte técnico da
+cultura não implica disponibilidade na loja. Orangecup/estufa continua pendente. Os recibos/saída/cancelamento diferem dos de Jeff e são selecionados
 pelo perfil do comerciante na mesma máquina de compra. Moedas, bolsas e baú
 continuam compartilhados. `farm_field.c` habilita os IDs existentes e
 `estate_art.c` resolve os sprites originais, sem novo algoritmo de crescimento.
-Os IDs/estágios já cabiam em v2; v3 acrescenta somente o RNG de plantio.
+Os IDs/estágios já cabiam em v2; v3 acrescentou o RNG de plantio, v4 a progressão de Moondrop.
 
 A localização e o acesso seguem a agenda/conversa extraídas; o Won atual aparece
 na estalagem (área 204, localização 27). Não foi implementado um balcão alternativo
@@ -764,5 +771,103 @@ segura da faixa zero madura; inverno limpa as plantas. Produto azul `0x53`
 não gera renda; vermelho `0x54` gera 200 G no sistema de remessas existente,
 sem um contador dedicado no mapeamento original. Won tem seis entradas, com
 Magic Red visível 4/fonte 5/descrição `0x16a`; Toy Flower passa à visível 5.
-V3 acrescenta somente o RNG de plantio em AUXI e lê v1/v2 com seed 1.
+Na entrega de Magic Red, v3 acrescentou o RNG e leu v1/v2 com seed 1; o formato atual é v6, sem leitura de versões anteriores.
 Fonte, arquivos e evidências em [PF06_MAGIC_RED.md](PF06_MAGIC_RED.md).
+
+
+## PF-06 — Moondrop, visitas de Karen e progressão
+
+`HmbtnGameState.progress.moondrop_seeds` representa o antigo bit 23 de
+`estate.statusFlags`, separado de `village.flags[269/270]` (visitas concluídas).
+Casa/loja emprestam esse campo. `hmbtn_event_progress_command` em
+`event_variables.c` adapta 81/27 e atende visitas e conversas. A conversa mantém
+um checkpoint de rollback, sem usá-lo como estado de gameplay. A entrega usou v4 para o booleano de AUXI. O codec atual v6 mantém esse campo, sem migrar versões anteriores.
+
+Os blocos instalados 18/19 usam a mesma execução de visitas: Karen é vinculada
+à identidade 3, com ANI/texturas originais e entrega pela API de inventário.
+`HmbtnFarmVisit.prop` só representa a arte transitória do pacote, cuja ANI vem
+da entrada 0x0831 do evento 18. Ela é publicada ao lado de Karen e removida
+antes de armazenar um pacote; não é outro slot de inventário ou item persistido.
+`farm_intro` carrega o modo musical pedido por esses scripts (5) pelo serviço
+existente; o início da visita usa o áudio atual para evitar um modo antigo retido.
+
+O gatilho empresta o campo em `HmbtnFarmTriggers.field`; condição 7 consulta
+`hmbtn_farm_field_has_grown` por valor/estágio, ignorando chão como no original.
+Uma busca booleana não exige o sorteio usado pelo original para escolher uma
+posição, portanto não avança RNG. A estufa ainda ausente não é simulada.
+A família atual é solteira; condições de outros papéis não são anunciadas como
+implementadas. Afeição das candidatas e amizade dos demais moradores usam seus
+campos próprios; a condição de espaço consulta ferramentas acessíveis.
+
+Moondrop utiliza catálogo/ações/campo/diário/inventário/presentes atuais:
+300 G, primavera, 2+2+2 manhãs regadas, produto 0x51, sem rebrota ou venda.
+Sprites 12/40, faixa madura zero explícita. Precondições, ramos reais de espera,
+limites e arquivos em [PF06_MOONDROP.md](PF06_MOONDROP.md).
+
+
+## PF-06 — Carpintaria e galinheiro ampliado
+
+`game/construction.c/.h` adapta `shop_lumber_deal_step` e
+`milestone_arm_countdown`/`milestone_tick`. `HmbtnSession.construction` possui
+`mornings_left`, `pending` e `house_level`. O nível do galinheiro é exclusivamente
+`HmbtnPoultry.upgraded`; madeira é `game.inventory.supplies[1]`, dinheiro/ledger
+são `game.economy`. O pedido valida todos os recursos antes de debitar uma vez.
+`daily.c` aplica a conclusão após clima, uma vez por data; o timer original 3
+com teste `--timer < 0` corresponde a quatro manhãs, não três dias ou frames.
+Ofertas/custo/prazo/limite da loja são extraídos de `src/` no configure.
+
+O menu reutiliza `HmbtnFeedShop` e os mesmos serviços de texto/desenho. A conversa
+374 de Gotz abre a loja por 81/8/9; 81/8/0 espera fechar e confirma o checkpoint
+de inventário. Não há novo NPC, contador de madeira, dinheiro ou motor de loja.
+A variável 38 agora lê o byte alto de `schedule[step][1]`, como
+`villager_set_destination`, em vez de confundir destino com `place.value`.
+
+`village.c:hmbtn_village_flag` deriva 0x38 (obra), 0x3A (galinheiro) e 0x3B (primeira casa) dos
+proprietários; consultas compartilhadas de eventos, agendas/portas e gatilhos
+usam essa interface. Os slots do vetor de flags não são espelhos de estado;
+a interface recusa sua alteração direta quando há vínculo de domínio.
+O comando 95 consulta os mesmos níveis. O status calcula 20 pontos por melhoria entregue,
+sem armazenar outro total de construções.
+
+`world_map.c:hmbtn_world_area_buildings` resolve os IDs lógicos 0/80/112:
+fazenda 0..3, 4..7 ou 8..11 conforme casa/galinheiro; casa 80..83 ou 84..87;
+galinheiro 112..115 ou 116..119. O wrapper antigo delega a essa resolução. `scene_preview.c` carrega modelos,
+zonas, colisões e texturas desse recurso; a composição sazonal usa a base da
+variante, conservando as áreas especiais da abertura. A mesma seleção é aplicada
+na carga de um save. Dez vagas/cochos e segunda incubadora usam `poultry.c` e
+`farm_feed.c`, sem outras regras. `farm_menu.c` deriva a pontuação do estado.
+
+Galinheiro e primeira casa são ofertas funcionais. Após a casa, Gotz oferece
+madeira até integrar o celeiro; as três ofertas seguintes permanecem dados
+rastreáveis, sem desbloqueio fictício. Estufa, Orangecup e espécies ainda não
+portadas continuam abertas. Origem: [PF06_CARPENTRY.md](PF06_CARPENTRY.md) e
+[PF06_HOUSE_EXPANSION.md](PF06_HOUSE_EXPANSION.md). A próxima fila está no roadmap.
+
+## PF-06 — Casa ampliada, depósitos e cozinha
+
+`game.inventory.icebox` e `.cabinet` armazenam os novos depósitos autoritativos.
+`inventory.c` adapta as classes e trocas de `item_storage.c`, incluindo pilhas e
+retirada de uma unidade; scripts usam a mesma interface. `house_interaction.c`
+identifica geladeira (zona 4) e armário (23), reutilizando o modal do baú com
+seletor de depósito. A tabela original de navegação, extraída no configure,
+acomoda os três níveis de mochila. Nenhum array de itens pertence à UI.
+
+`game.cooking` possui utensílios e registros de receita. `cooking.c` adapta o
+casamento ordenado de receitas, grupos, bônus, consumo e aprendizado de
+`menu/house.c`; `generate_farm_tables.py` extrai definições/nomes originais.
+O domínio não depende de SDL nem de globais PS1. O menu transitório da casa
+seleciona IDs e opções; confirma disponibilidade no inventário vivo e consome
+mochila antes da geladeira, uma única vez. O resultado fica na mão compartilhada.
+A apresentação usa o renderer de itens/textos já existente; mensagens vêm do BIN,
+nomes de pratos/temperos das tabelas C originais. O parser de mensagens agora
+interpreta escolhas de três/quatro opções além das duas já existentes.
+
+`daily.c` e `house_sleep.c` usam posições originais da porta/cama conforme nível;
+`runtime.c` apenas passa esse nível ao início do sono. A curva de porta ajustada
+pelo usuário foi preservada. Carregar a casa ampliada não reinicializa campo,
+inventário, móveis ou receitas.
+
+Compra de utensílios pela TV, indicadores completos da ficha e animação/som do
+preparo ainda não foram integrados. Nenhum utensílio é concedido ao concluir a
+obra; receitas sem utensílios funcionam com ingredientes disponíveis. Detalhes,
+matriz, arquivos e resultados em [PF06_HOUSE_EXPANSION.md](PF06_HOUSE_EXPANSION.md).

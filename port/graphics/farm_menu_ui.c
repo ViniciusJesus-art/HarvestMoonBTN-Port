@@ -1,5 +1,6 @@
 /* Native status_pages.c and storage_swap.c presentation using original packs. */
 #include "farm_menu_ui.h"
+#include "cooking.h"
 #include "resource_file.h"
 #include "window_frame.h"
 #include "poultry.h"
@@ -60,7 +61,7 @@ static bool summary(HmbtnFarmMenuUI *u,HmbtnNewGameUI *shared,const HmbtnFarmMen
     const HmbtnFarmStatistics *s=&m->stats;
     if(!sprite(u,0,0,0,24,48,p,error,size)
         || !hmbtn_ui_text(shared,p,g->player_name,HMBTN_NAME_CHARS+1,48,50,0,3,error,size)) return false;
-    const unsigned icons[3]={11,12,10},values[3]={s->building_score,s->recipes,m->economy->gold};
+    const unsigned icons[3]={11,12,10},values[3]={hmbtn_farm_menu_building_score(m),hmbtn_cooking_record_count(m->cooking),m->economy->gold};
     const int xs[3]={40,40,140},ys[3]={72,96,48};
     for(unsigned i=0;i<3;++i) if(!sprite(u,3,icons[i],0,xs[i],ys[i],p,error,size)
         || !number(shared,p,values[i],i==2 ? 8 : 3,i==0 ? farm_glyph_8f[0] : i==1 ? farm_pieces[0] : farm_gold[0],xs[i]+24,ys[i]+4,error,size)) return false;
@@ -78,7 +79,7 @@ static bool summary(HmbtnFarmMenuUI *u,HmbtnNewGameUI *shared,const HmbtnFarmMen
     const int feed_y[4]={72,96,144,168};
     for(unsigned i=0;i<4;++i) if(!sprite(u,3,feed_anim[i],0,212,feed_y[i],p,error,size)
         || !number(shared,p,stock[i]>999 ? 999 : stock[i],3,-1,236,feed_y[i]+4,error,size)) return false;
-    const unsigned score=s->building_score/10+s->recipes/8+s->dog_affection/25+s->animals[0]+s->animals[1]+s->animals[2];
+    const unsigned score=hmbtn_farm_menu_building_score(m)/10+hmbtn_cooking_record_count(m->cooking)/8+s->dog_affection/25+s->animals[0]+s->animals[1]+s->animals[2];
     return number(shared,p,score,3,farm_glyph_8f[0],186,26,error,size);
 }
 static bool chickens(HmbtnFarmMenuUI *u,HmbtnNewGameUI *shared,const HmbtnFarmMenu *m,

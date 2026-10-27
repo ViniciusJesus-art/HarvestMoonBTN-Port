@@ -29,10 +29,14 @@ Berinjela/cenoura/batata-doce e o menu base de outono usam os mesmos sistemas em
 [PF06_FALL_CROPS.md](PF06_FALL_CROPS.md), incluindo passagem ao inverno e saves.
 Clima diário/chuva, sementes sazonais de Won e desbloqueios do supermercado
 foram integrados. Pink Cat e Toy Flower também reutilizam os sistemas existentes,
-conforme [PF06_FLOWERS.md](PF06_FLOWERS.md). Magic Red adapta o sorteio original
-por célula, com estado nativo persistido em save v3 e leitura v1/v2, conforme
-[PF06_MAGIC_RED.md](PF06_MAGIC_RED.md). Próximo recorte: Moondrop condicional,
-conforme o roadmap; a cobertura completa da PF-06 permanece aberta.
+conforme [PF06_FLOWERS.md](PF06_FLOWERS.md). Magic Red e Moondrop também
+foram integradas: [PF06_MAGIC_RED.md](PF06_MAGIC_RED.md) e
+[PF06_MOONDROP.md](PF06_MOONDROP.md). A carpintaria de Gotz e a ampliação do
+galinheiro são a primeira dependência entregue da cadeia da estufa:
+[PF06_CARPENTRY.md](PF06_CARPENTRY.md). A primeira casa, geladeira/armário e núcleo
+da cozinha foram integrados em [PF06_HOUSE_EXPANSION.md](PF06_HOUSE_EXPANSION.md).
+Próximo: celeiro, conforme o roadmap; aquisição de utensílios/cozinha completa e
+PF-06 permanecem abertas.
 
 ## Objetivo e diretrizes permanentes
 
@@ -63,6 +67,20 @@ como referência e permitir expansão posterior de conteúdo. A base nativa atua
    com rastreabilidade de arquivo e função originais.
 10. Preservar a instalação em que o usuário fornece seu BIN original. Distribuir
     somente o runtime e ferramentas permitidas, sem recursos proprietários.
+
+## Saves durante o desenvolvimento
+
+Decisão do usuário em 2026-10-27: **não exigir compatibilidade entre saves de
+versões diferentes nesta fase**. O codec aceita somente sua versão atual; uma
+mudança de esquema pode exigir jogo novo. Rejeitar versões antigas/futuras com
+motivo claro, sem tentar inferir/migrar dados ou apagar arquivos do usuário.
+Continuam obrigatórios: integridade dos saves atuais, retomada sem efeitos
+repetidos, validação de dados e publicação transacional que preserve o arquivo
+anterior em caso de falha. Migradores entre versões não são pré-requisito de uma
+entrega. Compatibilidade para uma versão publicada poderá ser definida depois.
+Os relatórios anteriores descrevem a compatibilidade existente naquelas entregas;
+não são compromissos de manutenção. A construção introduziu v5; casa/depósitos/cozinha usam o formato atual v6, que
+não lê versões anteriores.
 
 ## Escopo PC e legado PS1
 

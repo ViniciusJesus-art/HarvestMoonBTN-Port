@@ -1,6 +1,7 @@
 /* Native field queries adapted from farm_probe.c and field/field.c. */
 #include "farm_field.h"
 #include "psx_data.h"
+#include "psx_random.h"
 #include <string.h>
 typedef struct HmbtnFarmChoice { int32_t x_min,z_min,x_max,z_max; unsigned location; } HmbtnFarmChoice;
 typedef struct HmbtnFarmCellUV { uint8_t uv[8]; uint16_t clut; } HmbtnFarmCellUV;
@@ -17,6 +18,7 @@ const HmbtnFarmTileRule *hmbtn_farm_tile_rule(const HmbtnFarmTile *t)
 void hmbtn_farm_field_init(HmbtnFarmField *f,const uint16_t *layout,size_t count)
 {
     memset(f,0,sizeof(*f));
+    f->plant_random=1;
     for(unsigned i=0;i<HMBTN_FIELD_CELLS;++i) {
         HmbtnFarmTile *t=&f->cells[i]; t->ground=SOIL;
         t->value=layout && i<count ? layout[i] : SOIL;
@@ -40,7 +42,7 @@ bool hmbtn_farm_world_cell(const int32_t pos[3],int *column,int *row)
 }
 /* Adapted from src/overlay/11_GF_FARM/field/field.c: field_event_dispatch,
  * field_daily_tick, field_tile_dry, field_tile_item_stage; reference d3c0f38.
- * Explicit native state, no packed FarmGrowth alias or RNG.
+ * Explicit native state, no packed FarmGrowth alias or shared frame RNG.
  * Outdoor base seasonal crops and grass: greenhouse and random weeds
  * remain absent. Other catalog definitions remain available but are not claimed
  * supported. The growing loop uses definition lengths, not a new catalog cap. */
@@ -50,7 +52,11 @@ const HmbtnFarmCrop *hmbtn_farm_crop(unsigned seed)
     return item && item->category==2 && item->crop>=0
         && (unsigned)item->crop<sizeof(crop_table)/sizeof(*crop_table) ? &crop_table[item->crop] : NULL;
 }
-bool hmbtn_farm_crop_supported(unsigned seed) { return seed==0x22 || seed==0x23 || seed==0x24 || seed==0x26 || seed==0x2b || seed==0x30 || (seed>=0x27 && seed<=0x29) || (seed>=0x2c && seed<=0x2e) || seed==GRASS; }
+/* Flower definitions/daily/harvest are already shared with food crops.
+ * Source: farm_tables.c CROP_PINK_CAT / CROP_TOY_FLOWER, field.c.
+ * Their zero-price products remain flowers, not saleable vegetables. */
+bool hmbtn_farm_crop_supported(unsigned seed)
+{ return (seed>=0x22 && seed<=0x30) || (seed>=0x32 && seed<=0x34) || seed==GRASS || seed==0x178 || seed==0x179; }
 static void dry(HmbtnFarmTile *t)
 {
     if(t->ground==WATERED) { t->ground=TILLED;if(t->value==WATERED) t->value=TILLED; }
@@ -62,6 +68,10 @@ bool hmbtn_farm_field_plant(HmbtnFarmField *f,int c,int r,unsigned seed)
             || !hmbtn_farm_crop_supported(seed) || f->season==3) return false;
     HmbtnFarmTile *t=&f->cells[r*HMBTN_FIELD_COLS+c];
     if(!f->active[r*HMBTN_FIELD_COLS+c] || (t->value!=TILLED && t->value!=WATERED)) return false;
+    /* field_event_dispatch: one roll per accepted cell, after eligibility.
+     * Store the original variant item ID; growth/draw/load never reroll it.
+     * Reuse rand_range's arithmetic on a native stream independent of frames. */
+    if(seed==0x33) seed=hmbtn_psx_random_range(&f->plant_random,25)==0 ? 0x179 : 0x178;
     t->ground=t->ground==TILLED ? SOWN : WATERED_SOWN;t->value=(uint16_t)seed;
     t->kind=0;t->watered_days=0;t->growth_flags&=0x7fff;return true;
 }

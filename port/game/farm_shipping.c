@@ -5,6 +5,18 @@
 #include <string.h>
 #include "shipping_tables.inc"
 
+/* Adapt milestone_check_group_a/b/c (source f251e35) to a pure query.
+ * Original flags are recomputed at initialization/area entry/shop refresh;
+ * the modal native shop reads the same counts without persisting a cache. */
+bool hmbtn_farm_shipping_seed_unlocked(const HmbtnEconomy *economy,unsigned season)
+{
+    if(!economy || season>=3) return false;
+    for(unsigned i=0;i<4;++i) {
+        const int bin=shipping_bins[seed_shipment_groups[season][i]];
+        if(bin<0 || economy->shipments[bin]<SEED_SHIPMENT_THRESHOLD) return false;
+    }
+    return true;
+}
 bool hmbtn_farm_shipping_add(HmbtnEconomy *economy,unsigned id)
 {
     const HmbtnFarmItem *item=hmbtn_farm_item(id);

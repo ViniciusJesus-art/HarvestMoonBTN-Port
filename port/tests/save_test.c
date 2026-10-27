@@ -14,6 +14,7 @@ static void reject(const uint8_t *data,size_t n)
 int main(void)
 {
     char error[256]={0};HmbtnSession *s=save_fixture(1);uint8_t *data=NULL;size_t n=0;
+    s->field.plant_random=0x98765432;
     s->game.weather=(HmbtnWeather){.today=1,.tomorrow=2,.random=0xabcdef12};
     hmbtn_village_refresh_weather(&s->village);
     unsigned char *before=malloc(sizeof(*s));assert(before);memcpy(before,s,sizeof(*s));
@@ -33,20 +34,26 @@ int main(void)
     assert(hmbtn_save_encode(loaded,&again,&m,error,sizeof(error)) && n==m && !memcmp(data,again,n));free(again);
     assert(loaded->house.weather==&loaded->game.weather && loaded->village.weather==&loaded->game.weather);
     assert(loaded->game.weather.today==1 && loaded->game.weather.tomorrow==2 && loaded->game.weather.random==0xabcdef12);
-    /* v1 AUXI has the same weather words, without the appended RNG. Migrate
-     * explicitly, retaining forecast/current values and installing seed 1. */
+    /* v1 lacks both RNG tails; v2 lacks only the planting stream. Build
+     * their actual chunk layouts, retaining weather/cells and migrating seed 1. */
     size_t aux=24;
     while(hmbtn_read_le32(data+aux)!=0x49585541) aux+=8+hmbtn_read_le32(data+aux+4);
     assert(aux+8+hmbtn_read_le32(data+aux+4)==n);
-    uint8_t *legacy=malloc(n-4);assert(legacy);memcpy(legacy,data,n-4);
-    hmbtn_write_le32(legacy+8,1);hmbtn_write_le32(legacy+12,(uint32_t)(n-4-24));
-    hmbtn_write_le32(legacy+aux+4,hmbtn_read_le32(data+aux+4)-4);crc(legacy,n-4);
-    HmbtnSession *old=hmbtn_save_decode(legacy,n-4,error,sizeof(error));assert(old);
-    assert(old->game.weather.today==1 && old->game.weather.tomorrow==2 && old->game.weather.random==1);
-    assert(old->game.economy.gold==s->game.economy.gold && old->game.inventory.toolbox[63].count==99);
-    assert(hmbtn_session_bind_schedules(old,schedule,1));
-    assert(hmbtn_save_encode(old,&again,&m,error,sizeof(error)) && hmbtn_read_le32(again+8)==HMBTN_SAVE_VERSION);
-    free(again);free(legacy);hmbtn_session_destroy(old);
+    assert(loaded->field.plant_random==s->field.plant_random);
+    for(unsigned version=1;version<=2;++version) {
+        const size_t removed=version==1 ? 8 : 4,legacy_size=n-removed;
+        uint8_t *legacy=malloc(legacy_size);assert(legacy);memcpy(legacy,data,legacy_size);
+        hmbtn_write_le32(legacy+8,version);hmbtn_write_le32(legacy+12,(uint32_t)(legacy_size-24));
+        hmbtn_write_le32(legacy+aux+4,hmbtn_read_le32(data+aux+4)-(uint32_t)removed);crc(legacy,legacy_size);
+        HmbtnSession *old=hmbtn_save_decode(legacy,legacy_size,error,sizeof(error));assert(old);
+        assert(old->game.weather.today==1 && old->game.weather.tomorrow==2
+            && old->game.weather.random==(version==1 ? 1u : 0xabcdef12u) && old->field.plant_random==1);
+        assert(old->game.economy.gold==s->game.economy.gold && old->game.inventory.toolbox[63].count==99);
+        assert(!memcmp(old->field.cells,s->field.cells,sizeof(s->field.cells)));
+        assert(hmbtn_session_bind_schedules(old,schedule,1));
+        assert(hmbtn_save_encode(old,&again,&m,error,sizeof(error)) && hmbtn_read_le32(again+8)==HMBTN_SAVE_VERSION);
+        free(again);free(legacy);hmbtn_session_destroy(old);
+    }
     /* Ledger and growth must not be replayed on read or repeated notifications. */
     const unsigned gold=loaded->game.economy.gold;
     hmbtn_session_clock_events(loaded,&loaded->game.clock,HMBTN_CLOCK_DAY);

@@ -683,7 +683,7 @@ static bool opening_tick(HmbtnSessionFrame *s, uint32_t held, char *error, size_
     }
 opening_done:
     service_animations(s);
-    if(s->session->control.enabled && !s->session->sleep.active && !s->session->door_tick)
+    if(s->session->control.enabled && !s->session->sleep.active)
         hmbtn_world_camera(s->section,s->scene->terrain.size+0x2000,s->session->intro.camera);
     (void)effect(s,(HmbtnRuntimeEffect){.kind=HMBTN_RUNTIME_VOLUME,.id=s->session->intro.music_volume});
     if (s->session->intro.stop_music) (void)effect(s,(HmbtnRuntimeEffect){.kind=HMBTN_RUNTIME_STOP_MUSIC});

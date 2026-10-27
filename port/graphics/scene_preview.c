@@ -844,7 +844,9 @@ bool hmbtn_scene_preview_draw(HmbtnScenePreview *s,SDL_Renderer *renderer,char *
             actors[count]=(HmbtnWorldSprite){ani,atlas,a->sprite,{0},0};
             memcpy(actors[count++].position,a->position,sizeof(a->position));
         }
+        unsigned player_sprite=0;bool player_drawn=false;
         if (s->opening && s->session->intro.player.visible) {
+            player_sprite=count;player_drawn=true;
             actors[count] = (HmbtnWorldSprite){s->session->intro.action_active ? &s->action_animation : s->session->first_visit_active ? &s->event_player_animation : &s->player_animation,
                 s->session->intro.action_active ? s->action_atlas : s->session->first_visit_active ? s->mayor_atlas : s->player_atlas,s->session->intro.player.sprite,{0},0};
             memcpy(actors[count++].position,s->session->intro.player.position,sizeof(actors[0].position));
@@ -903,13 +905,10 @@ bool hmbtn_scene_preview_draw(HmbtnScenePreview *s,SDL_Renderer *renderer,char *
             actors[count]=(HmbtnWorldSprite){ani,grass ? s->estate_art.atlas : s->field_atlas,{1,(uint16_t)(e->tick/3),0},{0},0};
             memcpy(actors[count++].position,e->position,sizeof(e->position));
         }
-        const unsigned model_count = hmbtn_scene_data_instances(&s->scene,instances);
-        if (!hmbtn_model_render_instances(s->geometry,instances,model_count,s->atlas,&camera,actors,count,
-                s->pixels,FRAME_BYTES,NULL,error,error_size)) return false;
-        if(((s->session->quick_ticks && s->session->quick_id) || s->session->house.inventory->held_item.id || s->session->fishing.shown || s->session->event_item.shown || s->session->farm_action.phase==HMBTN_FARM_MEDICINE)
+        HmbtnWorldAttachment attachment={0};unsigned attached=0;
+        if(player_drawn && ((s->session->quick_ticks && s->session->quick_id) || s->session->house.inventory->held_item.id || s->session->fishing.shown || s->session->event_item.shown || s->session->farm_action.phase==HMBTN_FARM_MEDICINE)
                 && !(s->session->fishing.phase==HMBTN_FISHING_EAT && s->session->intro.player.sprite.frame>=2)
                 && !(s->session->event_item.phase==HMBTN_EVENT_ITEM_EAT && s->session->intro.player.sprite.frame>=2)) {
-            int x,y;const int32_t point[3]={s->session->intro.player.position[0]+150,s->session->intro.player.position[1]-100,s->session->intro.player.position[2]-150};
             int offset_x=-8,offset_y=-10;
             if(s->session->control.carrying_big && s->session->control.mode!=4) {
                 static const int offset[4][2]={{-8,-10},{-6,-18},{6,-18},{8,-10}};
@@ -921,12 +920,16 @@ bool hmbtn_scene_preview_draw(HmbtnScenePreview *s,SDL_Renderer *renderer,char *
             }
             else if(s->session->house.inventory->held_item.id && !(s->session->quick_ticks && s->session->quick_tool))
                 hmbtn_farm_carried_offset(s->session->intro.player.facing,s->session->control.mode==4,&offset_x,&offset_y);
-            if(hmbtn_model_project_point(&camera,point,&x,&y)
-                    && !hmbtn_house_ui_picture(s->house_ui,s->data_root,s->pixels,
+            attachment.sprite=player_sprite;attachment.screen_x=offset_x;attachment.screen_y=offset_y;
+            if(!hmbtn_house_ui_picture_art(s->house_ui,s->data_root,
                         s->session->event_item.shown ? s->session->event_item.shown : s->session->fishing.shown ? s->session->fishing.shown : s->session->quick_ticks && s->session->quick_id ? s->session->quick_id
                             : s->session->farm_action.phase==HMBTN_FARM_MEDICINE ? s->session->house.inventory->equipped.id : s->session->house.inventory->held_item.id,
-                        x+offset_x,y+offset_y,error,error_size)) return false;
+                        &attachment.animation,&attachment.atlas,error,error_size)) return false;
+            attached=1;
         }
+        const unsigned model_count = hmbtn_scene_data_instances(&s->scene,instances);
+        if (!hmbtn_model_render_instances_attached(s->geometry,instances,model_count,s->atlas,&camera,actors,count,
+                &attachment,attached,s->pixels,FRAME_BYTES,NULL,error,error_size)) return false;
         if(s->session->fishing.marker_visible) {
             int x,y;const HmbtnFishing *f=&s->session->fishing;
             const int32_t point[3]={f->marker[0]+150,f->marker[1]-100,f->marker[2]-150};

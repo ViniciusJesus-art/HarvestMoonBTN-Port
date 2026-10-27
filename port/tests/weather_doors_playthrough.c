@@ -12,7 +12,14 @@ static uint64_t pcm_energy(HmbtnSound *sound,unsigned blocks)
     }
     return energy;
 }
-static bool carried_entry(HmbtnScenePreview *s,unsigned item,char *error,size_t size)
+static bool clamped_camera(HmbtnScenePreview *s)
+{
+    HmbtnSession *g=hmbtn_scene_preview_session(s);int32_t expected[3];
+    memcpy(expected,g->intro.player.position,sizeof(expected));
+    hmbtn_world_camera(hmbtn_scene_preview_resources(s).section,0x2000,expected);
+    return !memcmp(expected,g->intro.camera,sizeof(expected));
+}
+static bool carried_entry(HmbtnScenePreview *s,HmbtnHost *host,const char *shots,unsigned item,char *error,size_t size)
 {
     HmbtnSession *g=hmbtn_scene_preview_session(s);
     const HmbtnStoredTool held={(uint16_t)item,7,1};g->game.inventory.held_item=held;
@@ -29,15 +36,43 @@ static bool carried_entry(HmbtnScenePreview *s,unsigned item,char *error,size_t 
     const int32_t start=g->intro.player.position[axis];
     REQUIRE(step(s,0,error,size));
     REQUIRE(g->intro.player.position[axis]==start+(facing<2 ? 30 : -30));
-    REQUIRE(g->door_speed==5 && g->door_angle==-5);
+    REQUIRE(g->door_speed==5 && g->door_angle==-5 && clamped_camera(s));
+    REQUIRE(capture(s,host,shots,"carried-door-retreat",error,size));
     const bool big=(hmbtn_farm_item(item)->flags&0x180u)!=0;
     REQUIRE(g->intro.player.sprite.animation==(facing+2)%4+(big ? 42u : 15u));
     for(unsigned i=0;i<120 && (g->area!=80 || g->travel_tick || g->door_tick);++i) {
         REQUIRE(step(s,0,error,size));
-        REQUIRE(!memcmp(&held,&g->game.inventory.held_item,sizeof(held)) && !g->carry.phase);
+        REQUIRE(!memcmp(&held,&g->game.inventory.held_item,sizeof(held)) && !g->carry.phase && clamped_camera(s));
+        if(i==44) REQUIRE(capture(s,host,shots,"carried-door-enter",error,size));
     }
     REQUIRE(g->area==80 && !g->control.exit_pending && g->carry.discarded==discarded);
     REQUIRE(travel(s,0,error,size) && g->game.inventory.held_item.id==item);
+    g->game.inventory.held_item=(HmbtnStoredTool){0};return true;
+}
+static bool boundary_entry(HmbtnScenePreview *s,HmbtnHost *host,const char *shots,char *error,size_t size)
+{
+    HmbtnSession *g=hmbtn_scene_preview_session(s);
+    /* Same known business date as the seed-table traversal; this fixture tests
+     * the camera boundary, not the independent merchant absence/refusal rules. */
+    g->game.clock=(HmbtnFarmClock){0,0,2,3,12,0,0};g->daily_date=hmbtn_session_date(&g->game.clock);
+    REQUIRE(hmbtn_scene_preview_load_area(s,40,error,size) && step(s,0,error,size));
+    const uint8_t *zone=NULL;
+    for(unsigned i=0;i<50;++i) {
+        const uint8_t *z=hmbtn_scene_preview_resources(s).section+16+i*44;
+        if(hmbtn_read_le16(z)==0x9000 && hmbtn_read_le16(z+2)==180) { zone=z;break; }
+    }
+    REQUIRE(zone);at(s,zone);g->game.inventory.held_item=(HmbtnStoredTool){0x44,0,1};
+    REQUIRE(step(s,0,error,size) && clamped_camera(s));
+    /* This real supermarket entrance lies beyond area 40's camera Z bound. */
+    REQUIRE(g->intro.camera[2]!=g->intro.player.position[2]);
+    REQUIRE(capture(s,host,shots,"boundary-door-start",error,size));
+    REQUIRE(step(s,HMBTN_PAD_CROSS,error,size) && g->door_tick);
+    for(unsigned i=0;i<120 && (g->area!=180 || g->door_tick || g->travel_tick);++i) {
+        REQUIRE(step(s,0,error,size) && clamped_camera(s));
+        REQUIRE(g->game.inventory.held_item.id==0x44 && !g->carry.phase);
+        if(i==44) REQUIRE(capture(s,host,shots,"boundary-door-enter",error,size));
+    }
+    REQUIRE(g->area==180 && !g->control.exit_pending);
     g->game.inventory.held_item=(HmbtnStoredTool){0};return true;
 }
 static void resident_fixture(HmbtnSession *g,const uint8_t *section,unsigned row,unsigned column)
@@ -75,7 +110,7 @@ int main(int argc,char **argv)
     /* Check sustained decoded ambience and the original SEQ loop. */
     for(unsigned i=0;i<2400 && !hmbtn_sound_loop_count(sound);++i) CHECK(pcm_energy(sound,8)>0);
     CHECK(hmbtn_sound_loop_count(sound)>0);
-    CHECK(carried_entry(s,0x44,error,sizeof(error)) && g->runtime.audio_song==22);
+    CHECK(carried_entry(s,&host,shots,0x44,error,sizeof(error)) && g->runtime.audio_song==22);
     g->game.inventory.held_item=(HmbtnStoredTool){0x44,0,1};
     CHECK(field_reload(&s,&host,argv[1],argv[2],error,sizeof(error)));g=hmbtn_scene_preview_session(s);
     CHECK(g->runtime.audio_song==22 && g->game.inventory.held_item.id==0x44);
@@ -107,6 +142,7 @@ int main(int argc,char **argv)
     for(unsigned i=0;i<1200 && g->house.mode!=HMBTN_HOUSE_FREE;++i) CHECK(step(s,HMBTN_PAD_CROSS,error,sizeof(error)));
     CHECK(g->house.mode==HMBTN_HOUSE_FREE);
     g->game.inventory.held_item=(HmbtnStoredTool){0};
+    CHECK(boundary_entry(s,&host,shots,error,sizeof(error)));
     /* Live routes from the real area-40 image: row 0 leaves, row 1 enters.
      * Their original door event is 25, model 0. */
     g->game.clock.hour=10;

@@ -132,6 +132,8 @@ static void auxiliary(Codec *c,HmbtnSession *d,const HmbtnSession *s)
     U(daylight.period);U(daylight.taken);U(daylight.total);
     if(c->version>=2) { U(game.weather.random); }
     else if(c->read) d->game.weather.random=1; /* v1 had no weather stream. Preserve its forecast. */
+    if(c->version>=3) { U(field.plant_random); }
+    /* v1/v2 retain the constructor's initial stream, without changing cells. */
 }
 #undef U
 #undef S
@@ -262,7 +264,7 @@ bool hmbtn_save_encode(const HmbtnSession *s,uint8_t **data,size_t *bytes,char *
 HmbtnSession *hmbtn_save_decode(const uint8_t *data,size_t bytes,char *error,size_t size)
 {
     if(!data || bytes<HEADER || bytes>HMBTN_SAVE_MAX_BYTES || memcmp(data,magic,8)) { snprintf(error,size,"Invalid native save header");return NULL; }
-    if(hmbtn_read_le32(data+8)!=1 && hmbtn_read_le32(data+8)!=HMBTN_SAVE_VERSION) { snprintf(error,size,"Unsupported native save version %u",hmbtn_read_le32(data+8));return NULL; }
+    if(hmbtn_read_le32(data+8)<1 || hmbtn_read_le32(data+8)>HMBTN_SAVE_VERSION) { snprintf(error,size,"Unsupported native save version %u",hmbtn_read_le32(data+8));return NULL; }
     if(hmbtn_read_le32(data+12)!=bytes-HEADER || hmbtn_read_le32(data+16)!=CHUNKS
         || hmbtn_read_le32(data+20)!=checksum(data+HEADER,bytes-HEADER)) { snprintf(error,size,"Save length or checksum mismatch");return NULL; }
     HmbtnSession *s=hmbtn_session_create(NULL,0);

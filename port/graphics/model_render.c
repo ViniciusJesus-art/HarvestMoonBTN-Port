@@ -215,18 +215,50 @@ bool hmbtn_model_render(HmbtnModelRenderer *r, const HmbtnModel *m,
     return hmbtn_model_render_sprites(r,m,atlas,camera,NULL,0,rgba,rgba_size,drawn,error,error_size);
 }
 
+static bool draw_actor(const HmbtnWorldSprite *s,const ScreenVertex *screen,unsigned index,
+    const HmbtnWorldAttachment *attachments,unsigned count,uint8_t *rgba,size_t bytes,char *error,size_t size)
+{
+    if(!hmbtn_animation_draw(s->animation,s->atlas,&s->player,screen->x,screen->y,
+            rgba,320,240,bytes,error,size)) return false;
+    for(unsigned i=0;i<count;++i) if(attachments[i].sprite==index) {
+        const HmbtnWorldAttachment *a=&attachments[i];
+        if(!hmbtn_animation_draw(a->animation,a->atlas,&a->player,screen->x+a->screen_x,
+                screen->y+a->screen_y,rgba,320,240,bytes,error,size)) return false;
+    }
+    return true;
+}
+
 bool hmbtn_model_render_instances(HmbtnModelRenderer *r,
+    const HmbtnModelInstance *instances,unsigned instance_count,
+    const HmbtnImageAtlas *atlas,const HmbtnCamera *camera,
+    const HmbtnWorldSprite *sprites,unsigned sprite_count,uint8_t *rgba,
+    size_t rgba_size,uint32_t *drawn,char *error,size_t error_size)
+{
+    return hmbtn_model_render_instances_attached(r,instances,instance_count,atlas,camera,
+        sprites,sprite_count,NULL,0,rgba,rgba_size,drawn,error,error_size);
+}
+
+bool hmbtn_model_render_instances_attached(HmbtnModelRenderer *r,
     const HmbtnModelInstance *instances, unsigned instance_count,
     const HmbtnImageAtlas *atlas, const HmbtnCamera *camera,
-    const HmbtnWorldSprite *sprites, unsigned sprite_count, uint8_t *rgba,
+    const HmbtnWorldSprite *sprites, unsigned sprite_count,
+    const HmbtnWorldAttachment *attachments,unsigned attachment_count,uint8_t *rgba,
     size_t rgba_size, uint32_t *drawn, char *error, size_t error_size)
 {
     ViewMatrix view;
     if (drawn) *drawn = 0;
     if (!r || !instances || !instance_count || instance_count > 32 || !atlas
             || !rgba || rgba_size < 320*240*4 || sprite_count > 512
-            || (sprite_count && !sprites) || !build_view(camera,&view)) {
+            || (sprite_count && !sprites) || (attachment_count && !attachments)
+            || attachment_count>512 || !build_view(camera,&view)) {
         snprintf(error,error_size,"Invalid model renderer, frame or camera"); return false;
+    }
+    for(unsigned i=0;i<attachment_count;++i) {
+        const HmbtnWorldAttachment *a=&attachments[i];
+        if(a->sprite>=sprite_count || !a->animation || !a->atlas
+                || a->screen_x < -320 || a->screen_x > 320 || a->screen_y < -240 || a->screen_y > 240) {
+            snprintf(error,error_size,"Invalid world sprite attachment");return false;
+        }
     }
     uint32_t total = 0, count = 0, order = 0;
     for (unsigned instance = 0; instance < instance_count; ++instance) {
@@ -281,7 +313,7 @@ bool hmbtn_model_render_instances(HmbtnModelRenderer *r,
         }
     }
     qsort(r->polygons,count,sizeof(*r->polygons),compare_polygon);
-    struct { const HmbtnWorldSprite *sprite; ScreenVertex screen; uint32_t bucket; } actor[512];
+    struct { const HmbtnWorldSprite *sprite; ScreenVertex screen; uint32_t bucket; unsigned index; } actor[512];
     unsigned actors = 0;
     for (unsigned i = 0; i < sprite_count; ++i) {
         if (!sprites[i].animation || !sprites[i].atlas) {
@@ -304,16 +336,15 @@ bool hmbtn_model_render_instances(HmbtnModelRenderer *r,
         if (bucket >= 2048) continue;
         unsigned j = actors++;
         while (j && actor[j-1].bucket <= bucket) { actor[j] = actor[j-1]; --j; }
-        actor[j].sprite = &sprites[i]; actor[j].screen = screen; actor[j].bucket = bucket;
+        actor[j].sprite = &sprites[i]; actor[j].screen = screen; actor[j].bucket = bucket; actor[j].index=i;
     }
     unsigned next_actor = 0;
     for (uint32_t i = 0; i < count; ++i) {
         const DrawPolygon *p = &r->polygons[i];
         while (next_actor < actors && actor[next_actor].bucket >= p->bucket) {
             const HmbtnWorldSprite *s = actor[next_actor].sprite;
-            if (!hmbtn_animation_draw(s->animation,s->atlas,&s->player,
-                    actor[next_actor].screen.x,actor[next_actor].screen.y,rgba,320,240,
-                    rgba_size,error,error_size)) return false;
+            if (!draw_actor(s,&actor[next_actor].screen,actor[next_actor].index,
+                    attachments,attachment_count,rgba,rgba_size,error,error_size)) return false;
             ++next_actor;
         }
         if (!draw_triangle(p,0,1,2,atlas,rgba)
@@ -324,9 +355,8 @@ bool hmbtn_model_render_instances(HmbtnModelRenderer *r,
     }
     while (next_actor < actors) {
         const HmbtnWorldSprite *s = actor[next_actor].sprite;
-        if (!hmbtn_animation_draw(s->animation,s->atlas,&s->player,
-                actor[next_actor].screen.x,actor[next_actor].screen.y,rgba,320,240,
-                rgba_size,error,error_size)) return false;
+        if (!draw_actor(s,&actor[next_actor].screen,actor[next_actor].index,
+                attachments,attachment_count,rgba,rgba_size,error,error_size)) return false;
         ++next_actor;
     }
     if (drawn) *drawn = count;

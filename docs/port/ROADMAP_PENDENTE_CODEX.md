@@ -1,8 +1,8 @@
 # Pendências complementares ao roadmap
 
-Atualizado em 2026-10-26. **A fila principal está no [ROADMAP.md](ROADMAP.md).**
+Atualizado em 2026-10-27. **A fila principal está no [ROADMAP.md](ROADMAP.md).**
 MA-01..06 e PF-01..05 foram concluídas. PF-06 entregou batata, grama/feno e culturas base de verão/outono;
-clima diário/chuva também está integrado; sementes sazonais de Won também integradas; a próxima entrega é **PF-06 — desbloqueios do supermercado**. Nabo/batata/tomate/milho/cebola/berinjela/cenoura/batata-doce têm compra
+clima diário/chuva também está integrado; sementes sazonais de Won também integradas; desbloqueios do supermercado e flores simples também integrados; Magic Red e suas variantes também integradas; a próxima entrega é **PF-06 — Moondrop condicional**. Nabo/batata/tomate/milho/cebola/berinjela/cenoura/batata-doce têm compra
 até venda; grama tem corte/rebrota, estoque e cochos compartilhados.
 A cadeia MA-07..25 foi substituída por entregas funcionais; a tabela de
 correspondência está no roadmap. IDs MA nas classificações abaixo indicam o
@@ -71,3 +71,22 @@ sem exigir infraestrutura de rede agora.
 Não há novo total agregado de pendências: tarefas MA, áreas futuras e registros
 históricos têm granularidades diferentes. O próximo passo e o aceite de cada
 entrega são os do roadmap, não o checklist de uma etapa antiga.
+
+
+Atualização de 2026-10-26: desbloqueios do supermercado e correções de câmera/item
+carregado integrados em [PF06_CAMERA_SEED_UNLOCKS.md](PF06_CAMERA_SEED_UNLOCKS.md).
+A fila principal seleciona flores simples de Won a seguir. Referências antigas
+a esses desbloqueios como pendentes são históricas; não iniciar implementação
+duplicada. A validação por rodada respeita o limite de 50 execuções do usuário.
+
+
+Atualização de 2026-10-27: Pink Cat e Toy Flower concluídas no mesmo motor de
+Won/cultivo/inventário/presentes, com saves v2 preservados. A próxima entrega é
+Magic Red e suas variantes; Moondrop/estufa seguem pendentes. Esta nota substitui
+a seleção histórica acima; critérios e ordem estão somente no [ROADMAP.md](ROADMAP.md).
+
+
+Atualização posterior de 2026-10-27: Magic Red concluída, com sorteio original
+por célula e save v3 que lê v1/v2. Próxima: Moondrop e condição de progressão;
+Orangecup depende da estufa. Esta nota atualiza a seleção histórica anterior;
+seguir somente a ordem e os critérios do [ROADMAP.md](ROADMAP.md).

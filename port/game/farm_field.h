@@ -13,6 +13,7 @@ typedef struct HmbtnFarmField {
     size_t quad[HMBTN_FIELD_CELLS]; /* Offsets into the current terrain, never pointers. */
     bool active[HMBTN_FIELD_CELLS];
     unsigned season;
+    uint32_t plant_random; /* Owned by this field/session; consumed only by accepted Magic Red cells. */
 } HmbtnFarmField;
 typedef struct HmbtnFarmItem {
     uint16_t flags;

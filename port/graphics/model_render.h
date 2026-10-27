@@ -25,6 +25,20 @@ typedef struct HmbtnWorldSprite {
     int screen_y; /* field_cell_look's lift, in logical pixels. */
 } HmbtnWorldSprite;
 
+/* Draw immediately after its owner, sharing exactly the owner's world depth.
+ * Geometry and nearer actors occlude the complete owner/attachment group. */
+typedef struct HmbtnWorldAttachment {
+    unsigned sprite;
+    const HmbtnAnimation *animation;
+    const HmbtnImageAtlas *atlas;
+    HmbtnAnimationPlayer player;
+    int screen_x,screen_y;
+} HmbtnWorldAttachment;
+bool hmbtn_model_render_instances_attached(HmbtnModelRenderer *,
+    const HmbtnModelInstance *,unsigned,const HmbtnImageAtlas *,const HmbtnCamera *,
+    const HmbtnWorldSprite *,unsigned,const HmbtnWorldAttachment *,unsigned,
+    uint8_t *,size_t,uint32_t *,char *,size_t);
+
 HmbtnModelRenderer *hmbtn_model_renderer_create(uint32_t primitive_capacity);
 void hmbtn_model_renderer_destroy(HmbtnModelRenderer *renderer);
 bool hmbtn_model_project_point(const HmbtnCamera *camera,const int32_t position[3],int *x,int *y);

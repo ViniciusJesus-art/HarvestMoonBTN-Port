@@ -6,7 +6,7 @@
 
 *Based on the [hmbtn-decomp](https://github.com/coalslav/hmbtn-decomp) decompilation project by coalslav.*
 
-> **Status: title, registration, farm arrival, and childhood sequence (partial M3/M4).** Walking and running inside the initial house are available; farm gameplay remains pending. Current development focuses on Linux and Windows.
+> **Status: playable partial port — title, opening, farmhouse, farm, village, farming and native saves.** Core systems are progressing, but this is not yet the complete game.
 
 **Veja a Versão em Português 🇧🇷 [aqui](/README-PT-BR.md)**
 
@@ -42,23 +42,40 @@ This is a personal project driven by my interest in programming, reverse enginee
 
 ## Current Status
 
-The repository contains the **decompilation of the US PlayStation release, `SLUS_011.15`**. The upstream project reconstructs the executable and its 13 overlays with byte-for-byte matching output.
+This repository includes the matching decompilation of the US PlayStation version (`SLUS_011.15`) and a **separate, native C11/SDL3 port** for Linux and Windows. The original project's PS1 executable and 13 overlays are retained. The PC runtime uses adapted logic in `port/`; it does **not** compile the original `src/` game modules directly or emulate the PS1.
 
-**Implemented:** an SDL3 window with a logical resolution of 320 × 240, the Natsume logo, the gradual title reveal, animated grass and sprites, and states 0–9 of the original menu adapted to C. New Game already displays dialogues and portraits and allows the player to complete name entry, birthday selection, and the registration summary. Music and button sound effects use VAB/SEQ data from the extracted game assets, with audio output through SDL3. The game viewport has no diagnostic bars or text. Enter/Start skips the introduction; pressing Enter again opens the menu. Arrow keys/D-pad navigate, and Z/the bottom face button confirms. Escape quits, and F11 toggles fullscreen. Linux has been validated; a Windows x64 build is available, and MSVC CI is set up. The build presets compile and test one task at a time.
+### Available in the current playable portion
 
-**Game data:** the executable reads the title-screen data block from `data/A_FILE/00_gf.bin` without accessing the original disc. Folder import/verification and PS1 reconstruction from the extracted data are available. See the [game data guide](docs/port/GAME_DATA.md) and [implemented asset formats](docs/port/ASSET_FORMATS.md).
+- **Presentation and assets:** 320 × 240 logical viewport, original title sequences, sprite animations, textures/TMD scenery, native scene projection/rasterization, camera, SDL3 input, and partially implemented VAB/SEQ, sound effects and XA playback.
+- **Opening and exploration:** New Game registration, farm arrival and childhood scenes, Thomas's first tour and Zack's introduction, house/farm/village exploration, connected outdoor regions, doors, walking/running, terrain height, interactions and selected scripted events.
+- **Clock and daily cycle:** in-game time, calendar/seasons, day/night lighting, sleep and daily updates, with weather and rain implemented for the current gameplay scope.
+- **Farming and economy:** shared inventory/tools, shops and seed purchasing, tilled soil, planting, watering, growth, harvest, shipping and payments. Turnip, potato, tomato, corn, onion, eggplant, carrot and sweet potato have tested purchase-to-shipping flows. Grass supports planting, cutting, regrowth and fodder storage. Won's seasonal seeds (cabbage, pineapple and green pepper) have also been integrated.
+- **Other partial systems:** chickens/eggs/incubation and feed, villagers and schedules, conversations, gifts/affection, fishing, house interactions and selected original events.
+- **Native save/load:** versioned local saves for stable free-exploration states, including Continue and diary loading. Ongoing events and transitions cannot be saved mid-action; PS1 memory-card saves are not imported.
+- **Packaging:** AppImage, DEB, RPM and Windows EXE workflows. The user supplies their own game BIN on first launch; proprietary game assets are not shipped.
 
-**3D scene — partial M4:** `./build/native-debug/port/hmbtn_native --scene-preview` displays the base farm model using original textures, with native C projection and rasterization. Arrow keys move the diagnostic camera, and Enter restores the default view. This is a preview without characters or gameplay, separate from the New Game flow. See [SCENE_RENDERER.md](docs/port/SCENE_RENDERER.md).
+### Development and validation
 
-**Farm arrival:** accepting the registration now starts the original arrival script, with the player, Thomas, dialogue, camera movement, and music. `./build/native-debug/port/hmbtn_native --intro-preview` opens this sequence directly. The scenery includes doors, the shipping box, weeds, stones, and branches. It continues through the childhood meeting and song, the farewell, and the return to Thomas (events `0x75..0x79`). The sequence now enters the farmhouse (area 80), places the player at the door and finishes the opening script. `--childhood-preview` starts directly at the meeting. See [FARM_INTRO.md](docs/port/FARM_INTRO.md).
+The current roadmap records **MA-01–06 and PF-01–05 completed; PF-06 in progress**, with more original gameplay systems still to port. The most recent documented Linux Debug run passed **109/109 CTests** (including optional tests with locally installed user assets). This does not imply Windows hardware validation or complete PS1 fidelity. See the [live status](docs/port/ROADMAP_STATUS.md), [roadmap](docs/port/ROADMAP.md) and [feature matrix](docs/port/PORTING_MATRIX.md).
 
-**House controls:** `./build/native-debug/port/hmbtn_native --house-preview` opens the initial house directly. Arrows/D-pad walk; X/Circle runs forward. Ground queries use the original scene polygons and flags. Reaching the exit pauses at an explicit boundary; the farm transition remains pending. Z/Cross interacts with the TV, calendar, toolbox and bookshelf; music and footsteps are active. The options menu changes controls, vibration, stereo/mono and the clock. The bed menu plays the original sleep/blanket animation and fade, then stops before unported overnight world updates; diary/save/load remain pending. See [HOUSE_CONTROL.md](docs/port/HOUSE_CONTROL.md) and [HOUSE_INTERACTIONS.md](docs/port/HOUSE_INTERACTIONS.md).
+**Not complete yet:** the full story/year progression, all events and festivals, all animal species, marriage/family, every shop/tool/area, full audiovisual parity, mod support and Android. Some features above work only in the tested subset. This is **not a finished or fully playable recreation of the entire game**.
 
-**Not yet implemented:** full gameplay, saves, general collisions, dynamic farm objects, full SPU audio/reverb, mods. The bootstrap does not run the complete game. Continue/demo stop at a boundary reported in the terminal, and Start/Z/X returns to the menu. The opening sequence and audio still need comparison with the PS1 version before full fidelity can be claimed. This portion is adapted under `port/`; the complete modules in `src/` are not compiled for the host platform. The original **PlayStation** build remains available by default. The local Windows `.exe` was rebuilt with MinGW x64 including the childhood sequence and streamed XA audio event; testing on actual Windows/MSVC is pending.
+Diagnostic entry points include `--scene-preview`, `--intro-preview`, `--childhood-preview`, `--house-preview` and `--diagnostics`. See [farm introduction](docs/port/FARM_INTRO.md), [world map](docs/port/WORLD_MAP.md), [crop systems](docs/port/PF02_CROP_CYCLE.md), and [native saves](docs/port/PF05_NATIVE_SAVES.md).
 
-## Getting Started on Linux and Windows
+
+---
+
+<br>
+
+<img src="./docs/prints/harvest_animacao_sleep.gif" width="110" align="left">
+
+
+### Getting Started on Linux and Windows
 
 Requirements: CMake 3.20+, a C11 compiler, Ninja, and SDL3 development files. If SDL3 is not installed, CMake downloads a pinned version and verifies its hash; the first build therefore requires an internet connection. On Windows, run the commands in a Visual Studio Developer PowerShell with the C++ tools and Ninja available. See the [build guide](docs/port/BUILDING.md) for offline builds and builds without Ninja.
+
+
+<br clear="all">
 
 ```bash
 cmake --preset native-debug
@@ -82,12 +99,12 @@ Run `./build/native-debug/port/hmbtn_native` on Linux or `.\build\native-debug\p
 |---|---|---|
 | `src/` | Decompiled game logic | Existing codebase |
 | `port/core/` | Host application and PS1 data formats | Buildable foundation |
-| `port/game/` | Adapted title flow and event commands | Menu, registration, and first farm event |
+| `port/game/` | Game state, exploration, farming, events and saves | Multiple playable systems; progression incomplete |
 | `port/tests/` | Asset formats, import, window, and event tests | Implemented |
 | `port/graphics/` | Banks, animations, TMD models, and projected sprites | Title and farm arrival implemented in part |
 | `port/audio/` | VAB/ADPCM sampler and title SEQ sequencer | Partially implemented; reverb pending |
 | `port/input/` | Keyboard shortcuts and mapping to PS1 buttons | Keyboard/gamepad implemented |
-| `port/filesystem/` | Resource-range reads; future save support | Reading implemented |
+| `port/filesystem/` | Resource reads and native save files | Implemented for current scope |
 | `port/platform/` | SDL3 window/renderer | Implemented |
 
 **SDL3 is integrated for window management, events, and presentation.** Translating PS1 graphics and adapting the game logic still require further work on PSY-Q, fixed memory addresses, overlays, and console-specific data structures. See the milestones in the [roadmap](docs/port/ROADMAP.md).

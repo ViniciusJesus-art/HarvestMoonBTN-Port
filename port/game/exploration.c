@@ -530,7 +530,7 @@ bool hmbtn_session_exploration_tick(HmbtnSession *s,const HmbtnExplorationFrame 
     if(!hmbtn_session_exploration_controls(s,f,input,error,size)
             || !hmbtn_session_exploration_world(s,f,NULL,NULL,error,size)
             || !hmbtn_session_exploration_animate(s,f,error,size)) return false;
-    if(s->control.enabled && !s->sleep.active && !s->door_tick)
+    if(s->control.enabled && !s->sleep.active)
         hmbtn_world_camera(f->section,f->section_size,s->intro.camera);
     return true;
 }

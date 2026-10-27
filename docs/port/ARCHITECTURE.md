@@ -1,6 +1,6 @@
 # Arquitetura atual do porte
 
-Estado inspecionado em 2026-10-26, incluindo alterações locais existentes.
+Estado inspecionado em 2026-10-27, incluindo alterações locais existentes.
 Este documento descreve a implementação atual, não a arquitetura desejada.
 A direção está em [PORTING_STRATEGY.md](PORTING_STRATEGY.md), o inventário de
 funções em [PORTING_MATRIX.md](PORTING_MATRIX.md) e as próximas tarefas no
@@ -13,7 +13,7 @@ continuam concluídas; referências futuras a MA-07..25 identificam escopos do
 plano anterior, substituído pelas entregas PF do roadmap. PF-01 (inventário/dinheiro) e PF-02 (primeiro cultivo/ciclo diário) foram
 concluídas; PF-03 integrou comandos compartilhados e o convite de Duke.
 PF-04 consolidou a coordenação em `game/runtime.c` e separou atualização/desenho,
-inclusive título/cadastro. PF-05 entregou saves nativos estáveis; PF-06 entregou batata, grama/feno e culturas base de verão/outono; clima diário/chuva também integrado; sementes sazonais de Won integradas; próximo recorte: desbloqueios do supermercado. Não há requisito de
+inclusive título/cadastro. PF-05 entregou saves nativos estáveis; PF-06 entregou batata, grama/feno e culturas base de verão/outono; clima diário/chuva também integrado; sementes sazonais de Won, desbloqueios do supermercado e Pink Cat/Toy Flower integrados; Magic Red e suas variantes também integradas; próximo recorte: Moondrop condicional. Não há requisito de
 concluir toda a reorganização antes de aproveitar uma função original.
 
 A arquitetura atual tem uma base nativa reutilizável e acoplamentos por resolver;
@@ -489,8 +489,10 @@ limites em [PF04_UPDATE_PRESENTATION.md](PF04_UPDATE_PRESENTATION.md).
 ## Saves nativos e retomada — PF-05
 
 `game/save.c/.h` define disponibilidade e codec nativo sem SDL/arquivos.
-PF-05 introduziu v1; o recorte meteorológico de PF-06 escreve v2 e aceita v1,
-com migração explícita do RNG ausente e preservação de clima/previsão. Somente
+PF-05 introduziu v1 e o recorte meteorológico de PF-06 introduziu v2. Magic Red
+escreve v3 e aceita v1/v2, com migração explícita dos RNGs ausentes e preservação
+de clima/previsão/células. AUXI acrescenta `field.plant_random` após o RNG do
+clima; nas versões anteriores o construtor fornece seed 1 sem sortear. Somente
 exploração estável entre ticks é salvável; eventos, diálogos, ações, transporte
 animal, menus, portas/viagens e sono/fades bloqueiam. O save contém campos
 explícitos de todos os sistemas cobertos, IDs de conteúdo, versão, tamanhos e
@@ -671,19 +673,21 @@ avança após a compra comprometida para não desfazê-la numa eventual fronteir
 posterior. Fora de uma sessão com adapter, comandos de loja continuam fronteiras
 explícitas. Não há outro estoque, economia, proprietário de loja ou interpretador.
 
-O grupo D é extraído de `shop_seed_menu_setup_d`; a seleção atual usa as três
-culturas suportadas (repolho, abacaxi e pimentão), com os nomes e descrições
-originais. Oito entradas foram auditadas; flores e estufa não são anunciadas como
-funcionais. Os recibos/saída/cancelamento diferem dos de Jeff e são selecionados
+O grupo D é extraído de `shop_seed_menu_setup_d`; a seleção atual filtra seis
+culturas suportadas: repolho, abacaxi, pimentão, Pink Cat, Magic Red e Toy Flower,
+com os nomes e descrições originais. Índices visíveis 0..5 correspondem às linhas
+fonte 0/1/2/4/5/6. Moondrop condicional e Orangecup/estufa continuam pendentes
+entre as oito entradas auditadas. Os recibos/saída/cancelamento diferem dos de Jeff e são selecionados
 pelo perfil do comerciante na mesma máquina de compra. Moedas, bolsas e baú
 continuam compartilhados. `farm_field.c` habilita os IDs existentes e
 `estate_art.c` resolve os sprites originais, sem novo algoritmo de crescimento.
-O formato v2 já representa esses IDs/estágios e não mudou.
+Os IDs/estágios já cabiam em v2; v3 acrescenta somente o RNG de plantio.
 
 A localização e o acesso seguem a agenda/conversa extraídas; o Won atual aparece
 na estalagem (área 204, localização 27). Não foi implementado um balcão alternativo
-ou spawn forçado. Três percursos reais cobrem as estações, a maturidade, remessas,
-rebrotas e persistência em outro processo.
+ou spawn forçado. Sete percursos reais cobrem os vegetais e flores, incluindo ambas
+as variantes de Magic Red: maturidade,
+remessas/rebrotas quando previstas, presentes e persistência em outro processo.
 
 Textos: diálogos e descrições são lidos em runtime dos arquivos instalados,
 via `filesystem/text_resources.c`. Nomes de sementes e rótulos (incluindo
@@ -708,3 +712,57 @@ a passagem do jogador assume exclusivamente seu modelo. O estado transitório
 reinicia na troca de área/carga; ator/agenda/cursor de rota persistem no save v2.
 Detalhes de retomada, fontes, testes e limitações em
 [PF06_RAIN_DOORS.md](PF06_RAIN_DOORS.md).
+
+
+## PF-06 — Câmera limitada, anexos de atores e sementes condicionais
+
+A câmera volta a aplicar os limites também durante `door_tick`, mantendo os
+movimentos de entrada do usuário. Itens carregados/exibidos são anexos do sprite
+do jogador na mesma profundidade em `model_render.c`; cenário e moradores à
+frente encobrem o conjunto. `house_ui` empresta ANI/atlas do cache existente,
+sem outra carga de recursos ou estado de inventário.
+
+`farm_shipping.c` deriva o desbloqueio sazonal das remessas autoritativas.
+O gerador importa os grupos/limiar de `milestones.c` e linhas condicionais da
+loja. `HmbtnFeedShop.economy` é uma referência à economia da própria sessão;
+estoque e UI consultam a mesma condição, sem flags persistidas ou sincronização.
+Morango/abóbora/espinafre usam o motor diário e a arte originais; save v2 não muda.
+Fontes, critérios e validação limitada em
+[PF06_CAMERA_SEED_UNLOCKS.md](PF06_CAMERA_SEED_UNLOCKS.md).
+
+
+## PF-06 — Flores simples de Won
+
+Pink Cat (`0x32` → `0x52`) e Toy Flower (`0x34` → `0x55`) reutilizam
+`HmbtnFarmCrop`, campo, ações, atualização diária, inventário, compra e presentes.
+Nenhum estado persistente, algoritmo de cultivo ou formato de save foi criado.
+A seleção de Won conserva a entrada fonte após filtrar suporte, incluindo suas
+próprias descrições `0x169`/`0x16b`. Produtos têm preço de venda zero; o caminho
+existente de remessa recusa a operação sem modificar a economia.
+
+`estate_art.c` resolve os sprites vivos 17/13 e murchos 37/41. A maturidade das
+ANI desses dois cultivos usa explicitamente a faixa zero, como o repolho: o
+original chega ao primeiro frame por uma indexação além das faixas declaradas.
+O adaptador conserva essa aparência sem afrouxar a validação do decodificador.
+Percursos compartilham o teste de Won e cobrem presente real para Lillia e
+mudança de estação; detalhes e limites em [PF06_FLOWERS.md](PF06_FLOWERS.md).
+
+
+## PF-06 — Magic Red, variantes e RNG persistente
+
+`HmbtnFarmField.plant_random` pertence ao campo da sessão e inicia em 1. Somente
+`hmbtn_farm_field_plant` consome essa sequência, para a semente `0x33`, depois de
+validar solo/célula/estação. Adapta `field_event_dispatch`: `rand_range(25)==0`
+grava `0x179` (vermelha), caso contrário `0x178` (azul). Reutiliza a aritmética
+original já adaptada em `core/psx_random.c`, sem exigir sequência por frame PS1.
+Outros fluxos aleatórios não mudam. O campo persiste a variante no ID normal;
+não há uma segunda flag, cópia de estado ou escolha no desenho/carregamento.
+
+Crescimento/colheita usam as definições originais no mesmo motor (outono,
+3+3+2+2 dias regados, sem rebrota). Os sprites 17/25 compartilham a resolução
+segura da faixa zero madura; inverno limpa as plantas. Produto azul `0x53`
+não gera renda; vermelho `0x54` gera 200 G no sistema de remessas existente,
+sem um contador dedicado no mapeamento original. Won tem seis entradas, com
+Magic Red visível 4/fonte 5/descrição `0x16a`; Toy Flower passa à visível 5.
+V3 acrescenta somente o RNG de plantio em AUXI e lê v1/v2 com seed 1.
+Fonte, arquivos e evidências em [PF06_MAGIC_RED.md](PF06_MAGIC_RED.md).

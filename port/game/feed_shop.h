@@ -21,6 +21,7 @@ typedef struct HmbtnFeedShop {
     int sound;
     HmbtnPoultry *poultry;
     HmbtnNewGame editor;
+    const HmbtnEconomy *economy; /* Read-only loan for derived seasonal stock. */
     const HmbtnFarmClock *clock; /* Live session clock; modal shop pauses it. */
     unsigned selection;
     unsigned sale_cursor,sale_top,sale_slot,answer;
@@ -31,7 +32,7 @@ typedef struct HmbtnSeedShopEntry {
     unsigned name_words;
 } HmbtnSeedShopEntry;
 /* Base spring/summer/fall stock from shop_seed_menu_setup_a/b/c. Unsupported seasons
- * return no entries. Conditional milestone seeds remain pending. */
+ * return no entries. Contextual count/choice below append the unlocked row. */
 unsigned hmbtn_seed_shop_entries(unsigned season);
 const HmbtnSeedShopEntry *hmbtn_seed_shop_entry(unsigned season,unsigned index);
 /* Original scripts 365/368: empty hands, business hours, weekday and merchant present. */
@@ -44,8 +45,9 @@ void hmbtn_feed_shop_tick(HmbtnFeedShop *shop,HmbtnHouseInteraction *inventory,
 bool hmbtn_seed_shop_open(HmbtnFeedShop *shop,HmbtnVillage *village,
     const HmbtnIntroActor *player,const HmbtnFarmClock *clock,unsigned area,
     const uint8_t *section,size_t section_size,unsigned held_item);
-/* Original group D has eight rows; current native sale supports its first
- * three crops. Flowers/greenhouse entries remain outside this recut. */
+/* Raw original group D has eight rows. Contextual count/choice filters to
+ * supported field crops (three vegetables, Pink Cat, Magic Red, Toy Flower).
+ * Moondrop's progression and greenhouse remain pending. */
 const HmbtnSeedShopEntry *hmbtn_won_seed_entry(unsigned index);
 unsigned hmbtn_seed_shop_count(const HmbtnFeedShop *shop);
 const HmbtnSeedShopEntry *hmbtn_seed_shop_choice(const HmbtnFeedShop *shop,unsigned index);

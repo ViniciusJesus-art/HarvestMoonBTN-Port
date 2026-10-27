@@ -27,7 +27,12 @@ no mesmo campo/estoque, com regras originais de crescimento, corte e rebrota:
 foram integrados sem outro motor ou estado em [PF06_SUMMER_CROPS.md](PF06_SUMMER_CROPS.md).
 Berinjela/cenoura/batata-doce e o menu base de outono usam os mesmos sistemas em
 [PF06_FALL_CROPS.md](PF06_FALL_CROPS.md), incluindo passagem ao inverno e saves.
-Próximo recorte: clima diário e chuva no campo; a cobertura completa da PF-06 permanece aberta.
+Clima diário/chuva, sementes sazonais de Won e desbloqueios do supermercado
+foram integrados. Pink Cat e Toy Flower também reutilizam os sistemas existentes,
+conforme [PF06_FLOWERS.md](PF06_FLOWERS.md). Magic Red adapta o sorteio original
+por célula, com estado nativo persistido em save v3 e leitura v1/v2, conforme
+[PF06_MAGIC_RED.md](PF06_MAGIC_RED.md). Próximo recorte: Moondrop condicional,
+conforme o roadmap; a cobertura completa da PF-06 permanece aberta.
 
 ## Objetivo e diretrizes permanentes
 
@@ -239,6 +244,13 @@ Executar as tarefas e os critérios no [roadmap](ROADMAP.md). Cada entrega deve:
    temporário de prazo definido pela tarefa dependente.
 4. Validar consumidores reais e retirar a implementação duplicada do recorte.
 5. Atualizar matriz, arquitetura e roadmap com o que foi migrado e o que falta.
+
+Por orientação do usuário, limitar a validação a **50 execuções de teste por
+rodada de trabalho**, contando repetições e processos de teste filhos. Selecionar
+os testes afetados e regressões relevantes; não executar automaticamente toda
+a suíte quando ela ultrapassar esse limite. Registrar a seleção, resultados e
+o que não foi executado. A quantidade de testes cadastrados pode crescer;
+o limite trata das execuções por rodada, sem remover cobertura existente.
 
 Manter testes unitários sintéticos no Git e percursos com BIN instalado somente
 no ambiente local autorizado. Comparar valores e transições, não bytes de

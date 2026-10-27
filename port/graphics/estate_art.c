@@ -45,27 +45,35 @@ bool hmbtn_estate_crop_look(unsigned seed,unsigned stage,unsigned season,
     case 0x22:live=7;dead=7;break;
     case 0x23:live=8;dead=8;break;
     case 0x24:live=9;dead=9;break;
+    case 0x25:live=10;dead=10;break;
     case 0x26:live=11;dead=11;break;
     case 0x27:live=12;dead=7;break;
     case 0x28:live=13;dead=8;break;
     case 0x29:live=14;dead=9;break;
+    case 0x2a:live=15;dead=10;break;
     case 0x2b:live=16;dead=11;break;
     /* Winter has no crop sprite; season>2 is rejected above. */
     case 0x2c:live=12;dead=0;break;
     case 0x2d:live=13;dead=0;break;
     case 0x2e:live=14;dead=0;break;
+    case 0x2f:live=15;dead=0;break;
     case 0x30:live=16;dead=0;break;
+    case 0x32:live=17;dead=37;break; /* Pink Cat: summer / fall remains. */
+    case 0x34:live=13;dead=41;break; /* Toy Flower: spring / summer remains. */
+    case 0x33:case 0x178:live=17;dead=0;break; /* Magic Red, blue variant (fall). */
+    case 0x179:live=25;dead=0;break; /* Magic Red, rare red variant (fall). */
     default:return false;
     }
     const HmbtnFarmCrop *crop=hmbtn_farm_crop(seed);
     if(season==crop->season) {
         *sprite=live;
-        /* Original cabbage ANI has only five ranges. field_cell_look_spring
-         * requests 5 at maturity; anim_draw_sprt_parts reads the first frame's
-         * zero dx as that range's offset, displaying frame zero (the head).
-         * Resolve that visual explicitly instead of copying an out-of-range
-         * PS1 table read into the bounds-checked host ANI decoder. */
-        *animation=seed==0x26 && stage==crop->grown ? 0 : stage+2;
+        /* Cabbage/Pink Cat ANI has five ranges; Toy/Magic Red have six.
+         * field_cell_look_* requests grown+2 at maturity, just past ranges.
+         * anim_draw_sprt_parts reads the first frame's zero dx as the offset
+         * and displays frame zero (the mature head/flower). Resolve that
+         * result explicitly; never relax the native decoder's bounds. */
+        const bool mature_zero=seed==0x26 || seed==0x32 || seed==0x34 || seed==0x33 || seed==0x178 || seed==0x179;
+        *animation=mature_zero && stage==crop->grown ? 0 : stage+2;
         return true;
     }
     if(season==crop->season+1) { *sprite=dead;*animation=0;return true; }

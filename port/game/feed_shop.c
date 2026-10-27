@@ -4,6 +4,7 @@
 #include "inventory.h"
 #include "farm_gather.h"
 #include "economy.h"
+#include "farm_shipping.h"
 #include "psx_data.h"
 #include <stdlib.h>
 #include <string.h>
@@ -22,11 +23,33 @@ const HmbtnSeedShopEntry *hmbtn_seed_shop_entry(unsigned season,unsigned index)
 const HmbtnSeedShopEntry *hmbtn_won_seed_entry(unsigned index)
 { return index<sizeof(won_seeds)/sizeof(*won_seeds) ? &won_seeds[index] : NULL; }
 unsigned hmbtn_seed_shop_count(const HmbtnFeedShop *s)
-{ return s && s->seeds ? (s->merchant==35 ? 3u : s->clock ? hmbtn_seed_shop_entries(s->clock->season) : 0) : 0; }
+{
+    if(!s || !s->seeds) return 0;
+    if(s->merchant==35) {
+        unsigned count=0;
+        for(unsigned i=0;i<sizeof(won_seeds)/sizeof(*won_seeds);++i)
+            if(hmbtn_farm_crop_supported(won_seeds[i].item)) ++count;
+        return count;
+    }
+    return s->clock ? hmbtn_seed_shop_entries(s->clock->season)
+        +(hmbtn_farm_shipping_seed_unlocked(s->economy,s->clock->season) ? 1u : 0u) : 0;
+}
 const HmbtnSeedShopEntry *hmbtn_seed_shop_choice(const HmbtnFeedShop *s,unsigned index)
 {
     if(index>=hmbtn_seed_shop_count(s)) return NULL;
-    return s->merchant==35 ? hmbtn_won_seed_entry(index) : hmbtn_seed_shop_entry(s->clock->season,index);
+    if(s->merchant==35) {
+        /* shop_seed_menu_setup_d order, filtered to implemented crops. A
+         * visible row is not a source row (Pink Cat=4, Toy Flower=6). Keep
+         * each source entry's own description/name rather than index math. */
+        for(unsigned i=0;i<sizeof(won_seeds)/sizeof(*won_seeds);++i) {
+            if(!hmbtn_farm_crop_supported(won_seeds[i].item)) continue;
+            if(!index) return &won_seeds[i];
+            --index;
+        }
+        return NULL;
+    }
+    return index==hmbtn_seed_shop_entries(s->clock->season) ? &conditional_seeds[s->clock->season]
+        : hmbtn_seed_shop_entry(s->clock->season,index);
 }
 bool hmbtn_feed_shop_expand(uint8_t *record,size_t size,const HmbtnRegistration *registration)
 {
@@ -77,6 +100,11 @@ static bool buy_medicine(HmbtnHouseInteraction *h)
     return !has_medicine(h) && hmbtn_inventory_store_tool(h->inventory,
         (HmbtnStoredTool){0x1E,0,1},false,NULL);
 }
+static void reset_shop(HmbtnFeedShop *s)
+{
+    HmbtnPoultry *poultry=s->poultry;const HmbtnEconomy *economy=s->economy;
+    memset(s,0,sizeof(*s));s->poultry=poultry;s->economy=economy;
+}
 bool hmbtn_feed_shop_open(HmbtnFeedShop *s,HmbtnVillage *v,const HmbtnIntroActor *p,
     const HmbtnFarmClock *clock,unsigned area,unsigned held_item)
 {
@@ -93,8 +121,7 @@ bool hmbtn_feed_shop_open(HmbtnFeedShop *s,HmbtnVillage *v,const HmbtnIntroActor
     if(abs(merchant->position[0]-p->position[0]-step[p->facing][0])>=200
             || abs(merchant->position[2]-p->position[2]-step[p->facing][1])>=200
             || abs(merchant->position[1]-p->position[1])>=20) return false;
-    HmbtnPoultry *poultry=s->poultry;
-    memset(s,0,sizeof(*s));s->poultry=poultry;s->clock=clock;
+    reset_shop(s);s->clock=clock;
     s->merchant=id;s->item=barn ? 0x68 : 0x69;s->quantity=1;
     s->saved_facing=merchant->facing;s->sound=3;
     start_message(s,HMBTN_SHOP_GREETING,barn ? 0x62 : 0x44);return true;
@@ -144,7 +171,7 @@ bool hmbtn_seed_shop_open(HmbtnFeedShop *s,HmbtnVillage *v,const HmbtnIntroActor
             (int64_t)p->position[0]+direction[p->facing][0]*400,
             (int64_t)p->position[2]+direction[p->facing][1]*400);
         if(request!=11+clock->season) return false;
-        HmbtnPoultry *poultry=s->poultry;memset(s,0,sizeof(*s));s->poultry=poultry;
+        reset_shop(s);
         s->seeds=true;s->merchant=1;s->clock=clock;s->item=hmbtn_seed_shop_entry(clock->season,0)->item;s->quantity=1;
         s->saved_facing=v->people[1].actor.facing;s->sound=3;
         start_message(s,HMBTN_SHOP_GREETING,clock->season==0 ? 0xBE : clock->season==1 ? 0x273 : 0x274);return true;
@@ -154,7 +181,7 @@ bool hmbtn_seed_shop_open(HmbtnFeedShop *s,HmbtnVillage *v,const HmbtnIntroActor
 bool hmbtn_won_seed_shop_open(HmbtnFeedShop *s,const HmbtnFarmClock *clock)
 {
     if(!s || !clock || s->phase!=HMBTN_SHOP_OFF) return false;
-    HmbtnPoultry *poultry=s->poultry;memset(s,0,sizeof(*s));s->poultry=poultry;
+    reset_shop(s);
     s->seeds=true;s->merchant=35;s->clock=clock;s->quantity=1;
     s->item=won_seeds[0].item;s->sound=3;start_message(s,HMBTN_SHOP_GREETING,0x164);return true;
 }

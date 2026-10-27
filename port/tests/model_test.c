@@ -80,12 +80,13 @@ int main(void)
     uint8_t bytes[256];
     uint8_t *pixels = malloc(320*240*4);
     HmbtnImageAtlas *atlas = calloc(1,sizeof(*atlas));
+    HmbtnImageAtlas *held_atlas = calloc(1,sizeof(*held_atlas));
     HmbtnModelRenderer *renderer = hmbtn_model_renderer_create(4);
     HmbtnModel model = {0};
     const HmbtnCamera camera = {{0,0,0},{0,0,4096},1000};
     const size_t inside = ((size_t)80*320+121)*4;
     uint32_t drawn;
-    CHECK(pixels && atlas && renderer);
+    CHECK(pixels && atlas && held_atlas && renderer);
     atlas->present[0] = atlas->present[1025] = 1;
     atlas->words[0] = 0x1111;
     atlas->words[1025] = 0x001F;
@@ -246,11 +247,33 @@ int main(void)
         320*240*4,&drawn,error,sizeof(error)));
     const size_t actor_pixel=((size_t)100*320+140)*4;
     CHECK(pixels[actor_pixel]==0 && pixels[actor_pixel+1]==255);
+    /* A carried picture overlays its owner at the owner's depth, not the HUD. */
+    memcpy(held_atlas,atlas,sizeof(*atlas));held_atlas->words[8*1024+1]=0x7c00;
+    HmbtnWorldAttachment hand={.sprite=0,.animation=&animation,.atlas=held_atlas};
+    HmbtnModelInstance wall={&model,{0},{0}};
+    clear_pixels(pixels);
+    CHECK(hmbtn_model_render_instances_attached(renderer,&wall,1,atlas,&camera,&sprite,1,
+        &hand,1,pixels,320*240*4,&drawn,error,sizeof(error)));
+    CHECK(pixels[actor_pixel]==0 && pixels[actor_pixel+1]==0 && pixels[actor_pixel+2]==255);
+    /* A nearer resident must occlude the whole group, including its picture. */
+    HmbtnWorldSprite residents[2]={sprite,sprite};residents[1].position[2]-=100;
+    clear_pixels(pixels);
+    CHECK(hmbtn_model_render_instances_attached(renderer,&wall,1,atlas,&camera,residents,2,
+        &hand,1,pixels,320*240*4,&drawn,error,sizeof(error)));
+    CHECK(pixels[actor_pixel+1]==255 && pixels[actor_pixel+2]==0);
     sprite.position[0]=-194; sprite.position[1]=56; sprite.position[2]=2350;
     clear_pixels(pixels);
     CHECK(hmbtn_model_render_sprites(renderer,&model,atlas,&camera,&sprite,1,pixels,
         320*240*4,&drawn,error,sizeof(error)));
     CHECK(pixels[actor_pixel]>240 && pixels[actor_pixel+1]==0); /* Red occludes the farther actor. */
+    clear_pixels(pixels);
+    CHECK(hmbtn_model_render_instances_attached(renderer,&wall,1,atlas,&camera,&sprite,1,
+        &hand,1,pixels,320*240*4,&drawn,error,sizeof(error)));
+    CHECK(pixels[actor_pixel]>240 && pixels[actor_pixel+1]==0 && pixels[actor_pixel+2]==0);
+    hand.sprite=1;
+    CHECK(!hmbtn_model_render_instances_attached(renderer,&wall,1,atlas,&camera,&sprite,1,
+        &hand,1,pixels,320*240*4,&drawn,error,sizeof(error)));
+
     CHECK(!hmbtn_model_render_sprites(renderer,&model,atlas,&camera,&sprite,513,pixels,
         320*240*4,NULL,error,sizeof(error)));
     /* Winding/near plane: rejected geometry cannot write pixels. */
@@ -272,6 +295,6 @@ int main(void)
     CHECK(!hmbtn_model_render(renderer,&model,atlas,&camera,pixels,1,NULL,error,sizeof(error)));
     puts("Bounded prelit TMD, projection, raster coverage, indexed textures and ordering passed.");
 cleanup:
-    free(pixels); free(atlas); hmbtn_model_renderer_destroy(renderer);
+    free(pixels); free(atlas); free(held_atlas); hmbtn_model_renderer_destroy(renderer);
     return result;
 }

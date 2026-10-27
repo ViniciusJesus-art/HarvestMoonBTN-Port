@@ -99,6 +99,7 @@ set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
     "${CMAKE_SOURCE_DIR}/src/overlay/11_GF_FARM/menu/shop_dialogues.c"
     "${CMAKE_SOURCE_DIR}/src/overlay/11_GF_FARM/estate.c"
+    "${CMAKE_SOURCE_DIR}/src/overlay/11_GF_FARM/event/milestones.c"
     "${CMAKE_SOURCE_DIR}/src/overlay/11_GF_FARM/world/clock.c")
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
     "${CMAKE_SOURCE_DIR}/src/main/game/event_flags.h"
@@ -209,6 +210,17 @@ if(BUILD_TESTING)
     add_executable(hmbtn_seed_shop_test tests/seed_shop_test.c)
     target_link_libraries(hmbtn_seed_shop_test PRIVATE hmbtn_port_core)
     add_test(NAME native_seed_shop COMMAND hmbtn_seed_shop_test)
+    add_executable(hmbtn_seed_unlock_test tests/seed_unlock_test.c)
+    target_link_libraries(hmbtn_seed_unlock_test PRIVATE hmbtn_port_core)
+    add_test(NAME native_seed_unlock_rules COMMAND hmbtn_seed_unlock_test)
+    add_executable(hmbtn_seed_unlock_playthrough tests/seed_unlock_playthrough.c)
+    target_link_libraries(hmbtn_seed_unlock_playthrough PRIVATE hmbtn_host)
+    add_executable(hmbtn_magic_red_test tests/magic_red_test.c)
+    target_link_libraries(hmbtn_magic_red_test PRIVATE hmbtn_port_core)
+    add_test(NAME native_magic_red_rules COMMAND hmbtn_magic_red_test)
+    add_executable(hmbtn_flower_test tests/flower_test.c)
+    target_link_libraries(hmbtn_flower_test PRIVATE hmbtn_port_core)
+    add_test(NAME native_flower_rules COMMAND hmbtn_flower_test)
     add_executable(hmbtn_won_seed_test tests/won_seed_test.c)
     target_link_libraries(hmbtn_won_seed_test PRIVATE hmbtn_port_core)
     add_test(NAME native_won_seed_rules COMMAND hmbtn_won_seed_test)
@@ -451,6 +463,13 @@ if(BUILD_TESTING)
                 ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_RENDER_DRIVER=software;SDL_AUDIO_DRIVER=dummy")
         endforeach()
         foreach(crop_index RANGE 0 2)
+            add_test(NAME native_seed_unlock_${crop_index}_playthrough COMMAND "${Python3_EXECUTABLE}"
+                "${CMAKE_CURRENT_SOURCE_DIR}/tests/won_process_playthrough.py"
+                "$<TARGET_FILE:hmbtn_seed_unlock_playthrough>" "$<TARGET_FILE:hmbtn_native>" "${HMBTN_TEST_GAME_DATA}" "${crop_index}")
+            set_tests_properties(native_seed_unlock_${crop_index}_playthrough PROPERTIES TIMEOUT 180
+                ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_RENDER_DRIVER=software;SDL_AUDIO_DRIVER=dummy")
+        endforeach()
+        foreach(crop_index RANGE 0 6)
             add_test(NAME native_won_${crop_index}_playthrough COMMAND "${Python3_EXECUTABLE}"
                 "${CMAKE_CURRENT_SOURCE_DIR}/tests/won_process_playthrough.py"
                 "$<TARGET_FILE:hmbtn_won_playthrough>" "$<TARGET_FILE:hmbtn_native>" "${HMBTN_TEST_GAME_DATA}" "${crop_index}")

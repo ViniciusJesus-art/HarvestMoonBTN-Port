@@ -175,26 +175,39 @@ def main(root, output):
     Path(output).with_name("event_day_defaults.inc").write_text(
         "/* Original scene_item_queue_reset numeric defaults. */\n"
         "static const uint8_t event_day_count0[128]={"+",".join(map(str,defaults))+"};\n")
+    milestones = clean((src / "overlay/11_GF_FARM/event/milestones.c").read_text())
+    threshold = int(re.search(r"#define GROUP_SHIPMENT_THRESHOLD\s+(\d+)", milestones).group(1))
+    groups = [[number(v) for v in fields(body(milestones, "milestone_group_" + group + "_ids"))[:4]]
+              for group in "abc"]
+    if any(len(group) != 4 or any(bins[item] < 0 for item in group) for group in groups):
+        raise ValueError("Unexpected original crop shipment groups")
     Path(output).with_name("shipping_tables.inc").write_text(
         "/* Original estate shipment bins and clock_date_index dates. */\n"
         "static const int8_t shipping_bins[380]={"+",".join(map(str,bins))+"};\n"
+        "static const unsigned seed_shipment_groups[3][4]={"+
+        ",".join("{"+",".join(map(str, group))+"}" for group in groups)+"};\n"
+        f"enum {{ SEED_SHIPMENT_THRESHOLD={threshold} }};\n"
         "static const unsigned shipping_special_dates[14][2]={"+
         ",".join("{"+",".join(row)+"}" for row in dates)+"};\n"
         f"enum {{ SHIPPING_FISH_FIRST={names['ITEM_LARGE_FISH']}, SHIPPING_HONEY={names['ITEM_HONEY']} }};\n")
     shop = clean((src / "overlay/11_GF_FARM/menu/shop_dialogues.c").read_text())
     # Base seasonal menus preserve order, ids, descriptions and original names.
-    # Conditional strawberry/pumpkin/spinach need milestone/estate progression not yet
-    # integrated. Never expose their entries as unconditional stock.
+    # Conditional entries are metadata; runtime gates them by authoritative shipments.
     text_bank = clean((src / "main/text/text_bank.c").read_text())
     seed_names = text_bank[text_bank.index(".seeds = {"):]
     seed_menu = ["/* Generated from shop_seed_menu_setup_a/b/c and text_bank.names.seeds. */"]
     emitted = set()
+    conditional = []
     for season, function, following in (("spring", "a", "b"), ("summer", "b", "c"), ("fall", "c", "d")):
         setup = shop[shop.index(f"static s32 shop_seed_menu_setup_{function}(void) {{"):
                      shop.index(f"static s32 shop_seed_menu_setup_{following}(void) {{")]
         entries = re.findall(r"ADD_ENTRY\(SHOP_NAME_AT\(base, text_bank.names.seeds.(\w+)\),\s*(0x[0-9A-Fa-f]+),\s*1,\s*(0x[0-9A-Fa-f]+)\)", setup)
         if len(entries) != 4:
             raise ValueError(f"Unexpected original base {season} seed menu")
+        bonus = re.search(r"\*text = SHOP_NAME_AT\(base, text_bank.names.seeds.(\w+)\);", setup).group(1)
+        item = re.search(r"\*entryValue = (0x[0-9A-Fa-f]+);", setup).group(1)
+        description = re.search(r"\*label46 = (0x[0-9A-Fa-f]+);", setup).group(1)
+        conditional.append((bonus, item, description))
         for label, item, description in entries:
             if label not in emitted:
                 label_words = re.search(r"\." + label + r"\s*=\s*(\{[^}]+\})", seed_names).group(1)
@@ -204,6 +217,14 @@ def main(root, output):
         for label, item, description in entries:
             seed_menu.append(f"{{{item},{description},seed_name_{label},sizeof(seed_name_{label})/sizeof(uint16_t)}},")
         seed_menu.append("};")
+    for label, item, description in conditional:
+        label_words = re.search(r"\." + label + r"\s*=\s*(\{[^}]+\})", seed_names).group(1)
+        seed_menu.append(f"static const uint16_t seed_name_{label}[]={label_words};")
+        emitted.add(label)
+    seed_menu.append("static const HmbtnSeedShopEntry conditional_seeds[]={")
+    for label, item, description in conditional:
+        seed_menu.append(f"{{{item},{description},seed_name_{label},sizeof(seed_name_{label})/sizeof(uint16_t)}},")
+    seed_menu.append("};")
     setup = shop[shop.index("static s32 shop_seed_menu_setup_d(void) {"):shop.index("static s32 shop_wine_menu_setup(void)", shop.index("static s32 shop_seed_menu_setup_d(void) {"))]
     entries = re.findall(r"text_bank.names.seeds.(\w+)\).*?,\s*(0x[0-9A-Fa-f]+),\s*1,\s*(0x[0-9A-Fa-f]+)\)", setup)
     if len(entries) != 8 or [int(e[1],16) for e in entries[:3]] != [0x26,0x2b,0x30]:

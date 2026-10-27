@@ -25,6 +25,40 @@ static bool number(HmbtnNewGameUI *shared,uint8_t *p,unsigned value,int x,int y,
         (uint16_t)(0x40+value%10),0xffff};
     return hmbtn_ui_text(shared,p,words,3,x,y,1,palette,error,error_size);
 }
+/* Share the original item ANI/cache with world attachments and menus. */
+static ToolArt *picture_art(HmbtnHouseUI *u,const char *root,unsigned id,char *error,size_t error_size)
+{
+    if(!id) { snprintf(error,error_size,"Missing item picture id");return NULL; }
+    if(id>=380) { snprintf(error,error_size,"Item picture outside original table");return NULL; }
+    unsigned i=0; while(i<18 && (!u->tools[i].atlas || u->tools[i].id!=id)) ++i;
+    if(i==18) {
+        i=0;for(unsigned j=0;j<18;++j) {
+            if(!u->tools[j].atlas) { i=j;break; }
+            if(u->tools[j].used<u->tools[i].used) i=j;
+        }
+        free(u->tools[i].atlas);u->tools[i]=(ToolArt){0};
+    }
+    ToolArt *a=&u->tools[i];
+    if(!a->atlas) {
+        a->atlas=malloc(sizeof(*a->atlas));
+        if(!a->atlas) { snprintf(error,error_size,"Cannot allocate tool picture atlas"); return NULL; }
+        if(!hmbtn_resource_read(root,"A_FILE/00_gf.bin",0x3C19000+id*0x800,a->bytes,2048,error,error_size)
+                || !hmbtn_animation_open(&a->animation,a->bytes,256,error,error_size)
+                || !hmbtn_bank_decode(a->bytes+256,1792,a->atlas,error,error_size)) {
+            free(a->atlas);a->atlas=NULL;return NULL;
+        }
+        a->id=id;
+    }
+    a->used=++u->serial;
+    return a;
+}
+bool hmbtn_house_ui_picture_art(HmbtnHouseUI *u,const char *root,unsigned id,
+    const HmbtnAnimation **animation,const HmbtnImageAtlas **atlas,char *error,size_t error_size)
+{
+    ToolArt *a=picture_art(u,root,id,error,error_size);
+    if(!a) return false;
+    *animation=&a->animation;*atlas=a->atlas;return true;
+}
 static bool picture(HmbtnHouseUI *u,const char *root,uint8_t *p,unsigned id,int x,int y,bool centre,char *error,size_t error_size);
 bool hmbtn_house_ui_item(HmbtnHouseUI *u,HmbtnNewGameUI *shared,const char *root,uint8_t *p,
     unsigned id,int x,int y,char *error,size_t error_size)
@@ -41,27 +75,8 @@ static bool picture(HmbtnHouseUI *u,const char *root,uint8_t *p,unsigned id,int 
     bool centre,char *error,size_t error_size)
 {
     if(!id) return true;
-    if(id>=380) { snprintf(error,error_size,"Item picture outside original table");return false; }
-    unsigned i=0; while(i<18 && (!u->tools[i].atlas || u->tools[i].id!=id)) ++i;
-    if(i==18) {
-        i=0;for(unsigned j=0;j<18;++j) {
-            if(!u->tools[j].atlas) { i=j;break; }
-            if(u->tools[j].used<u->tools[i].used) i=j;
-        }
-        free(u->tools[i].atlas);u->tools[i]=(ToolArt){0};
-    }
-    ToolArt *a=&u->tools[i];
-    if(!a->atlas) {
-        a->atlas=malloc(sizeof(*a->atlas));
-        if(!a->atlas) { snprintf(error,error_size,"Cannot allocate tool picture atlas"); return false; }
-        if(!hmbtn_resource_read(root,"A_FILE/00_gf.bin",0x3C19000+id*0x800,a->bytes,2048,error,error_size)
-                || !hmbtn_animation_open(&a->animation,a->bytes,256,error,error_size)
-                || !hmbtn_bank_decode(a->bytes+256,1792,a->atlas,error,error_size)) {
-            free(a->atlas);a->atlas=NULL;return false;
-        }
-        a->id=id;
-    }
-    a->used=++u->serial;
+    ToolArt *a=picture_art(u,root,id,error,error_size);
+    if(!a) return false;
     const HmbtnAnimationPlayer frame={0};
     if(centre) {
         const HmbtnAnimation *ani=&a->animation;

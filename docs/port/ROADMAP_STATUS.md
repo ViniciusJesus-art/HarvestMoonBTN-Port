@@ -1,12 +1,12 @@
 # Status do porte nativo
 
-**Atualizado em:** 2026-10-26
+**Atualizado em:** 2026-10-27
 **Escopo atual:** Linux e Windows; Android é futuro.  
 **Prioridade:** port funcional com reaproveitamento do C original, conforme a fila PF do [ROADMAP.md](ROADMAP.md).
 **Concluídas:** MA-01..06 e PF-01..05 — base central, regras compartilhadas, cultivo, evento, atualização independente do desenho e saves nativos estáveis.
 
-**PF-06 em andamento:** batata, grama/feno e culturas base de verão/outono e clima diário/chuva concluídos no recorte; demais sistemas originais ainda parciais/ausentes.
-**Próxima implementação:** PF-06 — desbloqueios do supermercado.
+**PF-06 em andamento:** batata, grama/feno, culturas base de verão/outono, clima diário/chuva, sementes sazonais de Won, desbloqueios do supermercado, Pink Cat/Toy Flower e variantes de Magic Red concluídos nos respectivos recortes; demais sistemas originais ainda parciais/ausentes.
+**Próxima implementação:** PF-06 — Moondrop e seu desbloqueio por evento.
 MA-07..25 foram substituídas como fila, não concluídas. Refatorações necessárias
 acompanham as entregas funcionais; PF-04 separou atualização/desenho nos fluxos atuais.
 
@@ -32,7 +32,7 @@ Compilar PS1, manter MIPS/ABI ou reproduzir SHA-1 não são critérios do produt
 
 | Marco | Situação | Próximo encaminhamento |
 |---|---|---|
-| Base MA | MA-01..06 concluídas; plano restante substituído | Preservar estado/sessão/serviços/tick; PF-01..05 concluídas; seguir PF-06 (desbloqueios do supermercado; sementes sazonais de Won, clima diário/chuva, culturas base de verão/outono, batata e grama/feno entregues), sem uma nova fase geral de reorganização. |
+| Base MA | MA-01..06 concluídas; plano restante substituído | Preservar estado/sessão/serviços/tick; PF-01..05 concluídas; seguir PF-06 (Moondrop condicional a seguir; Magic Red, flores simples, desbloqueios do supermercado, sementes sazonais de Won, clima diário/chuva, culturas base de verão/outono, batata e grama/feno entregues), sem uma nova fase geral de reorganização. |
 | M1 — Aplicação nativa | Funcional no recorte atual | Preservar entrada/janela; validar Windows real. |
 | M2 — Recursos e apresentação | Funcional parcialmente | Preservar leitores/backends; ampliar fidelidade com comparação reproduzível. |
 | M3 — Título/cadastro | Funcional parcialmente | Tick/apresentação separados na PF-04; preservar fluxos e rastrear algoritmos/inicialização. |
@@ -420,3 +420,62 @@ Windows, Release, sanitizers, dispositivo de áudio/janela interativa e instala�
 limpa não foram validados nesta correção. Código original e alterações anteriores
 preservados. Detalhes e arquivos em [PF06_RAIN_DOORS.md](PF06_RAIN_DOORS.md).
 A próxima entrega permanece **PF-06 — desbloqueios do supermercado** no roadmap.
+
+
+## PF-06 — Correções visuais e sementes desbloqueáveis
+
+Câmera limitada durante portas e item carregado sujeito à oclusão do mundo,
+preservando recuo/tempos do usuário. Morango, abóbora e espinafre liberados pelas
+remessas originais (101 de cada produto do grupo), com cultivo/colheita/rebrota
+prevista e saves, usando os sistemas existentes. Nenhuma nova flag persistida.
+
+Configuração/build Linux Debug passaram; seleção final **20/20 CTests**, zero
+falhas, **17,85 s**. Caso real adicional de câmera no limite e capturas passaram
+em execução direta. Foram 48 processos de teste/verificação incluindo wrappers,
+repetições e cargas filhas, respeitando o máximo de 50. **Não foi executada a
+suíte completa de 115 testes.** Windows, Release, sanitizers, janela/áudio físicos
+e instalação limpa não validados nesta rodada. Detalhes, fontes e arquivos em
+[PF06_CAMERA_SEED_UNLOCKS.md](PF06_CAMERA_SEED_UNLOCKS.md).
+Próximo recorte: flores simples de Won, conforme o roadmap. PF-06 permanece aberta.
+
+
+## PF-06 — Pink Cat e Toy Flower — 2026-10-27
+
+Recorte concluído com cinco entradas funcionais de Won entre oito originais.
+As duas flores usam os motores/estados existentes; preços, estações, estágios e
+produtos vêm das tabelas originais. Sem rebrota ou preço de remessa. Foram
+validados compra/descrições, plantio/rega/noite seca, colheita, mão/mochila,
+presente para Lillia pela agenda/conversa reais, murchamento e saves v2.
+
+Configuração e build Linux Debug passaram. A seleção de 18 CTests teve 17
+aprovações e uma expectativa antiga que ainda tratava morango como não suportado.
+O teste passou após corrigir essa expectativa e manter Moondrop como caso
+negativo; a repetição foi isolada em `native_crop_daily`. Dois percursos diretos
+adicionais geraram capturas inspecionadas das flores maduras e do menu.
+Os 18 alvos selecionados estão validados; não houve uma nova rodada completa.
+Total conservador de 44 processos nesta entrega, contando wrappers/filhos,
+dentro do limite 50. A suíte completa agora registra 118 testes e não foi rodada.
+Windows, Release, sanitizers, janela/áudio físicos e instalação limpa não foram
+verificados. Próximo: Magic Red; PF-06 permanece aberta. Relatório e arquivos em
+[PF06_FLOWERS.md](PF06_FLOWERS.md).
+
+
+## PF-06 — Magic Red — 2026-10-27
+
+Recorte concluído: semente de 600 G em Won, variantes azul/vermelha gravadas no
+plantio, dez dias regados no outono, sprites originais e coleta sem rebrota.
+Azul usa mochila/presentes; vermelha pode ser enviada por 200 G. Sem motores
+paralelos; sorteio por célula usa estado autoritativo do campo e o helper original.
+Save atual v3 persiste esse RNG, mantendo leitura v1/v2 sem alterar seus campos.
+Moondrop/Orangecup continuam pendentes; PF-06 permanece aberta.
+
+Configuração/build Linux Debug passaram. Seleção final: **18/18 CTests**, zero
+falhas, **7,25 s**. Os dois novos percursos passaram também na seleção inicial
+com carga pelo aplicativo em outro processo e em execuções diretas finais com
+capturas. Total de 20 alvos distintos validados. Um teste novo inicialmente
+supunha a reação de Lillia igual à das flores anteriores; foi corrigido para o
+valor 0 confirmado em `picture_codes.c` e passou na repetição isolada/final.
+Foram **44 processos** contando repetições/wrappers/filhos, abaixo do máximo 50.
+Suíte completa de 121 testes, Windows, Release, sanitizers, janela/áudio físicos
+e instalação limpa não executados. Próximo: Moondrop e seu desbloqueio por evento,
+conforme [ROADMAP.md](ROADMAP.md). Fontes e arquivos em [PF06_MAGIC_RED.md](PF06_MAGIC_RED.md).

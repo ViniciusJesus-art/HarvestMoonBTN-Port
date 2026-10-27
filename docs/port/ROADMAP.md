@@ -1,6 +1,6 @@
 # Roadmap do porte nativo — Linux e Windows
 
-Atualizado em 2026-10-26. Android é futuro. **Este arquivo é a fonte principal
+Atualizado em 2026-10-27. Android é futuro. **Este arquivo é a fonte principal
 para selecionar, ordenar e concluir as próximas tarefas.** O produto continua
 parcial; o bootstrap `--diagnostics` não executa o jogo e o runtime ainda não
 executa o jogo completo.
@@ -40,7 +40,7 @@ de renderização ajudam, mas rede, lockstep, rollback e determinismo global nã
 são requisitos desta fase.
 
 **PF-01..05 concluídas. PF-06 em andamento: batata, grama/feno, culturas base de verão/outono e
-clima diário/chuva entregues; sementes sazonais de Won entregues; próximo recorte, desbloqueios do supermercado.** Nabo e batata têm percurso completo de compra de
+clima diário/chuva entregues; sementes sazonais de Won, desbloqueios do supermercado, flores simples e variantes de Magic Red entregues; próximo recorte, Moondrop e sua condição de progressão.** Nabo e batata têm percurso completo de compra de
 sementes até venda, com saves preservando o crescimento. A PF-04 separou
 atualização e desenho nos fluxos existentes, inclusive título/cadastro. O reaproveitamento
 é feito por funções adaptadas em `port/`, sem compilar módulos `src/` diretamente.
@@ -80,7 +80,7 @@ reais do domínio, não uma obrigação de concluir todas as linhas anteriores.
 | **PF-03 — Eventos reutilizáveis para ampliar a progressão: concluída** | Runtime/serviços atuais; operações PF-01 apenas para comandos que as usam; PF-02 somente para eventos dependentes de cultivos/dias | Evoluir o interpretador existente a partir de `event_script.c`/`event_commands.c`; compartilhar variáveis, flags, aritmética, mensagens, atores e gatilhos conforme os roteiros selecionados exigirem. Escolher e registrar um evento original ainda não suportado antes de editar, incluindo todos os seus comandos/dependências. Entregá-lo jogável, retirar duplicações dos comandos migrados e proteger abertura/visitas/conversas existentes. Erro/ausência nunca é sucesso. Novos eventos usam esse mesmo runtime. | Vetores originais dos comandos selecionados, operandos inválidos, espera/retorno/desvio, efeito único, cancelamento/erro; novo percurso e regressões de infância, Thomas, funeral, torta e ingredientes. |
 | **PF-04 — Atualização independente da apresentação: concluída** | Sessão/serviços/exploração MA-04..06; coordenadores vigentes no momento da entrega | Consolidar tick público de roteiros, portas, viagens e sono; `app.c` agenda update e draw separadamente, inclusive título/cadastro. Cena guarda recursos/caches/desenho; transações pertencem ao gameplay. Retirar os adapters provisórios de coordenação usados em PF-02/03 e migrar percursos de teste para APIs públicas. Pode ser antecipada se um acoplamento bloquear outra entrega. | Mesmo estado com mesmos ticks e 0/30/60 apresentações; desenho sem mutação; transições/sono/cadastro e falhas de recursos; suíte completa. |
 | **PF-05 — Saves nativos e retomada: concluída** | Proprietários de estado atuais identificados; definir quais estados transitórios são salváveis | Formato versionado explícito, sem dump de structs/ponteiros/layout PS1. Salvar e restaurar todo o recorte jogável declarado, incluindo conteúdo referenciado por IDs estáveis. Permitir evolução por versões e definir a política durante eventos/transições antes de implementar. Não depende de terminar todas as espécies/eventos. | Ida/volta, dois saves/sessões, reinício do processo, inventário/dinheiro/data/campo/animais/flags, arquivos truncados/corrompidos, versões e retomada sem efeitos repetidos. |
-| **PF-06 — Completar sistemas do jogo original: em andamento** | Por sistema: estado, operações, comandos e ciclo diário efetivamente usados | Fila incremental: batata, grama/feno, culturas base de verão/outono e clima diário/chuva entregues; sementes sazonais de Won entregues; desbloqueios do supermercado selecionados a seguir; demais culturas/clima completo, espécies, lojas/ferramentas, moradores/relacionamentos, família, áreas, festivais/minijogos e progressão. Adaptar funções já presentes no original e manter os backends. Antes de cada implementação, publicar aqui o sistema selecionado, fontes, lacunas e percurso de aceite. Galinhas, rotas, afinidade e pesca atuais são reconciliadas no domínio necessário; não recomeçar tudo. | Percurso completo e testes de regras de cada sistema; matriz atualizada distingue completo, parcial e ausente. PF-06 só termina com cobertura declarada de toda a progressão original, não por um exemplo isolado. |
+| **PF-06 — Completar sistemas do jogo original: em andamento** | Por sistema: estado, operações, comandos e ciclo diário efetivamente usados | Fila incremental: batata, grama/feno, culturas base de verão/outono e clima diário/chuva entregues; sementes sazonais de Won, desbloqueios do supermercado, flores simples e variantes de Magic Red entregues; Moondrop condicional selecionada a seguir; demais culturas/clima completo, espécies, lojas/ferramentas, moradores/relacionamentos, família, áreas, festivais/minijogos e progressão. Adaptar funções já presentes no original e manter os backends. Antes de cada implementação, publicar aqui o sistema selecionado, fontes, lacunas e percurso de aceite. Galinhas, rotas, afinidade e pesca atuais são reconciliadas no domínio necessário; não recomeçar tudo. | Percurso completo e testes de regras de cada sistema; matriz atualizada distingue completo, parcial e ausente. PF-06 só termina com cobertura declarada de toda a progressão original, não por um exemplo isolado. |
 | **PF-07 — Distribuição Linux/Windows e consolidação** | Recorte publicável e instalação BIN existentes; validação de plataformas começa em cada entrega | Configurar/compilar/testar Linux e Windows durante o desenvolvimento. No marco final, validar instalação limpa, saves, atualização, janela/entrada/áudio e progressão completa; registrar diferenças deliberadas. Preservar BIN do usuário e distribuição sem recursos proprietários. Android, conteúdo novo e coop ganham planejamento próprio posteriormente. | Builds/testes reais das plataformas disponíveis, instalação limpa e percurso manual documentado; não presumir Windows pela execução Linux nem concluir port completo apenas pelos CTests. |
 
 ### PF-03 concluída — evento 140, convite de Duke para a vindima
@@ -343,27 +343,101 @@ Save v2 permanece compatível; animação transitória de porta de NPC pode rein
 na carga, preservando posição/cursor de rota. Não conclui eventos especiais de
 portas nem toda a meteorologia. A próxima entrega continua abaixo.
 
-### Próxima implementação recomendada — PF-06, desbloqueios do supermercado
+### PF-06 — Câmera, oclusão e desbloqueios do supermercado: recorte concluído
 
-Reconciliar `event/milestones.c: milestone_check_group_a/b/c` e as entradas
-condicionais de `shop_seed_menu_setup_a/b/c` com as remessas autoritativas.
-Agora repolho/abacaxi/pimentão têm percursos, completando os quatro produtos de
-cada grupo; adaptar os testes e a publicação dos desbloqueios, sem flags ou
-contadores paralelos. No original o limiar é **101 unidades de cada produto**,
-não presumir 100 nem grupos incompletos.
+- [x] Aplicar limites da câmera também durante a entrada em portas, preservando
+  o recuo e tempos do usuário; validar entrada real além do limite da área 40.
+- [x] Item carregado é anexo do jogador na ordenação do mundo: acima do corpo,
+  encoberto por cenário/atores à frente. Reutiliza cache/ANI existentes.
+- [x] Adaptar grupos A/B/C e limiar original de 101 unidades de cada um dos
+  quatro produtos, consultando remessas únicas; nenhuma flag/contagem paralela.
+- [x] Publicar morango/abóbora/espinafre na mesa e loja existentes; habilitar
+  definições/sprites no motor comum, com compra/cancelamento/baú, crescimento,
+  colheita, remessa e rebrota prevista pelas tabelas originais.
+- [x] Save v2 preservado; limites 100/101 por produto, independência dos grupos,
+  referências após carga e retomada das três culturas em outro processo.
+- [x] Configuração/build Linux; seleção final **20/20 CTests**, zero falhas,
+  **17,85 s**, e execução direta adicional do caso de câmera no limite.
+  Respeitar máximo de 50 execuções por rodada; suíte completa não rodada.
 
-Ordem: rastrear chamadas/ordem e flags de status originais; mapear grupos A/B/C
-para as remessas existentes; persistir somente estado realmente necessário;
-mostrar morango/abóbora/espinafre quando as condições originais forem atendidas;
-habilitar suas regras/sprites pelo motor comum; testar compra/cultivo/colheita/
-remessa, rebrota onde aplicável e save/load.
+Fontes, diferenças, arquivos e reprodução em
+[PF06_CAMERA_SEED_UNLOCKS.md](PF06_CAMERA_SEED_UNLOCKS.md). PF-06 permanece aberta.
 
-Aceite: limites 100/101 em cada um dos quatro produtos por grupo, preservação de
-flags não relacionadas, publicação na mesma ocasião do original, seleção e
-índices corretos com catálogo expandido, cancelamento/fundos/espaço, ciclo das
-três culturas e carga em outro processo. Não usar progressão artificial em
-produção. Flores de Won, estufa e efeitos destrutivos do clima permanecem
-pendências próprias, sem bloquear este recorte independente.
+### PF-06 — Pink Cat e Toy Flower: recorte concluído em 2026-10-27
+
+- [x] Ampliar o grupo D existente para cinco entradas, filtrando suporte sem
+  perder os índices fonte: Pink Cat é a linha 4, Toy Flower é a linha 6.
+  Nomes e descrições próprios; mesma conversa, quantidade, pagamento e baú.
+- [x] Reutilizar catálogo/campo/ações/diário/inventário existentes: Pink Cat
+  custa 200 G e cresce em seis dias regados no verão; Toy Flower custa 500 G
+  e cresce em doze dias regados na primavera. Sem rebrota ou renda de remessa.
+- [x] Resolver sprites sazonais originais e maturidade pela faixa zero da ANI,
+  como já feito para repolho, sem permitir leitura além dos limites do recurso.
+- [x] Percursos reais: compra, noite seca, plantio, rega/sono, coleta única,
+  mochila/mão, presente para Lillia pela conversa original e mudança de estação.
+  Testar fundos/cancelamento/baú/lotação e save/load v2 em outro processo.
+- [x] Configuração/build Linux Debug; 18 alvos direcionados validados. A seleção
+  de 18 teve 17 aprovações e uma expectativa antiga de morango corrigida;
+  `native_crop_daily` passou na repetição isolada. Mais duas execuções diretas
+  com capturas. Total conservador: 44 processos, incluindo wrappers e filhos,
+  abaixo do limite 50; suíte completa de 118 testes não executada.
+
+Fontes, diferenças, arquivos, reprodução e limites em [PF06_FLOWERS.md](PF06_FLOWERS.md).
+**PF-06 permanece aberta.** Naquela entrega, Moondrop, Magic Red e Orangecup ainda não estavam no menu; Magic Red foi integrada abaixo.
+
+### PF-06 — Variantes de Magic Red: recorte concluído em 2026-10-27
+
+- [x] Adaptar `field_event_dispatch`: um `rand_range(25)` por célula aceita;
+  resultado zero grava `0x179` (vermelha), demais gravam `0x178` (azul).
+  Mesma grade/ação; células inválidas e espera da animação não consomem RNG.
+- [x] `HmbtnFarmField.plant_random` é o único dono da sequência de plantio,
+  reutilizando a aritmética original já adaptada. Sem RNG por frame/desenho,
+  sem tocar nas sequências de moradores, clima, pesca ou galinhas.
+- [x] Save nativo v3 grava a sequência; lê v1/v2 com seed inicial 1, preservando
+  células, economia e clima. Saves anteriores não tinham sequência de plantio.
+- [x] Won oferece seis entradas: Magic Red ocupa a linha visível 4, fonte 5,
+  descrição `0x16a`, 600 G. Toy Flower passa à linha visível 5, fonte 6.
+  Mesma compra, quantidade, inventário/baú e cancelamento, sem estoque paralelo.
+- [x] Ambas crescem no outono em dez manhãs regadas (3+3+2+2), sem rebrota.
+  Sprites originais 17/25, faixa zero madura segura. Azul sem renda de remessa;
+  vermelha rende 200 G sem um contador de remessas específico no original.
+- [x] Testes de regras e dois percursos reais com variantes controladas:
+  compra, save antes/depois do plantio e durante crescimento, noites secas,
+  colheita, azul na mochila/presente para Lillia, vermelha enviada/paga uma vez,
+  inverno e retomada pelo aplicativo em outro processo. Cinco culturas anteriores
+  de Won continuam cobertas. Capturas das variantes e do menu inspecionadas.
+- [x] Configuração/build Linux Debug; seleção final 18/18 CTests, 7,25 s.
+  Os dois novos percursos passaram também em rodada anterior e execução direta
+  final com capturas. Foram 20 alvos distintos validados; 44 processos contando
+  repetições/wrappers/filhos, dentro do limite 50. Suíte completa de 121 não rodada.
+
+Fontes, esquema, arquivos e reprodução em [PF06_MAGIC_RED.md](PF06_MAGIC_RED.md).
+PF-06 permanece aberta. Windows, Release, sanitizers, janela/áudio físicos e
+instalação limpa não foram verificados.
+
+### Próxima implementação recomendada — PF-06, Moondrop e desbloqueio
+
+Integrar a semente `0x31` pelo grupo D, fonte 3/descrição `0x168`, preservando
+sua condição original. `shop_seed_menu_setup_d` consulta `ESTATE_STATUS_BIT23`;
+`event_cmd_dispatch` comando 27 (`EVENT_CMD_SET_STATUS_BIT23`) o define.
+Não basta habilitar a cultura: a seleção de Won precisará distinguir suporte
+técnico de disponibilidade por progressão, sem fazer cópia de flags na loja.
+
+1. Rastrear o roteiro instalado que executa esse comando e os seus pré-requisitos.
+   Identificar o estado autoritativo apropriado e o caminho compartilhado de
+   comandos para aplicar a mudança uma vez, tanto no evento quanto na loja.
+2. Persistir a progressão com migração explícita de saves atuais caso um campo
+   novo seja necessário. Não confundir o bit com uma flag de evento de outro domínio.
+3. Reutilizar compra/ações/campo/diário/inventário/presentes e arte original para
+   `CROP_MOON_DROP`: primavera, seis dias regados, 300 G, produto `0x51`, sem
+   rebrota ou preço de remessa. Não criar outro motor ou interpretador.
+4. Aceite: menu fechado antes e aberto após o evento real, execução única,
+   índices/descrições das seis entradas anteriores intactos, compra/cancelamento,
+   cultivo/colheita/presente, virada sazonal e save/load em outro processo.
+   Selecionar testes dentro do máximo 50 por rodada.
+
+Orangecup depende da estufa e permanece posterior, assim como danos climáticos
+e demais sistemas parciais. Não expor novas entradas antes de seus comportamentos.
 
 ### Destino das antigas etapas abertas
 

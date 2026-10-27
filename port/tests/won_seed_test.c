@@ -31,9 +31,12 @@ int main(void)
     }
     assert(!hmbtn_won_seed_entry(8));
     assert(hmbtn_won_seed_shop_open(&s,&g.clock) && s.request==0x164 && s.merchant==35);
-    assert(!hmbtn_won_seed_shop_open(&s,&g.clock) && hmbtn_seed_shop_count(&s)==3);
+    assert(!hmbtn_won_seed_shop_open(&s,&g.clock) && hmbtn_seed_shop_count(&s)==6);
+    const unsigned source_rows[]={0,1,2,4,5,6};
+    for(unsigned i=0;i<6;++i) assert(hmbtn_seed_shop_choice(&s,i)==hmbtn_won_seed_entry(source_rows[i]));
+    assert(!hmbtn_seed_shop_choice(&s,6));
     until(&s,&h,&g.economy,HMBTN_SHOP_SELECT);
-    input(&s,&h,&g.economy,HMBTN_PAD_UP);assert(s.item==0x30);
+    input(&s,&h,&g.economy,HMBTN_PAD_UP);assert(s.item==0x34);
     input(&s,&h,&g.economy,HMBTN_PAD_DOWN);assert(s.item==0x26);
     /* Description / back / cancel leave share the real stock/profile. */
     input(&s,&h,&g.economy,HMBTN_PAD_TRIANGLE);assert(s.next_request==0x165);
@@ -71,6 +74,35 @@ int main(void)
     input(&s,&h,&g.economy,HMBTN_PAD_CROSS);assert(s.next_request==0x54);
     until(&s,&h,&g.economy,HMBTN_SHOP_OFF);
     assert(g.economy.gold==4000 && !memcmp(&inv,&g.inventory,sizeof(inv)));
+    /* Filtered flower rows preserve their own descriptions, not 0x165+row. */
+    for(unsigned row=3;row<6;++row) {
+        hmbtn_game_state_init(&g);s=(HmbtnFeedShop){0};
+        assert(hmbtn_won_seed_shop_open(&s,&g.clock));until(&s,&h,&g.economy,HMBTN_SHOP_SELECT);
+        for(unsigned i=0;i<row;++i) input(&s,&h,&g.economy,HMBTN_PAD_DOWN);
+        const unsigned seed=row==3 ? 0x32 : row==4 ? 0x33 : 0x34,price=row==3 ? 200 : row==4 ? 600 : 500;
+        assert(s.item==seed);input(&s,&h,&g.economy,HMBTN_PAD_TRIANGLE);
+        assert(s.next_request==(0x166u+row));until(&s,&h,&g.economy,HMBTN_SHOP_SELECT);
+        g.economy.gold=0;input(&s,&h,&g.economy,HMBTN_PAD_CROSS);until(&s,&h,&g.economy,HMBTN_SHOP_COUNT);
+        input(&s,&h,&g.economy,HMBTN_PAD_CROSS);assert(s.next_request==0x4f && !g.inventory.equipped.id);
+        until(&s,&h,&g.economy,HMBTN_SHOP_COUNT);
+        input(&s,&h,&g.economy,HMBTN_PAD_CIRCLE);until(&s,&h,&g.economy,HMBTN_SHOP_SELECT);
+        g.economy.gold=2000;input(&s,&h,&g.economy,HMBTN_PAD_CROSS);until(&s,&h,&g.economy,HMBTN_SHOP_COUNT);
+        input(&s,&h,&g.economy,HMBTN_PAD_CROSS);
+        assert(s.next_request==0x170 && g.economy.gold==2000-price && g.inventory.equipped.id==seed);
+        until(&s,&h,&g.economy,HMBTN_SHOP_SELECT);
+        g.inventory.equipped=(HmbtnStoredTool){6,0,1};
+        for(unsigned i=0;i<2;++i) g.inventory.bag[i]=(HmbtnStoredTool){6,0,1};
+        input(&s,&h,&g.economy,HMBTN_PAD_CROSS);until(&s,&h,&g.economy,HMBTN_SHOP_COUNT);
+        input(&s,&h,&g.economy,HMBTN_PAD_CROSS);
+        assert(s.next_request==0x261 && s.next_bank==3 && hmbtn_inventory_count(&g.inventory,(int)seed,0,2)==1
+            && g.economy.gold==2000-price*2);
+        until(&s,&h,&g.economy,HMBTN_SHOP_RESULT);
+        s.message.phase=HMBTN_MESSAGE_CLOSED;s.loaded=s.request;hmbtn_feed_shop_tick(&s,&h,&g.economy,NULL,0,0);
+        until(&s,&h,&g.economy,HMBTN_SHOP_SELECT);
+        for(unsigned i=0;i<64;++i) g.inventory.toolbox[i]=(HmbtnStoredTool){6,0,1};
+        const unsigned before=g.economy.gold;input(&s,&h,&g.economy,HMBTN_PAD_CROSS);
+        assert(s.next_request==0x54 && g.economy.gold==before);
+    }
     /* The seasonal merchant/catalog/profile remains independent of Won's group. */
     assert(hmbtn_seed_shop_entries(0)==4 && hmbtn_seed_shop_entry(0,0)->item==0x36);
     puts("Won: all eight source entries audited, supported stock, descriptions, quantities, funds/space/cancel, shared inventory and distinct receipts passed.");

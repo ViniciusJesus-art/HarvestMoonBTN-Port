@@ -30,7 +30,7 @@ HmbtnSession *hmbtn_session_create(const uint16_t *layout,size_t count)
     s->village.player=&s->intro.player;s->village.weather=&s->game.weather;s->village.doors=&s->area_doors;
     hmbtn_farm_action_init(&s->farm_action);
     hmbtn_farm_menu_init(&s->menu,hmbtn_game_economy_const(&s->game));
-    s->menu.poultry=&s->poultry;s->feed_shop.poultry=&s->poultry;
+    s->menu.poultry=&s->poultry;s->feed_shop.poultry=&s->poultry;s->feed_shop.economy=&s->game.economy;
     /* Preserve zeroed poultry and the pre-handoff village. The village's
      * existing defaults are installed only when its schedules arrive. */
     return s;

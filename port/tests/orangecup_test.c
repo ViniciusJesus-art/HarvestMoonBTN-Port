@@ -6,6 +6,18 @@
 #include "inventory.h"
 #include <stdio.h>
 #include <stdlib.h>
+
+static bool tile_equal(const HmbtnFarmTile *a,
+                       const HmbtnFarmTile *b)
+{
+    return a->value == b->value
+        && a->ground == b->ground
+        && a->kind == b->kind
+        && a->growth_flags == b->growth_flags
+        && a->watered_days == b->watered_days;
+}
+
+
 static HmbtnSession *reload(HmbtnSession *s)
 {
     char error[256]={0};uint8_t *data=NULL;size_t bytes=0;
@@ -18,6 +30,10 @@ static HmbtnSession *reload(HmbtnSession *s)
     static const uint8_t schedules[1]={0};assert(hmbtn_session_bind_schedules(next,schedules,1));
     return next;
 }
+
+
+
+
 int main(void)
 {
     const HmbtnFarmCrop *crop=hmbtn_farm_crop(0x35);
@@ -39,14 +55,14 @@ int main(void)
             HmbtnFarmTile before=s->greenhouse.cells[48];
             hmbtn_farm_field_rain(&s->greenhouse);
             hmbtn_farm_field_new_day(&s->greenhouse,(season+day/3)%4);
-            assert(!memcmp(&before,&s->greenhouse.cells[48],sizeof(before))); /* Dry/rain shelter. */
+            assert(tile_equal(&before, &s->greenhouse.cells[48])); /* Dry/rain shelter. */
             assert(hmbtn_farm_field_water(&s->greenhouse,48));
             hmbtn_farm_field_new_day(&s->greenhouse,(season+day/3)%4);
             assert(s->greenhouse.cells[48].kind==(day+1)/2 && s->greenhouse.cells[48].watered_days==(day+1)%2);
             assert(hmbtn_farm_field_harvest_item(&s->greenhouse,48)==(day==7 ? 0x85u : 0u));
             s=reload(s);
             assert(hmbtn_session_field(s)==&s->greenhouse && s->greenhouse.plant_random==rng);
-            assert(!memcmp(&outside,&s->field.cells[2],sizeof(outside)));
+            assert(tile_equal(&outside, &s->field.cells[2]));
         }
         s->game.inventory.held_item=(HmbtnStoredTool){0};
         memset(s->game.inventory.items,0,sizeof(s->game.inventory.items));

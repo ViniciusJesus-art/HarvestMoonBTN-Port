@@ -5,6 +5,26 @@
 #include "item_reaction.h"
 #include <stdlib.h>
 #include <stdio.h>
+
+static bool tiles_equal(const HmbtnFarmTile *a,
+                        const HmbtnFarmTile *b,
+                        size_t count)
+{
+    for (size_t i = 0; i < count; ++i) {
+        if (a[i].value != b[i].value ||
+            a[i].ground != b[i].ground ||
+            a[i].kind != b[i].kind ||
+            a[i].growth_flags != b[i].growth_flags ||
+            a[i].watered_days != b[i].watered_days) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+
+
 static HmbtnSession *autumn(void)
 {
     HmbtnSession *s=save_fixture(0);
@@ -12,6 +32,7 @@ static HmbtnSession *autumn(void)
     s->game.inventory.held_item=(HmbtnStoredTool){0};
     return s;
 }
+
 static HmbtnSession *roundtrip(HmbtnSession *s)
 {
     uint8_t *data=NULL;size_t bytes=0;char error[256]={0};
@@ -19,10 +40,17 @@ static HmbtnSession *roundtrip(HmbtnSession *s)
     HmbtnSession *loaded=hmbtn_save_decode(data,bytes,error,sizeof(error));free(data);assert(loaded);
     static const uint8_t schedules[1]={0};
     assert(hmbtn_session_bind_schedules(loaded,schedules,sizeof(schedules)));
-    assert(loaded->field.plant_random==s->field.plant_random
-        && !memcmp(loaded->field.cells,s->field.cells,sizeof(s->field.cells)));
+    assert(
+        loaded->field.plant_random == s->field.plant_random &&
+        tiles_equal(
+            loaded->field.cells,
+            s->field.cells,
+            HMBTN_FIELD_CELLS
+        )
+    );
     return loaded;
 }
+
 int main(void)
 {
     /* The actual source generator maps initial 0 to red, 1 to blue. Other

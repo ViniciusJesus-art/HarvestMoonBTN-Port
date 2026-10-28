@@ -10,7 +10,7 @@
 typedef struct Fixture {
     uint8_t section[0x2000],floor[88],ani[1724];
     HmbtnModel ground;HmbtnAnimation animation;
-    unsigned effects,loads;
+    unsigned effects,loads,wakes,retired_exit_flags;
 } Fixture;
 static bool prepare(Fixture *f,unsigned flags,char *error,size_t size)
 {
@@ -65,6 +65,24 @@ static HmbtnSession *session(unsigned area)
 }
 static bool tick(HmbtnSession *s,HmbtnExplorationFrame *f,uint32_t pressed,uint32_t held,char *error,size_t size)
 { return hmbtn_session_exploration_tick(s,f,(HmbtnLogicalInput){pressed,held},error,size); }
+static bool wake_boundary(void *context,HmbtnSession *s,HmbtnExplorationBoundary kind,unsigned value,
+    HmbtnLogicalInput input,HmbtnExplorationBoundaryResult *result,char *error,size_t size)
+{
+    (void)value;(void)input;(void)result;(void)error;(void)size;
+    if(kind!=HMBTN_EXP_SLEEP) return false;
+    Fixture *fixture=context;++fixture->wakes;
+    s->area=s->intro.area=80;s->house.mode=HMBTN_HOUSE_FREE;
+    memset(s->intro.player.position,0,sizeof(s->intro.player.position));
+    /* Model a resource replacement without a real dangling read: the retired
+     * loan contains an exit at the NEW player position, the new house does not.
+     * Probing it would start a spurious trip (or dereference freed memory). */
+    memset(fixture->section,0,sizeof(fixture->section));uint8_t *zone=fixture->section+16;
+    hmbtn_write_le16(zone,(uint16_t)fixture->retired_exit_flags);hmbtn_write_le16(zone+2,24);
+    hmbtn_write_le16(zone+10,99);
+    hmbtn_write_le16(zone+14,(uint16_t)-500);hmbtn_write_le16(zone+18,(uint16_t)-500);
+    hmbtn_write_le16(zone+20,500);hmbtn_write_le16(zone+24,500);
+    return true;
+}
 static bool same(const HmbtnSession *a,const HmbtnSession *b)
 {
     if(!inventory_equal(&a->game.inventory,&b->game.inventory) || !economy_equal(&a->game.economy,&b->game.economy)
@@ -187,6 +205,16 @@ int main(void)
     s->travel_tick=0;
     HmbtnExplorationFrame missing=f;missing.animation=NULL;
     CHECK(!tick(s,&missing,0,0,error,sizeof(error)));
+    /* Wake-up may replace resources while controls still hold the old loan.
+     * Neither a gate nor a walk-through exit may be queried after that call. */
+    for(unsigned gate=0;gate<2;++gate) {
+        hmbtn_session_destroy(s);s=session(80);CHECK(s && prepare(&fixture,0,error,sizeof(error)));
+        f=frame(&fixture,false);f.boundary=wake_boundary;f.boundary_context=&fixture;
+        fixture.retired_exit_flags=gate ? 0x200u : 0u;
+        s->house.mode=HMBTN_HOUSE_SLEEP;s->village_ready=true;
+        CHECK(hmbtn_session_exploration_controls(s,&f,(HmbtnLogicalInput){0},error,sizeof(error)));
+        CHECK(fixture.wakes==1 && s->house.mode==HMBTN_HOUSE_FREE && !s->travel_tick && !s->control.exit_pending);
+    }
     hmbtn_session_destroy(other);hmbtn_session_destroy(s);
     puts("Headless exploration: movement, pause/calendar, tools/ANI, carry/flight, feed, poultry, fishing and shipping passed.");return 0;
 fail:

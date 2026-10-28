@@ -47,7 +47,7 @@ bool hmbtn_farm_action_tick(HmbtnFarmAction *a,HmbtnIntroActor *p,HmbtnHouseInte
     }
     if(a->phase==HMBTN_FARM_TOOL_CHARGE) {
         if(held&HMBTN_PAD_SQUARE) {
-            if(a->charge_frames<tool->modifier*20) ++a->charge_frames;
+            if(a->charge_frames<tool->modifier*20u) ++a->charge_frames;
             else if(++a->overcharge_frames>=61) {
                 a->phase=HMBTN_FARM_OVERCHARGE;a->bank=3;a->bank_pending=true;
                 p->sprite=(HmbtnAnimationPlayer){0};p->animation_done=false;return true;

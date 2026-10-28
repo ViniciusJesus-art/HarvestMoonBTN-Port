@@ -43,7 +43,7 @@ bool hmbtn_scene_data_open(HmbtnSceneData *s, const uint8_t *bytes, size_t size,
         /* Initial slot 0 is visible; upgrade slots 1 and 2 are hidden. */
         if (flags&0x100u) {
             if (flags&15u) s->flags[i] |= 0x1000u;
-            else s->flags[i] &= (uint16_t)~0x1000u;
+            else s->flags[i] = (uint16_t)(s->flags[i]&~0x1000u);
         }
         /* Linked bed alternatives can become visible during sleep. Reserve
          * their decoded primitives as well as initially visible models. */

@@ -1,6 +1,20 @@
 name: Native PC tests
 
 on:
+  push:
+    paths:
+      - 'port/**'
+      - 'src/**'
+      - 'CMakeLists.txt'
+      - 'CMakePresets.json'
+      - '.github/workflows/native.yml'
+  pull_request:
+    paths:
+      - 'port/**'
+      - 'src/**'
+      - 'CMakeLists.txt'
+      - 'CMakePresets.json'
+      - '.github/workflows/native.yml'
   workflow_dispatch:
 
 jobs:
@@ -25,12 +39,16 @@ jobs:
       - name: Build
         run: cmake --build build/native-ci --config ${{ matrix.configuration }} --parallel 2
       - name: Test
+        if: github.event_name == 'workflow_dispatch'
         run: ctest --test-dir build/native-ci -C ${{ matrix.configuration }} --output-on-failure
+      - name: Test portability regressions
+        if: github.event_name != 'workflow_dispatch'
+        run: ctest --test-dir build/native-ci -C ${{ matrix.configuration }} --output-on-failure -R "^native_(model_renderer|exploration|farm_field|inventory_rules|save|greenhouse|orangecup|farm_carry)$"
       - name: Stage Windows executable
-        if: runner.os == 'Windows'
+        if: runner.os == 'Windows' && github.event_name == 'workflow_dispatch'
         run: cmake --install build/native-ci --config ${{ matrix.configuration }} --prefix build/package
       - name: Upload Windows build
-        if: runner.os == 'Windows'
+        if: runner.os == 'Windows' && github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v7
         with:
           name: hmbtn-windows-${{ matrix.configuration }}

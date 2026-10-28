@@ -153,10 +153,10 @@ bool hmbtn_session_exploration_controls(HmbtnSession *s,const HmbtnExplorationFr
             goto house_done;
         }
         if(!s->travel_tick && !s->door_tick && !s->quick_ticks && s->house.mode==HMBTN_HOUSE_FREE) {
-            const bool opened=!s->carry.phase && !s->feed.phase && !s->poultry.carry_phase && s->farm_action.phase==HMBTN_FARM_ACTION_FREE
+            const bool menu_opened=!s->carry.phase && !s->feed.phase && !s->poultry.carry_phase && s->farm_action.phase==HMBTN_FARM_ACTION_FREE
                 && hmbtn_farm_menu_open(&s->menu,input.pressed);
             if(s->menu.mode!=HMBTN_MENU_NONE) {
-                if(opened) { (void)emit(f,(HmbtnExplorationEffect){.kind=HMBTN_EXP_RELEASE_WATER},error,error_size); }
+                if(menu_opened) { (void)emit(f,(HmbtnExplorationEffect){.kind=HMBTN_EXP_RELEASE_WATER},error,error_size); }
                 else hmbtn_farm_menu_tick(&s->menu,s->house.inventory,input.pressed,held);
                 if(s->menu.sound>=0) (void)emit(f,(HmbtnExplorationEffect){.kind=HMBTN_EXP_UI_SOUND,.id=(unsigned)s->menu.sound},error,error_size);
                 if(s->menu.request && s->menu.loaded!=s->menu.request) {
@@ -446,12 +446,15 @@ house_interaction:
             else if(!emit(f,(HmbtnExplorationEffect){.kind=HMBTN_EXP_UNSUPPORTED_HOUSE,.id=s->house.boundary},error,error_size)) return false;
             s->house.boundary=0;
         }
-        if(s->house.mode==HMBTN_HOUSE_SLEEP && !boundary(s,f,HMBTN_EXP_SLEEP,0,input,NULL,error,error_size)) return false;
+        /* Waking reloads the house and retires this frame's section loan.
+         * Keep presentation updates, but leave exit probes for a fresh frame. */
+        const bool sleeping=s->house.mode==HMBTN_HOUSE_SLEEP;
+        if(sleeping && !boundary(s,f,HMBTN_EXP_SLEEP,0,input,NULL,error,error_size)) return false;
         if(!emit(f,(HmbtnExplorationEffect){.kind=HMBTN_EXP_HOUSE_ART},error,error_size)) return false;
         s->dialogue.message=s->house.message;
         if(s->house.mode==HMBTN_HOUSE_COOKING) s->dialogue.choice=s->house.kitchen.choice;
         HmbtnHouseExit exit;
-        if(s->house.mode==HMBTN_HOUSE_FREE && !s->control.exit_pending && s->village_ready) {
+        if(!sleeping && s->house.mode==HMBTN_HOUSE_FREE && !s->control.exit_pending && s->village_ready) {
             if(hmbtn_world_gate_at(f->section,f->section_size,s->intro.player.position,&exit)) {
                 const unsigned event=hmbtn_read_le16(f->section+16+exit.zone*44+10);
                 const int refusal=hmbtn_village_door(&s->village,event,&s->game.clock);
@@ -466,7 +469,7 @@ house_interaction:
                 }
             } else s->refused_zone=-1;
         }
-        if(s->house.mode==HMBTN_HOUSE_FREE && !s->control.exit_pending && hmbtn_house_exit_at(f->section,
+        if(!sleeping && s->house.mode==HMBTN_HOUSE_FREE && !s->control.exit_pending && hmbtn_house_exit_at(f->section,
                 f->section_size,s->intro.player.position,&exit)) {
             unsigned logical,resource;
             if(hmbtn_world_area(exit.target,s->game.clock.season,&logical,&resource)) {

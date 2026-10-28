@@ -55,7 +55,7 @@ struct HmbtnScenePreview {
     HmbtnSession *session;
     uint8_t *section, *pixels;
     HmbtnImageAtlas *atlas;
-    HmbtnSceneData scene = {0};
+    HmbtnSceneData scene;
     HmbtnModelRenderer *geometry;
     SDL_Texture *texture;
     int32_t centre_x, centre_z;
@@ -225,7 +225,7 @@ static bool load_area(HmbtnScenePreview *s, const char *root, unsigned area,
     const uint32_t start=scene_sections[resource_area][0],texture=scene_sections[resource_area][1],end=scene_sections[resource_area][2];
     const size_t size = texture-start, bank_size = end-texture;
     uint8_t *section = malloc(size), *bank = malloc(bank_size);
-    HmbtnSceneData scene;
+    HmbtnSceneData scene = {0};
     bool ok = section && bank;
     if (!ok) snprintf(error,error_size,"Cannot allocate bounded scene buffers");
     /* farm_load_season_art is independent of the section's texture upload. */

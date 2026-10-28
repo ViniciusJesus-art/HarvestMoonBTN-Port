@@ -62,10 +62,20 @@ jobs:
           ctest --test-dir build/native-package --output-on-failure
       - name: Build DEB
         if: ${{ contains(fromJSON('["Todos","Linux","DEB"]'), inputs.package) }}
-        run: cpack --config build/native-package/CPackConfig.cmake -G DEB -B build/artifacts
+        run: |
+          cpack --config build/native-package/CPackConfig.cmake -G DEB -B build/artifacts
+          shopt -s nullglob
+          packages=(build/artifacts/*.deb)
+          if (( ${#packages[@]} != 1 )); then echo 'Expected exactly one DEB package' >&2; exit 1; fi
+          mv -- "${packages[0]}" build/artifacts/HarvestMoonBTN-linux-amd64.deb
       - name: Build RPM
         if: ${{ contains(fromJSON('["Todos","Linux","RPM"]'), inputs.package) }}
-        run: cpack --config build/native-package/CPackConfig.cmake -G RPM -B build/artifacts
+        run: |
+          cpack --config build/native-package/CPackConfig.cmake -G RPM -B build/artifacts
+          shopt -s nullglob
+          packages=(build/artifacts/*.rpm)
+          if (( ${#packages[@]} != 1 )); then echo 'Expected exactly one RPM package' >&2; exit 1; fi
+          mv -- "${packages[0]}" build/artifacts/HarvestMoonBTN-linux-x86_64.rpm
       - name: Stage AppImage runtime and audit contents
         if: ${{ contains(fromJSON('["Todos","Linux","AppImage"]'), inputs.package) }}
         run: |

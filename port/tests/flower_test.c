@@ -51,6 +51,6 @@ int main(void)
         hmbtn_farm_field_new_day(&s->field,3);assert(s->field.cells[460].value==0x168 && !s->field.cells[460].kind);
         hmbtn_session_destroy(s);
     }
-    assert(hmbtn_farm_crop_supported(0x31) && hmbtn_farm_crop_supported(0x33) && !hmbtn_farm_crop_supported(0x35));
+    assert(hmbtn_farm_crop_supported(0x31) && hmbtn_farm_crop_supported(0x33) && hmbtn_farm_crop_supported(0x35));
     puts("Flowers: original prices/daily vectors, dry mornings, one harvest, inventory, gifts, no shipping income, seasons/winter and native save passed.");return 0;
 }

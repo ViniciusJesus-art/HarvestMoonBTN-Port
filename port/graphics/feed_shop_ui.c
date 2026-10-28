@@ -62,8 +62,8 @@ bool hmbtn_feed_shop_ui_draw(const HmbtnFeedShop *s,const HmbtnEconomy *economy,
         if(!hmbtn_ui_text(ui,p,shop_buy_lumber,WORDS(shop_buy_lumber),30,20,0,3,error,size)
                 || !hmbtn_ui_icon(ui,p,11,1,20,20+(int)s->selection*14,error,size)) return false;
         const unsigned stage=hmbtn_construction_next(s->construction,s->poultry);
-        const uint16_t *label=stage==2 ? shop_enlarge_barn : stage==1 ? shop_enlarge_own_house : shop_enlarge_hen_house;
-        const unsigned words=stage==2 ? WORDS(shop_enlarge_barn) : stage==1 ? WORDS(shop_enlarge_own_house) : WORDS(shop_enlarge_hen_house);
+        const uint16_t *label=stage==4 ? shop_hothouse : stage==2 ? shop_enlarge_barn : stage==1 || stage==3 ? shop_enlarge_own_house : shop_enlarge_hen_house;
+        const unsigned words=stage==4 ? WORDS(shop_hothouse) : stage==2 ? WORDS(shop_enlarge_barn) : stage==1 || stage==3 ? WORDS(shop_enlarge_own_house) : WORDS(shop_enlarge_hen_house);
         if(rows>1 && !hmbtn_ui_text(ui,p,label,words,30,34,0,3,error,size)) return false;
         if(s->phase==HMBTN_SHOP_BUILD_CONFIRM && !s->closing && s->message.phase==HMBTN_MESSAGE_WAIT_END) {
             hmbtn_window_frame_draw(p,320,240,200,112,48,36);

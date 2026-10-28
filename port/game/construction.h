@@ -4,10 +4,12 @@
 struct HmbtnPoultry;
 /* Session owns pending work and house/barn levels. Poultry.upgraded remains the one coop level;
  * inventory.supplies[1] and game.economy remain the wood and purse authorities. */
-typedef enum HmbtnConstructionWork { HMBTN_BUILD_NONE,HMBTN_BUILD_COOP,HMBTN_BUILD_HOUSE,HMBTN_BUILD_BARN } HmbtnConstructionWork;
+typedef enum HmbtnConstructionWork { HMBTN_BUILD_NONE,HMBTN_BUILD_COOP,HMBTN_BUILD_HOUSE,HMBTN_BUILD_BARN,HMBTN_BUILD_HOUSE2,HMBTN_BUILD_GREENHOUSE } HmbtnConstructionWork;
 typedef struct HmbtnConstruction {
     unsigned mornings_left,house_level,barn_level;
     HmbtnConstructionWork pending;
+    bool greenhouse;
+    uint32_t damage_random;
 } HmbtnConstruction;
 typedef struct HmbtnConstructionOffer { unsigned gold,lumber; } HmbtnConstructionOffer;
 typedef enum HmbtnConstructionResult {
@@ -21,4 +23,6 @@ unsigned hmbtn_carpenter_lumber_item(void);
 HmbtnConstructionResult hmbtn_construction_order(HmbtnConstruction *,
     const struct HmbtnPoultry *,HmbtnInventory *,HmbtnEconomy *);
 void hmbtn_construction_new_day(HmbtnConstruction *,struct HmbtnPoultry *);
+/* weather.c:greenhouse_reset_level. Caller clears its field when true. */
+bool hmbtn_construction_storm(HmbtnConstruction *);
 #endif

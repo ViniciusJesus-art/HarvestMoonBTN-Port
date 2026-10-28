@@ -56,7 +56,7 @@ endforeach()
 file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/generated/farm_menu_labels.inc" "${farm_labels}")
 set(shop_labels "/* Original feed shop labels. */\n")
 foreach(label money_title gold_unit units fodder chicken_feed buy_chicken sell_chicken buy_cow buy_sheep animal_medicine
-        farm name_panel_title yes no buy_lumber enlarge_hen_house enlarge_own_house enlarge_barn lumber)
+        farm name_panel_title yes no buy_lumber enlarge_hen_house enlarge_own_house enlarge_barn hothouse lumber)
     string(REGEX MATCH "\\.${label} = \\{[^}]+\\}" shop_label "${farm_text_source}")
     if(NOT shop_label)
         message(FATAL_ERROR "Missing original feed shop label ${label}")
@@ -68,7 +68,7 @@ file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/generated/feed_shop_labels.inc" "${shop_
 add_library(hmbtn_port_core STATIC game/livestock.c game/game_state.c game/cooking.c game/construction.c game/weather.c game/weather_effects.c game/save.c game/update_clock.c game/runtime.c game/inventory.c game/economy.c game/services.c game/session.c game/daily.c game/exploration.c core/psx_data.c core/psx_random.c graphics/asset_decode.c graphics/window_frame.c
     graphics/model_decode.c graphics/model_render.c graphics/scene_decode.c game/title_flow.c game/new_game.c
     game/event_script.c game/event_variables.c game/event_item.c game/farm_visit.c game/fishing.c game/item_reaction.c game/farm_intro.c game/ground.c game/house_control.c game/house_interaction.c
-    game/house_sleep.c game/farm_field.c game/farm_action.c game/field_effects.c game/farm_menu.c game/farm_carry.c game/farm_feed.c game/farm_gather.c game/poultry.c game/poultry_carry.c game/feed_shop.c game/event_days.c game/farm_clock.c game/farm_shipping.c game/world_map.c game/area_doors.c game/village.c game/village_talk.c audio/psx_audio.c audio/xa_decode.c)
+    game/house_sleep.c game/house_lumber.c game/farm_field.c game/farm_action.c game/field_effects.c game/farm_menu.c game/farm_carry.c game/farm_feed.c game/farm_gather.c game/poultry.c game/poultry_carry.c game/feed_shop.c game/event_days.c game/farm_clock.c game/farm_shipping.c game/world_map.c game/area_doors.c game/village.c game/village_talk.c audio/psx_audio.c audio/xa_decode.c)
 target_include_directories(hmbtn_port_core PUBLIC core graphics game input audio)
 if(NOT MSVC)
     target_link_libraries(hmbtn_port_core PUBLIC m)
@@ -93,6 +93,7 @@ set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
     "${CMAKE_SOURCE_DIR}/src/include/items.h"
     "${CMAKE_SOURCE_DIR}/src/overlay/11_GF_FARM/farm_probe.c"
     "${CMAKE_SOURCE_DIR}/src/overlay/11_GF_FARM/field/field.c"
+    "${CMAKE_SOURCE_DIR}/src/overlay/11_GF_FARM/field/greenhouse.c"
     "${CMAKE_SOURCE_DIR}/src/overlay/11_GF_FARM/menu/storage_swap.c"
     "${CMAKE_SOURCE_DIR}/src/main/sound/sound.c")
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
@@ -180,6 +181,19 @@ if(BUILD_TESTING)
     add_executable(hmbtn_house_upgrade_test tests/house_upgrade_test.c)
     target_link_libraries(hmbtn_house_upgrade_test PRIVATE hmbtn_port_core)
     add_test(NAME native_house_upgrade COMMAND hmbtn_house_upgrade_test)
+    add_executable(hmbtn_second_house_test tests/second_house_test.c)
+    target_link_libraries(hmbtn_second_house_test PRIVATE hmbtn_port_core)
+    add_test(NAME native_second_house COMMAND hmbtn_second_house_test)
+    add_executable(hmbtn_greenhouse_test tests/greenhouse_test.c)
+    target_link_libraries(hmbtn_greenhouse_test PRIVATE hmbtn_port_core)
+    add_test(NAME native_greenhouse COMMAND hmbtn_greenhouse_test)
+    add_executable(hmbtn_orangecup_test tests/orangecup_test.c)
+    target_link_libraries(hmbtn_orangecup_test PRIVATE hmbtn_port_core)
+    add_test(NAME native_orangecup COMMAND hmbtn_orangecup_test)
+    add_executable(hmbtn_orangecup_playthrough tests/orangecup_playthrough.c)
+    target_link_libraries(hmbtn_orangecup_playthrough PRIVATE hmbtn_host)
+    add_executable(hmbtn_greenhouse_playthrough tests/greenhouse_playthrough.c)
+    target_link_libraries(hmbtn_greenhouse_playthrough PRIVATE hmbtn_host)
     add_executable(hmbtn_construction_test tests/construction_test.c)
     target_link_libraries(hmbtn_construction_test PRIVATE hmbtn_port_core)
     add_test(NAME native_construction COMMAND hmbtn_construction_test)
@@ -512,6 +526,21 @@ if(BUILD_TESTING)
             "${CMAKE_CURRENT_SOURCE_DIR}/tests/won_process_playthrough.py"
             "$<TARGET_FILE:hmbtn_house_upgrade_playthrough>" "$<TARGET_FILE:hmbtn_native>" "${HMBTN_TEST_GAME_DATA}" "0")
         set_tests_properties(native_house_upgrade_playthrough PROPERTIES TIMEOUT 240
+            ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_RENDER_DRIVER=software;SDL_AUDIO_DRIVER=dummy")
+        add_test(NAME native_second_house_playthrough COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/won_process_playthrough.py"
+            "$<TARGET_FILE:hmbtn_house_upgrade_playthrough>" "$<TARGET_FILE:hmbtn_native>" "${HMBTN_TEST_GAME_DATA}" "2")
+        set_tests_properties(native_second_house_playthrough PROPERTIES TIMEOUT 240
+            ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_RENDER_DRIVER=software;SDL_AUDIO_DRIVER=dummy")
+        add_test(NAME native_greenhouse_playthrough COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/won_process_playthrough.py"
+            "$<TARGET_FILE:hmbtn_greenhouse_playthrough>" "$<TARGET_FILE:hmbtn_native>" "${HMBTN_TEST_GAME_DATA}" "0")
+        set_tests_properties(native_greenhouse_playthrough PROPERTIES TIMEOUT 240
+            ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_RENDER_DRIVER=software;SDL_AUDIO_DRIVER=dummy")
+        add_test(NAME native_orangecup_playthrough COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/won_process_playthrough.py"
+            "$<TARGET_FILE:hmbtn_orangecup_playthrough>" "$<TARGET_FILE:hmbtn_native>" "${HMBTN_TEST_GAME_DATA}" "0")
+        set_tests_properties(native_orangecup_playthrough PROPERTIES TIMEOUT 240
             ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_RENDER_DRIVER=software;SDL_AUDIO_DRIVER=dummy")
         add_test(NAME native_carpenter_playthrough COMMAND "${Python3_EXECUTABLE}"
             "${CMAKE_CURRENT_SOURCE_DIR}/tests/won_process_playthrough.py"

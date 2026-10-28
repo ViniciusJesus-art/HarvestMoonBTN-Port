@@ -69,6 +69,7 @@ struct HmbtnScenePreview {
     HmbtnAnimation event_prop_animation;
     HmbtnHouseUI *house_ui;
     unsigned tv_frame;
+    unsigned fire_frame,fire_ticks;
     uint8_t tv_sectors[0x1800];
     HmbtnNewGameUI *ui;
     HmbtnTitleAudio audio;
@@ -191,7 +192,7 @@ static bool load_area(HmbtnScenePreview *s, const char *root, unsigned area,
     char *error, size_t error_size)
 {
     unsigned logical,resource_area;
-    if(!hmbtn_world_area_buildings(area,s->session->game.clock.season,s->session->poultry.upgraded,s->session->construction.house_level,s->session->construction.barn_level,&logical,&resource_area)) {
+    if(!hmbtn_world_area_buildings(area,s->session->game.clock.season,s->session->poultry.upgraded,s->session->construction.house_level,s->session->construction.barn_level,s->session->construction.greenhouse,&logical,&resource_area)) {
         if(area==230 || area==231 || area==232) logical=resource_area=area;
         else {
             snprintf(error,error_size,"Area %u is not integrated",area);return false;
@@ -259,6 +260,7 @@ static bool load_area(HmbtnScenePreview *s, const char *root, unsigned area,
     }
     hmbtn_model_renderer_destroy(s->geometry); free(s->section);
     s->section = section; s->scene = scene; s->geometry = geometry; s->session->area = area;s->dirty=true;
+    s->fire_frame=s->fire_ticks=0;
     if(s->opening && !hmbtn_estate_art_update(&s->estate_art,root,hmbtn_read_le16(section+10),error,error_size)) return false;
     s->session->triggers.field=&s->session->field;
     if(s->opening && area==96 && !hmbtn_livestock_art_load(&s->livestock_art,root,error,error_size)) return false;
@@ -267,17 +269,20 @@ static bool load_area(HmbtnScenePreview *s, const char *root, unsigned area,
     if(s->opening && hens_here && !hmbtn_poultry_art_load(&s->poultry_art,root,error,error_size)) return false;
     if(!s->restoring) hmbtn_session_area_ready(s->session,area,&s->scene);
     else s->session->intro.ground=&s->scene.terrain;
-    if (area != 0) { free(s->field_block); s->field_block = NULL; free(s->field_atlas); s->field_atlas = NULL;
-        memset(s->session->field_effects,0,sizeof(s->session->field_effects)); }
-    else if (!load_field(s,root,error,error_size)
-            || !hmbtn_farm_field_bind(&s->session->field,&s->scene.terrain)) {
-        if(!error[0]) snprintf(error,error_size,"Cannot bind original farm field quads");
-        return false;
-    }
-    if(area==0 && !s->restoring) s->session->field.season=s->session->game.clock.season;
-    if(area==0 && (s->session->control.enabled || s->session->first_visit_started) && !hmbtn_farm_field_retexture(&s->session->field,
-            s->section+(s->scene.terrain.data-s->section),s->scene.terrain.size)) {
-        snprintf(error,error_size,"Cannot restore field soil textures");return false;
+    HmbtnFarmField *field=hmbtn_session_field(s->session);
+    if(!field) {
+        free(s->field_block);s->field_block=NULL;free(s->field_atlas);s->field_atlas=NULL;
+        memset(s->session->field_effects,0,sizeof(s->session->field_effects));
+    } else {
+        if(!load_field(s,root,error,error_size) || !hmbtn_farm_field_bind(field,&s->scene.terrain)) {
+            if(!error[0]) snprintf(error,error_size,"Cannot bind original field quads");
+            return false;
+        }
+        if(!s->restoring) field->season=s->session->game.clock.season;
+        if((s->session->control.enabled || s->session->first_visit_started)
+                && !hmbtn_farm_field_retexture(field,s->section+(s->scene.terrain.data-s->section),s->scene.terrain.size)) {
+            snprintf(error,error_size,"Cannot restore field soil textures");return false;
+        }
     }
     printf("Farm geometry loaded: area %u, %u objects, %u primitives; native C renderer.\n",
         area,(unsigned)s->scene.terrain.object_count,(unsigned)s->scene.primitive_capacity);
@@ -614,7 +619,7 @@ static bool exploration_effect(void *context,const HmbtnExplorationEffect *effec
     }
     case HMBTN_EXP_RELEASE_WATER:hmbtn_sound_release_voice(s->audio.sound,s->watering_voice);s->watering_voice=0;return true;
     case HMBTN_EXP_RETEXTURE:
-        return hmbtn_farm_field_retexture(&s->session->field,s->section+(s->scene.terrain.data-s->section),s->scene.terrain.size);
+        return hmbtn_farm_field_retexture(hmbtn_session_field_const(s->session),s->section+(s->scene.terrain.data-s->section),s->scene.terrain.size);
     case HMBTN_EXP_MESSAGE_ART:return hmbtn_ui_message_art(s->ui,effect->record,effect->bytes,error,error_size);
     case HMBTN_EXP_STEREO:hmbtn_sound_stereo(s->audio.sound,effect->id!=0);return true;
     case HMBTN_EXP_MESSAGE_LOADED:
@@ -643,9 +648,10 @@ static bool exploration_effect(void *context,const HmbtnExplorationEffect *effec
 }
 static HmbtnExplorationFrame exploration_frame(HmbtnScenePreview *s)
 {
+    const HmbtnFarmField *field=hmbtn_session_field_const(s->session);
     return (HmbtnExplorationFrame){.section=s->section,.section_size=s->scene.terrain.size+0x2000,
         .ground=&s->scene.terrain,.scene=&s->scene,.field_art=s->field_art,.context=s,.action_bank=exploration_action,
-        .grass_cut_art=hmbtn_estate_art_sprite(&s->estate_art,s->session->game.clock.season==0 ? 14 : 19),
+        .grass_cut_art=hmbtn_estate_art_sprite(&s->estate_art,field && field->indoor ? 25 : s->session->game.clock.season==0 ? 14 : 19),
         .text=exploration_text,.village_assets=exploration_village_assets,.animation=exploration_animation,
         .effect=exploration_effect};
 }
@@ -731,19 +737,42 @@ static HmbtnCamera scene_camera(const HmbtnScenePreview *s,const int32_t centre[
     return (HmbtnCamera){{centre[0]-distance*2896/4096,centre[1]+height,centre[2]+z_offset},
         {centre[0],centre[1],centre[2]},1000};
 }
+/* scene_view.c:slot_image_step. Only house2 winter declares this fire group.
+ * Copy original atlas rectangles during the host tick; draw never steps it. */
+static bool fire_tick(HmbtnScenePreview *s,char *error,size_t size)
+{
+    if(hmbtn_read_le16(s->section+4)!=91 || !s->session->village.flags[0x45]) return true;
+    if(s->fire_frame>=8) goto invalid;
+    const uint8_t *f=s->section+16+50*44+s->fire_frame*18;
+    const unsigned id=hmbtn_read_le16(f),duration=hmbtn_read_le16(f+2),next=hmbtn_read_le16(f+4),
+        dx=hmbtn_read_le16(f+6),dy=hmbtn_read_le16(f+8),sx=hmbtn_read_le16(f+10),sy=hmbtn_read_le16(f+12),
+        width=hmbtn_read_le16(f+14),height=hmbtn_read_le16(f+16);
+    if(id==0xffff || !(id&0x8000) || !duration || next>=8 || !width || !height
+            || dx+width>HMBTN_ATLAS_WIDTH || sx+width>HMBTN_ATLAS_WIDTH
+            || dy+height>HMBTN_ATLAS_HEIGHT || sy+height>HMBTN_ATLAS_HEIGHT) goto invalid;
+    for(unsigned y=0;y<height;++y) {
+        const unsigned src=(sy+y)*HMBTN_ATLAS_WIDTH+sx,dst=(dy+y)*HMBTN_ATLAS_WIDTH+dx;
+        for(unsigned x=0;x<width;++x) if(!s->atlas->present[src+x]) goto invalid;
+        memmove(s->atlas->words+dst,s->atlas->words+src,width*sizeof(*s->atlas->words));
+        memset(s->atlas->present+dst,1,width);
+    }
+    if(++s->fire_ticks>=duration) { s->fire_frame=next;s->fire_ticks=0; }
+    return true;
+invalid:snprintf(error,size,"Invalid original house fireplace texture frame");return false;
+}
 static bool runtime_tick(HmbtnScenePreview *s,HmbtnLogicalInput input,char *error,size_t size)
 {
     HmbtnSessionFrame f=hmbtn_scene_preview_frame(s);
     const HmbtnCamera previous=scene_camera(s,s->session->intro.camera);
     const unsigned area=s->session->area;
-    if(!hmbtn_session_tick(s->session,&f,input,error,size)) return false;
+    if(!hmbtn_session_tick(s->session,&f,input,error,size) || !fire_tick(s,error,size)) return false;
     /* player_update_position projects the new clamped camera centre through
      * the previous view. Moving at a camera boundary yields zero scroll.
      * Subtract the native projected old centre instead of literal 160/120 to
      * cancel projection rounding. Area loads must not drag old particles. */
     const int32_t *centre=s->session->intro.camera;
     if(s->session->completion_reported && area==s->session->area && s->session->control.enabled
-            && !s->session->travel_tick && !(hmbtn_read_le16(s->section+8)&0x1800u)
+            && !s->session->travel_tick && hmbtn_world_outdoors(s->section,s->scene.terrain.size+0x2000)
             && memcmp(previous.target,centre,sizeof(previous.target))) {
         int old_x,old_y,new_x,new_y;
         if(hmbtn_model_project_point(&previous,previous.target,&old_x,&old_y)
@@ -891,15 +920,20 @@ bool hmbtn_scene_preview_draw(HmbtnScenePreview *s,SDL_Renderer *renderer,char *
         }
         const uint16_t *layout = s->field_layout == 1 ? title_layout1_cells
             : s->field_layout == 2 ? title_layout2_cells : title_layout0_cells;
-        if (s->session->area == 0) for (unsigned row = 0; row < 25; ++row) for (unsigned col = 0; col < 45; ++col) {
-            const int32_t x = (int32_t)col*400-4200, z = 1400-(int32_t)row*400;
+        const HmbtnFarmField *field=hmbtn_session_field_const(s->session);
+        if(field) for(unsigned row=0;row<hmbtn_farm_field_rows(field);++row) for(unsigned col=0;col<hmbtn_farm_field_columns(field);++col) {
+            int32_t position[3];hmbtn_farm_field_position(field,col,row,position);
+            /* greenhouse_draw uses a +170/-170 anchor relative to result coords. */
+            if(field->indoor) { position[0]+=170;position[2]-=170; }
+            const int32_t x=position[0],z=position[2];
             if (x < s->centre_x-3600 || x >= s->centre_x+3600
                     || z > s->centre_z+3600 || z <= s->centre_z-3600) continue;
-            const HmbtnFarmTile *tile=&s->session->field.cells[row*45+col];
+            const HmbtnFarmTile *tile=&field->cells[row*hmbtn_farm_field_columns(field)+col];
             if((s->session->control.enabled || s->session->first_visit_started)
                     && hmbtn_farm_crop_supported(tile->value) && tile->value!=0x36 && tile->kind) {
                 unsigned sprite,anim;
-                if(!hmbtn_estate_crop_look(tile->value,tile->kind,s->session->game.clock.season,&sprite,&anim)) continue;
+                if(!(field->indoor ? hmbtn_estate_greenhouse_crop_look(tile->value,tile->kind,&sprite,&anim)
+                        : hmbtn_estate_crop_look(tile->value,tile->kind,s->session->game.clock.season,&sprite,&anim))) continue;
                 const HmbtnAnimation *ani=hmbtn_estate_art_sprite(&s->estate_art,sprite);
                 if(!ani) { snprintf(error,error_size,"Original crop art unavailable");return false; }
                 if(count>=512) { snprintf(error,error_size,"Field sprite capacity exceeded");return false; }
@@ -907,7 +941,7 @@ bool hmbtn_scene_preview_draw(HmbtnScenePreview *s,SDL_Renderer *renderer,char *
                 continue;
             }
             unsigned art; int lift = 0;
-            switch (s->session->control.enabled || s->session->first_visit_started ? s->session->field.cells[row*45+col].value : layout[row*45+col]) {
+            switch (s->session->control.enabled || s->session->first_visit_started ? tile->value : layout[row*45+col]) {
             case 0x3A: art = 0; break;
             case 0x16D: art = 1; lift = -10; break;
             case 0x170: art = 2; lift = -10; break;
@@ -921,12 +955,12 @@ bool hmbtn_scene_preview_draw(HmbtnScenePreview *s,SDL_Renderer *renderer,char *
             actors[count++] = (HmbtnWorldSprite){&s->field_art[art],s->field_atlas,{0},{x,0,z},lift,0};
         }
         HmbtnModelInstance instances[HMBTN_SCENE_MODELS+1];
-        if(s->session->area==0) for(unsigned i=0;i<HMBTN_FIELD_EFFECTS;++i) if(s->session->field_effects[i].active) {
+        if(field) for(unsigned i=0;i<HMBTN_FIELD_EFFECTS;++i) if(s->session->field_effects[i].active) {
             const HmbtnFieldEffect *e=&s->session->field_effects[i];
             if(count>=512) { snprintf(error,error_size,"Field effect capacity exceeded");return false; }
             const bool grass=e->art==HMBTN_FIELD_EFFECT_GRASS;
             const HmbtnAnimation *ani=grass ? hmbtn_estate_art_sprite(&s->estate_art,
-                s->session->game.clock.season==0 ? 14 : 19) : &s->field_art[e->art];
+                field->indoor ? 25 : s->session->game.clock.season==0 ? 14 : 19) : &s->field_art[e->art];
             if(!ani) { snprintf(error,error_size,"Original grass cut art unavailable");return false; }
             actors[count]=(HmbtnWorldSprite){ani,grass ? s->estate_art.atlas : s->field_atlas,{1,(uint16_t)(e->tick/3),0},{0},0,0};
             memcpy(actors[count++].position,e->position,sizeof(e->position));
@@ -988,7 +1022,7 @@ bool hmbtn_scene_preview_draw(HmbtnScenePreview *s,SDL_Renderer *renderer,char *
                 if (!hmbtn_animation_draw(&s->actor_animation[s->session->intro.cell_actor],s->mayor_atlas,
                         &cell->sprite,80,60,s->pixels,320,240,FRAME_BYTES,error,error_size)) return false;
             }
-            if(s->session->completion_reported && !(hmbtn_read_le16(s->section+8)&0x1800u))
+            if(s->session->completion_reported && hmbtn_world_outdoors(s->section,s->scene.terrain.size+0x2000))
                 for(unsigned i=0;i<HMBTN_WEATHER_PARTICLES;++i) {
                     const HmbtnWeatherParticle *p=&s->session->weather_effects.particles[i];
                     if(p->sprite && p->delay<0 && p->x>=-16 && p->x<336 && p->y>=-16 && p->y<256
@@ -997,7 +1031,7 @@ bool hmbtn_scene_preview_draw(HmbtnScenePreview *s,SDL_Renderer *renderer,char *
             /* main_draw_ots: weather sprites are in world OT; screen_fill_quad
              * is in otTags[1], rendered afterwards and before UI in otTags[0].
              * Apply original subtractive weather light to the blue palette too. */
-            if(s->session->completion_reported && !(hmbtn_read_le16(s->section+8)&0x1800u))
+            if(s->session->completion_reported && hmbtn_world_outdoors(s->section,s->scene.terrain.size+0x2000))
                 hmbtn_daylight_apply(&s->session->daylight,s->pixels,FRAME_BYTES);
             const unsigned brightness = s->session->morning_fade ? 255*(45-s->session->morning_fade)/45 : s->session->overnight_tick ? 255*(45-s->session->overnight_tick)/45 : s->session->travel_tick ? (s->session->travel_tick<=11 ? 255*(11-s->session->travel_tick)/10 : 255*(s->session->travel_tick-11)/10) : s->session->sleep.active ? 255*(30-s->session->sleep.fade)/30 : hmbtn_farm_intro_brightness(&s->session->intro);
             for (size_t i = 0; i < FRAME_BYTES; ++i)
@@ -1048,7 +1082,7 @@ bool hmbtn_scene_preview_rebind(HmbtnScenePreview *s,const uint8_t *data,size_t 
 bool hmbtn_scene_preview_area_location(HmbtnScenePreview *s,unsigned area,unsigned *location,char *error,size_t size)
 {
     unsigned logical,resource;uint8_t header[16];
-    if(!location || !hmbtn_world_area_buildings(area,s->session->game.clock.season,s->session->poultry.upgraded,s->session->construction.house_level,s->session->construction.barn_level,&logical,&resource)) return false;
+    if(!location || !hmbtn_world_area_buildings(area,s->session->game.clock.season,s->session->poultry.upgraded,s->session->construction.house_level,s->session->construction.barn_level,s->session->construction.greenhouse,&logical,&resource)) return false;
     if(!hmbtn_resource_read(s->data_root,"A_FILE/00_gf.bin",scene_sections[resource][0],header,sizeof(header),error,size)) return false;
     *location=hmbtn_read_le16(header+2);return true;
 }

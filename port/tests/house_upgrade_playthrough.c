@@ -1,5 +1,6 @@
 /* Real Gotz dialogue/order, four nights, upgraded map, furniture/storage,
- * cooking/recipes and current-version saves. Explicit prior-coop and ingredient fixtures. */
+ * cooking/recipes and current-version saves. Mode 2 covers the second expansion;
+ * explicit prior works, ingredients and existing animals are fixture setup. */
 #include "poultry_helpers.h"
 #include "field_helpers.h"
 static bool house_wait(HmbtnScenePreview *s,HmbtnHouseMode mode,unsigned message,char *error,size_t size)
@@ -72,12 +73,23 @@ static bool capture_stable(HmbtnScenePreview *s,HmbtnHost *host,const char *shot
 int main(int argc,char **argv)
 {
     if(argc<4 || argc>5) return 2;const char *shots=argc==5 ? argv[4] : NULL;
+    const unsigned level=!strcmp(argv[2],"2") ? 2u : 1u,stage=level==2 ? 3u : 1u;
+    const unsigned farm=level==2 ? 16u : 8u,interior=80+level*4;
     HmbtnHost host={0};HmbtnScenePreview *s=NULL;char error[512]={0};CHECK(hmbtn_host_open(&host));
     const HmbtnFarmClock clock={0,0,3,3,12,0,0};
     s=hmbtn_scene_area_create_at(host.renderer,argv[1],212,&clock,error,sizeof(error));CHECK(s);
     for(unsigned i=0;i<110;++i) CHECK(step(s,0,error,sizeof(error)));
     HmbtnSession *g=hmbtn_scene_preview_session(s);
     g->poultry.upgraded=true;g->game.economy.gold=6000;g->game.inventory.supplies[1]=400;
+    if(level==2) {
+        g->construction.house_level=g->construction.barn_level=1;
+        g->game.economy.gold=11300;g->game.inventory.supplies[1]=780;
+        const uint16_t name[9]={0x100,0xffff,0xffff,0xffff,0xffff,0xffff,0xffff,0xffff,0xffff};
+        CHECK(hmbtn_livestock_buy(&g->livestock,0x161,name,&g->game.clock)
+            && hmbtn_livestock_buy(&g->livestock,0x165,name,&g->game.clock));
+        g->livestock.animals[0].affection=g->livestock.animals[1].affection=200;
+        g->game.inventory.icebox[63]=(HmbtnStoredTool){0x43,7,23};
+    }
     g->game.inventory.toolbox[63]=(HmbtnStoredTool){0x24,0,7};
     g->game.inventory.items[0]=(HmbtnStoredTool){0x9a,0,1};g->game.inventory.items[1]=(HmbtnStoredTool){0x59,0,1};
     g->field.cells[460]=(HmbtnFarmTile){.value=0x24,.ground=0x168,.kind=1};
@@ -86,29 +98,30 @@ int main(int argc,char **argv)
     memcpy(g->intro.player.position,p->actor.position,sizeof(g->intro.player.position));g->intro.player.position[2]+=300;g->intro.player.facing=0;
     CHECK(step(s,HMBTN_PAD_CROSS,error,sizeof(error)) && shop_wait(s,HMBTN_SHOP_SELECT,error,sizeof(error)));
     CHECK(step(s,HMBTN_PAD_DOWN,error,sizeof(error)) && capture_stable(s,&host,shots,"gotz-house-menu",error,sizeof(error)));
-    CHECK(step(s,HMBTN_PAD_TRIANGLE,error,sizeof(error)) && shop_wait(s,HMBTN_SHOP_INFO,error,sizeof(error)) && g->feed_shop.request==0x135);
+    CHECK(step(s,HMBTN_PAD_TRIANGLE,error,sizeof(error)) && shop_wait(s,HMBTN_SHOP_INFO,error,sizeof(error)) && g->feed_shop.request==0x134+stage);
     CHECK(shop_wait(s,HMBTN_SHOP_SELECT,error,sizeof(error)));
-    CHECK(step(s,HMBTN_PAD_CROSS,error,sizeof(error)) && shop_wait(s,HMBTN_SHOP_INFO,error,sizeof(error)) && g->feed_shop.request==0x13d);
+    CHECK(step(s,HMBTN_PAD_CROSS,error,sizeof(error)) && shop_wait(s,HMBTN_SHOP_INFO,error,sizeof(error)) && g->feed_shop.request==0x13c+stage);
     CHECK(capture_stable(s,&host,shots,"gotz-house-offer",error,sizeof(error)));
     CHECK(shop_wait(s,HMBTN_SHOP_BUILD_CONFIRM,error,sizeof(error)) && step(s,HMBTN_PAD_CROSS,error,sizeof(error)));
     CHECK(shop_wait(s,HMBTN_SHOP_OFF,error,sizeof(error)));
     for(unsigned i=0;i<1000 && g->talk.active;++i) CHECK(step(s,HMBTN_PAD_CROSS,error,sizeof(error)));
-    CHECK(!g->talk.active && !g->talk.script.boundary && g->construction.pending==HMBTN_BUILD_HOUSE
+    CHECK(!g->talk.active && !g->talk.script.boundary && g->construction.pending==(level==2 ? HMBTN_BUILD_HOUSE2 : HMBTN_BUILD_HOUSE)
         && g->construction.mornings_left==4 && g->game.economy.gold==1300 && g->game.inventory.supplies[1]==30);
     CHECK(field_reload(&s,&host,argv[1],argv[3],error,sizeof(error)));g=hmbtn_scene_preview_session(s);
     CHECK(hmbtn_scene_preview_load_area(s,0,error,sizeof(error)));
     for(unsigned day=0;day<4;++day) {
+        if(level==2) g->feed.barn[0]=g->feed.barn[1]=true;
         g->game.weather.tomorrow=HMBTN_WEATHER_SUNNY;CHECK(sleep_day(s,error,sizeof(error)));
-        CHECK(g->construction.mornings_left==3-day && g->construction.house_level==(day==3));
+        CHECK(g->construction.mornings_left==3-day && g->construction.house_level==(day==3 ? level : level-1));
         if(day==1) { CHECK(field_reload(&s,&host,argv[1],argv[3],error,sizeof(error)));g=hmbtn_scene_preview_session(s); }
     }
-    CHECK(hmbtn_read_le16(hmbtn_scene_preview_resources(s).section+4)==8 && hmbtn_farm_menu_building_score(&g->menu)==40);
+    CHECK(hmbtn_read_le16(hmbtn_scene_preview_resources(s).section+4)==farm && hmbtn_farm_menu_building_score(&g->menu)==(level==2 ? 80u : 40u));
     CHECK(capture_stable(s,&host,shots,"house-expanded-farm",error,sizeof(error)));
-    CHECK(travel(s,80,error,sizeof(error)) && hmbtn_read_le16(hmbtn_scene_preview_resources(s).section+4)==84);
+    CHECK(travel(s,80,error,sizeof(error)) && hmbtn_read_le16(hmbtn_scene_preview_resources(s).section+4)==interior);
     CHECK(g->field.cells[460].value==0x24 && g->field.cells[460].kind==1 && g->game.inventory.toolbox[63].count==7);
     CHECK(capture_stable(s,&host,shots,"house-expanded-interior",error,sizeof(error)));
     CHECK(field_reload(&s,&host,argv[1],argv[3],error,sizeof(error)));g=hmbtn_scene_preview_session(s);
-    CHECK(hmbtn_read_le16(hmbtn_scene_preview_resources(s).section+4)==84);
+    CHECK(hmbtn_read_le16(hmbtn_scene_preview_resources(s).section+4)==interior);
     /* New furniture uses the same modal, inventory and original zone priorities. */
     CHECK(object(s,3,error,sizeof(error)) && house_wait(s,HMBTN_HOUSE_TV_SELECT,0,error,sizeof(error)));
     CHECK(step(s,HMBTN_PAD_UP,error,sizeof(error)) && house_wait(s,HMBTN_HOUSE_TV,0,error,sizeof(error)));
@@ -185,25 +198,54 @@ int main(int argc,char **argv)
     CHECK(object(s,2,error,sizeof(error)) && house_wait(s,HMBTN_HOUSE_BED,0,error,sizeof(error)));
     const unsigned day=g->game.clock.day;
     CHECK(step(s,HMBTN_PAD_DOWN,error,sizeof(error)) && step(s,HMBTN_PAD_CROSS,error,sizeof(error)));
-    bool shifted=false;
+    bool shifted=false,sleep_captured=false;
     for(unsigned i=0;i<1500 && (g->game.clock.day==day || g->morning_fade);++i) {
         CHECK(step(s,0,error,sizeof(error)));
-        if(g->sleep.active) { CHECK(g->sleep.target[0]==-2950);shifted=true; }
+        if(g->sleep.active) { CHECK(g->sleep.target[0]==-2950 && g->sleep.target[2]==(level==2 ? -2560 : -960));shifted=true; }
+        if(g->sleep.active && g->sleep.phase==3 && g->sleep.link_step==12 && !sleep_captured) {
+            HmbtnSessionFrame f=hmbtn_scene_preview_frame(s);
+            const unsigned raised=level==2 ? 1u : 2u,settled=level==2 ? 5u : 3u;
+            CHECK((f.scene->flags[raised]&0x1000u) && !(f.scene->flags[settled]&0x1000u)
+                && f.scene->models[settled].morph_steps==12 && f.scene->models[settled].morph_step==12);
+            if(level==2) CHECK(!(f.scene->flags[2]&0x1000u)); /* The other bed stays visible. */
+            CHECK(capture_stable(s,&host,shots,"house-sleeping",error,sizeof(error)));sleep_captured=true;
+        }
     }
-    CHECK(shifted && g->game.clock.day!=day && g->area==80 && !g->morning_fade && hmbtn_read_le16(hmbtn_scene_preview_resources(s).section+4)==84);
-    CHECK(g->intro.player.position[0]==791 && g->intro.player.position[2]==258 && g->morning_save_requested);
+    CHECK(shifted && sleep_captured && g->game.clock.day!=day && g->area==80 && !g->morning_fade && hmbtn_read_le16(hmbtn_scene_preview_resources(s).section+4)==interior);
+    CHECK(g->intro.player.position[0]==(level==2 ? 902 : 791) && g->intro.player.position[2]==(level==2 ? 1804 : 258) && g->morning_save_requested);
     g->morning_save_requested=false; /* Direct scene driver, file I/O is done below between ticks. */
     CHECK(field_reload(&s,&host,argv[1],argv[3],error,sizeof(error)));g=hmbtn_scene_preview_session(s);
     CHECK(g->game.inventory.icebox[0].id==0xd4 && g->game.inventory.cabinet[0].id==0x7b && g->game.inventory.toolbox[63].count==7);
-    /* Seasonal resource fixtures validate all original first-house section variants. */
+    /* Seasonal fixtures validate all four original section variants. */
     for(unsigned season=0;season<4;++season) {
         g->game.clock.season=season;g->field.season=season;g->daily_date=hmbtn_session_date(&g->game.clock);
-        CHECK(hmbtn_scene_preview_load_area(s,0,error,sizeof(error)) && hmbtn_read_le16(hmbtn_scene_preview_resources(s).section+4)==8+season);
-        CHECK(travel(s,80,error,sizeof(error)) && hmbtn_read_le16(hmbtn_scene_preview_resources(s).section+4)==84+season);
+        CHECK(hmbtn_scene_preview_load_area(s,0,error,sizeof(error)) && hmbtn_read_le16(hmbtn_scene_preview_resources(s).section+4)==farm+season);
+        CHECK(travel(s,80,error,sizeof(error)) && hmbtn_read_le16(hmbtn_scene_preview_resources(s).section+4)==interior+season);
         CHECK(capture_stable(s,&host,shots,season==0 ? "house-spring" : season==1 ? "house-summer" : season==2 ? "house-fall" : "house-winter",error,sizeof(error)));
+    }
+    if(level==2) {
+        CHECK(g->game.inventory.icebox[63].count==23 && hmbtn_livestock_count(&g->livestock,false)==1
+            && hmbtn_livestock_count(&g->livestock,true)==1 && g->livestock.animals[0].name[0]==0x100);
+        const unsigned discarded=g->carry.discarded;g->farm_action.fatigue=12;
+        CHECK(travel(s,0,error,sizeof(error)) && object(s,13,error,sizeof(error)));
+        for(unsigned i=0;i<100 && g->house_lumber.phase;++i) CHECK(step(s,0,error,sizeof(error)));
+        CHECK(g->game.inventory.held_item.id==0x3f && g->game.inventory.supplies[1]==29 && !g->house_lumber.phase);
+        CHECK(travel(s,80,error,sizeof(error)) && g->game.inventory.held_item.id==0x3f);
+        CHECK(capture_stable(s,&host,shots,"house-fireplace-unlit",error,sizeof(error)));
+        CHECK(object(s,18,error,sizeof(error)) && g->house_lumber.phase==3);
+        for(unsigned i=0;i<100 && g->house_lumber.phase;++i) CHECK(step(s,0,error,sizeof(error)));
+        CHECK(!g->house_lumber.phase && !g->game.inventory.held_item.id && g->village.flags[0x45]
+            && g->house_lumber.deliveries==1 && g->farm_action.fatigue==7 && g->carry.discarded==discarded);
+        g->intro.player.position[2]-=450; /* Move the observer out of the fireplace opening. */
+        CHECK(step(s,0,error,sizeof(error)) && capture_stable(s,&host,shots,"house-fireplace-lit",error,sizeof(error)));
+        for(unsigned i=0;i<12;++i) CHECK(step(s,0,error,sizeof(error)));
+        CHECK(field_reload(&s,&host,argv[1],argv[3],error,sizeof(error)));g=hmbtn_scene_preview_session(s);
+        CHECK(g->village.flags[0x45] && g->house_lumber.deliveries==1);
+        CHECK(travel(s,0,error,sizeof(error)) && travel(s,80,error,sizeof(error)) && !g->village.flags[0x45]);
+        CHECK(g->house_lumber.deliveries==1 && capture_stable(s,&host,shots,"house-fireplace-reentry",error,sizeof(error)));
     }
     CHECK(field_reload(&s,&host,argv[1],argv[3],error,sizeof(error)));
     hmbtn_scene_preview_destroy(s);hmbtn_host_close(&host);
-    puts("House1: real Gotz order, four nights, save/reload, original maps/furniture, shared fridge/cabinet, cooking and recipe, shifted bed/diary and four seasons passed.");return 0;
+    printf("House%u: real Gotz order, four nights, saves, original maps/furniture, shared storage/cooking/recipes, bed/diary and four seasons passed.\n",level);return 0;
 fail:hmbtn_scene_preview_destroy(s);hmbtn_host_close(&host);return 1;
 }

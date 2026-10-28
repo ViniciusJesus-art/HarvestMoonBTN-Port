@@ -9,4 +9,5 @@ typedef struct HmbtnHouseSleep {
 } HmbtnHouseSleep;
 void hmbtn_house_sleep_start(HmbtnHouseSleep *sleep,HmbtnIntroActor *player,unsigned house_level);
 void hmbtn_house_sleep_tick(HmbtnHouseSleep *sleep,HmbtnIntroActor *player);
+bool hmbtn_house_wake_position(unsigned house_level,int32_t position[3]);
 #endif

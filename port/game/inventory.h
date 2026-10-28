@@ -1,6 +1,9 @@
 #ifndef HMBTN_INVENTORY_H
 #define HMBTN_INVENTORY_H
 #include "game_state.h"
+/* Existing native harvesting capacity, shared with carried lumber transfers.
+ * The carpenter's purchase ceiling is a separate existing shop rule. */
+unsigned hmbtn_inventory_lumber_limit(void);
 #include <stddef.h>
 
 typedef enum HmbtnInventoryStore { HMBTN_STORE_EQUIPPED,HMBTN_STORE_BAG,HMBTN_STORE_TOOLBOX } HmbtnInventoryStore;

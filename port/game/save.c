@@ -66,13 +66,20 @@ static void game(Codec *c,HmbtnSession *d,const HmbtnSession *s)
     }
     U(game.registration.birthday_season);U(game.registration.birthday_day);
 }
+static void field_grid(Codec *c,HmbtnFarmField *d,const HmbtnFarmField *s)
+{
+    const HmbtnFarmField *grid=c->read ? d : s;
+    const unsigned count=hmbtn_farm_field_cells(grid);
+    COUNT(hmbtn_farm_field_columns(grid));COUNT(hmbtn_farm_field_rows(grid));COUNT(count);
+    U(season);U(plant_random);
+    for(unsigned i=0;i<count;++i) {
+        W(cells[i].value);W(cells[i].ground);Y(cells[i].kind);
+        W(cells[i].growth_flags);U(cells[i].watered_days);
+    }
+}
 static void field(Codec *c,HmbtnSession *d,const HmbtnSession *s)
 {
-    COUNT(HMBTN_FIELD_CELLS);U(field.season);
-    for(unsigned i=0;i<HMBTN_FIELD_CELLS;++i) {
-        W(field.cells[i].value);W(field.cells[i].ground);Y(field.cells[i].kind);
-        W(field.cells[i].growth_flags);U(field.cells[i].watered_days);
-    }
+    CHILD(field_grid,field);CHILD(field_grid,greenhouse);
     COUNT(22);for(unsigned i=0;i<22;++i) B(feed.barn[i]);
     COUNT(10);for(unsigned i=0;i<10;++i) B(feed.coop[i]);
     COUNT(HMBTN_GATHER_RECORDS);for(unsigned i=0;i<HMBTN_GATHER_RECORDS;++i) B(gather.taken[i]);
@@ -152,8 +159,10 @@ static void auxiliary(Codec *c,HmbtnSession *d,const HmbtnSession *s)
     U(runtime.house_music_ticks);U(runtime.ticks);
     for(unsigned i=0;i<3;++i) { S(daylight.rgb[i]);S(daylight.step[i]); }
     U(daylight.period);U(daylight.taken);U(daylight.total);
-    U(game.weather.random);U(field.plant_random);B(game.progress.moondrop_seeds);
+    U(game.weather.random);B(game.progress.moondrop_seeds);
     U(construction.mornings_left);U(construction.house_level);U(construction.barn_level);U(construction.pending);
+    B(construction.greenhouse);U(construction.damage_random);
+    U(house_lumber.deliveries);
 }
 #undef U
 #undef S
@@ -186,7 +195,7 @@ bool hmbtn_save_available(const HmbtnSession *s,char *error,size_t size)
     else if(s->house.mode!=HMBTN_HOUSE_FREE || s->menu.mode!=HMBTN_MENU_NONE || s->feed_shop.phase!=HMBTN_SHOP_OFF
         || s->house.message.phase!=HMBTN_MESSAGE_CLOSED || s->dialogue.message.phase!=HMBTN_MESSAGE_CLOSED) why="A menu or message is open";
     else if(s->farm_action.phase!=HMBTN_FARM_ACTION_FREE || s->fishing.phase!=HMBTN_FISHING_FREE
-        || s->carry.phase || s->feed.phase || s->poultry.carry_phase || s->quick_ticks
+        || s->carry.phase || s->feed.phase || s->poultry.carry_phase || s->house_lumber.phase || s->quick_ticks
         || s->event_item.phase!=HMBTN_EVENT_ITEM_IDLE) why="An action is active";
     if(!why) for(unsigned i=0;i<3;++i) if(s->carry.thrown[i].item.id) why="A thrown item is in flight";
     if(!why && hmbtn_poultry_held_slot(&s->poultry)<HMBTN_HENS) why="Put down the animal before saving";
@@ -226,19 +235,25 @@ static bool valid(const HmbtnSession *s,char *error,size_t size)
         && valid_name(s->game.registration.player_name) && valid_name(s->game.registration.farm_name) && valid_name(s->game.registration.dog_name)
         && valid_actor(&s->intro.player) && (s->control.mode==0 || s->control.mode==2 || s->control.mode==4)
         && s->farm_action.max_stamina<=1000000 && s->farm_action.stamina<=s->farm_action.max_stamina && s->farm_action.fatigue<=100
-        && s->field.season<4 && s->village.ann_birthday_season<4 && s->village.ann_birthday_day<30
+        && !s->field.indoor && s->greenhouse.indoor && s->field.season<4 && s->greenhouse.season<4
+        && (s->area!=124 || s->construction.greenhouse)
+        && s->village.ann_birthday_season<4 && s->village.ann_birthday_day<30
         && s->game.weather.today<HMBTN_WEATHER_KINDS && s->game.weather.tomorrow<HMBTN_WEATHER_KINDS && s->house.options.layout<3
         && s->runtime.house_music_ticks<=100 && s->house.options.idle_frames<=16
         && s->farm_action.target<=HMBTN_FIELD_CELLS && s->refused_zone>=-1 && s->refused_zone<50
         && s->daylight.period<4 && s->daylight.total<=256 && s->daylight.taken<=s->daylight.total
         && s->game.economy.gold<=hmbtn_economy_gold_limit(&s->game.economy)
         && s->construction.mornings_left<=hmbtn_construction_mornings()
-        && s->construction.house_level<=1 && (!s->construction.house_level || s->poultry.upgraded)
-        && s->construction.barn_level<=1 && (!s->construction.barn_level || s->construction.house_level==1)
+        && s->construction.house_level<=2 && (!s->construction.house_level || s->poultry.upgraded)
+        && s->construction.barn_level<=1 && (!s->construction.barn_level || s->construction.house_level>=1)
+        && (s->construction.house_level<2 || s->construction.barn_level==1)
+        && (!s->construction.greenhouse || s->construction.house_level==2)
         && (s->construction.mornings_left ?
             (s->construction.pending==HMBTN_BUILD_COOP && !s->poultry.upgraded)
             || (s->construction.pending==HMBTN_BUILD_HOUSE && s->poultry.upgraded && !s->construction.house_level)
             || (s->construction.pending==HMBTN_BUILD_BARN && s->construction.house_level==1 && !s->construction.barn_level)
+            || (s->construction.pending==HMBTN_BUILD_HOUSE2 && s->construction.house_level==1 && s->construction.barn_level==1)
+            || (s->construction.pending==HMBTN_BUILD_GREENHOUSE && s->construction.house_level==2 && !s->construction.greenhouse)
             : s->construction.pending==HMBTN_BUILD_NONE)
         && s->game.inventory.held_item.id!=0x109 && s->game.inventory.held_item.id!=0x10A;
     ok=ok && s->game.cooking.utensils<=255;
@@ -266,9 +281,12 @@ static bool valid(const HmbtnSession *s,char *error,size_t size)
         const HmbtnVillager *p=&s->village.people[i];
         ok=ok && p->step<30 && p->column<256 && p->row<256 && p->friendship<=255 && p->affection<=65535 && valid_actor(&p->actor);
     }
-    for(unsigned i=0;i<HMBTN_FIELD_CELLS;++i) {
-        const HmbtnFarmTile *p=&s->field.cells[i];
-        ok=ok && p->kind<16 && p->watered_days<=1000000;
+    const HmbtnFarmField *fields[2]={&s->field,&s->greenhouse};
+    for(unsigned f=0;f<2;++f) for(unsigned i=0;i<hmbtn_farm_field_cells(fields[f]);++i) {
+        const HmbtnFarmTile *p=&fields[f]->cells[i];
+        ok=ok && p->kind<16 && p->watered_days<=1000000 && hmbtn_farm_item(p->value)
+            && p->ground>=0x167 && p->ground<=0x16b;
+        if(f==1 && !s->construction.greenhouse) ok=ok && p->value==0x167 && p->ground==0x167 && !p->kind && !p->watered_days && !p->growth_flags;
     }
     for(unsigned i=0;i<HMBTN_HENS;++i) {
         const HmbtnHen *h=&s->poultry.hens[i];const HmbtnCoopEgg *e=&s->poultry.eggs[i];

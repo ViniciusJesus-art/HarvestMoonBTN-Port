@@ -1,12 +1,12 @@
 # Status do porte nativo
 
-**Atualizado em:** 2026-10-27
+**Atualizado em:** 2026-10-28
 **Escopo atual:** Linux e Windows; Android é futuro.  
 **Prioridade:** port funcional com reaproveitamento do C original, conforme a fila PF do [ROADMAP.md](ROADMAP.md).
 **Concluídas:** MA-01..06 e PF-01..05 — base central, regras compartilhadas, cultivo, evento, atualização independente do desenho e saves nativos estáveis.
 
-**PF-06 em andamento:** batata, grama/feno, culturas base de verão/outono, clima diário/chuva, sementes sazonais de Won, desbloqueios do supermercado, Pink Cat/Toy Flower, variantes de Magic Red e Moondrop/visitas de Karen, carpintaria, ampliação do galinheiro e primeira casa (depósitos/núcleo da cozinha) concluídos nos respectivos recortes; obra/mapas/cochos do celeiro também entregues; aquisição/capacidade/alimentação bovina/ovina integradas, demais sistemas originais ainda parciais/ausentes.
-**Próxima implementação:** PF-06 — segunda casa. Recorte base do celeiro/criação entregue; venda/produção/reprodução/eventos animais e cozinha completa continuam pendentes. Saves atuais v8, sem compatibilidade exigida com versões anteriores.
+**PF-06 em andamento:** batata, grama/feno, culturas base de verão/outono, clima diário/chuva, sementes sazonais de Won, desbloqueios do supermercado, Pink Cat/Toy Flower, variantes de Magic Red e Moondrop/visitas de Karen, carpintaria, ampliação do galinheiro e primeira casa (depósitos/núcleo da cozinha) concluídos nos respectivos recortes; obra/mapas/cochos do celeiro também entregues; aquisição/capacidade/alimentação bovina/ovina, segunda casa/lareira, estufa e Orangecup integradas; demais sistemas originais ainda parciais/ausentes.
+**Próxima implementação:** PF-06 — compra de ferramentas animais e produção de leite/lã. Recorte base do celeiro/criação entregue; venda/reprodução/eventos animais e cozinha completa continuam pendentes. Saves atuais v10, sem compatibilidade exigida com versões anteriores.
 MA-07..25 foram substituídas como fila, não concluídas. Refatorações necessárias
 acompanham as entregas funcionais; PF-04 separou atualização/desenho nos fluxos atuais.
 
@@ -32,7 +32,7 @@ Compilar PS1, manter MIPS/ABI ou reproduzir SHA-1 não são critérios do produt
 
 | Marco | Situação | Próximo encaminhamento |
 |---|---|---|
-| Base MA | MA-01..06 concluídas; plano restante substituído | Preservar estado/sessão/serviços/tick; PF-01..05 concluídas; seguir PF-06 (Segunda casa a seguir (celeiro/aquisição/alimentação entregues); primeira casa/depósitos/núcleo da cozinha e carpintaria/galinheiro, Moondrop, Magic Red, flores simples, desbloqueios do supermercado, sementes sazonais de Won, clima diário/chuva, culturas base de verão/outono, batata e grama/feno entregues), sem uma nova fase geral de reorganização. |
+| Base MA | MA-01..06 concluídas; plano restante substituído | Preservar estado/sessão/serviços/tick; PF-01..05 concluídas; seguir PF-06 (Ferramentas animais e leite/lã a seguir (Orangecup/estufa/segunda casa entregues); primeira casa/depósitos/núcleo da cozinha e carpintaria/galinheiro, Moondrop, Magic Red, flores simples, desbloqueios do supermercado, sementes sazonais de Won, clima diário/chuva, culturas base de verão/outono, batata e grama/feno entregues), sem uma nova fase geral de reorganização. |
 | M1 — Aplicação nativa | Funcional no recorte atual | Preservar entrada/janela; validar Windows real. |
 | M2 — Recursos e apresentação | Funcional parcialmente | Preservar leitores/backends; ampliar fidelidade com comparação reproduzível. |
 | M3 — Título/cadastro | Funcional parcialmente | Tick/apresentação separados na PF-04; preservar fluxos e rastrear algoritmos/inicialização. |
@@ -45,7 +45,22 @@ checklists sobrepostos. São registros históricos, não contagem atual de siste
 nem denominador de progresso da migração. O [backlog complementar](ROADMAP_PENDENTE_CODEX.md)
 reconcilia esses temas; a ordem executável e o aceite estão no roadmap principal.
 
-## Última referência — PF-06, aquisição/alimentação de vacas e ovelhas
+## Última referência — PF-06, Orangecup
+
+Configure/build Linux Debug aprovados; seleção final **18/18 CTests**, **10,60 s**,
+**49 processos de teste** no total incluindo referência/tentativas/wrappers/filhos.
+Compra real com Won (1.000 G), quatro estágios/oito noites regadas na estufa,
+virada do ano, arte original, produto 0x85/60 G, mão/mochila/portas, pagamento
+único, perda/reconstrução e save v10/retomada em outro processo verificados.
+A fonte não contém a recusa externa presumida no plano: preservada sua regra
+sazonal e explicitada a falta de sprite de primavera. Comparação dessa
+particularidade com execução original, Windows real, suíte inteira, Release,
+sanitizers e sessão manual de janela/áudio não executados.
+
+[Relatório, arquivos e reprodução](PF06_ORANGECUP.md). Próxima: ferramentas
+animais e produção de leite/lã, conforme o roadmap. PF-06 segue aberta.
+
+## Referência histórica — PF-06, aquisição/alimentação de vacas e ovelhas
 
 Configure/build Linux Debug aprovados. Regras iniciais **4/4** e seleção final
 **25/25 CTests**, **18,58 s**, com **46 processos de teste** incluindo wrappers,

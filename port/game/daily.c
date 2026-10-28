@@ -23,12 +23,17 @@ void hmbtn_session_clock_events(void *context,const HmbtnFarmClock *clock,unsign
     if((changes&HMBTN_CLOCK_DAY) && s->daily_date!=hmbtn_session_date(clock)) {
         s->daily_date=hmbtn_session_date(clock);
         hmbtn_farm_field_new_day(&s->field,clock->season);
+        if(s->construction.greenhouse) hmbtn_farm_field_new_day(&s->greenhouse,clock->season);
         hmbtn_poultry_new_day(&s->poultry,&s->feed,clock);
         hmbtn_livestock_new_day(&s->livestock,&s->feed,clock);
         hmbtn_poultry_carry_sync(&s->poultry,&s->house);
         hmbtn_farm_feed_new_day(&s->feed);hmbtn_farm_gather_new_day(&s->gather);
         hmbtn_weather_new_day(&s->game.weather,clock,&s->game.registration,NULL);
         hmbtn_construction_new_day(&s->construction,&s->poultry);
+        /* weather.c: greenhouse_reset_level; original 31/100 loss. The
+         * construction stream is native/persistent, independent of drawing. */
+        if(s->game.weather.today>=HMBTN_WEATHER_STORM && hmbtn_construction_storm(&s->construction))
+            hmbtn_farm_field_clear(&s->greenhouse);
         hmbtn_village_refresh_weather(&s->village);
         if(s->game.weather.today==HMBTN_WEATHER_RAIN) hmbtn_farm_field_rain(&s->field);
         hmbtn_daylight_weather_select(&s->daylight,clock,s->game.weather.today);
@@ -57,14 +62,14 @@ bool hmbtn_session_morning(HmbtnSession *s,bool slept)
         if(s->farm_action.fatigue>99) s->farm_action.fatigue=99;
     }
     s->morning_prepared=true;s->morning_save_requested=s->house.save_requested;
+    s->house_lumber=(HmbtnHouseLumber){0};
     memset(&s->sleep,0,sizeof(s->sleep));s->house.mode=HMBTN_HOUSE_FREE;s->house.save_requested=false;
     memset(&s->house.message,0,sizeof(s->house.message));s->house.request=s->house.loaded=0;
     memset(&s->dialogue.message,0,sizeof(s->dialogue.message));
     s->intro.action_active=false;s->intro.player.pose=false;s->intro.player.visible=true;s->intro.player.facing=0;
     hmbtn_fishing_cancel(&s->fishing);s->intro.player.sprite=(HmbtnAnimationPlayer){0};
     /* farm_data.c:house_door_positions, after the overnight work completes. */
-    s->intro.player.position[0]=s->construction.house_level ? 791 : -90;
-    s->intro.player.position[1]=0;s->intro.player.position[2]=s->construction.house_level ? 258 : 541;
+    hmbtn_house_wake_position(s->construction.house_level,s->intro.player.position);
     memset(s->intro.player.velocity,0,sizeof(s->intro.player.velocity));
     s->control=(HmbtnHouseControl){0};s->control.enabled=true;
     s->farm_action.phase=HMBTN_FARM_ACTION_FREE;s->farm_action.bank=-1;

@@ -29,7 +29,7 @@ bool hmbtn_farm_action_tick(HmbtnFarmAction *a,HmbtnIntroActor *p,HmbtnHouseInte
     if(a->phase==HMBTN_FARM_PLANT_SEED) {
         if(!p->animation_done) return true;
         int c,r;
-        if(field && hmbtn_farm_world_cell(p->position,&c,&r)) for(unsigned part=0;part<9;++part) {
+        if(field && hmbtn_farm_field_world_cell(field,p->position,&c,&r)) for(unsigned part=0;part<9;++part) {
             int dx,dz;
             if(hmbtn_farm_seed_cell(tool->id,part,p->facing,&dx,&dz))
                 a->changed|=hmbtn_farm_field_plant(field,c+dx,r+dz,tool->id);
@@ -70,19 +70,20 @@ bool hmbtn_farm_action_tick(HmbtnFarmAction *a,HmbtnIntroActor *p,HmbtnHouseInte
     if(a->phase==HMBTN_FARM_TOOL_SWING) {
         if(!p->animation_done) return true;
         int c=-100,r=-100; bool changed=false;
-        hmbtn_farm_world_cell(p->position,&c,&r);
-        if(c>=-1 && c<=45 && r>=-1 && r<=25) {
+        const int cols=(int)hmbtn_farm_field_columns(field),rows=(int)hmbtn_farm_field_rows(field);
+        hmbtn_farm_field_world_cell(field,p->position,&c,&r);
+        if(field && c>=-1 && c<=cols && r>=-1 && r<=rows) {
             static const int step[4][2]={{0,1},{-1,0},{0,-1},{1,0}};
             c+=step[p->facing][0];r+=step[p->facing][1];
-            const unsigned target=c>=0 && c<45 && r>=0 && r<25 ? (unsigned)(r*45+c) : HMBTN_FIELD_CELLS;
+            const unsigned target=c>=0 && c<cols && r>=0 && r<rows ? (unsigned)(r*cols+c) : HMBTN_FIELD_CELLS;
             if(target!=a->target) { a->target=target;a->strikes=0; }
             ++a->strikes;
             const uint16_t item=target<HMBTN_FIELD_CELLS ? field->cells[target].value : 0;
             /* Initial tools affect one square. Upgraded area grids are a
              * separate step and are not accepted by the input path below. */
             changed=hmbtn_farm_field_tool(field,c,r,a->kind,tool->modifier,a->strikes,h->inventory->supplies);
-            if(changed && a->kind==1 && h->weather->today==HMBTN_WEATHER_RAIN)
-                hmbtn_farm_field_water(field,(unsigned)(r*HMBTN_FIELD_COLS+c));
+            if(changed && !field->indoor && a->kind==1 && h->weather->today==HMBTN_WEATHER_RAIN)
+                hmbtn_farm_field_water(field,(unsigned)(r*cols+c));
             if(changed && (a->kind==0 || a->kind==2 || a->kind==3)) {
                 a->broken_item=item;a->effect_column=c;a->effect_row=r;
                 if(item>=0x3b && item<=0x3d) { ++a->effect_column;++a->effect_row; }

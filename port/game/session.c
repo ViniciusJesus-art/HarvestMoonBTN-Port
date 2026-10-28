@@ -25,6 +25,8 @@ HmbtnSession *hmbtn_session_create(const uint16_t *layout,size_t count)
     hmbtn_game_state_init(&s->game);bind_actor_resolver(s);
     s->daily_date=hmbtn_session_date(&s->game.clock);
     hmbtn_farm_field_init(&s->field,layout,count);
+    hmbtn_farm_field_init_greenhouse(&s->greenhouse);
+    s->construction.damage_random=1;
     hmbtn_house_interaction_init(&s->house,&s->game);
     hmbtn_new_game_init(&s->dialogue,hmbtn_game_registration(&s->game));
     s->village.player=&s->intro.player;s->village.weather=&s->game.weather;s->village.doors=&s->area_doors;
@@ -37,6 +39,14 @@ HmbtnSession *hmbtn_session_create(const uint16_t *layout,size_t count)
     /* Preserve zeroed poultry and the pre-handoff village. The village's
      * existing defaults are installed only when its schedules arrive. */
     return s;
+}
+const HmbtnFarmField *hmbtn_session_field_const(const HmbtnSession *s)
+{
+    return !s ? NULL : s->area==0 ? &s->field : s->area==124 && s->construction.greenhouse ? &s->greenhouse : NULL;
+}
+HmbtnFarmField *hmbtn_session_field(HmbtnSession *s)
+{
+    return (HmbtnFarmField *)hmbtn_session_field_const(s);
 }
 bool hmbtn_session_bind_schedules(HmbtnSession *s,const uint8_t *data,size_t size)
 {

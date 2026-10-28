@@ -205,6 +205,11 @@ int main(void)
     hmbtn_write_le32(section+0x94C+44,0x100);
     CHECK(hmbtn_scene_data_open(&scene,section,sizeof(section),error,sizeof(error)));
     CHECK(scene.primitive_capacity == 2);
+    /* A hidden linked bed can replace its visible partner at runtime. */
+    hmbtn_write_le32(section+0x948+44,0x1081);
+    CHECK(hmbtn_scene_data_open(&scene,section,sizeof(section),error,sizeof(error)) && scene.primitive_capacity==3);
+    hmbtn_write_le32(section+0x948+44,0x1101);
+    CHECK(hmbtn_scene_data_open(&scene,section,sizeof(section),error,sizeof(error)));
     hmbtn_scene_data_tick(&scene);
     CHECK(hmbtn_scene_data_instances(&scene,instances) == 2);
     CHECK(instances[0].position[0] == -5000 && instances[0].angle[0] == 1040);

@@ -11,6 +11,7 @@
 #include "inventory.h"
 #include "farm_field.h"
 #include <string.h>
+unsigned hmbtn_inventory_lumber_limit(void) { return 9999; }
 
 static int scan_items(const HmbtnInventory *h,HmbtnInventory *write,
     int id,int where,int which,unsigned count)

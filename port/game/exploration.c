@@ -125,6 +125,12 @@ bool hmbtn_session_exploration_controls(HmbtnSession *s,const HmbtnExplorationFr
     const uint32_t held=input.held;
     if(s->control.enabled) {
         bool opened=false;
+        if(s->house_lumber.phase) {
+            int sound;
+            hmbtn_house_lumber_tick(&s->house_lumber,s->house.inventory,&s->intro.player,&s->farm_action,
+                &s->village.flags[0x45],f->section,f->section_size,0,&sound);
+            s->control.mode=0;goto house_done;
+        }
         if(s->event_item.phase!=HMBTN_EVENT_ITEM_IDLE) goto house_done;
         if(s->fishing.phase!=HMBTN_FISHING_FREE) {
             if(!fishing_frame(s,f,input,error,error_size)) return false;
@@ -167,7 +173,7 @@ bool hmbtn_session_exploration_controls(HmbtnSession *s,const HmbtnExplorationFr
             }
         }
         if(!s->travel_tick && !s->door_tick && !s->sleep.active && !s->morning_fade) {
-            hmbtn_farm_carry_flight(&s->carry,s->area==0 ? &s->field : NULL,f->ground,hmbtn_game_economy(&s->game));
+            hmbtn_farm_carry_flight(&s->carry,hmbtn_session_field(s),f->ground,hmbtn_game_economy(&s->game));
             if(s->carry.small_fish_placed) s->village.flags[0x5E]=true;
             if(s->carry.sound>=0) {
                 const HmbtnFarmSound *fx=hmbtn_farm_sound((unsigned)s->carry.sound);
@@ -246,13 +252,23 @@ bool hmbtn_session_exploration_controls(HmbtnSession *s,const HmbtnExplorationFr
                 : hmbtn_farm_gather_take(&s->gather,hmbtn_read_le16(f->section+2),s->game.clock.season,&s->house,&s->carry,&s->intro.player);
             if(taken) (void)emit(f,(HmbtnExplorationEffect){.kind=HMBTN_EXP_UI_SOUND,.id=7},error,error_size);
         }
+        if(!s->carry.phase && !s->feed.phase && !s->poultry.carry_phase && !s->quick_ticks && !s->travel_tick && !s->door_tick
+                && !s->control.jumping && !s->control.exit_pending && s->house.mode==HMBTN_HOUSE_FREE
+                && s->farm_action.phase==HMBTN_FARM_ACTION_FREE) {
+            int sound;
+            if(hmbtn_house_lumber_tick(&s->house_lumber,s->house.inventory,&s->intro.player,&s->farm_action,
+                    &s->village.flags[0x45],f->section,f->section_size,input.pressed,&sound)) {
+                if(sound>=0) (void)emit(f,(HmbtnExplorationEffect){.kind=HMBTN_EXP_UI_SOUND,.id=(unsigned)sound},error,error_size);
+                s->control.mode=0;goto house_done;
+            }
+        }
         if(s->poultry.carry_phase || (!s->carry.phase && !s->feed.phase && !s->quick_ticks && !s->travel_tick && !s->door_tick
                 && !s->control.jumping && !s->control.exit_pending && s->house.mode==HMBTN_HOUSE_FREE
                 && s->farm_action.phase==HMBTN_FARM_ACTION_FREE && (input.pressed&HMBTN_PAD_CROSS))) {
             HmbtnHouseExit door;unsigned model;
             const bool at_door=!s->poultry.carry_phase && hmbtn_world_door_at(f->section,0x2000,&s->intro.player,&door,&model);
             if(!at_door && hmbtn_poultry_carry_tick(&s->poultry,&s->house,&s->intro.player,s->area,
-                    f->ground,s->area==0 ? &s->field : NULL,input.pressed)) {
+                    f->ground,hmbtn_session_field(s),input.pressed)) {
                 if(s->poultry.sound>=0) (void)emit(f,(HmbtnExplorationEffect){.kind=HMBTN_EXP_UI_SOUND,.id=(unsigned)s->poultry.sound},error,error_size);
                 s->control.carrying=s->house.inventory->held_item.id!=0;
                 s->control.carrying_big=hmbtn_poultry_held_slot(&s->poultry)<HMBTN_HENS;
@@ -260,10 +276,10 @@ bool hmbtn_session_exploration_controls(HmbtnSession *s,const HmbtnExplorationFr
                 goto house_done;
             }
         }
-        if(s->carry.phase || ((s->area==0 || (s->area==56 && s->house.inventory->held_item.id)) && !s->quick_ticks && !s->travel_tick && !s->door_tick
+        if(s->carry.phase || ((hmbtn_session_field(s) || (s->area==56 && s->house.inventory->held_item.id)) && !s->quick_ticks && !s->travel_tick && !s->door_tick
                 && !s->control.jumping && s->house.mode==HMBTN_HOUSE_FREE
                 && s->farm_action.phase==HMBTN_FARM_ACTION_FREE && (input.pressed&HMBTN_PAD_CROSS))) {
-            if(hmbtn_farm_carry_tick(&s->carry,&s->house,s->area==0 ? &s->field : NULL,
+            if(hmbtn_farm_carry_tick(&s->carry,&s->house,hmbtn_session_field(s),
                     &s->intro.player,input.pressed)) {
                 if(s->carry.sound>=0) {
                     const HmbtnFarmSound *fx=hmbtn_farm_sound((unsigned)s->carry.sound);
@@ -296,7 +312,7 @@ bool hmbtn_session_exploration_controls(HmbtnSession *s,const HmbtnExplorationFr
                 goto house_done;
             }
         }
-        if(s->area==0 && f->field_art) hmbtn_field_effect_tick(s->field_effects,f->field_art,f->grass_cut_art);
+        if(hmbtn_session_field(s) && f->field_art) hmbtn_field_effect_tick(s->field_effects,f->field_art,f->grass_cut_art);
         if(s->door_tick || s->travel_tick) {
             if(!boundary(s,f,HMBTN_EXP_TRANSITION,0,input,NULL,error,error_size)) return false;
             goto house_done;
@@ -308,14 +324,14 @@ bool hmbtn_session_exploration_controls(HmbtnSession *s,const HmbtnExplorationFr
             if(!fishing_frame(s,f,input,error,error_size)) return false;
             if(s->fishing.phase!=HMBTN_FISHING_FREE) goto house_done;
         }
-        if((s->area==0 || s->house.inventory->equipped.id==0x1E || s->farm_action.phase==HMBTN_FARM_MEDICINE)
+        if((hmbtn_session_field(s) || s->house.inventory->equipped.id==0x1E || s->farm_action.phase==HMBTN_FARM_MEDICINE)
                 && !s->feed.phase && !s->house.inventory->held_item.id && !s->control.exit_pending && !s->control.jumping && s->house.mode==HMBTN_HOUSE_FREE
                 && (!(input.pressed&HMBTN_PAD_CROSS) || s->farm_action.phase!=HMBTN_FARM_ACTION_FREE)) {
             const bool medicine=s->farm_action.phase==HMBTN_FARM_MEDICINE || s->house.inventory->equipped.id==0x1E;
             const bool acting=medicine ? hmbtn_animal_medicine_tick(&s->poultry,&s->livestock,s->area,
                 &s->farm_action,&s->intro.player,&s->house,input.pressed)
                 : hmbtn_farm_action_tick(&s->farm_action,&s->intro.player,&s->house,
-                    &s->field,f->ground,input.pressed,held);
+                    hmbtn_session_field(s),f->ground,input.pressed,held);
             if(s->farm_action.bank_pending) {
                 if(!action_bank(f,(unsigned)s->farm_action.bank,error,error_size)) return false;
                 s->intro.action_active=true;s->farm_action.bank_pending=false;
@@ -331,9 +347,9 @@ bool hmbtn_session_exploration_controls(HmbtnSession *s,const HmbtnExplorationFr
             if(s->farm_action.release_sound) {
                 (void)emit(f,(HmbtnExplorationEffect){.kind=HMBTN_EXP_RELEASE_WATER},error,error_size);
             }
-            if(s->farm_action.broken_item) hmbtn_field_effect_submit(s->field_effects,
+            if(s->farm_action.broken_item) hmbtn_field_effect_submit_in(s->field_effects,hmbtn_session_field(s),
                 s->farm_action.broken_item,s->farm_action.effect_column,s->farm_action.effect_row);
-            if(s->area==0 && s->farm_action.changed && !emit(f,(HmbtnExplorationEffect){.kind=HMBTN_EXP_RETEXTURE},error,error_size)) {
+            if(hmbtn_session_field(s) && s->farm_action.changed && !emit(f,(HmbtnExplorationEffect){.kind=HMBTN_EXP_RETEXTURE},error,error_size)) {
                 snprintf(error,error_size,"Cannot update field soil textures");return false;
             }
             if(acting) {
@@ -408,7 +424,7 @@ house_interaction:
             s->control.npc_blocked=world_blocked;s->control.collision_context=s;
             s->control.carrying=s->house.inventory->held_item.id!=0;
             s->control.carrying_big=hmbtn_poultry_held_slot(&s->poultry)<HMBTN_HENS;
-            hmbtn_farm_control_tick(&s->control,&s->intro.player,f->ground,s->area==0 ? &s->field : NULL,
+            hmbtn_farm_control_tick(&s->control,&s->intro.player,f->ground,hmbtn_session_field(s),
                 hmbtn_house_world_buttons(&s->house.options,held));
             if(s->control.jump_started && !key(f,2,0,0,60,127,false,error,error_size)) {
                 snprintf(error,error_size,"Original jump tone unavailable"); return false;
@@ -487,7 +503,7 @@ bool hmbtn_session_exploration_world(HmbtnSession *s,const HmbtnExplorationFrame
                 if(a->occupied && !a->dead && a->area==s->area
                         && !animate(f,HMBTN_EXP_LIVESTOCK,hmbtn_livestock_pack(a),&a->actor.sprite,error,error_size)) return false;
             }
-            hmbtn_poultry_tick(&s->poultry,s->area,f->ground,s->area==0 ? &s->field : NULL,&s->intro.player,s->game.clock.hour);
+            hmbtn_poultry_tick(&s->poultry,s->area,f->ground,hmbtn_session_field(s),&s->intro.player,s->game.clock.hour);
             for(unsigned i=0;i<HMBTN_HENS;++i) if(s->poultry.hens[i].occupied && !s->poultry.hens[i].dead
                     && !s->poultry.hens[i].held && s->poultry.hens[i].area==s->area
                     && s->poultry.hens[i].stage!=HMBTN_HEN_EGG
@@ -536,8 +552,8 @@ bool hmbtn_session_exploration_world(HmbtnSession *s,const HmbtnExplorationFrame
         if(out_changes) *out_changes=changes;
         if(out_held) *out_held=held_clock;
         hmbtn_weather_effects_tick(&s->weather_effects,s->game.weather.today,
-            held_clock || (hmbtn_read_le16(f->section+8)&0x1800u));
-        hmbtn_daylight_weather_tick(&s->daylight,&s->game.clock,s->game.weather.today,held_clock || (hmbtn_read_le16(f->section+8)&0x1800u));
+            held_clock || !hmbtn_world_outdoors(f->section,f->section_size));
+        hmbtn_daylight_weather_tick(&s->daylight,&s->game.clock,s->game.weather.today,held_clock || !hmbtn_world_outdoors(f->section,f->section_size));
     }
     return true;
 }

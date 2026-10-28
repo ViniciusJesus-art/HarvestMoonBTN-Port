@@ -109,6 +109,8 @@ def main(root, output):
     field = clean((src / "overlay/11_GF_FARM/field/field.c").read_text())
     for name, kind in [("cell_looks", "HmbtnFarmCellUV"), ("column_mirror_table", "uint8_t")]:
         out.append(f"static const {kind} {name}[]={{" + body(field, name) + "};")
+    greenhouse=clean((src / "overlay/11_GF_FARM/field/greenhouse.c").read_text())
+    out.append("static const HmbtnGreenhouseUV greenhouse_uvs[29]={"+body(greenhouse,"greenhouse_quad_uvs")+"};")
     sound = clean((src / "main/sound/sound.c").read_text())
     out.append("static const HmbtnFarmSound farm_sounds[]={" + body(sound, "sound_defs") + "};")
     Path(output).write_text("\n".join(out) + "\n")
@@ -119,6 +121,14 @@ def main(root, output):
     farm_data=clean((src / "overlay/11_GF_FARM/farm_data.c").read_text())
     places=fields(body(farm_data,"place_entries"))[:78]
     player=clean((src / "overlay/11_GF_FARM/people/player.c").read_text())
+    wake=fields(body(farm_data,"house_door_positions"))
+    sleep=fields(fields(body(player,"result_camera_pairs"))[0][1:-1])
+    if len(wake)!=3 or len(sleep)!=3:
+        raise ValueError("Unexpected original house wake/sleep positions")
+    Path(output).with_name("house_layouts.inc").write_text(
+        "/* farm_data.c:house_door_positions; player.c:result_camera_pairs. */\n"
+        "static const int32_t house_wake[3][2]={"+",".join(wake)+"};\n"
+        "static const int32_t house_sleep[3][2]={"+",".join(sleep)+"};\n")
     load=clean((src / "overlay/11_GF_FARM/farm_load.c").read_text())
     action_base=re.search(r"#define FARM_SECTOR_ROW_BASE\s+(0x[0-9A-Fa-f]+)",load)
     action_sectors=re.search(r"#define FARM_SECTOR_ROW_SECTORS\s+(\d+)",load)
@@ -351,10 +361,16 @@ def main(root, output):
         match=re.search(rf"farm_item_toc_{i}\s*=\s*\{{(\d+),\s*\{{([^}}]+)\}}\}}",farm_data)
         if not match: raise ValueError(f"Missing item pack {i}")
         art.append("{"+match[1]+",{"+match[2]+"}}")
+    greenhouse_draw=field.split("void greenhouse_draw(void)",1)[1].split("static void field_tile_reset",1)[0]
+    greenhouse_sprites=re.findall(r"case (ITEM_\w+):\s*if \(field_cell_look_anim\(kind, kind \+ 2, (\d+),",greenhouse_draw)
+    if len(greenhouse_sprites)!=21:
+        raise ValueError("Unexpected original greenhouse crop sprites")
     Path(output).with_name("estate_art_tables.inc").write_text(
         "/* Original farm item art packs. */\n"
         "static const uint32_t estate_art_offsets[11]={"+body(clean((src / "overlay/11_GF_FARM/farm_load.c").read_text()),"farm_item_file_offsets")+"};\n"
-        "static const HmbtnEstateArtToc estate_art_tocs[10]={"+",".join(art)+"};\n")
+        "static const HmbtnEstateArtToc estate_art_tocs[10]={"+",".join(art)+"};\n"
+        "static const unsigned greenhouse_crop_sprites[][2]={"+
+        ",".join("{%d,%s}" % (names[item],sprite) for item,sprite in greenhouse_sprites)+"};\n")
     sections=clean((src / "overlay/common/farm_section_table.h").read_text())
     section_offsets=[int(v,0) for v in fields(body(sections,"section_table"))]
     if len(section_offsets)!=1021:

@@ -2,27 +2,33 @@
 #include "farm_clock.h"
 #include "house_control.h"
 #include "psx_data.h"
+bool hmbtn_world_outdoors(const uint8_t *section,size_t size)
+{
+    /* weather.c:weather_fx_frame explicitly exempts PLACE_GREENHOUSE (6). */
+    return section && size>=16 && hmbtn_read_le16(section+2)!=6 && !(hmbtn_read_le16(section+8)&0x1800u);
+}
 
 bool hmbtn_world_area(unsigned selection,unsigned season,unsigned *logical,unsigned *resource)
 {
     if(season>3 || !logical || !resource) return false;
     if(selection>3 && (selection<24 || selection>=84)
             && !(selection>=92 && selection<100) && !(selection>=112 && selection<116)
-            && !(selection>=128 && selection<216)) return false;
+            && !(selection>=124 && selection<128) && !(selection>=128 && selection<216)) return false;
     *logical=selection&~3u;*resource=*logical+season;
     return true;
 }
-bool hmbtn_world_area_buildings(unsigned selection,unsigned season,bool upgraded,unsigned house_level,unsigned barn_level,unsigned *logical,unsigned *resource)
+bool hmbtn_world_area_buildings(unsigned selection,unsigned season,bool upgraded,unsigned house_level,unsigned barn_level,bool greenhouse,unsigned *logical,unsigned *resource)
 {
-    if(house_level>1 || barn_level>1 || !hmbtn_world_area(selection,season,logical,resource)) return false;
-    if(*logical==0) *resource=(house_level ? 8u+barn_level*4u : upgraded ? 4u : 0u)+season;
+    if(house_level>2 || barn_level>1 || (greenhouse && (house_level!=2 || barn_level!=1))
+            || !hmbtn_world_area(selection,season,logical,resource) || (*logical==124 && !greenhouse)) return false;
+    if(*logical==0) *resource=(house_level==2 ? 16u+(greenhouse ? 4u : 0u) : house_level ? 8u+barn_level*4u : upgraded ? 4u : 0u)+season;
     else if(*logical==80) *resource=80+house_level*4+season;
     else if(*logical==112 && upgraded) *resource+=4;
     else if(*logical==96) *resource+=barn_level*4;
     return true;
 }
 bool hmbtn_world_area_coop(unsigned selection,unsigned season,bool upgraded,unsigned *logical,unsigned *resource)
-{ return hmbtn_world_area_buildings(selection,season,upgraded,0,0,logical,resource); }
+{ return hmbtn_world_area_buildings(selection,season,upgraded,0,0,false,logical,resource); }
 unsigned hmbtn_world_song_weather(const uint8_t *section,size_t size,unsigned season,unsigned hour,unsigned weather)
 {
     if(!section || size<16 || season>3) return 0;

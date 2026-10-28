@@ -37,7 +37,12 @@ galinheiro são a primeira dependência entregue da cadeia da estufa:
 da cozinha foram integrados em [PF06_HOUSE_EXPANSION.md](PF06_HOUSE_EXPANSION.md).
 Obra/mapas/cochos do celeiro foram integrados em
 [PF06_BARN_EXPANSION.md](PF06_BARN_EXPANSION.md). Aquisição/presença/alimentação bovina e ovina foram integradas em
-[PF06_LIVESTOCK.md](PF06_LIVESTOCK.md). Próximo: segunda casa, conforme o roadmap;
+[PF06_LIVESTOCK.md](PF06_LIVESTOCK.md). A segunda casa, posições de sono/retorno
+e lareira de inverno foram integradas em [PF06_SECOND_HOUSE.md](PF06_SECOND_HOUSE.md).
+A estufa de cultivo foi integrada em [PF06_GREENHOUSE.md](PF06_GREENHOUSE.md),
+com campo distinto, regras comuns e perda/reconstrução. Orangecup foi habilitada
+nesses mesmos sistemas em [PF06_ORANGECUP.md](PF06_ORANGECUP.md). Próximo: ferramentas animais e leite/lã,
+conforme o roadmap;
 venda/produção/reprodução/ciclo animal completo permanecem pendentes.
 Aquisição de utensílios/cozinha completa e PF-06 permanecem abertas.
 

@@ -2,6 +2,9 @@
 #define HMBTN_FARM_FIELD_H
 #include "ground.h"
 enum { HMBTN_FIELD_COLS=45, HMBTN_FIELD_ROWS=25, HMBTN_FIELD_CELLS=1125 };
+/* field.h / field.c: the two original content layouts. Storage capacity is
+ * native; only the configured layout's cells participate in rules/persistence. */
+enum { HMBTN_GREENHOUSE_COLS=7,HMBTN_GREENHOUSE_ROWS=7,HMBTN_GREENHOUSE_CELLS=49 };
 typedef struct HmbtnFarmTile {
     uint16_t value, ground;
     uint8_t kind;
@@ -9,6 +12,7 @@ typedef struct HmbtnFarmTile {
     unsigned watered_days; /* Original FarmGrowth.days, independent of binary layout. */
 } HmbtnFarmTile;
 typedef struct HmbtnFarmField {
+    bool indoor;
     HmbtnFarmTile cells[HMBTN_FIELD_CELLS];
     size_t quad[HMBTN_FIELD_CELLS]; /* Offsets into the current terrain, never pointers. */
     bool active[HMBTN_FIELD_CELLS];
@@ -36,6 +40,13 @@ bool hmbtn_farm_seed_cell(unsigned seed,unsigned part,unsigned facing,int *dx,in
 typedef struct HmbtnFarmTileRule { unsigned power, reach, status, usable; } HmbtnFarmTileRule;
 typedef struct HmbtnFarmSound { unsigned bank, unused1, program, tone, note, unused5, volume; } HmbtnFarmSound;
 void hmbtn_farm_field_init(HmbtnFarmField *field, const uint16_t *layout, size_t count);
+void hmbtn_farm_field_init_greenhouse(HmbtnFarmField *field);
+void hmbtn_farm_field_clear(HmbtnFarmField *field);
+unsigned hmbtn_farm_field_columns(const HmbtnFarmField *field);
+unsigned hmbtn_farm_field_rows(const HmbtnFarmField *field);
+unsigned hmbtn_farm_field_cells(const HmbtnFarmField *field);
+bool hmbtn_farm_field_world_cell(const HmbtnFarmField *field,const int32_t position[3],int *column,int *row);
+bool hmbtn_farm_field_position(const HmbtnFarmField *field,unsigned column,unsigned row,int32_t position[3]);
 void hmbtn_farm_field_new_day(HmbtnFarmField *field,unsigned season);
 bool hmbtn_farm_field_bind(HmbtnFarmField *field, const HmbtnModel *terrain);
 const HmbtnFarmItem *hmbtn_farm_item(unsigned id);

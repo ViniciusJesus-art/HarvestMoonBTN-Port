@@ -1,13 +1,19 @@
 #include "house_sleep.h"
 #include <string.h>
 #include <stdlib.h>
+#include "house_layouts.inc"
+bool hmbtn_house_wake_position(unsigned level,int32_t position[3])
+{
+    if(level>=3 || !position) return false;
+    position[0]=house_wake[level][0];position[1]=0;position[2]=house_wake[level][1];return true;
+}
 void hmbtn_house_sleep_start(HmbtnHouseSleep *s,HmbtnIntroActor *p,unsigned house_level)
 {
     memset(s,0,sizeof(*s)); s->active=true;
     memcpy(s->from,p->position,sizeof(s->from)); memcpy(s->camera,p->position,sizeof(s->camera));
-    /* player_result_camera_points: house0 {-800,-1400}, house1 {-2400,-1400},
-     * then player_result_camera_start shifts -550 X/+440 Z. */
-    s->target[0]=house_level ? -2950 : -1350;s->target[1]=p->position[1];s->target[2]=-960;
+    /* player_result_camera_points/start: original layout, then -550 X/+440 Z. */
+    if(house_level>=3) { s->active=false;return; }
+    s->target[0]=house_sleep[house_level][0]-550;s->target[1]=p->position[1];s->target[2]=house_sleep[house_level][1]+440;
     p->facing=0; p->pose=true; p->animation_done=false;
     p->sprite=(HmbtnAnimationPlayer){0};
 }

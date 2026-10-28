@@ -104,7 +104,7 @@ int main(int argc,char **argv)
     CHECK(g->feed_shop.merchant==35 && g->feed_shop.request==0x164 && g->talk.active);
     CHECK(capture(s,&host,shots,"won-greeting",error,sizeof(error)));
     CHECK(shop_wait(s,HMBTN_SHOP_SELECT,error,sizeof(error)));
-    CHECK(hmbtn_seed_shop_count(&g->feed_shop)==6);
+    CHECK(hmbtn_seed_shop_count(&g->feed_shop)==7);
     unsigned menu_row=0;
     while(menu_row<hmbtn_seed_shop_count(&g->feed_shop) && hmbtn_seed_shop_choice(&g->feed_shop,menu_row)->item!=c->seed) ++menu_row;
     CHECK(menu_row<hmbtn_seed_shop_count(&g->feed_shop));

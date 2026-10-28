@@ -3,6 +3,10 @@
 #include "psx_data.h"
 bool hmbtn_field_effect_submit(HmbtnFieldEffect slots[HMBTN_FIELD_EFFECTS],unsigned item,int col,int row)
 {
+    return hmbtn_field_effect_submit_in(slots,NULL,item,col,row);
+}
+bool hmbtn_field_effect_submit_in(HmbtnFieldEffect slots[HMBTN_FIELD_EFFECTS],const HmbtnFarmField *field,unsigned item,int col,int row)
+{
     unsigned art;
     switch(item) {
     case 0x36: art=HMBTN_FIELD_EFFECT_GRASS;break;
@@ -16,7 +20,9 @@ bool hmbtn_field_effect_submit(HmbtnFieldEffect slots[HMBTN_FIELD_EFFECTS],unsig
     default:return false;
     }
     for(unsigned i=0;i<HMBTN_FIELD_EFFECTS;++i) if(!slots[i].active) {
-        slots[i]=(HmbtnFieldEffect){art,0,{col*400-4200,0,1400-row*400},true};return true;
+        slots[i]=(HmbtnFieldEffect){art,0,{col*400-4200,0,1400-row*400},true};
+        if(field && col>=0 && row>=0) hmbtn_farm_field_position(field,(unsigned)col,(unsigned)row,slots[i].position);
+        return true;
     }
     return false;
 }

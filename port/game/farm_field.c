@@ -2,13 +2,22 @@
 #include "farm_field.h"
 #include "psx_data.h"
 #include "psx_random.h"
+#include "inventory.h"
 #include <string.h>
 typedef struct HmbtnFarmChoice { int32_t x_min,z_min,x_max,z_max; unsigned location; } HmbtnFarmChoice;
 typedef struct HmbtnFarmCellUV { uint8_t uv[8]; uint16_t clut; } HmbtnFarmCellUV;
+typedef struct HmbtnGreenhouseUV { uint8_t uv[4][2];uint16_t clut; } HmbtnGreenhouseUV;
 #include "farm_tables.inc"
 enum { GRASS=0x36,SOIL=0x167,TILLED=0x168,WATERED=0x169,SOWN=0x16a,WATERED_SOWN=0x16b };
 const HmbtnFarmItem *hmbtn_farm_item(unsigned id) { return id<380 ? &farm_items[id] : NULL; }
 const HmbtnFarmSound *hmbtn_farm_sound(unsigned id) { return id<78 ? &farm_sounds[id] : NULL; }
+unsigned hmbtn_farm_field_columns(const HmbtnFarmField *f) { return f && f->indoor ? HMBTN_GREENHOUSE_COLS : HMBTN_FIELD_COLS; }
+unsigned hmbtn_farm_field_rows(const HmbtnFarmField *f) { return f && f->indoor ? HMBTN_GREENHOUSE_ROWS : HMBTN_FIELD_ROWS; }
+unsigned hmbtn_farm_field_cells(const HmbtnFarmField *f) { return hmbtn_farm_field_columns(f)*hmbtn_farm_field_rows(f); }
+void hmbtn_farm_field_clear(HmbtnFarmField *f)
+{
+    if(f) for(unsigned i=0;i<hmbtn_farm_field_cells(f);++i) f->cells[i]=(HmbtnFarmTile){.value=SOIL,.ground=SOIL};
+}
 const HmbtnFarmTileRule *hmbtn_farm_tile_rule(const HmbtnFarmTile *t)
 {
     const HmbtnFarmItem *item=t ? hmbtn_farm_item(t->value) : NULL;
@@ -29,6 +38,18 @@ void hmbtn_farm_field_init(HmbtnFarmField *f,const uint16_t *layout,size_t count
         f->quad[i]=SIZE_MAX; f->active[i]=true;
     }
 }
+void hmbtn_farm_field_init_greenhouse(HmbtnFarmField *f)
+{
+    memset(f,0,sizeof(*f));f->indoor=true;f->plant_random=1;
+    hmbtn_farm_field_clear(f);
+    for(unsigned i=0;i<HMBTN_FIELD_CELLS;++i) { f->quad[i]=SIZE_MAX;f->active[i]=i<HMBTN_GREENHOUSE_CELLS; }
+}
+bool hmbtn_farm_field_position(const HmbtnFarmField *f,unsigned c,unsigned r,int32_t pos[3])
+{
+    if(!f || !pos || c>=hmbtn_farm_field_columns(f) || r>=hmbtn_farm_field_rows(f)) return false;
+    pos[0]=(int32_t)c*400+(f->indoor ? -1420 : -4200);pos[1]=0;
+    pos[2]=(f->indoor ? 1020 : 1400)-(int32_t)r*400;return true;
+}
 bool hmbtn_farm_world_cell(const int32_t pos[3],int *column,int *row)
 {
     if(!pos || !column || !row || pos[0]<-32768 || pos[0]>32767 || pos[2]<-32768 || pos[2]>32767) return false;
@@ -40,11 +61,23 @@ bool hmbtn_farm_world_cell(const int32_t pos[3],int *column,int *row)
     if(dz<0) --*row;
     return dx>=0 && dz>=0 && *column<HMBTN_FIELD_COLS && *row<HMBTN_FIELD_ROWS;
 }
+bool hmbtn_farm_field_world_cell(const HmbtnFarmField *f,const int32_t pos[3],int *column,int *row)
+{
+    if(!f || !f->indoor) return hmbtn_farm_world_cell(pos,column,row);
+    if(!pos || !column || !row || pos[0]<-32768 || pos[0]>32767 || pos[2]<-32768 || pos[2]>32767) return false;
+    /* greenhouse_world_to_cell: preserve signed intermediate coordinates. */
+    const unsigned x=((unsigned)pos[0]+1620u)&65535u,z=(1220u-(unsigned)pos[2])&65535u;
+    const int dx=x<32768 ? (int)x : (int)x-65536,dz=z<32768 ? (int)z : (int)z-65536;
+    *column=dx/400;*row=dz/400;
+    if(dx<0) --*column;
+    if(dz<0) --*row;
+    return dx>=0 && dz>=0 && *column<HMBTN_GREENHOUSE_COLS && *row<HMBTN_GREENHOUSE_ROWS;
+}
 /* Adapted from src/overlay/11_GF_FARM/field/field.c: field_event_dispatch,
  * field_daily_tick, field_tile_dry, field_tile_item_stage; reference d3c0f38.
  * Explicit native state, no packed FarmGrowth alias or shared frame RNG.
- * Outdoor base seasonal crops and grass: greenhouse and random weeds
- * remain absent. Other catalog definitions remain available but are not claimed
+ * Both field layouts share crop rules; outdoor seasonal behavior remains
+ * unchanged. Random weeds remain absent. Other catalog definitions remain available but are not claimed
  * supported. The growing loop uses definition lengths, not a new catalog cap. */
 const HmbtnFarmCrop *hmbtn_farm_crop(unsigned seed)
 {
@@ -54,16 +87,19 @@ const HmbtnFarmCrop *hmbtn_farm_crop(unsigned seed)
 }
 /* Flower definitions/daily/harvest are already shared with food crops.
  * Source: farm_tables.c CROP_PINK_CAT / CROP_TOY_FLOWER, field.c.
- * Their zero-price products remain flowers, not saleable vegetables. */
+ * Their zero-price products remain flowers, not saleable vegetables.
+ * Orangecup (reference 6fa97ab: CROP_ORANGE_CUP, field_event_dispatch,
+ * shop_seed_menu_setup_d) needs only this support filter: do not impose a
+ * greenhouse purchase/planting lock absent from those original functions. */
 bool hmbtn_farm_crop_supported(unsigned seed)
-{ return (seed>=0x22 && seed<=0x34) || seed==GRASS || seed==0x178 || seed==0x179; }
+{ return (seed>=0x22 && seed<=GRASS) || seed==0x178 || seed==0x179; }
 bool hmbtn_farm_field_has_grown(const HmbtnFarmField *f,unsigned seed)
 {
     /* farm_event_available(7), field_find_free_tile(flags=2): value and
      * grown stage match; ground is ignored. Existence needs no random start. */
     const HmbtnFarmCrop *crop=hmbtn_farm_crop(seed);
     if(!f || !crop) return false;
-    for(unsigned i=0;i<HMBTN_FIELD_CELLS;++i)
+    for(unsigned i=0;i<hmbtn_farm_field_cells(f);++i)
         if(f->cells[i].value==seed && f->cells[i].kind==crop->grown) return true;
     return false;
 }
@@ -74,10 +110,10 @@ static void dry(HmbtnFarmTile *t)
 }
 bool hmbtn_farm_field_plant(HmbtnFarmField *f,int c,int r,unsigned seed)
 {
-    if(!f || c<0 || c>=HMBTN_FIELD_COLS || r<0 || r>=HMBTN_FIELD_ROWS
-            || !hmbtn_farm_crop_supported(seed) || f->season==3) return false;
-    HmbtnFarmTile *t=&f->cells[r*HMBTN_FIELD_COLS+c];
-    if(!f->active[r*HMBTN_FIELD_COLS+c] || (t->value!=TILLED && t->value!=WATERED)) return false;
+    if(!f || c<0 || c>=(int)hmbtn_farm_field_columns(f) || r<0 || r>=(int)hmbtn_farm_field_rows(f)
+            || !hmbtn_farm_crop_supported(seed) || (!f->indoor && f->season==3)) return false;
+    HmbtnFarmTile *t=&f->cells[r*hmbtn_farm_field_columns(f)+c];
+    if(!f->active[r*hmbtn_farm_field_columns(f)+c] || (t->value!=TILLED && t->value!=WATERED)) return false;
     /* field_event_dispatch: one roll per accepted cell, after eligibility.
      * Store the original variant item ID; growth/draw/load never reroll it.
      * Reuse rand_range's arithmetic on a native stream independent of frames. */
@@ -89,17 +125,17 @@ void hmbtn_farm_field_new_day(HmbtnFarmField *f,unsigned season)
 {
     if(!f || season>3) return;
     f->season=season;
-    for(unsigned i=0;i<HMBTN_FIELD_CELLS;++i) {
+    for(unsigned i=0;i<hmbtn_farm_field_cells(f);++i) {
         HmbtnFarmTile *t=&f->cells[i];
         const HmbtnFarmCrop *crop=hmbtn_farm_crop(t->value);
         if(crop && hmbtn_farm_crop_supported(t->value)) {
             const bool grass=t->value==GRASS;
             /* field_daily_tick resets established grass every winter morning,
              * then runs the normal ANY-season growth step (days becomes 1). */
-            if(grass && season==3 && t->kind) {
+            if(!f->indoor && grass && season==3 && t->kind) {
                 t->kind=1;t->watered_days=0;t->growth_flags=0;
             }
-            if(crop->season!=season && crop->season!=4) {
+            if(!f->indoor && crop->season!=season && crop->season!=4) {
                 /* Original leaves stage 1 dead stalks in the following season;
                  * winter and unrelated seasons clear the seed tile entirely. */
                 if(season!=3 && t->kind && crop->season+1==season) t->kind=1;
@@ -116,14 +152,14 @@ void hmbtn_farm_field_new_day(HmbtnFarmField *f,unsigned season)
             }
         }
         dry(t);
-        if(season==3 && t->value==0x3a) { *t=(HmbtnFarmTile){.value=SOIL,.ground=SOIL}; }
+        if(!f->indoor && season==3 && t->value==0x3a) { *t=(HmbtnFarmTile){.value=SOIL,.ground=SOIL}; }
     }
 }
 unsigned hmbtn_farm_field_harvest_item(const HmbtnFarmField *f,unsigned i)
 {
-    if(!f || i>=HMBTN_FIELD_CELLS || !f->active[i]) return 0;
+    if(!f || i>=hmbtn_farm_field_cells(f) || !f->active[i]) return 0;
     const HmbtnFarmTile *t=&f->cells[i];const HmbtnFarmCrop *crop=hmbtn_farm_crop(t->value);
-    if(!hmbtn_farm_crop_supported(t->value) || !crop || crop->season!=f->season
+    if(!hmbtn_farm_crop_supported(t->value) || !crop || (!f->indoor && crop->season!=f->season)
             || t->kind!=crop->grown || crop->harvest<=0) return 0;
     return (unsigned)crop->harvest;
 }
@@ -167,8 +203,8 @@ bool hmbtn_farm_field_bind(HmbtnFarmField *f,const HmbtnModel *m)
                 }
                 for(unsigned a=0;a<3;++a) centre[a]/=4;
                 int c,r;
-                if(hmbtn_farm_world_cell(centre,&c,&r)) {
-                    const unsigned cell=(unsigned)(r*HMBTN_FIELD_COLS+c);
+                if(hmbtn_farm_field_world_cell(f,centre,&c,&r)) {
+                    const unsigned cell=(unsigned)(r*hmbtn_farm_field_columns(f)+c);
                     if(f->active[cell]) return false;
                     f->quad[cell]=at;f->active[cell]=true;
                 }
@@ -181,8 +217,8 @@ bool hmbtn_farm_field_bind(HmbtnFarmField *f,const HmbtnModel *m)
 unsigned hmbtn_farm_field_probe(const HmbtnFarmField *f,const int32_t pos[3])
 {
     int c,r;
-    if(!f || !hmbtn_farm_world_cell(pos,&c,&r)) return 0;
-    const unsigned i=(unsigned)(r*HMBTN_FIELD_COLS+c);
+    if(!f || !hmbtn_farm_field_world_cell(f,pos,&c,&r)) return 0;
+    const unsigned i=(unsigned)(r*hmbtn_farm_field_columns(f)+c);
     if(!f->active[i] || f->cells[i].value==SOIL) return 0;
     const HmbtnFarmTileRule *rule=hmbtn_farm_tile_rule(&f->cells[i]);
     return rule && rule->status>0 && rule->status<=2 ? rule->status : 0;
@@ -194,11 +230,11 @@ bool hmbtn_farm_field_can_hop(const HmbtnFarmField *f,const int32_t pos[3],unsig
     int32_t first[3]={pos[0]+step[facing][0],pos[1],pos[2]+step[facing][1]},
         second[3]={pos[0]+step[facing][0]*2,pos[1],pos[2]+step[facing][1]*2};
     int c,r;
-    if(!hmbtn_farm_world_cell(first,&c,&r) || (c==44 && facing==3)) return false;
+    if(!hmbtn_farm_field_world_cell(f,first,&c,&r) || (c==(int)hmbtn_farm_field_columns(f)-1 && facing==3)) return false;
     /* farm_tile_state: only soil/no rule beyond the obstacle permits the hop. */
     if(hmbtn_farm_field_probe(f,first)!=1) return false;
-    if(!hmbtn_farm_world_cell(second,&c,&r)) return true;
-    const unsigned i=(unsigned)(r*HMBTN_FIELD_COLS+c);
+    if(!hmbtn_farm_field_world_cell(f,second,&c,&r)) return true;
+    const unsigned i=(unsigned)(r*hmbtn_farm_field_columns(f)+c);
     const HmbtnFarmTileRule *rule=hmbtn_farm_tile_rule(&f->cells[i]);
     return !f->active[i] || f->cells[i].value==SOIL || !rule || rule->status==0;
 }
@@ -213,7 +249,7 @@ static bool choice_inside(const HmbtnFarmChoice *table,size_t count,const int32_
 bool hmbtn_farm_settle(const HmbtnFarmField *f,const HmbtnModel *m,int32_t pos[3],uint16_t mask,unsigned tolerance)
 {
     if(!pos) return false;
-    if(f && ((mask==0xc080 && choice_inside(farm_choices_default,sizeof(farm_choices_default)/sizeof(*farm_choices_default),pos))
+    if(f && !f->indoor && ((mask==0xc080 && choice_inside(farm_choices_default,sizeof(farm_choices_default)/sizeof(*farm_choices_default),pos))
             || ((mask==0xc080 || mask==0xe080) && choice_inside(farm_choices_flagged,sizeof(farm_choices_flagged)/sizeof(*farm_choices_flagged),pos)))) {
         if(pos[1]<0) return false;
         pos[1]=0;return true;
@@ -227,12 +263,13 @@ bool hmbtn_farm_settle(const HmbtnFarmField *f,const HmbtnModel *m,int32_t pos[3
  * second, manually synchronized shape cache in growth_flags. */
 static unsigned grass_shape(const HmbtnFarmField *f,unsigned cell)
 {
-    const int c=(int)(cell%HMBTN_FIELD_COLS),r=(int)(cell/HMBTN_FIELD_COLS);
+    const unsigned cols=hmbtn_farm_field_columns(f);
+    const int c=(int)(cell%cols),r=(int)(cell/cols);
     unsigned mask=0,bit=0;
     for(int dy=-1;dy<=1;++dy) for(int dx=-1;dx<=1;++dx,++bit) {
         const int x=c+dx,y=r+dy;
-        if(x<0 || x>=HMBTN_FIELD_COLS || y<0 || y>=HMBTN_FIELD_ROWS) continue;
-        const unsigned i=(unsigned)(y*HMBTN_FIELD_COLS+x);
+        if(x<0 || x>=(int)hmbtn_farm_field_columns(f) || y<0 || y>=(int)hmbtn_farm_field_rows(f)) continue;
+        const unsigned i=(unsigned)(y*(int)cols+x);
         if(f->active[i] && f->cells[i].value==GRASS && f->cells[i].kind) mask|=1u<<bit;
     }
     if((mask&0x1b8)==0x1b8) return 6;
@@ -249,7 +286,7 @@ static unsigned grass_shape(const HmbtnFarmField *f,unsigned cell)
 bool hmbtn_farm_field_retexture(const HmbtnFarmField *f,uint8_t *data,size_t size)
 {
     if(!f || !data) return false;
-    for(unsigned i=0;i<HMBTN_FIELD_CELLS;++i) {
+    for(unsigned i=0;i<hmbtn_farm_field_cells(f);++i) {
         if(!f->active[i] || f->quad[i]==SIZE_MAX) continue;
         const size_t at=f->quad[i];
         if(at>size || size-at<16) return false;
@@ -259,6 +296,16 @@ bool hmbtn_farm_field_retexture(const HmbtnFarmField *f,uint8_t *data,size_t siz
         if(look>4) look=0;
         if(f->cells[i].value==GRASS && f->cells[i].kind>0 && f->cells[i].kind<=3)
             look=5+(f->cells[i].kind-1)*8+grass_shape(f,i);
+        if(f->indoor) {
+            /* greenhouse_update_cells/retexture_quad: fixed palette/page,
+             * only row zero mirrors the original rectangle corners. */
+            const HmbtnGreenhouseUV *uv=&greenhouse_uvs[look];
+            for(unsigned k=0;k<4;++k) {
+                const unsigned src=i/hmbtn_farm_field_columns(f)==0 ? 3-k : k;
+                p[4+k*4]=uv->uv[src][0];p[5+k*4]=uv->uv[src][1];
+            }
+            hmbtn_write_le16(p+6,uv->clut);hmbtn_write_le16(p+10,look>=5 ? 29 : 9);continue;
+        }
         if(f->season==3) look=29;
         const HmbtnFarmCellUV *uv=&cell_looks[look];
         const unsigned mirror=column_mirror_table[i%45];
@@ -274,7 +321,7 @@ bool hmbtn_farm_field_retexture(const HmbtnFarmField *f,uint8_t *data,size_t siz
 }
 bool hmbtn_farm_field_water(HmbtnFarmField *f,unsigned i)
 {
-    if(!f || i>=HMBTN_FIELD_CELLS || !f->active[i] || f->season==3) return false;
+    if(!f || i>=hmbtn_farm_field_cells(f) || !f->active[i] || (!f->indoor && f->season==3)) return false;
     HmbtnFarmTile *t=&f->cells[i];
     if(t->value==GRASS && t->kind) return false;
     if(t->ground!=TILLED && t->ground!=SOWN) return false;
@@ -284,13 +331,13 @@ bool hmbtn_farm_field_water(HmbtnFarmField *f,unsigned i)
 }
 void hmbtn_farm_field_rain(HmbtnFarmField *f)
 {
-    for(unsigned i=0;i<HMBTN_FIELD_CELLS;++i) hmbtn_farm_field_water(f,i);
+    if(f && !f->indoor) for(unsigned i=0;i<hmbtn_farm_field_cells(f);++i) hmbtn_farm_field_water(f,i);
 }
 static void reset(HmbtnFarmTile *t) { t->ground=t->value=SOIL;t->kind=0;t->growth_flags=0;t->watered_days=0; }
 bool hmbtn_farm_field_tool(HmbtnFarmField *f,int c,int r,unsigned kind,unsigned power,unsigned reach,unsigned supplies[4])
 {
-    if(!f || c<0 || c>=45 || r<0 || r>=25 || kind>4) return false;
-    const unsigned i=(unsigned)(r*45+c);if(!f->active[i]) return false;
+    if(!f || c<0 || c>=(int)hmbtn_farm_field_columns(f) || r<0 || r>=(int)hmbtn_farm_field_rows(f) || kind>4) return false;
+    const unsigned i=(unsigned)(r*(int)hmbtn_farm_field_columns(f)+c);if(!f->active[i]) return false;
     HmbtnFarmTile *t=&f->cells[i];const HmbtnFarmTileRule *rule=hmbtn_farm_tile_rule(t);
     if(kind==4) return hmbtn_farm_field_water(f,i);
     if(!rule) return false;
@@ -318,12 +365,13 @@ bool hmbtn_farm_field_tool(HmbtnFarmField *f,int c,int r,unsigned kind,unsigned 
         /* The four encoded corners of one 2x2 obstacle. */
         unsigned corner=value>=0x16c ? (value-0x16c)%3+1 : 0;
         const int left=c-((corner==1 || corner==2) ? 1 : 0), top=r-(corner>=2 ? 1 : 0);
-        if(left<0 || left+1>=45 || top<0 || top+1>=25) return false;
-        for(unsigned y=0;y<2;++y) for(unsigned x=0;x<2;++x) reset(&f->cells[(top+(int)y)*45+left+(int)x]);
+        if(left<0 || left+1>=(int)hmbtn_farm_field_columns(f) || top<0 || top+1>=(int)hmbtn_farm_field_rows(f)) return false;
+        for(unsigned y=0;y<2;++y) for(unsigned x=0;x<2;++x) reset(&f->cells[(top+(int)y)*(int)hmbtn_farm_field_columns(f)+left+(int)x]);
     } else reset(t);
     if(kind==2 && supplies) {
         const unsigned add=large ? 6u : 1u;
-        supplies[1]=supplies[1]+add>9999 ? 9999 : supplies[1]+add;
+        const unsigned limit=hmbtn_inventory_lumber_limit();
+        supplies[1]=supplies[1]+add>limit ? limit : supplies[1]+add;
     }
     return true;
 }

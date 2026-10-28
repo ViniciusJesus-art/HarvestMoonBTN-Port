@@ -52,18 +52,18 @@ int main(void)
     assert(!hmbtn_village_flag_set(&s->village,0x3c,false));
     assert(!hmbtn_village_flag(&s->village,0x38) && hmbtn_farm_menu_building_score(&s->menu)==60);
     levels(s,error,sizeof(error));
-    assert(hmbtn_construction_order(&s->construction,&s->poultry,inv,&s->game.economy)==HMBTN_BUILD_COMPLETE);
+    assert(hmbtn_construction_order(&s->construction,&s->poultry,inv,&s->game.economy)==HMBTN_BUILD_GOLD);
     assert(hmbtn_carpenter_shop_open(&s->feed_shop,&s->game.clock));
-    assert(hmbtn_carpenter_shop_rows(&s->feed_shop)==1);s->feed_shop.phase=HMBTN_SHOP_OFF;
+    assert(hmbtn_carpenter_shop_rows(&s->feed_shop)==2);s->feed_shop.phase=HMBTN_SHOP_OFF;
     for(unsigned season=0;season<4;++season) {
         unsigned logical,resource;
-        assert(hmbtn_world_area_buildings(0,season,true,1,1,&logical,&resource) && !logical && resource==12+season);
-        assert(hmbtn_world_area_buildings(96,season,true,1,1,&logical,&resource) && logical==96 && resource==100+season);
-        assert(hmbtn_world_area_buildings(80,season,true,1,1,&logical,&resource) && logical==80 && resource==84+season);
-        assert(hmbtn_world_area_buildings(112,season,true,1,1,&logical,&resource) && logical==112 && resource==116+season);
+        assert(hmbtn_world_area_buildings(0,season,true,1,1,false,&logical,&resource) && !logical && resource==12+season);
+        assert(hmbtn_world_area_buildings(96,season,true,1,1,false,&logical,&resource) && logical==96 && resource==100+season);
+        assert(hmbtn_world_area_buildings(80,season,true,1,1,false,&logical,&resource) && logical==80 && resource==84+season);
+        assert(hmbtn_world_area_buildings(112,season,true,1,1,false,&logical,&resource) && logical==112 && resource==116+season);
     }
     unsigned logical,resource;
-    assert(!hmbtn_world_area_buildings(96,0,true,1,2,&logical,&resource));
+    assert(!hmbtn_world_area_buildings(96,0,true,1,2,false,&logical,&resource));
     /* Stores and feed stay owned by the existing domains after the upgrade. */
     inv->icebox[4]=(HmbtnStoredTool){0x43,7,20};s->feed.barn[19]=true;s->feed.barn[21]=true;
     assert(hmbtn_save_encode(s,&data,&bytes,error,sizeof(error)));

@@ -21,7 +21,8 @@ static bool travel(HmbtnScenePreview *s,unsigned area,char *error,size_t size)
     const uint8_t *zone=NULL;bool door=false;
     for(unsigned i=0;i<50;++i) {
         const uint8_t *z=hmbtn_scene_preview_resources(s).section+16+i*44;
-        if(hmbtn_read_le16(z+2)!=area) continue;
+        unsigned logical,resource;
+        if(!hmbtn_world_area(hmbtn_read_le16(z+2),0,&logical,&resource) || logical!=area) continue;
         at(s,z);HmbtnHouseExit e;unsigned model;
         if(hmbtn_world_door_at(hmbtn_scene_preview_resources(s).section,0x2000,&hmbtn_scene_preview_session(s)->intro.player,&e,&model)) { zone=z;door=true;break; }
         if(hmbtn_world_gate_at(hmbtn_scene_preview_resources(s).section,0x2000,hmbtn_scene_preview_session(s)->intro.player.position,&e)

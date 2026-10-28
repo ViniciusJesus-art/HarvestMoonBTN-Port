@@ -21,6 +21,7 @@
 #include "fishing.h"
 #include "field_effects.h"
 #include "house_sleep.h"
+#include "house_lumber.h"
 
 /* MA-04a ownership extraction from scene_preview.c, preserving current rules.
  * Reference: src/main/game/farm_state.h: FarmState; farm_init.c/farm_main.c in
@@ -37,6 +38,7 @@ typedef struct HmbtnSession {
     bool morning_prepared,morning_save_requested,load_requested;
     HmbtnHouseControl control;
     HmbtnHouseSleep sleep;
+    HmbtnHouseLumber house_lumber;
     HmbtnDaylight daylight;
     HmbtnWeatherEffects weather_effects;
     HmbtnAreaDoors area_doors; /* Transient poses; original route cursors persist separately. */
@@ -56,6 +58,7 @@ typedef struct HmbtnSession {
     bool quick_tool,completion_reported;
     HmbtnGameState game;
     HmbtnFarmField field;
+    HmbtnFarmField greenhouse;
     HmbtnVillage village;
     HmbtnPoultry poultry;
     HmbtnConstruction construction;
@@ -80,6 +83,9 @@ typedef struct HmbtnSession {
 uint64_t hmbtn_session_date(const HmbtnFarmClock *clock);
 void hmbtn_session_clock_events(void *session,const HmbtnFarmClock *clock,unsigned changes);
 unsigned hmbtn_session_advance_minutes(HmbtnSession *session,unsigned minutes);
+/* Active layout is a borrowed view; rules still operate on one field type. */
+HmbtnFarmField *hmbtn_session_field(HmbtnSession *session);
+const HmbtnFarmField *hmbtn_session_field_const(const HmbtnSession *session);
 bool hmbtn_session_morning(HmbtnSession *session,bool slept);
 /* Host acknowledges the prepared morning after resources are installed. */
 void hmbtn_session_morning_ready(HmbtnSession *session);

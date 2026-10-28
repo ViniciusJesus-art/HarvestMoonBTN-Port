@@ -98,8 +98,8 @@ int main(int argc,char **argv)
     HmbtnIntroActor *won=&v->people[35].actor;CHECK(won->visible);
     memcpy(g->intro.player.position,won->position,sizeof(won->position));g->intro.player.position[2]+=280;g->intro.player.facing=0;g->control.mode=0;
     CHECK(step(s,HMBTN_PAD_CROSS,error,sizeof(error)) && shop_wait(s,HMBTN_SHOP_SELECT,error,sizeof(error)));
-    CHECK(hmbtn_seed_shop_count(&g->feed_shop)==7 && g->feed_shop.progress==&g->game.progress);
-    for(unsigned row=0;row<7;++row) CHECK(hmbtn_seed_shop_choice(&g->feed_shop,row)==hmbtn_won_seed_entry(row));
+    CHECK(hmbtn_seed_shop_count(&g->feed_shop)==8 && g->feed_shop.progress==&g->game.progress);
+    for(unsigned row=0;row<8;++row) CHECK(hmbtn_seed_shop_choice(&g->feed_shop,row)==hmbtn_won_seed_entry(row));
     for(unsigned i=0;i<3;++i) CHECK(step(s,HMBTN_PAD_DOWN,error,sizeof(error)));
     CHECK(g->feed_shop.item==0x31 && capture(s,&host,shots,"won-moondrop-unlocked",error,sizeof(error)));
     CHECK(step(s,HMBTN_PAD_TRIANGLE,error,sizeof(error)) && shop_wait(s,HMBTN_SHOP_INFO,error,sizeof(error)) && g->feed_shop.request==0x168);

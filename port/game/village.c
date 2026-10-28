@@ -21,6 +21,8 @@ bool hmbtn_village_flag(const HmbtnVillage *v,unsigned id)
     if(id==0x38 && v->construction) return v->construction->mornings_left!=0;
     if(id==0x3B && v->construction) return v->construction->house_level>=1;
     if(id==0x3C && v->construction) return v->construction->barn_level>=1;
+    if(id==0x3D && v->construction) return v->construction->house_level>=2;
+    if((id==0x39 || id==0x3E) && v->construction) return v->construction->greenhouse;
     if(id==0x3A && v->poultry) return v->poultry->upgraded;
     if(v->cooking && id>=0x5b && id<=0x5d) {
         const unsigned dishes[3]={0xd6,0xd7,0xd1};
@@ -30,7 +32,7 @@ bool hmbtn_village_flag(const HmbtnVillage *v,unsigned id)
 }
 bool hmbtn_village_flag_set(HmbtnVillage *v,unsigned id,bool value)
 {
-    if(!v || id>=HMBTN_VILLAGE_FLAGS || ((id==0x38 || id==0x3B || id==0x3C) && v->construction) || (id==0x3A && v->poultry)
+    if(!v || id>=HMBTN_VILLAGE_FLAGS || ((id==0x38 || id==0x39 || (id>=0x3B && id<=0x3E)) && v->construction) || (id==0x3A && v->poultry)
         || (id>=0x5b && id<=0x5d && v->cooking)) return false;
     v->flags[id]=value;return true;
 }

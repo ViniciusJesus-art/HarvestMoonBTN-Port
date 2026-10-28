@@ -150,14 +150,15 @@ static HmbtnEventResult command(void *context,const HmbtnEventCommand *c,char *e
         if(y!=-1) { if(!slot(y)) goto invalid;t->slots[y]=day; }
         done=t->clock->season==(unsigned)season && t->clock->day==(unsigned)day;break;
     case 95: {
-        /* Original house,barn,coop,greenhouse slots; greenhouse still absent. */
+        /* Original house,barn,coop,greenhouse slots, all derived from owners. */
         const int args[4]={v,e,x,y};
         for(unsigned i=0;i<4;++i) if(args[i]!=-1) {
             if(!slot(args[i])) goto invalid;
             if(i==2 && !t->village->poultry) goto boundary;
             t->slots[args[i]]=i==0 && t->village->construction ? (int32_t)t->village->construction->house_level
                 : i==1 && t->village->construction ? (int32_t)t->village->construction->barn_level
-                : i==2 && t->village->poultry->upgraded ? 1 : 0;
+                : i==2 && t->village->poultry->upgraded ? 1
+                : i==3 && t->village->construction && t->village->construction->greenhouse ? 1 : 0;
         }
         break;
     }

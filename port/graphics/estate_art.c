@@ -32,6 +32,23 @@ const HmbtnAnimation *hmbtn_estate_art_sprite(const HmbtnEstateArt *a,unsigned i
 {
     return index<45 && a->sprites[index].data ? &a->sprites[index] : NULL;
 }
+static unsigned crop_animation(unsigned seed,unsigned stage,const HmbtnFarmCrop *crop)
+{
+    /* Original mature range overrun resolves to frame zero; keep the bounded
+     * decoder and share the existing explicit resolution in both layouts. */
+    const bool mature_zero=seed==0x26 || seed==0x31 || seed==0x32 || seed==0x34 || seed==0x33 || seed==0x178 || seed==0x179;
+    return mature_zero && stage==crop->grown ? 0 : stage+2;
+}
+bool hmbtn_estate_greenhouse_crop_look(unsigned seed,unsigned stage,unsigned *sprite,unsigned *animation)
+{
+    const HmbtnFarmCrop *crop=hmbtn_farm_crop(seed);
+    if(!crop || !stage || stage>crop->grown || !sprite || !animation) return false;
+    for(unsigned i=0;i<sizeof(greenhouse_crop_sprites)/sizeof(*greenhouse_crop_sprites);++i)
+        if(greenhouse_crop_sprites[i][0]==seed) {
+            *sprite=greenhouse_crop_sprites[i][1];*animation=crop_animation(seed,stage,crop);return true;
+        }
+    return false;
+}
 
 /* src/overlay/11_GF_FARM/field/field.c: field_cell_look_* and
  * field_cell_look_anim; d3c0f38. Resolve original art without GPU calls or
@@ -40,6 +57,15 @@ bool hmbtn_estate_crop_look(unsigned seed,unsigned stage,unsigned season,
     unsigned *sprite,unsigned *animation)
 {
     if(!stage || !sprite || !animation || season>2) return false;
+    /* field_cell_look_spring/summer/fall, reference 6fa97ab: Orangecup
+     * has no spring case, a live summer case and a dead fall case despite
+     * CROP_ORANGE_CUP.season=0. Preserve the source's asymmetry; planting
+     * and growth stay in the shared field engine, not in presentation. */
+    if(seed==0x35) {
+        if(season==0) return false;
+        *sprite=season==1 ? 18u : 38u;
+        *animation=season==1 ? stage+2 : 0;return true;
+    }
     unsigned live,dead;
     switch(seed) {
     case 0x22:live=7;dead=7;break;
@@ -73,8 +99,7 @@ bool hmbtn_estate_crop_look(unsigned seed,unsigned stage,unsigned season,
          * anim_draw_sprt_parts reads the first frame's zero dx as the offset
          * and displays frame zero (the mature head/flower). Resolve that
          * result explicitly; never relax the native decoder's bounds. */
-        const bool mature_zero=seed==0x26 || seed==0x31 || seed==0x32 || seed==0x34 || seed==0x33 || seed==0x178 || seed==0x179;
-        *animation=mature_zero && stage==crop->grown ? 0 : stage+2;
+        *animation=crop_animation(seed,stage,crop);
         return true;
     }
     if(season==crop->season+1) { *sprite=dead;*animation=0;return true; }

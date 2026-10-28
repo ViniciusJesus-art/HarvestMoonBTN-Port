@@ -302,8 +302,7 @@ bool hmbtn_carpenter_shop_open(HmbtnFeedShop *s,const HmbtnFarmClock *clock)
 }
 unsigned hmbtn_carpenter_shop_rows(const HmbtnFeedShop *s)
 {
-    /* Expose completed construction integrations; house2/greenhouse stay hidden. */
-    return s && s->poultry && s->construction ? (hmbtn_construction_next(s->construction,s->poultry)<3 ? 2u : 1u) : 0;
+    return s && s->poultry && s->construction ? (hmbtn_construction_next(s->construction,s->poultry)<5 ? 2u : 1u) : 0;
 }
 /* shop_lumber_deal_step/shop_menu_choose, using the existing modal shop.
  * No money, materials or building levels live in the presentation state. */

@@ -4,7 +4,7 @@ Política definida em 2026-10-26, antes da implementação. Próxima fila e acei
 continuam no [ROADMAP.md](ROADMAP.md). Alvos Linux/Windows; Android depois.
 
 **Atualização de política — 2026-10-27:** o usuário dispensou compatibilidade
-entre saves durante o desenvolvimento. O codec atual v8 aceita somente v8;
+entre saves durante o desenvolvimento. O codec atual v10 aceita somente v10;
 versões antigas/futuras são recusadas com indicação de jogo novo. Os detalhes
 v1 abaixo registram a entrega original. Migradores não são requisito atual;
 integridade, publicação transacional e retomada da versão vigente continuam

@@ -45,7 +45,9 @@ bool hmbtn_scene_data_open(HmbtnSceneData *s, const uint8_t *bytes, size_t size,
             if (flags&15u) s->flags[i] |= 0x1000u;
             else s->flags[i] &= (uint16_t)~0x1000u;
         }
-        if (!(s->flags[i]&0x1000u)) {
+        /* Linked bed alternatives can become visible during sleep. Reserve
+         * their decoded primitives as well as initially visible models. */
+        if (!(s->flags[i]&0x1000u) || (flags&0x80u)) {
             if (s->models[i].primitive_count > 16384-s->primitive_capacity) goto invalid;
             s->primitive_capacity += s->models[i].primitive_count;
         }

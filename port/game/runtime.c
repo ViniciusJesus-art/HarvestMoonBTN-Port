@@ -415,13 +415,17 @@ static bool exploration_boundary(void *context,HmbtnSession *session,HmbtnExplor
                 hmbtn_house_sleep_start(&s->session->sleep,&s->session->intro.player,s->session->construction.house_level); s->session->intro.action_active=true;
             }
             hmbtn_house_sleep_tick(&s->session->sleep,&s->session->intro.player);
-            /* scene_link_handback: eight steps to lift, then twelve to settle. */
-            s->scene->flags[1]=(uint16_t)((s->scene->flags[1]&~0x1000u)|(s->session->sleep.second_bed ? 0x1000u : 0u));
-            s->scene->flags[2]=(uint16_t)((s->scene->flags[2]&~0x1000u)|(s->session->sleep.second_bed ? 0u : 0x1000u));
-            s->scene->models[1].morph_steps=8;
-            s->scene->models[1].morph_step=s->session->sleep.second_bed ? 8 : s->session->sleep.link_step;
-            s->scene->models[2].morph_steps=12;
-            s->scene->models[2].morph_step=s->session->sleep.link_state==2 ? s->session->sleep.link_step : 0;
+            /* scene_link_slot1_reset/handback select LINK+slot, not array index:
+             * house0 uses 1/2, house1 2/3, house2 1/5. */
+            for(unsigned i=0;i<HMBTN_SCENE_MODELS;++i) {
+                const unsigned flags=s->scene->flags[i],slot=flags&15u;
+                if(!(flags&0x80u) || (flags&0x8000u) || slot>1) continue;
+                const bool hidden=slot==0 ? s->session->sleep.second_bed : !s->session->sleep.second_bed;
+                s->scene->flags[i]=(uint16_t)((flags&~0x1000u)|(hidden ? 0x1000u : 0u));
+                s->scene->models[i].morph_steps=slot==0 ? 8u : 12u;
+                s->scene->models[i].morph_step=slot==0 ? (s->session->sleep.second_bed ? 8u : s->session->sleep.link_step)
+                    : s->session->sleep.link_state==2 ? s->session->sleep.link_step : 0u;
+            }
             s->session->intro.music_volume=s->session->intro.music_volume*(30-s->session->sleep.fade)/30;
             if(s->session->sleep.boundary && !morning(s,true,error,error_size)) return false;
         }
@@ -770,6 +774,8 @@ void hmbtn_session_area_begin(HmbtnSession *s,unsigned area,unsigned previous,bo
         if(s->visit.event==289) for(unsigned id=1;id<HMBTN_VILLAGERS;++id) s->visit.actors[id].visible=false;
     }
     s->triggers=(HmbtnFarmTriggers){0};s->trigger_entry=true;
+    /* farm_main.c clears the fireplace on every area entry, not its daily count. */
+    s->village.flags[0x45]=false;
 }
 void hmbtn_session_area_ready(HmbtnSession *s,unsigned area,const HmbtnSceneData *scene)
 {
@@ -778,7 +784,8 @@ void hmbtn_session_area_ready(HmbtnSession *s,unsigned area,const HmbtnSceneData
     if(s->village_ready) hmbtn_village_enter(&s->village);
     s->village.flags[0x5E]=false;s->fishing.streak=0;
     hmbtn_daylight_weather_select(&s->daylight,&s->game.clock,s->game.weather.today);
-    if(area!=0) memset(s->field_effects,0,sizeof(s->field_effects));
-    else s->field.season=s->game.clock.season;
+    memset(s->field_effects,0,sizeof(s->field_effects));
+    HmbtnFarmField *field=hmbtn_session_field(s);
+    if(field) field->season=s->game.clock.season;
     s->intro.camera_height=-4500;s->intro.camera_distance=-9000;
 }

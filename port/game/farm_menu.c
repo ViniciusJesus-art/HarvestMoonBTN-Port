@@ -96,7 +96,7 @@ void hmbtn_farm_menu_tick(HmbtnFarmMenu *m,HmbtnInventory *h,uint32_t pressed,ui
  * Greenhouse level remains at its actual initial value. */
 unsigned hmbtn_farm_menu_building_score(const HmbtnFarmMenu *m)
 {
-    return m ? ((m->poultry && m->poultry->upgraded ? 1u : 0u)+(m->construction ? m->construction->house_level+m->construction->barn_level : 0u))*20u : 0;
+    return m ? ((m->poultry && m->poultry->upgraded ? 1u : 0u)+(m->construction ? m->construction->house_level+m->construction->barn_level+(m->construction->greenhouse ? 1u : 0u) : 0u))*20u : 0;
 }
 
 unsigned hmbtn_farm_menu_animal_count(const HmbtnFarmMenu *m,unsigned kind)

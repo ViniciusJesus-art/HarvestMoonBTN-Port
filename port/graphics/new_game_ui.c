@@ -40,9 +40,17 @@ HmbtnNewGameUI *hmbtn_new_game_ui_create(const char *root, char *error, size_t e
     HmbtnNewGameUI *u = calloc(1,sizeof(*u));
     uint8_t small[8192];
     if (!u) { snprintf(error,error_size,"Cannot allocate new-game UI"); return NULL; }
-    u->root=malloc(strlen(root)+1);
-    if(!u->root) { free(u);snprintf(error,error_size,"Cannot retain UI resource root");return NULL; }
-    strcpy(u->root,root);u->portrait_bank=UINT32_MAX;
+    size_t root_len = strlen(root) + 1;
+
+    u->root = malloc(root_len);
+    if (!u->root) {
+        free(u);
+        snprintf(error, error_size, "Cannot retain UI resource root");
+        return NULL;
+    }
+
+    memcpy(u->root, root, root_len);
+    u->portrait_bank = UINT32_MAX;
     u->atlas = malloc(sizeof(*u->atlas));
     if (!u->atlas) { snprintf(error,error_size,"Cannot allocate UI image atlas"); goto failed; }
     if (!hmbtn_resource_read(root,"A_FILE/00_gf.bin",0,small,sizeof(small),error,error_size)

@@ -55,7 +55,7 @@ struct HmbtnScenePreview {
     HmbtnSession *session;
     uint8_t *section, *pixels;
     HmbtnImageAtlas *atlas;
-    HmbtnSceneData scene;
+    HmbtnSceneData scene = {0};
     HmbtnModelRenderer *geometry;
     SDL_Texture *texture;
     int32_t centre_x, centre_z;

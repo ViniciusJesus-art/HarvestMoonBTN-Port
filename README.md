@@ -2,7 +2,30 @@
 
 # Harvest Moon: Back to Nature — PC Port
 
+
+<a href="https://github.com/ViniciusJesus-art/HarvestMoonBTN-Port/releases/latest/download/HarvestMoonBTN-windows-x64-setup.exe">
+  <img src="https://img.shields.io/badge/Windows-Download_EXE-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Download Windows">
+</a>
+</a>
+&nbsp;&nbsp;&nbsp;
+<a href="...">
+<a href="https://github.com/ViniciusJesus-art/HarvestMoonBTN-Port/releases/latest/download/HarvestMoonBTN-linux-x86_64.AppImage">
+  <img src="https://img.shields.io/badge/Linux-Download_AppImage-1793D1?style=for-the-badge&logo=linux&logoColor=white" alt="Download Linux">
+</a>
+</a>
+&nbsp;&nbsp;&nbsp;
+<a href="...">
+<a href="https://github.com/ViniciusJesus-art/HarvestMoonBTN-Port/releases">
+  <img src="https://img.shields.io/badge/All_Releases-GitHub-24292e?style=for-the-badge&logo=github&logoColor=white" alt="All Releases">
+</a>
+
+
+
 **A personal project to port Harvest Moon: Back to Nature (PlayStation) natively to Linux and Windows.**
+
+
+**[ Game files are not included due to copyright restrictions. During the first launch, you will need to provide your original game .bin file. ]**
+
 
 *Based on the [hmbtn-decomp](https://github.com/coalslav/hmbtn-decomp) decompilation project by coalslav.*
 

@@ -48,7 +48,9 @@ bool hmbtn_world_door_at(const uint8_t *section,size_t size,
         const uint8_t *p=section+16+i*44;
         unsigned logical,resource;
         const unsigned flags=hmbtn_read_le16(p);
-        if((flags!=0x9000 && flags!=0x1000) || !hmbtn_world_area(hmbtn_read_le16(p+2),0,&logical,&resource)
+        const unsigned target=hmbtn_read_le16(p+2);
+        const bool internal=flags==0x1000 && target==0xfffe && hmbtn_read_le16(p+10)!=99;
+        if((flags!=0x9000 && flags!=0x1000) || (!internal && !hmbtn_world_area(target,0,&logical,&resource))
                 || hmbtn_read_le16(p+8)!=player->facing
                 || hmbtn_read_le16(p+12)>=15) continue;
         if(player->position[0]<=half(p+14) || player->position[0]>=half(p+20)

@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "seed_menu.inc"
+#include "animal_tool_menu.inc"
 unsigned hmbtn_seed_shop_entries(unsigned season)
 {
     return season==0 ? (unsigned)(sizeof(spring_seeds)/sizeof(*spring_seeds))
@@ -111,8 +112,9 @@ static void reset_shop(HmbtnFeedShop *s)
     HmbtnPoultry *poultry=s->poultry;const HmbtnEconomy *economy=s->economy;
     const HmbtnGameProgress *progress=s->progress;
     HmbtnConstruction *construction=s->construction;
+    const HmbtnInventory *inventory=s->inventory;
     memset(s,0,sizeof(*s));s->poultry=poultry;s->economy=economy;
-    s->progress=progress;s->construction=construction;s->livestock=livestock;
+    s->progress=progress;s->construction=construction;s->livestock=livestock;s->inventory=inventory;
 }
 bool hmbtn_feed_shop_open(HmbtnFeedShop *s,HmbtnVillage *v,const HmbtnIntroActor *p,
     const HmbtnFarmClock *clock,unsigned area,unsigned held_item)
@@ -193,6 +195,88 @@ bool hmbtn_won_seed_shop_open(HmbtnFeedShop *s,const HmbtnFarmClock *clock)
     reset_shop(s);
     s->seeds=true;s->merchant=35;s->clock=clock;s->quantity=1;
     s->item=won_seeds[0].item;s->sound=3;start_message(s,HMBTN_SHOP_GREETING,0x164);return true;
+}
+/* shop_tool_upgrade_menu_setup / shop_stock_step, reference fcef049.
+ * The shared modal exposes improve-tool instructions and buy-tool. Orders for
+ * gifts/makers/upgrades are outside this slice and are not fake transactions. */
+unsigned hmbtn_blacksmith_tool_count(const HmbtnFeedShop *s)
+{
+    unsigned count=0;
+    if(s && s->inventory) for(unsigned i=0;i<sizeof(animal_tools)/sizeof(*animal_tools);++i)
+        count+=hmbtn_inventory_count(s->inventory,(int)animal_tools[i].item,0,2)==0;
+    return count;
+}
+const HmbtnSeedShopEntry *hmbtn_blacksmith_tool_entry(const HmbtnFeedShop *s,unsigned row)
+{
+    if(s && s->inventory) for(unsigned i=0;i<sizeof(animal_tools)/sizeof(*animal_tools);++i)
+        if(hmbtn_inventory_count(s->inventory,(int)animal_tools[i].item,0,2)==0) {
+            if(!row) return &animal_tools[i];
+            --row;
+        }
+    return NULL;
+}
+bool hmbtn_blacksmith_shop_open(HmbtnFeedShop *s,const HmbtnFarmClock *clock,const HmbtnInventory *inventory)
+{
+    if(!s || !clock || !inventory || s->phase!=HMBTN_SHOP_OFF) return false;
+    reset_shop(s);s->blacksmith=true;s->merchant=4;s->clock=clock;s->inventory=inventory;
+    s->sound=3;s->quantity=1;start_message(s,HMBTN_SHOP_GREETING,0x85);return true;
+}
+static void blacksmith_tick(HmbtnFeedShop *s,HmbtnHouseInteraction *h,HmbtnEconomy *economy,uint32_t pressed,uint32_t held)
+{
+    if(s->loaded!=s->request) return;
+    const bool input=s->phase==HMBTN_SHOP_SELECT || s->phase==HMBTN_SHOP_TOOL_LIST;
+    const bool ready=s->message.phase==HMBTN_MESSAGE_WAIT_END;
+    s->sound=hmbtn_message_tick(&s->message,input && !s->closing ? 0 : pressed,held);
+    if(s->closing) {
+        if(s->message.phase==HMBTN_MESSAGE_CLOSED) start_message(s,s->next,s->next_request);
+        return;
+    }
+    if(!input) {
+        if(s->message.phase!=HMBTN_MESSAGE_CLOSED) return;
+        if(s->phase==HMBTN_SHOP_LEAVE) { s->phase=HMBTN_SHOP_OFF;s->request=0;return; }
+        if(s->phase==HMBTN_SHOP_GREETING) { start_message(s,HMBTN_SHOP_SELECT,0x86);return; }
+        if(s->phase==HMBTN_SHOP_RESULT && s->request==0xae) {
+            /* Pay/store after the acceptance text, just once. No hidden spare
+             * slot fallback: original shop_item_room(item,1)/add(mode=1). */
+            if(!hmbtn_inventory_can_store_tool(h->inventory,false)) { s->after_result=HMBTN_SHOP_TOOL_LIST;start_message(s,HMBTN_SHOP_RESULT,0x54);return; }
+            const unsigned price=hmbtn_feed_shop_cost(s);
+            if(economy->gold<price) { s->after_result=HMBTN_SHOP_TOOL_LIST;start_message(s,HMBTN_SHOP_RESULT,0x4f);return; }
+            if(hmbtn_inventory_count(h->inventory,(int)s->item,0,2)==0
+                    && hmbtn_inventory_store_tool(h->inventory,(HmbtnStoredTool){(uint16_t)s->item,0,1},false,NULL))
+                hmbtn_economy_gold_change(economy,-(int64_t)price,true);
+            s->selection=1;s->after_result=HMBTN_SHOP_SELECT;
+        }
+        start_message(s,s->after_result,s->after_result==HMBTN_SHOP_TOOL_LIST ? 0x91 : 0xb5);return;
+    }
+    if(!ready) return;
+    s->after_result=s->phase;
+    if(s->phase==HMBTN_SHOP_SELECT) {
+        if(pressed&(HMBTN_PAD_UP|HMBTN_PAD_DOWN)) { s->selection^=1u;s->sound=2; }
+        if(pressed&HMBTN_PAD_CIRCLE) { next(s,HMBTN_SHOP_LEAVE,0x91);return; }
+        if(pressed&HMBTN_PAD_TRIANGLE) { next(s,HMBTN_SHOP_INFO,s->selection ? 0x8c : 0x87);return; }
+        if(pressed&HMBTN_PAD_CROSS) {
+            if(!s->selection) { next(s,HMBTN_SHOP_INFO,0x87);return; }
+            if(!hmbtn_blacksmith_tool_count(s)) { next(s,HMBTN_SHOP_RESULT,0xad);return; }
+            s->sale_cursor=0;s->item=hmbtn_blacksmith_tool_entry(s,0)->item;
+            next(s,HMBTN_SHOP_TOOL_LIST,0x91);
+        }
+        return;
+    }
+    const unsigned count=hmbtn_blacksmith_tool_count(s);
+    if(!count) { s->after_result=HMBTN_SHOP_SELECT;next(s,HMBTN_SHOP_RESULT,0xad);return; }
+    if(pressed&(HMBTN_PAD_UP|HMBTN_PAD_DOWN)) {
+        s->sale_cursor=(s->sale_cursor+(pressed&HMBTN_PAD_UP ? count-1 : 1))%count;s->sound=2;
+    }
+    const HmbtnSeedShopEntry *entry=hmbtn_blacksmith_tool_entry(s,s->sale_cursor);
+    if(!entry) { s->sale_cursor=0;entry=hmbtn_blacksmith_tool_entry(s,0); }
+    s->item=entry->item;
+    if(pressed&HMBTN_PAD_CIRCLE) { s->after_result=HMBTN_SHOP_SELECT;next(s,HMBTN_SHOP_INFO,0x91); }
+    else if(pressed&HMBTN_PAD_TRIANGLE) next(s,HMBTN_SHOP_INFO,entry->description);
+    else if(pressed&HMBTN_PAD_CROSS) {
+        if(!hmbtn_inventory_can_store_tool(h->inventory,false)) next(s,HMBTN_SHOP_RESULT,0x54);
+        else if(economy->gold<hmbtn_feed_shop_cost(s)) next(s,HMBTN_SHOP_RESULT,0x4f);
+        else { s->after_result=HMBTN_SHOP_SELECT;next(s,HMBTN_SHOP_RESULT,0xae); }
+    }
 }
 /* shop_result_request_std vs shop_result_request[_ready/_alt]. */
 enum SeedMessage { SEED_OFFER,SEED_STORED,SEED_LEAVE,SEED_CANCEL,SEED_CANCELLED,SEED_BOX };
@@ -397,6 +481,7 @@ void hmbtn_feed_shop_tick(HmbtnFeedShop *s,HmbtnHouseInteraction *h,HmbtnEconomy
     uint32_t pressed,uint32_t held)
 {
     s->sound=-1;
+    if(s->blacksmith) { blacksmith_tick(s,h,economy,pressed,held);return; }
     if(s->carpenter) { carpenter_tick(s,h,economy,pressed,held);return; }
     if(s->seeds) { seed_tick(s,h,economy,pressed,held);return; }
     const bool barn=s->merchant==15;
@@ -441,13 +526,16 @@ void hmbtn_feed_shop_tick(HmbtnFeedShop *s,HmbtnHouseInteraction *h,HmbtnEconomy
     if(!input) {
         if(s->message.phase!=HMBTN_MESSAGE_CLOSED) return;
         switch(s->phase) {
-        case HMBTN_SHOP_GREETING:case HMBTN_SHOP_INFO:start_message(s,HMBTN_SHOP_SELECT,barn ? 0x6B : 0x46);break;
+        /* shop_menu_open_choose always prompts with bank 2 / 0x46.
+         * request.second (Barley's 0x6B) is the cancellation message. */
+        case HMBTN_SHOP_GREETING:case HMBTN_SHOP_INFO:start_message(s,HMBTN_SHOP_SELECT,0x46);break;
         case HMBTN_SHOP_OFFER:
             if(s->selection==1 || (barn && (s->selection==4 || s->selection==5))) { s->phase=HMBTN_SHOP_NAME;hmbtn_name_editor_begin(&s->editor); }
+            else if(barn && s->selection>=6) start_message(s,HMBTN_SHOP_SELL_LIST,0x5A);
             else if(s->selection==2) start_message(s,HMBTN_SHOP_SELL_LIST,0x5A);
             else start_message(s,HMBTN_SHOP_COUNT,0x4D);
             break;
-        case HMBTN_SHOP_RESULT:start_message(s,s->after_result,s->after_result==HMBTN_SHOP_SELECT ? (barn ? 0x6B : 0x46) : 0x4D);break;
+        case HMBTN_SHOP_RESULT:start_message(s,s->after_result,s->after_result==HMBTN_SHOP_SELECT ? 0x46 : 0x4D);break;
         case HMBTN_SHOP_LEAVE:s->phase=HMBTN_SHOP_OFF;s->request=0;break;
         default:break;
         }
@@ -456,16 +544,25 @@ void hmbtn_feed_shop_tick(HmbtnFeedShop *s,HmbtnHouseInteraction *h,HmbtnEconomy
     if(!ready) return;
     if(s->phase==HMBTN_SHOP_SELL_LIST) {
         unsigned count=0;
-        while(hmbtn_poultry_sale_slot(s->poultry,count)<HMBTN_HENS) ++count;
+        if(barn) while(hmbtn_livestock_sale_slot(s->livestock,s->selection==7,count)<HMBTN_LIVESTOCK) ++count;
+        else while(hmbtn_poultry_sale_slot(s->poultry,count)<HMBTN_HENS) ++count;
         s->after_result=HMBTN_SHOP_SELECT;
-        if(!count) { next(s,HMBTN_SHOP_RESULT,0x59);return; }
+        if(!count) { next(s,HMBTN_SHOP_RESULT,barn ? (s->selection==7 ? 0x78 : 0x76) : 0x59);return; }
         if(s->sale_cursor>=count) s->sale_cursor=0;
         if(pressed&HMBTN_PAD_UP) { s->sale_cursor=(s->sale_cursor+count-1)%count;s->sound=5; }
         else if(pressed&HMBTN_PAD_DOWN) { s->sale_cursor=(s->sale_cursor+1)%count;s->sound=5; }
-        else if(pressed&HMBTN_PAD_CIRCLE) { s->sound=1;next(s,HMBTN_SHOP_RESULT,0x5B); }
+        else if(pressed&HMBTN_PAD_CIRCLE) { s->sound=1;next(s,HMBTN_SHOP_RESULT,barn ? 0x79 : 0x5B); }
         else if(pressed&HMBTN_PAD_CROSS) {
+            if(barn) {
+                s->sale_slot=hmbtn_livestock_sale_slot(s->livestock,s->selection==7,s->sale_cursor);s->answer=0;s->sound=0;
+                const HmbtnFarmAnimal *a=&s->livestock->animals[s->sale_slot];
+                const unsigned message=a->sheep ? (a->prize_winner ? 0x81 : a->affection<101 ? 0x7c : a->affection<201 ? 0x7d : 0x7e)
+                    : a->prize_winner ? 0x82 : a->affection<101 ? 0x7d : a->affection<201 ? 0x7f : 0x80;
+                next(s,HMBTN_SHOP_SELL_CONFIRM,message);
+            } else {
             s->sale_slot=hmbtn_poultry_sale_slot(s->poultry,s->sale_cursor);s->answer=0;s->sound=0;
             next(s,HMBTN_SHOP_SELL_CONFIRM,s->poultry->hens[s->sale_slot].prize ? 0x61 : 0x60);
+            }
         }
         if(s->sale_cursor<s->sale_top) s->sale_top=s->sale_cursor;
         if(s->sale_cursor>=s->sale_top+4) s->sale_top=s->sale_cursor-3;
@@ -475,20 +572,23 @@ void hmbtn_feed_shop_tick(HmbtnFeedShop *s,HmbtnHouseInteraction *h,HmbtnEconomy
         if(pressed&(HMBTN_PAD_UP|HMBTN_PAD_DOWN)) { s->answer^=1;s->sound=5; }
         else if(pressed&(HMBTN_PAD_CROSS|HMBTN_PAD_CIRCLE)) {
             const bool yes=!(pressed&HMBTN_PAD_CIRCLE) && !s->answer;
-            const unsigned price=yes ? hmbtn_poultry_sell(s->poultry,s->sale_slot) : 0;
+            const unsigned price=!yes ? 0 : barn ? hmbtn_livestock_sell(s->livestock,s->sale_slot) : hmbtn_poultry_sell(s->poultry,s->sale_slot);
             s->sound=yes ? 0 : 1;s->after_result=HMBTN_SHOP_SELECT;
             if(price) {
                 hmbtn_economy_gold_change(economy,(int64_t)price,false);
-                stats->animals[0]=hmbtn_poultry_count(s->poultry);
+                if(!barn) stats->animals[0]=hmbtn_poultry_count(s->poultry);
             }
-            next(s,HMBTN_SHOP_RESULT,price ? 0x5E : 0x5B);
+            next(s,HMBTN_SHOP_RESULT,barn ? (price ? 0x83 : 0x79) : price ? 0x5E : 0x5B);
         }
         return;
     }
-    if(pressed&HMBTN_PAD_CIRCLE) { s->sound=1;next(s,HMBTN_SHOP_LEAVE,barn ? 0x6E : 0x4E);return; }
+    if(pressed&HMBTN_PAD_CIRCLE) {
+        s->sound=1;
+        next(s,HMBTN_SHOP_LEAVE,barn ? (s->phase==HMBTN_SHOP_SELECT ? 0x6B : 0x6E) : 0x4E);return;
+    }
     if(pressed&HMBTN_PAD_TRIANGLE) {
         s->sound=0;s->after_result=s->phase;
-        next(s,HMBTN_SHOP_RESULT,barn && s->selection>=4 ? (s->selection==4 ? 0x67 : 0x68) : s->selection==3 ? (barn ? 0x64 : 0x48)
+        next(s,HMBTN_SHOP_RESULT,barn && s->selection>=4 ? 0x67+s->selection-4 : s->selection==3 ? (barn ? 0x64 : 0x48)
             : barn ? 0x63 : s->selection==2 ? 0x49 : s->selection ? 0x4A : 0x47);return;
     }
     if(s->phase==HMBTN_SHOP_SELECT) {
@@ -508,7 +608,12 @@ void hmbtn_feed_shop_tick(HmbtnFeedShop *s,HmbtnHouseInteraction *h,HmbtnEconomy
             s->quantity=1;s->sound=5;
         } else if(pressed&HMBTN_PAD_CROSS) {
             s->sound=0;s->after_result=HMBTN_SHOP_SELECT;
-            if(barn && (s->selection==4 || s->selection==5)) {
+            if(barn && s->selection>=6) {
+                s->sale_cursor=s->sale_top=0;
+                const bool sheep=s->selection==7,empty=hmbtn_livestock_sale_slot(s->livestock,sheep,0)==HMBTN_LIVESTOCK;
+                next(s,empty ? HMBTN_SHOP_RESULT : HMBTN_SHOP_OFFER,empty ? (sheep ? 0x78 : 0x76) : sheep ? 0x77 : 0x75);
+            }
+            else if(barn && (s->selection==4 || s->selection==5)) {
                 if(hmbtn_livestock_free(s->livestock)==HMBTN_LIVESTOCK) next(s,HMBTN_SHOP_RESULT,0x72);
                 else if(economy->gold<hmbtn_feed_shop_cost(s)) next(s,HMBTN_SHOP_RESULT,0x4F);
                 else next(s,HMBTN_SHOP_OFFER,0x73);
@@ -560,10 +665,10 @@ void hmbtn_feed_shop_tick(HmbtnFeedShop *s,HmbtnHouseInteraction *h,HmbtnEconomy
 }
 
 unsigned hmbtn_barn_shop_rows(const HmbtnFeedShop *s)
-{ return s ? 1u+(s->livestock ? 2u : 0u)+s->medicine_available : 0; }
+{ return s ? 1u+(s->livestock ? 4u : 0u)+s->medicine_available : 0; }
 unsigned hmbtn_barn_shop_row(const HmbtnFeedShop *s,unsigned row)
 {
     if(!row) return 0;
-    if(s && s->livestock && row<3) return row+3;
+    if(s && s->livestock && row<5) return row+3;
     return 3;
 }

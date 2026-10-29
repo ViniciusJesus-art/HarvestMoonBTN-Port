@@ -16,7 +16,9 @@ HmbtnDoorPassage hmbtn_area_doors_request(HmbtnAreaDoors *d,const uint8_t *secti
         const unsigned flags=hmbtn_read_le16(zone),model=hmbtn_read_le16(zone+12);
         if(hmbtn_read_le16(zone+10)!=event || hmbtn_read_le16(zone+8)>3
                 || model>=HMBTN_SCENE_MODELS || (flags!=0x9000 && flags!=0x1000)) continue;
-        if(flags==0x1000) return HMBTN_DOOR_READY; /* Passage without a swinging model. */
+        /* ZONE id -2 is a swinging door within this map, not an area exit.
+         * Both sides share the same event/model (inn rooms, clinic, etc.). */
+        if(flags==0x1000 && hmbtn_read_le16(zone+2)!=0xfffe) return HMBTN_DOOR_READY;
         HmbtnAreaDoor *door=&d->models[model];
         /* Two route events can address the opposite leaves of one door. */
         for(unsigned j=0;j<HMBTN_SCENE_MODELS;++j)

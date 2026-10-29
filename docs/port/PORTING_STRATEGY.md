@@ -41,9 +41,10 @@ Obra/mapas/cochos do celeiro foram integrados em
 e lareira de inverno foram integradas em [PF06_SECOND_HOUSE.md](PF06_SECOND_HOUSE.md).
 A estufa de cultivo foi integrada em [PF06_GREENHOUSE.md](PF06_GREENHOUSE.md),
 com campo distinto, regras comuns e perda/reconstrução. Orangecup foi habilitada
-nesses mesmos sistemas em [PF06_ORANGECUP.md](PF06_ORANGECUP.md). Próximo: ferramentas animais e leite/lã,
+nesses mesmos sistemas em [PF06_ORANGECUP.md](PF06_ORANGECUP.md). Ferramentas animais, escovação, ordenha e tosquia foram integradas em
+[PF06_ANIMAL_TOOLS.md](PF06_ANIMAL_TOOLS.md). Próximo: venda de vacas e ovelhas,
 conforme o roadmap;
-venda/produção/reprodução/ciclo animal completo permanecem pendentes.
+venda/reprodução/ciclo animal completo permanecem pendentes.
 Aquisição de utensílios/cozinha completa e PF-06 permanecem abertas.
 
 ## Objetivo e diretrizes permanentes
@@ -88,8 +89,8 @@ anterior em caso de falha. Migradores entre versões não são pré-requisito de
 entrega. Compatibilidade para uma versão publicada poderá ser definida depois.
 Os relatórios anteriores descrevem a compatibilidade existente naquelas entregas;
 não são compromissos de manutenção. A construção introduziu v5; casa/depósitos/cozinha introduziram o formato v6, que
-não lê versões anteriores. O celeiro acrescentou nível em v7; a coleção animal e RNG usam o formato atual v8,
-sem leitura de versões anteriores.
+não lê versões anteriores. O celeiro acrescentou nível em v7; a coleção animal e RNG foram introduzidos em v8. O formato vigente é v11, com
+ordenha/cuidados diários dos animais, sem leitura de versões anteriores.
 
 ## Escopo PC e legado PS1
 

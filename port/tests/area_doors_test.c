@@ -1,5 +1,6 @@
 #include "area_doors.h"
 #include "village.h"
+#include "house_control.h"
 #include "psx_data.h"
 #include <stdio.h>
 #include <string.h>
@@ -45,6 +46,17 @@ int main(void)
         CHECK(hmbtn_area_doors_request(&d,section,sizeof(section),99,face)==HMBTN_DOOR_UNHANDLED);
         CHECK(hmbtn_area_doors_request(&d,section,10,25,face)==HMBTN_DOOR_UNHANDLED);
     }
+    /* Internal -2 door: opposite sides use one model, never an area travel. */
+    d=(HmbtnAreaDoors){0};hmbtn_area_doors_bind(&d,&scene);
+    zone(section,3,0x1000,35,4);hmbtn_write_le16(section+16+3*44+2,0xfffe);
+    uint8_t *inside=section+16+3*44;
+    hmbtn_write_le16(inside+14,(uint16_t)-100);hmbtn_write_le16(inside+18,(uint16_t)-100);
+    hmbtn_write_le16(inside+20,100);hmbtn_write_le16(inside+24,100);
+    HmbtnIntroActor player={0};HmbtnHouseExit exit;unsigned model;
+    CHECK(hmbtn_world_door_at(section,sizeof(section),&player,&exit,&model) && exit.target==0xfffe && model==4);
+    CHECK(hmbtn_area_doors_request(&d,section,sizeof(section),35,0)==HMBTN_DOOR_WAIT);
+    for(unsigned i=0;i<16;++i) hmbtn_area_doors_tick(&d,false);
+    CHECK(d.models[4].phase==HMBTN_DOOR_HELD);
     /* Multiple residents and multiple physical doors advance once per tick. */
     d=(HmbtnAreaDoors){0};hmbtn_area_doors_bind(&d,&scene);zone(section,2,0x9000,27,3);
     CHECK(hmbtn_area_doors_request(&d,section,sizeof(section),25,1)==HMBTN_DOOR_WAIT);

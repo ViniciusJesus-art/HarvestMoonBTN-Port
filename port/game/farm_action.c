@@ -11,7 +11,7 @@ static void idle(HmbtnFarmAction *a,HmbtnIntroActor *p)
     a->finished_bank=a->bank>=0;a->bank=-1;a->phase=HMBTN_FARM_ACTION_FREE;
     p->sprite=(HmbtnAnimationPlayer){0,(uint16_t)p->facing,0};p->animation_done=false;
 }
-static void cost(HmbtnFarmAction *a,const HmbtnHouseInteraction *h,unsigned amount)
+void hmbtn_farm_action_cost(HmbtnFarmAction *a,const HmbtnHouseInteraction *h,unsigned amount)
 {
     unsigned fatigue=(h->weather->today!=0)+(h->clock->hour>=22 ? 1u : h->clock->hour<6 ? 2u : 0u)+(a->stamina==0 ? 2u : 0u);
     a->stamina=a->stamina>amount ? a->stamina-amount : 0;
@@ -35,7 +35,7 @@ bool hmbtn_farm_action_tick(HmbtnFarmAction *a,HmbtnIntroActor *p,HmbtnHouseInte
                 a->changed|=hmbtn_farm_field_plant(field,c+dx,r+dz,tool->id);
         }
         if(tool->count>1) --tool->count;else *tool=(HmbtnStoredTool){0};
-        a->sound=14;cost(a,h,1);idle(a,p);return true;
+        a->sound=14;hmbtn_farm_action_cost(a,h,1);idle(a,p);return true;
     }
     if(a->phase==HMBTN_FARM_ACTION_FREE && (pressed&HMBTN_PAD_SQUARE)
             && hmbtn_farm_crop_supported(tool->id)) {
@@ -62,7 +62,7 @@ bool hmbtn_farm_action_tick(HmbtnFarmAction *a,HmbtnIntroActor *p,HmbtnHouseInte
     }
     if(a->phase==HMBTN_FARM_REFILL || a->phase==HMBTN_FARM_OVERCHARGE) {
         if(p->animation_done) {
-            if(a->phase==HMBTN_FARM_REFILL) { tool->count=100;a->sound=21;cost(a,h,1); }
+            if(a->phase==HMBTN_FARM_REFILL) { tool->count=100;a->sound=21;hmbtn_farm_action_cost(a,h,1); }
             idle(a,p);
         }
         return true;
@@ -98,7 +98,7 @@ bool hmbtn_farm_action_tick(HmbtnFarmAction *a,HmbtnIntroActor *p,HmbtnHouseInte
         const unsigned exp=changed ? 150u : 40u;
         a->experience[a->kind]=a->experience[a->kind]+exp>65535 ? 65535 : a->experience[a->kind]+exp;
         a->release_sound=a->kind==4;
-        a->changed=changed;cost(a,h,1+a->charge_frames/20);idle(a,p);return true;
+        a->changed=changed;hmbtn_farm_action_cost(a,h,1+a->charge_frames/20);idle(a,p);return true;
     }
     if(!(pressed&HMBTN_PAD_SQUARE) || !tool->id || tool->id>25 || a->fatigue>=100) return false;
     if(tool->modifier || (tool->id-1)%5) { a->sound=2;return true; }

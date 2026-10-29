@@ -311,6 +311,29 @@ static bool exploration_boundary(void *context,HmbtnSession *session,HmbtnExplor
     }
     case HMBTN_EXP_TRANSITION: {  // Sistema de Interação com portas 
         if(s->session->door_tick) {
+            if(s->session->travel_exit.target==0xfffe) {
+                /* player_walk_start(10), then FARM_MODE_ZONE_WALK's 27
+                 * ticks for ZONE_ID_NO_RESET. NO_INPUT skips the E080 bump
+                 * probe; position still settles on C080 ground. */
+                HmbtnIntroActor *p=&s->session->intro.player;
+                const unsigned face=p->facing,axis=face&1u ? 0u : 2u;
+                int32_t next[3];memcpy(next,p->position,sizeof(next));
+                next[axis]+=face<2 ? -41 : 41;
+                HmbtnGroundHit hit;
+                if(hmbtn_ground_find(&s->scene->terrain,next,0xc080,200,&hit)) {
+                    next[1]=hit.height;memcpy(p->position,next,sizeof(next));
+                }
+                memcpy(s->session->intro.camera,p->position,sizeof(next));
+                const unsigned animation=face+(s->session->control.carrying_big ? 42u : s->session->control.carrying ? 15u : 1u);
+                if(p->sprite.animation!=animation) p->sprite=(HmbtnAnimationPlayer){(uint16_t)animation,0,0};
+                s->session->control.mode=2;p->pose=false;
+                if(++s->session->door_tick>37) {
+                    s->session->door_tick=0;s->session->control.exit_pending=false;
+                    s->session->control.mode=s->session->control.blocked_frames=0;
+                    p->sprite=(HmbtnAnimationPlayer){(uint16_t)(s->session->control.carrying_big ? 41 : s->session->control.carrying ? 27 : 0),(uint16_t)face,0};
+                }
+                return true;
+            }
             /* doors.c supplies swing direction and 0x420 limit. Preserve the
              * native retreat, acceleration 5 and 31-tick entry timing. */
             if(s->session->door_angle>-0x420) {
@@ -389,6 +412,11 @@ static bool exploration_boundary(void *context,HmbtnSession *session,HmbtnExplor
                 s->session->house.mode=HMBTN_HOUSE_BOOK;s->session->house.message_bank=2;s->session->house.request=(unsigned)refusal;
                 s->session->house.loaded=0;s->session->house.closing=false;s->session->house.sound=3;
                 s->session->house.detail=false;result->opened=true;
+            } else if(s->session->travel_exit.target==0xfffe) {
+                hmbtn_area_doors_bind(&s->session->area_doors,s->scene);
+                hmbtn_area_doors_request(&s->session->area_doors,s->section,0x2000,event,s->session->intro.player.facing);
+                s->session->door_tick=1;s->session->control.exit_pending=true;
+                result->consumed=true;
             } else {
             hmbtn_area_doors_claim(&s->session->area_doors,s->scene,s->session->door_model);
             s->session->control.exit_pending=true;s->session->door_tick=1;s->session->door_speed=s->session->door_angle=0;

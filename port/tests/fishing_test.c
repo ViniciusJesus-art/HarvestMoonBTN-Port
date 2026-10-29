@@ -97,8 +97,10 @@ int main(void)
     HmbtnFarmCarry carry={0};HmbtnEconomy economy={0};carry.area=56;
     carry.thrown[0]=(HmbtnThrownItem){{163,0,1},{0,1,0},0,0,0,56};
     hmbtn_farm_carry_flight(&carry,NULL,&ground,&economy);
-    CHECK(carry.small_fish_placed && !carry.thrown[0].item.id);
+    CHECK(carry.small_fish_placed && carry.thrown[0].phase==1);
     hmbtn_farm_carry_flight(&carry,NULL,&ground,&economy);CHECK(!carry.small_fish_placed);
+    for(unsigned i=0;i<4;++i) hmbtn_farm_carry_flight(&carry,NULL,&ground,&economy);
+    CHECK(!carry.thrown[0].item.id);
     /* Dry ground, pond and invalid water all wind the cast up without a catch. */
     const unsigned invalid[]={0,4,0x40};
     for(unsigned j=0;j<3;++j) {

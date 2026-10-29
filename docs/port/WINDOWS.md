@@ -154,3 +154,10 @@ Logs locais: `/tmp/hmbtn-windows-fix-linux-tests.log`,
 `/tmp/hmbtn-windows-fix-cross-release-build.log`,
 `/tmp/hmbtn-windows-fix-wine-release-playthrough.log` e
 `/tmp/hmbtn-windows-fix-wine-release-resume.log`.
+
+
+Atualização PF-06 de ferramentas animais: a seleção automática agora inclui
+`native_animal_tools`, totalizando nove testes por configuração e 36 na matriz.
+Build MinGW Release, unidade, percurso completo e retomada v11 no aplicativo
+Windows foram validados via Wine. Não substitui MSVC/Windows real.
+Detalhes: [PF06_ANIMAL_TOOLS.md](PF06_ANIMAL_TOOLS.md).

@@ -24,6 +24,7 @@ bool hmbtn_farm_house_door_at(const uint8_t *section,size_t size,
     const HmbtnIntroActor *player,HmbtnHouseExit *exit,unsigned *model);
 bool hmbtn_world_door_at(const uint8_t *section,size_t size,
     const HmbtnIntroActor *player,HmbtnHouseExit *exit,unsigned *model);
+/* exit.target == 0xfffe denotes an internal swinging door, not an area id. */
 bool hmbtn_world_gate_at(const uint8_t *section,size_t size,const int32_t position[3],HmbtnHouseExit *exit);
 unsigned hmbtn_farm_music_volume(const uint8_t *section,size_t size);
 /* House uses model ground; farm variant also queries the original field rules.

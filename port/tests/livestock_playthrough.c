@@ -10,7 +10,7 @@ static bool barley(HmbtnScenePreview *s,char *error,size_t size)
     memcpy(g->intro.player.position,a->position,sizeof(a->position));g->intro.player.position[2]+=224;
     g->intro.player.facing=0;g->control.mode=0;
     REQUIRE(step(s,HMBTN_PAD_CROSS,error,size) && shop_wait(s,HMBTN_SHOP_SELECT,error,size));
-    REQUIRE(g->feed_shop.request==0x6b && g->feed_shop.livestock==&g->livestock);return true;
+    REQUIRE(g->feed_shop.request==0x46 && g->feed_shop.livestock==&g->livestock);return true;
 }
 static bool name_animal(HmbtnScenePreview *s,bool sheep,char *error,size_t size)
 {

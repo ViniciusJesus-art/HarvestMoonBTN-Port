@@ -43,21 +43,29 @@ int hmbtn_inventory_count(const HmbtnInventory *inventory,int id,int where,int w
     /* Same traversal/sentinels as the existing command, without a shadow store. */
     return scan_items(inventory,NULL,id,where,which,0);
 }
-bool hmbtn_inventory_store_tool(HmbtnInventory *h,HmbtnStoredTool item,
-    bool spill,HmbtnInventoryPlacement *placement)
+static const HmbtnStoredTool *free_tool_slot(const HmbtnInventory *h,bool spill,HmbtnInventoryPlacement *placement)
 {
     const unsigned capacity=hmbtn_inventory_capacity(h);
-    if(!capacity || !item.id) return false;
-    HmbtnStoredTool *slot=NULL;
+    if(!capacity) return NULL;
+    const HmbtnStoredTool *slot=NULL;
     HmbtnInventoryPlacement found={HMBTN_STORE_EQUIPPED,0};
     if(!h->equipped.id) slot=&h->equipped;
     for(unsigned i=0;!slot && i<capacity;++i)
         if(!h->bag[i].id) { slot=&h->bag[i];found=(HmbtnInventoryPlacement){HMBTN_STORE_BAG,i}; }
     if(spill) for(unsigned i=0;!slot && i<hmbtn_inventory_toolbox_capacity(h);++i)
         if(!h->toolbox[i].id) { slot=&h->toolbox[i];found=(HmbtnInventoryPlacement){HMBTN_STORE_TOOLBOX,i}; }
+    if(slot && placement) *placement=found;
+    return slot;
+}
+bool hmbtn_inventory_can_store_tool(const HmbtnInventory *h,bool spill)
+{ return free_tool_slot(h,spill,NULL)!=NULL; }
+bool hmbtn_inventory_store_tool(HmbtnInventory *h,HmbtnStoredTool item,
+    bool spill,HmbtnInventoryPlacement *placement)
+{
+    if(!item.id) return false;
+    HmbtnStoredTool *slot=(HmbtnStoredTool *)free_tool_slot(h,spill,placement);
     if(!slot) return false;
     *slot=item;
-    if(placement) *placement=found;
     return true;
 }
 /* Adapted shop_dialogues.c:shop_item_room/shop_item_add, mode=0 (d3c0f38).

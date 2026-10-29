@@ -36,7 +36,7 @@ int main(void)
     clock.hour=15;CHECK(!hmbtn_feed_shop_open(&s,&v,&player,&clock,136,0));clock.hour=9;
     CHECK(hmbtn_feed_shop_open(&s,&v,&player,&clock,136,0) && s.request==0x62);
     CHECK(!hmbtn_feed_shop_open(&s,&v,&player,&clock,136,0));
-    CHECK(advance(&s,&h,economy,&stats,HMBTN_SHOP_SELECT));tick(&s,&h,economy,&stats,HMBTN_PAD_CROSS);
+    CHECK(advance(&s,&h,economy,&stats,HMBTN_SHOP_SELECT) && s.request==0x46);tick(&s,&h,economy,&stats,HMBTN_PAD_CROSS);
     CHECK(advance(&s,&h,economy,&stats,HMBTN_SHOP_COUNT));
     tick(&s,&h,economy,&stats,HMBTN_PAD_LEFT);CHECK(s.quantity==99);
     tick(&s,&h,economy,&stats,HMBTN_PAD_RIGHT);CHECK(s.quantity==1);

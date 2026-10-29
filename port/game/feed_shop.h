@@ -8,7 +8,7 @@
 typedef enum HmbtnFeedShopPhase {
     HMBTN_SHOP_OFF,HMBTN_SHOP_GREETING,HMBTN_SHOP_SELECT,HMBTN_SHOP_INFO,
     HMBTN_SHOP_OFFER,HMBTN_SHOP_COUNT,HMBTN_SHOP_RESULT,HMBTN_SHOP_LEAVE,HMBTN_SHOP_NAME,
-    HMBTN_SHOP_SELL_LIST,HMBTN_SHOP_SELL_CONFIRM,HMBTN_SHOP_CANCEL_COUNT,HMBTN_SHOP_BUILD_CONFIRM
+    HMBTN_SHOP_SELL_LIST,HMBTN_SHOP_SELL_CONFIRM,HMBTN_SHOP_CANCEL_COUNT,HMBTN_SHOP_BUILD_CONFIRM,HMBTN_SHOP_TOOL_LIST
 } HmbtnFeedShopPhase;
 typedef struct HmbtnFeedShop {
     HmbtnFeedShopPhase phase,next,after_result;
@@ -20,6 +20,8 @@ typedef struct HmbtnFeedShop {
     bool closing;
     bool medicine_available;
     bool carpenter;
+    bool blacksmith;
+    const HmbtnInventory *inventory; /* Authoritative tool ownership, borrowed. */
     HmbtnConstruction *construction; /* Loan from this session, not a shop-owned copy. */
     bool seeds; /* Original seasonal seed-table menu, same shop state. */
     int sound;
@@ -52,8 +54,8 @@ bool hmbtn_seed_shop_open(HmbtnFeedShop *shop,HmbtnVillage *village,
     const HmbtnIntroActor *player,const HmbtnFarmClock *clock,unsigned area,
     const uint8_t *section,size_t section_size,unsigned held_item);
 /* Raw original group D has eight rows. Contextual count/choice filters to
- * supported crops and the shared Moondrop unlock (six base rows, seven after
- * Karen's event). Greenhouse remains pending. */
+ * supported crops and the shared Moondrop unlock (seven rows, eight after
+ * Karen's event, including Orangecup). */
 const HmbtnSeedShopEntry *hmbtn_won_seed_entry(unsigned index);
 unsigned hmbtn_seed_shop_count(const HmbtnFeedShop *shop);
 const HmbtnSeedShopEntry *hmbtn_seed_shop_choice(const HmbtnFeedShop *shop,unsigned index);
@@ -65,6 +67,9 @@ bool hmbtn_carpenter_shop_open(HmbtnFeedShop *shop,const HmbtnFarmClock *clock);
 unsigned hmbtn_carpenter_shop_rows(const HmbtnFeedShop *shop);
 unsigned hmbtn_barn_shop_rows(const HmbtnFeedShop *);
 unsigned hmbtn_barn_shop_row(const HmbtnFeedShop *,unsigned row);
+bool hmbtn_blacksmith_shop_open(HmbtnFeedShop *,const HmbtnFarmClock *,const HmbtnInventory *);
+unsigned hmbtn_blacksmith_tool_count(const HmbtnFeedShop *);
+const HmbtnSeedShopEntry *hmbtn_blacksmith_tool_entry(const HmbtnFeedShop *,unsigned row);
 unsigned hmbtn_feed_shop_cost(const HmbtnFeedShop *shop);
 bool hmbtn_feed_shop_expand(uint8_t *record,size_t size,const HmbtnRegistration *registration);
 #endif

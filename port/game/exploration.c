@@ -143,7 +143,7 @@ bool hmbtn_session_exploration_controls(HmbtnSession *s,const HmbtnExplorationFr
         if(s->feed_shop.phase!=HMBTN_SHOP_OFF) {
             hmbtn_feed_shop_tick(&s->feed_shop,&s->house,hmbtn_game_economy(&s->game),&s->menu.stats,input.pressed,held);
             if(s->feed_shop.phase==HMBTN_SHOP_OFF) {
-                if(!s->feed_shop.seeds && !s->feed_shop.carpenter) {
+                if(!s->feed_shop.seeds && !s->feed_shop.carpenter && !s->feed_shop.blacksmith) {
                     HmbtnIntroActor *merchant=&s->village.people[s->feed_shop.merchant].actor;
                     merchant->facing=s->feed_shop.saved_facing;
                     merchant->sprite=(HmbtnAnimationPlayer){0,(uint16_t)merchant->facing,0};
@@ -324,11 +324,15 @@ bool hmbtn_session_exploration_controls(HmbtnSession *s,const HmbtnExplorationFr
             if(!fishing_frame(s,f,input,error,error_size)) return false;
             if(s->fishing.phase!=HMBTN_FISHING_FREE) goto house_done;
         }
-        if((hmbtn_session_field(s) || s->house.inventory->equipped.id==0x1E || s->farm_action.phase==HMBTN_FARM_MEDICINE)
+        const unsigned equipped=s->house.inventory->equipped.id;
+        const bool animal_tool=(equipped>=0x1a && equipped<=0x1c) || s->farm_action.phase==HMBTN_FARM_ANIMAL_TOOL;
+        if((hmbtn_session_field(s) || equipped==0x1E || s->farm_action.phase==HMBTN_FARM_MEDICINE || animal_tool)
                 && !s->feed.phase && !s->house.inventory->held_item.id && !s->control.exit_pending && !s->control.jumping && s->house.mode==HMBTN_HOUSE_FREE
                 && (!(input.pressed&HMBTN_PAD_CROSS) || s->farm_action.phase!=HMBTN_FARM_ACTION_FREE)) {
             const bool medicine=s->farm_action.phase==HMBTN_FARM_MEDICINE || s->house.inventory->equipped.id==0x1E;
-            const bool acting=medicine ? hmbtn_animal_medicine_tick(&s->poultry,&s->livestock,s->area,
+            const bool acting=animal_tool ? hmbtn_livestock_tool_tick(&s->livestock,s->area,&s->farm_action,
+                &s->intro.player,&s->house,&s->event_item,input.pressed)
+                : medicine ? hmbtn_animal_medicine_tick(&s->poultry,&s->livestock,s->area,
                 &s->farm_action,&s->intro.player,&s->house,input.pressed)
                 : hmbtn_farm_action_tick(&s->farm_action,&s->intro.player,&s->house,
                     hmbtn_session_field(s),f->ground,input.pressed,held);
@@ -514,13 +518,14 @@ bool hmbtn_session_exploration_world(HmbtnSession *s,const HmbtnExplorationFrame
                         &s->poultry.hens[i].actor.sprite,error,error_size)) return false;
         }
         if(s->village_ready) {
+            const bool internal_walk=s->door_tick && s->travel_exit.target==0xfffe;
             hmbtn_area_doors_bind(&s->area_doors,f->scene);
-            hmbtn_area_doors_tick(&s->area_doors,held_clock);
+            hmbtn_area_doors_tick(&s->area_doors,held_clock && !internal_walk);
             if(!hmbtn_village_sync(&s->village,&s->game.clock,error,error_size)) return false;
             if(f->village_assets && !f->village_assets(f->context,hmbtn_read_le16(f->section+12),&s->game.clock,error,error_size)) return false;
             hmbtn_village_tick(&s->village,f->section,f->section_size,f->ground,held_clock);
             /* Player transitions own their door pose until the area changes. */
-            if(!s->door_tick && !s->travel_tick) {
+            if((!s->door_tick || internal_walk) && !s->travel_tick) {
                 hmbtn_area_doors_apply(&s->area_doors,f->scene);
                 for(unsigned i=0;i<HMBTN_SCENE_MODELS;++i) {
                     HmbtnAreaDoor *door=&s->area_doors.models[i];
@@ -554,9 +559,11 @@ bool hmbtn_session_exploration_world(HmbtnSession *s,const HmbtnExplorationFrame
         }
         if(out_changes) *out_changes=changes;
         if(out_held) *out_held=held_clock;
-        hmbtn_weather_effects_tick(&s->weather_effects,s->game.weather.today,
-            held_clock || !hmbtn_world_outdoors(f->section,f->section_size));
-        hmbtn_daylight_weather_tick(&s->daylight,&s->game.clock,s->game.weather.today,held_clock || !hmbtn_world_outdoors(f->section,f->section_size));
+        /* weather_fx_frame is independent of the clock/control lock: doors
+         * and character dialogue keep particles and the sky tint running. */
+        const bool weather_held=s->menu.mode!=HMBTN_MENU_NONE || !hmbtn_world_outdoors(f->section,f->section_size);
+        hmbtn_weather_effects_tick(&s->weather_effects,s->game.weather.today,weather_held);
+        hmbtn_daylight_weather_tick(&s->daylight,&s->game.clock,s->game.weather.today,weather_held);
     }
     return true;
 }

@@ -8,6 +8,7 @@ typedef struct HmbtnThrownItem {
     int32_t position[3], ground;
     int velocity;
     unsigned facing,area;
+    unsigned phase,timer; /* player.c: FLY -> HOLD (1 tick) -> BLINK (4 ticks). */
 } HmbtnThrownItem;
 typedef struct HmbtnFarmCarry {
     unsigned phase;
@@ -18,7 +19,7 @@ typedef struct HmbtnFarmCarry {
     unsigned area; /* Current scene; flights retain the scene in which they began. */
     bool small_fish_placed; /* Original beach throw prerequisite for squid. */
 } HmbtnFarmCarry;
-/* The field path currently accepts loose pickups, not crops or estate objects. */
+/* Loose field items and mature crops share the same forward world probe. */
 bool hmbtn_farm_carry_tick(HmbtnFarmCarry *state,HmbtnHouseInteraction *inventory,
     HmbtnFarmField *field,HmbtnIntroActor *player,uint32_t pressed);
 void hmbtn_farm_carry_flight(HmbtnFarmCarry *state,HmbtnFarmField *field,

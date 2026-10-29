@@ -13,7 +13,7 @@ continuam concluídas; referências futuras a MA-07..25 identificam escopos do
 plano anterior, substituído pelas entregas PF do roadmap. PF-01 (inventário/dinheiro) e PF-02 (primeiro cultivo/ciclo diário) foram
 concluídas; PF-03 integrou comandos compartilhados e o convite de Duke.
 PF-04 consolidou a coordenação em `game/runtime.c` e separou atualização/desenho,
-inclusive título/cadastro. PF-05 entregou saves nativos estáveis; PF-06 entregou batata, grama/feno e culturas base de verão/outono; clima diário/chuva também integrado; sementes sazonais de Won, desbloqueios do supermercado e Pink Cat/Toy Flower integrados; Magic Red e suas variantes também integradas; Moondrop e visitas de Karen também integradas; carpintaria, galinheiro e primeira casa integrados como dependências da estufa, incluindo depósitos e núcleo da cozinha; obra/mapas/cochos do celeiro também integrados; aquisição/presença/alimentação de vacas e ovelhas também integradas; segunda casa e lareira de inverno também integradas; estufa com campo próprio e motor comum, obra, tempestade/reconstrução e save também integrados; produção/reprodução/ciclo completo ainda parciais; Orangecup também integrada; próxima entrega: ferramentas animais e leite/lã. Aquisição de utensílios e apresentação completa da cozinha continuam pendentes. Não há requisito de
+inclusive título/cadastro. PF-05 entregou saves nativos estáveis; PF-06 entregou batata, grama/feno e culturas base de verão/outono; clima diário/chuva também integrado; sementes sazonais de Won, desbloqueios do supermercado e Pink Cat/Toy Flower integrados; Magic Red e suas variantes também integradas; Moondrop e visitas de Karen também integradas; carpintaria, galinheiro e primeira casa integrados como dependências da estufa, incluindo depósitos e núcleo da cozinha; obra/mapas/cochos do celeiro também integrados; aquisição/presença/alimentação de vacas e ovelhas também integradas; segunda casa e lareira de inverno também integradas; estufa com campo próprio e motor comum, obra, tempestade/reconstrução e save também integrados; produção/reprodução/ciclo completo ainda parciais; Orangecup também integrada; compra de ferramentas animais/escovação/leite/lã também integrados; venda de vacas e ovelhas também integrada; próxima entrega: reprodução bovina/ovina. Aquisição de utensílios e apresentação completa da cozinha continuam pendentes. Não há requisito de
 concluir toda a reorganização antes de aproveitar uma função original.
 
 A arquitetura atual tem uma base nativa reutilizável e acoplamentos por resolver;
@@ -493,10 +493,10 @@ limites em [PF04_UPDATE_PRESENTATION.md](PF04_UPDATE_PRESENTATION.md).
 ## Saves nativos e retomada — PF-05
 
 `game/save.c/.h` define disponibilidade e codec nativo sem SDL/arquivos.
-A versão atual é **v10**, com depósitos, utensílios e receitas em GAME; prazo,
+A versão atual é **v11**, com depósitos, utensílios e receitas em GAME; prazo,
 tipo de obra, níveis da casa/celeiro, estufa/RNG de perda e entregas de lenha do dia em AUXI, junto ao clima e à progressão de Moondrop. FILD grava ambos os campos, dimensões verificadas, estações e RNGs de plantio; não grava caches de geometria.
 Vacas/ovelhas e seu RNG ficam na seção LSTK. PLAY não grava mais contagens de
-gado: status as deriva da coleção. O leitor aceita somente v10: a compatibilidade entre versões de desenvolvimento
+gado: status as deriva da coleção. O leitor aceita somente v11: a compatibilidade entre versões de desenvolvimento
 foi dispensada pelo usuário em 2026-10-27. Versões v1..v9/futuras são recusadas
 com mensagem para iniciar jogo novo; nenhum arquivo antigo é apagado/consertado.
 `menu.stats.building_score` foi removido do estado/codec: o status deriva a
@@ -774,7 +774,7 @@ segura da faixa zero madura; inverno limpa as plantas. Produto azul `0x53`
 não gera renda; vermelho `0x54` gera 200 G no sistema de remessas existente,
 sem um contador dedicado no mapeamento original. Won tem seis entradas, com
 Magic Red visível 4/fonte 5/descrição `0x16a`; Toy Flower passa à visível 5.
-Na entrega de Magic Red, v3 acrescentou o RNG e leu v1/v2 com seed 1; o formato atual é v10, sem leitura de versões anteriores.
+Na entrega de Magic Red, v3 acrescentou o RNG e leu v1/v2 com seed 1; o formato atual é v11, sem leitura de versões anteriores.
 Fonte, arquivos e evidências em [PF06_MAGIC_RED.md](PF06_MAGIC_RED.md).
 
 
@@ -784,7 +784,7 @@ Fonte, arquivos e evidências em [PF06_MAGIC_RED.md](PF06_MAGIC_RED.md).
 `estate.statusFlags`, separado de `village.flags[269/270]` (visitas concluídas).
 Casa/loja emprestam esse campo. `hmbtn_event_progress_command` em
 `event_variables.c` adapta 81/27 e atende visitas e conversas. A conversa mantém
-um checkpoint de rollback, sem usá-lo como estado de gameplay. A entrega usou v4 para o booleano de AUXI. O codec atual v10 mantém esse campo, sem migrar versões anteriores.
+um checkpoint de rollback, sem usá-lo como estado de gameplay. A entrega usou v4 para o booleano de AUXI. O codec atual v11 mantém esse campo, sem migrar versões anteriores.
 
 Os blocos instalados 18/19 usam a mesma execução de visitas: Karen é vinculada
 à identidade 3, com ANI/texturas originais e entrega pela API de inventário.
@@ -894,7 +894,7 @@ A entrega seguinte acrescentou a coleção nativa de vacas/ovelhas e aquisição
 alimentação reais descritas abaixo. A obra não concede animais gratuitamente:
 Barley os vende pelo modal/editor existente. Alimentação executa antes de
 `hmbtn_farm_feed_new_day`. O nível introduzido em v7 permanece no formato atual
-v10 com validação dos pré-requisitos/obra pendente. Resultado, arquivos,
+v11 com validação dos pré-requisitos/obra pendente. Resultado, arquivos,
 testes e limites em [PF06_BARN_EXPANSION.md](PF06_BARN_EXPANSION.md).
 
 
@@ -920,10 +920,10 @@ extraídos no configure. Renderer e decodificador ANI aceitam escala explícita,
 incluindo 0xCC8 da vaca jovem; consumidores anteriores usam escala padrão 4096.
 Cenário/atores mantêm ordenação compartilhada. Movimento/ANI pertencem ao tick;
 draw não atualiza regras. Sequência integral de cues/vozes e pastagem permanecem
-parciais; produção, venda, reprodução e eventos de morte ainda ausentes. Registros
+parciais; produção de leite/lã e escovação foram integradas abaixo. Venda, reprodução e eventos de morte ainda ausentes. Registros
 mortos permanecem reservados aguardando o fluxo de remoção/eventos.
 
-Saves v10 serializam registros/RNG em LSTK e refazem vínculos, sem atlas/ponteiros.
+Saves v11 serializam registros/RNG em LSTK e refazem vínculos, sem atlas/ponteiros.
 Campo, construções e recursos existentes são preservados. Relatório, arquivos,
 testes e alcance: [PF06_LIVESTOCK.md](PF06_LIVESTOCK.md).
 
@@ -932,7 +932,7 @@ testes e alcance: [PF06_LIVESTOCK.md](PF06_LIVESTOCK.md).
 `construction.house_level` agora cobre 0..2. A quarta oferta original (10.000 G,
 750 madeiras) usa o mesmo débito, quatro manhãs e observador diário. Não existe
 outro estado de casa nos mapas, lojas ou scripts. Nível 2 exige o celeiro entregue;
-obra pendente e níveis incoerentes são recusados pelo codec v10.
+obra pendente e níveis incoerentes são recusados pelo codec v11.
 
 `generate_farm_tables.py` extrai `house_door_positions` e `result_camera_pairs`;
 `house_sleep.c` compartilha as posições com `daily.c`. Casa2 acorda em
@@ -987,7 +987,7 @@ animais no interior ainda não faz parte desse recorte.
 sprites de `greenhouse_draw`; o host reutiliza `estate_art` no pacote 4, modelos,
 texturas, colisões e portas instalados. `hmbtn_world_outdoors` também considera
 a exceção original de PLACE_GREENHOUSE para não desenhar chuva/tintura interna.
-O codec v10 grava os dois campos em FILD com dimensões, estação, células e RNG,
+O codec v11 grava os dois campos em FILD com dimensões, estação, células e RNG,
 e construção/RNG de perda em AUXI; não salva quads/caches de recursos.
 Orangecup está no filtro de suporte. Detalhes: [PF06_GREENHOUSE.md](PF06_GREENHOUSE.md) e [PF06_ORANGECUP.md](PF06_ORANGECUP.md).
 
@@ -1000,7 +1000,7 @@ D pelo mesmo filtro. Compra custa 1.000 G, com nomes do C original e mensagens
 dos recursos instalados. Na estufa, quatro estágios de dois dias regados geram
 0x85 (60 G), sem rebrota. O distinto 0x56 não é o produto colhido e não tem preço
 de venda. Sprite 24 do pacote 4 e faixas 3..6 já cabiam no leitor e na associação
-extraída de `greenhouse_draw`. Não se altera o codec v10 nem o estado persistente.
+extraída de `greenhouse_draw`. A entrega de Orangecup usou v10 sem mudar o esquema; a versão vigente v11 acrescenta os cuidados/ordenha abaixo, sem novo estado de cultivo.
 
 A decompilação não impõe uma proibição específica de plantio externo: o motor
 mantém a aceitação fora do inverno e a definição de estação 0. A apresentação
@@ -1008,4 +1008,73 @@ externa reproduz os casos presentes no C: primavera sem sprite, verão 18 e
 outono 38. A incongruência entre crescimento de primavera e ausência de arte
 não foi mascarada por um bloqueio novo; confirmação em execução do original
 continua pendente. A estufa oferece o percurso de cultivo visível validado.
-A próxima tarefa é ferramentas animais/produção de leite e lã, no mesmo celeiro.
+A produção de leite/lã foi integrada abaixo; próxima tarefa: venda de vacas e ovelhas.
+
+
+## PF-06 — Ferramentas animais, ordenha e tosquia
+
+`HmbtnFarmAnimal` em `session.livestock` é o único dono de `brushed_today`,
+`milked_today`, `prize_winner` e do intervalo já existente `days_since_shearing`.
+As flags diárias são limpas no observador diário existente; o retorno da lã
+consulta a alimentação anterior antes de atualizá-la. Não há registro de
+produção na cena nem cópias sincronizadas com menus. `livestock.c` adapta
+`livestock_cow_cue`, `livestock_sheep_harvest` e `livestock_set_bit2_cue/_b`.
+O estado atual não tem gestação ou ajudantes; os respectivos guardas devem
+acompanhar a integração desses sistemas, sem flags fictícias agora.
+
+`hmbtn_livestock_tool_tick` usa `HmbtnFarmAction`, com fase transitória de ação
+animal e alvo por índice. Bancos originais 18/19/20, custo compartilhado e
+conclusão ANI única; a entrega do produto usa `event_item.c`/`player_show_item`
+já existente, sem outro inventário, carry ou renderizador. A apresentação
+termina colocando o produto na mão uma vez; sua execução não depende de draw.
+A fase permanece não salvável, como outras ações. O codec v11 salva os três
+booleanos novos em LSTK, aceita somente v11 e conserva todos os demais donos.
+
+`HmbtnFeedShop.blacksmith` seleciona o fluxo de Saibara no modal existente;
+`inventory` é empréstimo de leitura para calcular o estoque a cada consulta.
+O grupo compra escova/ordenhadeira/tesoura sem duplicar posse. Não aceita baú
+como espaço de entrega; consulta e armazenamento usam a mesma busca de vaga
+em `inventory.c`. A instrução original de melhoria é preservada; presentes,
+máquinas e serviço completo de melhorias ainda não estão nesse menu parcial.
+`village_talk.c` deixa o roteiro original decidir horário/disponibilidade,
+abre a loja pelo dispatch 8/2 e espera seu fechamento no mesmo interpretador.
+
+Nomes, ordem, IDs e descrições do submenu são extraídos de
+`shop_tool_upgrade_menu_setup` por `generate_farm_tables.py`; preços e itens
+já vêm de `farm_tables.c`. `feed_shop_ui.c` desenha as ferramentas com preço
+por linha (flag 0 na fonte), usando os mesmos registros e sem mutar o domínio.
+Ovelha tosquiada usa o pacote 8 já decodificado; quando a lã volta, o pacote 5.
+As qualidades G consultam `prize_winner`, cuja aquisição jogável aguarda festivais.
+Relatório e verificações: [PF06_ANIMAL_TOOLS.md](PF06_ANIMAL_TOOLS.md).
+
+## PF-06 — Fidelidade do mundo e venda de animais
+
+O destino serializado `0xfffe` de uma zona de porta é uma sentinela de porta
+interna, nunca um endereço host ou uma seleção de área. `house_control.c`
+reconhece a interação; `runtime.c` aplica as mesmas recusas de amizade/horário e
+solicita `session.area_doors`. A pose transitória pertence ao tick e ambos os
+lados usam o mesmo modelo. Portas de transição conservam seu fluxo anterior.
+
+Partículas/luz usam pausa visual e flags do mapa, separadas da suspensão do
+relógio por porta/diálogo/evento. O adapter aplica scroll também quando a câmera
+é dirigida pelo roteiro; draw só consulta o estado. Coleta consulta o ponto à
+frente em coordenadas do mundo, permitindo alvo na borda com os pés fora da
+grade. `carry.thrown[].phase/timer` implementam HOLD/BLINK com a segunda faixa
+ANI da figura, devolvendo pedras/galhos apenas a células livres do plantio e descartando fora da grade. Esses slots permanecem
+transitórios e impedem save até a retirada; formato v11 inalterado.
+
+Venda reutiliza `session.livestock`, `feed_shop` e a economia. O domínio deriva
+elegibilidade/preço e limpa somente o registro confirmado; a UI consulta os
+mesmos índices, nomes e ícones. `sale_cursor/top/slot/answer` já existentes são
+seleção transitória. Não há coleção ou contador de vendas paralelo. Mortos
+continuam ocupando vaga; reprodução futura precisa acrescentar o estado real
+de gestação e seus guardas. Fontes, limites e reprodução dos testes:
+[PF06_WORLD_FIDELITY.md](PF06_WORLD_FIDELITY.md).
+
+A revisão de [29/10](PF06_INTERACTION_FIXES.md) integra a caminhada automática
+de portas internas no `door_tick` existente, com sondagem de piso 0xc080 e sem
+viagem de área. `area_doors` continua atualizando enquanto o controle manual
+está suspenso. A seleção de Barley usa a mensagem comum 2/0x46; 2/0x6b é
+cancelamento. O helper de cursor da loja aplica o deslocamento vertical de
+seis pixels do original. Retorno de objetos ao plantio usa o mesmo campo,
+catálogo e flag de atualização, sem coleção adicional ou mudança de save.

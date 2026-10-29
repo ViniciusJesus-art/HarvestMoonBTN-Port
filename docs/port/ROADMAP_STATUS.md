@@ -5,8 +5,8 @@
 **Prioridade:** port funcional com reaproveitamento do C original, conforme a fila PF do [ROADMAP.md](ROADMAP.md).
 **Concluídas:** MA-01..06 e PF-01..05 — base central, regras compartilhadas, cultivo, evento, atualização independente do desenho e saves nativos estáveis.
 
-**PF-06 em andamento:** batata, grama/feno, culturas base de verão/outono, clima diário/chuva, sementes sazonais de Won, desbloqueios do supermercado, Pink Cat/Toy Flower, variantes de Magic Red e Moondrop/visitas de Karen, carpintaria, ampliação do galinheiro e primeira casa (depósitos/núcleo da cozinha) concluídos nos respectivos recortes; obra/mapas/cochos do celeiro também entregues; aquisição/capacidade/alimentação bovina/ovina, segunda casa/lareira, estufa e Orangecup integradas; demais sistemas originais ainda parciais/ausentes.
-**Próxima implementação:** PF-06 — compra de ferramentas animais e produção de leite/lã. Recorte base do celeiro/criação entregue; venda/reprodução/eventos animais e cozinha completa continuam pendentes. Saves atuais v10, sem compatibilidade exigida com versões anteriores.
+**PF-06 em andamento:** batata, grama/feno, culturas base de verão/outono, clima diário/chuva, sementes sazonais de Won, desbloqueios do supermercado, Pink Cat/Toy Flower, variantes de Magic Red e Moondrop/visitas de Karen, carpintaria, ampliação do galinheiro e primeira casa (depósitos/núcleo da cozinha) concluídos nos respectivos recortes; obra/mapas/cochos do celeiro também entregues; aquisição/capacidade/alimentação bovina/ovina, segunda casa/lareira, estufa, Orangecup, ferramentas animais e leite/lã integrados; demais sistemas originais ainda parciais/ausentes.
+**Próxima implementação:** PF-06 — reprodução bovina/ovina, começando por poções/gestação/reserva de vaga. Venda com Barley e correções de portas internas/chuva/coleta/descarte entregues no recorte de [PF06_WORLD_FIDELITY.md](PF06_WORLD_FIDELITY.md). Reprodução/eventos animais e cozinha completa continuam pendentes. Saves atuais v11, sem compatibilidade exigida com versões anteriores.
 MA-07..25 foram substituídas como fila, não concluídas. Refatorações necessárias
 acompanham as entregas funcionais; PF-04 separou atualização/desenho nos fluxos atuais.
 
@@ -32,7 +32,7 @@ Compilar PS1, manter MIPS/ABI ou reproduzir SHA-1 não são critérios do produt
 
 | Marco | Situação | Próximo encaminhamento |
 |---|---|---|
-| Base MA | MA-01..06 concluídas; plano restante substituído | Preservar estado/sessão/serviços/tick; PF-01..05 concluídas; seguir PF-06 (Ferramentas animais e leite/lã a seguir (Orangecup/estufa/segunda casa entregues); primeira casa/depósitos/núcleo da cozinha e carpintaria/galinheiro, Moondrop, Magic Red, flores simples, desbloqueios do supermercado, sementes sazonais de Won, clima diário/chuva, culturas base de verão/outono, batata e grama/feno entregues), sem uma nova fase geral de reorganização. |
+| Base MA | MA-01..06 concluídas; plano restante substituído | Preservar estado/sessão/serviços/tick; PF-01..05 concluídas; seguir PF-06 (Reprodução bovina/ovina a seguir (venda com Barley, ferramentas animais/leite/lã, Orangecup/estufa/segunda casa entregues); primeira casa/depósitos/núcleo da cozinha e carpintaria/galinheiro, Moondrop, Magic Red, flores simples, desbloqueios do supermercado, sementes sazonais de Won, clima diário/chuva, culturas base de verão/outono, batata e grama/feno entregues), sem uma nova fase geral de reorganização. |
 | M1 — Aplicação nativa | Funcional no recorte atual | Preservar entrada/janela; validar Windows real. |
 | M2 — Recursos e apresentação | Funcional parcialmente | Preservar leitores/backends; ampliar fidelidade com comparação reproduzível. |
 | M3 — Título/cadastro | Funcional parcialmente | Tick/apresentação separados na PF-04; preservar fluxos e rastrear algoritmos/inicialização. |
@@ -45,7 +45,43 @@ checklists sobrepostos. São registros históricos, não contagem atual de siste
 nem denominador de progresso da migração. O [backlog complementar](ROADMAP_PENDENTE_CODEX.md)
 reconcilia esses temas; a ordem executável e o aceite estão no roadmap principal.
 
-## Última referência — PF-06, Orangecup
+## Última referência — PF-06, fidelidade do mundo e venda com Barley
+
+**Revisão 2026-10-29:** caminhada real pelas portas internas, mensagem correta
+de Barley, cursores alinhados e devolução de pedra/galho ao plantio corrigidos.
+Fontes/binário, testes e limites em [PF06_INTERACTION_FIXES.md](PF06_INTERACTION_FIXES.md).
+
+Portas internas com destino `-2` abrem/fecham pelo modelo original, com recusas
+preservadas. Chuva e luz avançam em portas/eventos independentemente do relógio;
+coleta consulta o ponto à frente também com os pés fora da grade. Descarte fora da grade mostra
+a segunda figura antes de sumir; pedras/galhos retornam ao plantio livre. Agendas de Karen/Ann
+comparadas aos dados originais para cinco climas.
+
+Barley oferece venda de vacas/ovelhas adultas, com quatro linhas por página,
+preços originais, confirmação/cancelamento, pagamento único e vaga reutilizável.
+Coleção/economia/cochos/save v11 compartilhados; gestação continua pendente.
+Linux Debug: 21/21 selecionados; novos percursos dirigidos e unidade Release
+aprovados. Build Windows MinGW Release e percurso de fidelidade no Wine aprovados. Detalhes e limites em
+[PF06_WORLD_FIDELITY.md](PF06_WORLD_FIDELITY.md).
+
+## Referência histórica — PF-06, ferramentas animais e leite/lã
+
+Saibara vende escova/ordenhadeira/tesoura, com posse/capacidade compartilhadas.
+Escovação, ordenha diária/qualidade, tosquia/retorno da lã, arte/ANI, remessa e
+persistência v11 integradas no mesmo domínio do celeiro. Não é conclusão da
+reprodução, venda, máquinas, pastagem, festivais ou ciclo animal completo.
+
+Linux Debug: 16 casos selecionados aprovados, após corrigir uma expectativa
+antiga no teste de itens sobre a geladeira. Release: 3/3 aprovados. Windows
+MinGW Release compilou; unidade, percurso e retomada em app novo passaram no
+Wine. Orçamento conservador de até 50 processos respeitado, sem suíte inteira.
+MSVC/nova CI e Windows real não executados. A CI automática inclui a nova
+unidade, nove testes por configuração (36 na matriz Linux/Windows Debug/Release).
+
+[Fontes, arquivos, limites e reprodução](PF06_ANIMAL_TOOLS.md). Próxima: venda
+de vacas e ovelhas, conforme o roadmap. Alterações existentes nos READMEs preservadas.
+
+## Referência histórica — PF-06, Orangecup
 
 Configure/build Linux Debug aprovados; seleção final **18/18 CTests**, **10,60 s**,
 **49 processos de teste** no total incluindo referência/tentativas/wrappers/filhos.

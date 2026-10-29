@@ -11,6 +11,8 @@ int hmbtn_event_items_count(const HmbtnInventory *inventory,int id,int where,int
  * Both reuse player base ANI and the existing item-picture interface. */
 bool hmbtn_event_item_begin(HmbtnEventItem *item,HmbtnIntroActor *player,
     HmbtnInventory *inventory,unsigned id,bool eat);
+/* player_show_item: shared base-ANI presentation, inventory receives once. */
+bool hmbtn_event_item_show(HmbtnEventItem *,HmbtnIntroActor *,HmbtnInventory *,unsigned id);
 void hmbtn_event_item_tick(HmbtnEventItem *item,HmbtnIntroActor *player,
     HmbtnInventory *inventory,HmbtnFarmAction *status);
 #endif

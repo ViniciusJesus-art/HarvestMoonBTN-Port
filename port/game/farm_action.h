@@ -3,7 +3,7 @@
 #include "house_interaction.h"
 typedef enum HmbtnFarmActionPhase {
     HMBTN_FARM_ACTION_FREE,HMBTN_FARM_TOOL_CHARGE,HMBTN_FARM_TOOL_SWING,
-    HMBTN_FARM_REFILL,HMBTN_FARM_OVERCHARGE,HMBTN_FARM_MEDICINE,HMBTN_FARM_PLANT_SEED
+    HMBTN_FARM_REFILL,HMBTN_FARM_OVERCHARGE,HMBTN_FARM_MEDICINE,HMBTN_FARM_PLANT_SEED,HMBTN_FARM_ANIMAL_TOOL
 } HmbtnFarmActionPhase;
 typedef struct HmbtnFarmAction {
     HmbtnFarmActionPhase phase;
@@ -16,6 +16,7 @@ typedef struct HmbtnFarmAction {
     int effect_column,effect_row;
 } HmbtnFarmAction;
 void hmbtn_farm_action_init(HmbtnFarmAction *action);
+void hmbtn_farm_action_cost(HmbtnFarmAction *,const HmbtnHouseInteraction *,unsigned amount);
 /* Returns true while an action consumes movement input. */
 bool hmbtn_farm_action_tick(HmbtnFarmAction *action,HmbtnIntroActor *player,
     HmbtnHouseInteraction *house,HmbtnFarmField *field,const HmbtnModel *ground,

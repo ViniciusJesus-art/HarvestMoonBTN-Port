@@ -12,13 +12,22 @@ int hmbtn_event_items_count(const HmbtnInventory *inventory,int id,int where,int
 }
 bool hmbtn_event_item_begin(HmbtnEventItem *item,HmbtnIntroActor *p,HmbtnInventory *h,unsigned id,bool eat)
 {
+    if(!eat) return id==204 && hmbtn_event_item_show(item,p,h,id);
     if(!item || !p || !h || p->facing>3 || item->phase!=HMBTN_EVENT_ITEM_IDLE
-            || (eat ? id!=225 : id!=204 || h->held_item.id!=0)) return false;
-    item->saved=h->held_item;item->shown=id;item->sound=eat ? 74 : -1;
-    item->phase=eat ? HMBTN_EVENT_ITEM_EAT : HMBTN_EVENT_ITEM_SHOW;
-    if(eat) h->held_item=(HmbtnStoredTool){(uint16_t)id,0,1};
+            || id!=225) return false;
+    item->saved=h->held_item;item->shown=id;item->sound=74;
+    item->phase=HMBTN_EVENT_ITEM_EAT;
+    h->held_item=(HmbtnStoredTool){(uint16_t)id,0,1};
     p->pose=true;p->animation_done=false;
-    p->sprite=(HmbtnAnimationPlayer){(uint16_t)(eat ? 5 : 11+p->facing),0,0};return true;
+    p->sprite=(HmbtnAnimationPlayer){5,0,0};return true;
+}
+bool hmbtn_event_item_show(HmbtnEventItem *item,HmbtnIntroActor *p,HmbtnInventory *h,unsigned id)
+{
+    const HmbtnFarmItem *info=hmbtn_farm_item(id);
+    if(!item || !p || !h || p->facing>3 || item->phase!=HMBTN_EVENT_ITEM_IDLE
+            || h->held_item.id || !id || !info || info->category!=0 || info->picture<0) return false;
+    item->saved=h->held_item;item->shown=id;item->sound=-1;item->phase=HMBTN_EVENT_ITEM_SHOW;
+    p->pose=true;p->animation_done=false;p->sprite=(HmbtnAnimationPlayer){(uint16_t)(11+p->facing),0,0};return true;
 }
 void hmbtn_event_item_tick(HmbtnEventItem *item,HmbtnIntroActor *p,HmbtnInventory *h,HmbtnFarmAction *status)
 {

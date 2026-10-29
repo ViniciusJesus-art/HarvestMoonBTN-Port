@@ -122,6 +122,7 @@ static void poultry(Codec *c,HmbtnSession *d,const HmbtnSession *s)
 static void animal(Codec *c,HmbtnFarmAnimal *d,const HmbtnFarmAnimal *s)
 {
     B(occupied);B(sheep);B(dead);B(died_of_age);B(fed_today);B(fed_yesterday);B(talked_today);
+    B(brushed_today);B(milked_today);B(prize_winner);
     U(growth);U(affection);U(age);U(season);U(day);U(days_sick);U(days_since_shearing);
     U(area);U(timer);U(state);U(praise);
     for(unsigned i=0;i<=HMBTN_NAME_CHARS;++i) W(name[i]);

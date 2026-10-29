@@ -13,7 +13,7 @@ extraiu o tick de exploração livre, sem depender do desenho. A entrega
 PF-01 concluiu as regras compartilhadas de inventário/dinheiro e PF-02 integrou
 o primeiro cultivo completo/ciclo diário. PF-03 compartilhou comandos e integrou
 Duke; PF-04 consolidou o tick e separou atualização/desenho. PF-05 entregou saves
-nativos do estado estável. PF-06 integrou batata, grama/feno, culturas base de verão/outono, clima diário/chuva, sementes sazonais de Won, desbloqueios do supermercado, Pink Cat/Toy Flower e variantes de Magic Red; Moondrop e visitas de Karen também integradas; carpintaria/galinheiro também integrados; próximo recorte: primeira casa na cadeia da estufa. Nenhuma depende de terminar o interpretador inteiro. A matriz cobre os principais pontos de integração,
+nativos do estado estável. PF-06 integrou batata, grama/feno, culturas base de verão/outono, clima diário/chuva, sementes sazonais de Won, desbloqueios do supermercado, Pink Cat/Toy Flower e variantes de Magic Red; Moondrop e visitas de Karen também integradas; carpintaria/galinheiro também integrados; cadeia da estufa, ferramentas animais e venda com Barley entregues nos recortes abaixo; próximo recorte: reprodução bovina/ovina. Nenhuma depende de terminar o interpretador inteiro. A matriz cobre os principais pontos de integração,
 não é uma lista exaustiva de todas as funções decompiladas.
 
 ## Prioridade funcional e extensibilidade
@@ -315,3 +315,42 @@ compilada diretamente: a entrega habilita dados e blocos já adaptados.
 | `farm_tables.c:CROP_ORANGE_CUP`, itens 0x35/0x56/0x85; `field.c:field_event_dispatch`, `field_daily_tick`, `field_tile_item_stage` | `P/farm_field.c`, `farm_action.c`, `farm_carry.c`, `inventory.c`, `farm_shipping.c` | **A/E:** mesmas definições/grade/consumo, duas instâncias do motor. Oito dias regados, sem rebrota, produto 0x85/60 G. Não inventa recusa específica externa; conserva estação 0 e inverno. | `native_orangecup`: quatro estações, seca/chuva, limites, passagem de estação, exterior, save por estágio e campos/RNG distintos; percurso real: oito noites, ano novo, mão/mochila/portas, pagamento único e perda/reconstrução. |
 | `field.c:greenhouse_draw`, `field_cell_look_spring/summer/fall` | `graphics/estate_art.c`, tabela gerada existente | **A:** estufa pacote 4/sprite 24/faixas 3..6 já extraídos. Exterior: caso de primavera ausente, verão sprite 18/faixa kind+2, outono sprite 38/faixa 0. Incongruência da fonte explicitada, sem alterar regras na renderização. | Percurso verifica faixas válidas e draw sem mutação no cultivo, capturas conferidas; confirmação desta assimetria externa na execução original pendente. |
 | Continuidade de campo/item/obra | Codec atual `P/save.c/.h` v10 | **E:** nenhum campo, layout ou migrador novo. | Roundtrip em cada estágio, mochila e fruto maduro; `native_orangecup_playthrough` + app em outro processo. |
+
+
+## PF-06 — Ferramentas animais e produção (2026-10-28)
+
+Referência `fcef049`, `src/` intacto. Todos os blocos dependentes de globais/SDK
+são adaptados em `port/`; nomes/dados extraídos não são compilação direta.
+
+| Origem | Implementação nativa | Estratégia/dependências | Testes |
+|---|---|---|---|
+| `menu/shop_dialogues.c:shop_tool_upgrade_menu_setup`, `shop_stock_step`, `shop_item_room`, `shop_item_add`; `event_cmd_dispatch` 8/2 | `feed_shop.c/.h`, `village_talk.c`, `inventory.c/.h`, UI e gerador | **A:** mesmo modal/economia/inventário. Estoque derivado de posse, inclusive baú; entrega somente acessível. Paga/armazena uma vez após mensagem AE. Menu parcial oculta ordens ainda não implementadas. | `native_animal_tools`, percurso: nomes/IDs/preços, descrições, cancelar, espaço/fundos, três ferramentas, estoque esgotado, retomada do roteiro e save. |
+| `livestock.c:livestock_cow_cue`, `livestock_sheep_harvest` | `game/livestock.c/.h` | **A:** mesmos limiares 1/100/200, selo diário sem alimento, lã/intervalo e prêmio. Registros atuais não gestantes/sem ajudantes. Não inventa guarda de doença ausente na fonte. | Vetores S/M/L/G, alimento, maturidade, espécie, repetição, mortos, lã/alimentação e recarga por estágio. |
+| `livestock_set_bit2_cue/_b`, `farm_cue_praise`, overnight update | `livestock.c`, `daily.c` existente | **A:** `brushed_today` e praise existentes no mesmo dono; sem somar afeição arbitrária. Limpeza diária comum; contador da lã usa fed_yesterday antes de substituir pela alimentação atual. | Escovar repetido, reset após noite, primeira alimentação não antecipa contador e sete atualizações/reloads. |
+| `player.c:player_start_command_tool`, fases BRUSH/MILK/CLIP e `player_show_item` | `hmbtn_livestock_tool_tick`, `farm_action`, `event_item`, `exploration` | **A/E:** bancos 18/19/20 e alvo por índice; um commit após ANI. Custo, apresentação e mão compartilhados; sem cópia do produto ou algoritmo de carry. | Unidade sem desenho e percurso com ANI real, mochila/mão/portas/remessa/pagamento único. |
+| `livestock_load_mode_sprite_b`, pacote original shorn/sheep | `hmbtn_livestock_pack`, `livestock_art` e host existentes | **A/E:** troca derivada do contador entre pacotes já decodificados 8/5, sem atlas novo. | Capturas e estado antes/depois de sete noites; draw estável não muda o save. |
+| Flags BIT2/COW_CUE_TODAY/PRIZE_WINNER e save nativo | `HmbtnFarmAnimal` em `session.livestock`, codec LSTK v11 | **E/A:** booleanos explícitos e codec, não layout/flags binários PS1. Sem migração de saves anteriores. Prêmio jogável/família/gestação aguardam seus sistemas. | Roundtrip de cuidados/qualidade/intervalo, estoque derivado após reset, app novo em Linux e Windows/Wine. |
+
+## PF-06 — Correções do mundo e venda de animais (2026-10-28)
+
+| Origem original | Implementação nativa / estratégia | Verificação |
+|---|---|---|
+| `farm_zones_register_script`, `farm_zone_trigger`, `doors.c`; `event_rules.c` | **A:** `house_control.c`, `runtime.c`, `area_doors.c`: zona `0xfffe` abre modelo no mesmo mapa, com recusas originais. | `native_area_doors`, `native_world_fidelity_playthrough`: 18 lados reais, recusa, item preservado, giro/fechamento. |
+| `weather_fx_frame`, `particle_step`; `cue_history_item_3/_7` | **A:** `exploration.c` e scroll no adapter independentes da pausa do relógio; seletores de agenda existentes preservados. | Chuva em porta/evento 128, pixel original, draw puro e agendas LE de Karen/Ann em cinco climas. |
+| `player_probe_target`, `farm_tile_classify`, `thrown_item_resolve_target/update`, `picture_cell_draw` | **A:** `farm_carry.c/.h`, `scene_preview.c`: alvo à frente, HOLD/BLINK e segunda faixa ANI; sem replantio de objetos descartados. | `native_farm_carry`: bordas nos dois campos, fases/retirada; percurso de pedra fora da grade; remessas/pesca protegidas. |
+| `shop_barn_step`, `shop_livestock_find`, `shop_record_list`, `shop_draw_panel` | **A:** `livestock.c/.h`, `feed_shop.c`, `feed_shop_ui.c`, labels extraídos pelo CMake: adultos vivos, preços/ícones/textos, confirmação e crédito único. | `native_livestock_sale`, `native_livestock_sale_playthrough`: limites, espécies/páginas/vazio, cancelar, doença/tosquia, vizinhos/cochos, recompra da vaga e save/app novo. |
+
+Formato v11 preservado. Reprodução, funerais, pastagem e máquinas ainda
+pendentes. Detalhes e limites: [PF06_WORLD_FIDELITY.md](PF06_WORLD_FIDELITY.md).
+
+## Revisão de interações (2026-10-29)
+
+`player_walk_start`/`FARM_MODE_ZONE_WALK` e `player_update_position` adaptados
+no fluxo de porta existente, com piso 0xc080: teste cruza 18 lados reais,
+conserva item e bloqueia entrada manual durante a caminhada.
+`shop_menu_open_choose` usa 2/0x46 para seleção, não 2/0x6b;
+`text_draw_cursor` fornece o deslocamento vertical de seis pixels.
+`farm_carry` recupera sua colocação em células livres do campo ativo para
+pedra/galho, com normalização de figuras de inverno e sem sobrepor culturas.
+Mensagens/pixels do mercado e Barley, persistência e limites do BIN modificado
+registrados em [PF06_INTERACTION_FIXES.md](PF06_INTERACTION_FIXES.md).

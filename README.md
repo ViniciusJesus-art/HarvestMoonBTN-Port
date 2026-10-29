@@ -3,21 +3,19 @@
 # Harvest Moon: Back to Nature — PC Port
 
 
+
 <a href="https://github.com/ViniciusJesus-art/HarvestMoonBTN-Port/releases/latest/download/HarvestMoonBTN-windows-x64-setup.exe">
-  <img src="https://img.shields.io/badge/Windows-Download_EXE-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Download Windows">
+  <img height="24" src="https://img.shields.io/badge/Windows-Download_EXE-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Download Windows">
 </a>
-</a>
-&nbsp;&nbsp;&nbsp;
-<a href="...">
+&nbsp;&nbsp;
 <a href="https://github.com/ViniciusJesus-art/HarvestMoonBTN-Port/releases/latest/download/HarvestMoonBTN-linux-x86_64.AppImage">
-  <img src="https://img.shields.io/badge/Linux-Download_AppImage-1793D1?style=for-the-badge&logo=linux&logoColor=white" alt="Download Linux">
+  <img height="24" src="https://img.shields.io/badge/Linux-Download_AppImage-1793D1?style=for-the-badge&logo=linux&logoColor=white" alt="Download Linux">
 </a>
-</a>
-&nbsp;&nbsp;&nbsp;
-<a href="...">
+&nbsp;&nbsp;
 <a href="https://github.com/ViniciusJesus-art/HarvestMoonBTN-Port/releases">
-  <img src="https://img.shields.io/badge/All_Releases-GitHub-24292e?style=for-the-badge&logo=github&logoColor=white" alt="All Releases">
+  <img height="24" src="https://img.shields.io/badge/All_Releases-GitHub-24292e?style=for-the-badge&logo=github&logoColor=white" alt="All Releases">
 </a>
+
 
 
 
@@ -53,6 +51,7 @@ This is a personal project driven by my interest in programming, reverse enginee
 
 ## Table of Contents
 
+- [Translations](#translations)
 - [Current Status](#current-status)
 - [Getting Started on Linux and Windows](#getting-started-on-linux-and-windows)
 - [Goals](#goals)
@@ -62,6 +61,11 @@ This is a personal project driven by my interest in programming, reverse enginee
 - [Building the Original Decompilation](#building-the-original-decompilation)
 - [Origins and Credits](#origins-and-credits)
 - [Licensing and Game Data](#licensing-and-game-data)
+
+## Translations
+
+The PC port is compatible with any fan translation. During the initial setup, simply provide the .bin file translated into your preferred language.
+
 
 ## Current Status
 

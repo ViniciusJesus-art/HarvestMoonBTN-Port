@@ -16,6 +16,13 @@ void hmbtn_farm_carry_flight(HmbtnFarmCarry *s,HmbtnFarmField *field,
     for(unsigned i=0;i<3;++i) {
         HmbtnThrownItem *t=&s->thrown[i];
         if(!t->item.id || t->area!=s->area) continue;
+        if(t->phase) {
+            if(t->timer && !--t->timer) {
+                if(t->phase==1) { t->phase=2;t->timer=4; }
+                else t->item=(HmbtnStoredTool){0};
+            }
+            continue;
+        }
         t->position[0]+=step[t->facing][0];t->position[2]+=step[t->facing][1];
         t->position[1]+=t->velocity;t->velocity+=9;
         if(t->velocity>45) t->velocity=45;
@@ -33,17 +40,22 @@ void hmbtn_farm_carry_flight(HmbtnFarmCarry *s,HmbtnFarmField *field,
             if(surface && (hit.flags&0x80u) && hmbtn_farm_shipping_add(economy,t->item.id)) {
                 t->item=(HmbtnStoredTool){0};s->sound=0x13;continue;
             }
-            int c,r;bool placed=false;
-            const HmbtnFarmItem *info=hmbtn_farm_item(t->item.id);
-            if(field && info && (info->class_flags&0x10u)
+            /* Reuse the field/cell/catalog placement path: only carryable
+             * field objects (class bit 0x10) can return to empty soil. */
+            unsigned item=t->item.id;
+            if(item>=0x13b && item<=0x13d) item=item==0x13b ? 0x3a : item==0x13c ? 0x3e : 0x3f;
+            const HmbtnFarmItem *info=hmbtn_farm_item(item);int c,r;
+            if(field && info && (info->class_flags&0x10u) && (!surface || !(hit.flags&0x87u))
                     && hmbtn_farm_field_world_cell(field,t->position,&c,&r)) {
-                unsigned at=(unsigned)(r*(int)hmbtn_farm_field_columns(field)+c);HmbtnFarmTile *tile=&field->cells[at];
-                if(field->active[at] && tile->value>=0x167 && tile->value<=0x169) {
-                    tile->value=t->item.id;tile->kind=0;tile->growth_flags=0;
-                    s->changed=true;placed=true;
+                const unsigned index=(unsigned)r*hmbtn_farm_field_columns(field)+(unsigned)c;
+                HmbtnFarmTile *tile=&field->cells[index];
+                if(field->active[index] && tile->value>=0x167 && tile->value<=0x169) {
+                    tile->value=(uint16_t)item;tile->kind=0;tile->growth_flags=0;tile->watered_days=0;
+                    t->item=(HmbtnStoredTool){0};s->changed=true;continue;
                 }
             }
-            t->item=(HmbtnStoredTool){0};if(!placed) ++s->discarded;
+            t->position[1]=t->ground;t->velocity=0;t->phase=1;t->timer=1;
+            ++s->discarded;
         }
     }
 }
@@ -55,8 +67,9 @@ bool hmbtn_farm_carry_tick(HmbtnFarmCarry *s,HmbtnHouseInteraction *h,
         if(!p->animation_done) return true;
         if(s->phase>=2) {
             unsigned i=s->phase-2;
-            s->thrown[i]=(HmbtnThrownItem){h->inventory->held_item,
-                {p->position[0],p->position[1]-300,p->position[2]},p->position[1],0,p->facing,s->area};
+            s->thrown[i]=(HmbtnThrownItem){.item=h->inventory->held_item,
+                .position={p->position[0],p->position[1]-300,p->position[2]},
+                .ground=p->position[1],.facing=p->facing,.area=s->area};
             h->inventory->held_item=(HmbtnStoredTool){0};s->sound=9;
         }
         s->phase=0;p->sprite=(HmbtnAnimationPlayer){0,(uint16_t)p->facing,0};p->animation_done=false;
@@ -75,10 +88,11 @@ bool hmbtn_farm_carry_tick(HmbtnFarmCarry *s,HmbtnHouseInteraction *h,
     }
     if(!f) return false;
     int c,r;
-    if(!hmbtn_farm_field_world_cell(f,p->position,&c,&r)) return false;
-    static const int step[4][2]={{0,1},{-1,0},{0,-1},{1,0}};
-    c+=step[p->facing][0];r+=step[p->facing][1];
-    if(c<0 || c>=(int)hmbtn_farm_field_columns(f) || r<0 || r>=(int)hmbtn_farm_field_rows(f)) return false;
+    /* player_probe_target/facing_reach: classify the point in front, even
+     * when the player's feet are outside the cultivated rectangle. */
+    static const int step[4][2]={{0,-224},{-224,0},{0,224},{224,0}};
+    const int32_t probe[3]={p->position[0]+step[p->facing][0],p->position[1],p->position[2]+step[p->facing][1]};
+    if(!hmbtn_farm_field_world_cell(f,probe,&c,&r)) return false;
     unsigned index=(unsigned)(r*(int)hmbtn_farm_field_columns(f)+c);HmbtnFarmTile *tile=&f->cells[index];
     const unsigned crop=hmbtn_farm_field_harvest_item(f,index);
     if(crop) {

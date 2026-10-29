@@ -23,6 +23,7 @@ int hmbtn_inventory_take(HmbtnInventory *inventory,int id,int where,int which,un
  * On failure neither inventory nor optional placement is modified. */
 bool hmbtn_inventory_store_tool(HmbtnInventory *inventory,HmbtnStoredTool item,
     bool spill,HmbtnInventoryPlacement *placement);
+bool hmbtn_inventory_can_store_tool(const HmbtnInventory *inventory,bool spill);
 /* shop_item_room / shop_item_add, mode=0. Quantity 1..99; if accessible
  * space cannot hold the entire lot, store it in the first free toolbox slot.
  * Failure is atomic. Placement reports the first record changed. */

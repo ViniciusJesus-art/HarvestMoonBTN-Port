@@ -116,13 +116,14 @@ static HmbtnEventResult command(void *context,const HmbtnEventCommand *c,char *e
         if(v==27) return hmbtn_event_progress_command(t->house->progress,c,error,size);
         /* event_cmd_dispatch: start Won/Gotz shops, then wait for their close.
          * The imported conversation decides when this command is reached. */
-        if(v==8 && (t->target==35 || t->target==24) && t->shop) {
+        if(v==8 && (t->target==35 || t->target==24 || t->target==4) && t->shop) {
             if(t->target==24 && e==9 && x==1 && !y) {
                 done=t->shop->construction && t->shop->construction->mornings_left;break;
             }
             if(x) goto boundary;
-            if(!y && ((t->target==35 && e==10) || (t->target==24 && e==9))) {
-                if(!(t->target==35 ? hmbtn_won_seed_shop_open(t->shop,t->clock)
+            if(!y && ((t->target==35 && e==10) || (t->target==24 && e==9) || (t->target==4 && e==2))) {
+                if(!(t->target==4 ? hmbtn_blacksmith_shop_open(t->shop,t->clock,t->inventory)
+                    : t->target==35 ? hmbtn_won_seed_shop_open(t->shop,t->clock)
                     : hmbtn_carpenter_shop_open(t->shop,t->clock))) goto boundary;
                 break;
             }

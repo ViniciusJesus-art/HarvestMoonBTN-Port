@@ -67,7 +67,7 @@ int main(void)
     s->intro.player=(HmbtnIntroActor){0};s->village.people[15].actor=(HmbtnIntroActor){.visible=true,.position={0,0,-224}};
     s->village.people[15].location=9;s->game.economy.gold=5999;
     assert(hmbtn_feed_shop_open(&s->feed_shop,&s->village,&s->intro.player,&s->game.clock,136,0));
-    until(s,HMBTN_SHOP_SELECT);assert(s->feed_shop.request==0x6b);
+    until(s,HMBTN_SHOP_SELECT);assert(s->feed_shop.request==0x46);
     input(s,HMBTN_PAD_DOWN);assert(s->feed_shop.selection==4 && hmbtn_feed_shop_cost(&s->feed_shop)==6000);
     input(s,HMBTN_PAD_CROSS);assert(s->feed_shop.next_request==0x4f && !hmbtn_livestock_count(p,false));
     until(s,HMBTN_SHOP_SELECT);s->game.economy.gold=10000;input(s,HMBTN_PAD_CROSS);

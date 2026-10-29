@@ -43,7 +43,7 @@ jobs:
         run: ctest --test-dir build/native-ci -C ${{ matrix.configuration }} --output-on-failure
       - name: Test portability regressions
         if: github.event_name != 'workflow_dispatch'
-        run: ctest --test-dir build/native-ci -C ${{ matrix.configuration }} --output-on-failure -R "^native_(model_renderer|exploration|farm_field|inventory_rules|save|greenhouse|orangecup|farm_carry)$"
+        run: ctest --test-dir build/native-ci -C ${{ matrix.configuration }} --output-on-failure -R "^native_(model_renderer|exploration|farm_field|inventory_rules|save|greenhouse|orangecup|farm_carry|animal_tools|area_doors|weather|livestock_sale)$"
       - name: Stage Windows executable
         if: runner.os == 'Windows' && github.event_name == 'workflow_dispatch'
         run: cmake --install build/native-ci --config ${{ matrix.configuration }} --prefix build/package

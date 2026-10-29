@@ -3,20 +3,17 @@
 # Harvest Moon: Back to Nature — PC Port
 
 <a href="https://github.com/ViniciusJesus-art/HarvestMoonBTN-Port/releases/latest/download/HarvestMoonBTN-windows-x64-setup.exe">
-  <img src="https://img.shields.io/badge/Windows-Download_EXE-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Download Windows">
+  <img height="24" src="https://img.shields.io/badge/Windows-Download_EXE-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Download Windows">
 </a>
-</a>
-&nbsp;&nbsp;&nbsp;
-<a href="...">
+&nbsp;&nbsp;
 <a href="https://github.com/ViniciusJesus-art/HarvestMoonBTN-Port/releases/latest/download/HarvestMoonBTN-linux-x86_64.AppImage">
-  <img src="https://img.shields.io/badge/Linux-Download_AppImage-1793D1?style=for-the-badge&logo=linux&logoColor=white" alt="Download Linux">
+  <img height="24" src="https://img.shields.io/badge/Linux-Download_AppImage-1793D1?style=for-the-badge&logo=linux&logoColor=white" alt="Download Linux">
 </a>
-</a>
-&nbsp;&nbsp;&nbsp;
-<a href="...">
+&nbsp;&nbsp;
 <a href="https://github.com/ViniciusJesus-art/HarvestMoonBTN-Port/releases">
-  <img src="https://img.shields.io/badge/All_Releases-GitHub-24292e?style=for-the-badge&logo=github&logoColor=white" alt="All Releases">
+  <img height="24" src="https://img.shields.io/badge/All_Releases-GitHub-24292e?style=for-the-badge&logo=github&logoColor=white" alt="All Releases">
 </a>
+
 
 
 
@@ -55,6 +52,7 @@ Este é um projeto pessoal, desenvolvido por interesse em programação, engenha
 
 ## Sumário
 
+- [Traduções](#traduções)
 - [Estado atual](#estado-atual)
 - [Objetivos](#objetivos)
 - [Arquitetura planejada](#arquitetura-planejada)
@@ -63,6 +61,11 @@ Este é um projeto pessoal, desenvolvido por interesse em programação, engenha
 - [Compilação da decompilação original](#compilação-da-decompilação-original)
 - [Origem e créditos](#origem-e-créditos)
 - [Licenciamento e dados do jogo](#licenciamento-e-dados-do-jogo)
+
+
+## Traduções 
+
+O port é compativel com qualquer tradução , somente na hora da instalação você deve fornecer o .bin traduzido para o idioma desejado
 
 ## Estado atual
 

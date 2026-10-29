@@ -233,6 +233,22 @@ def main(root, output):
         f"enum {{ LIVESTOCK_FILE_START={offsets[0]}, LIVESTOCK_FILE_BYTES={offsets[1]}-{offsets[0]} }};\n"
         "static const unsigned livestock_offsets[]={"+toc[1][1:-1]+"};\n")
     text_bank = clean((src / "main/text/text_bank.c").read_text())
+    setup_tools = shop[shop.index("static s32 shop_tool_upgrade_menu_setup(void)\n{"):
+                       shop.index("static s32 shop_greenhouse_start(void)",shop.index("static s32 shop_tool_upgrade_menu_setup(void)\n{"))]
+    tool_labels = re.findall(r"\*text = LOCALIZED_NAME\(text_bank.names.(brush|milker|clippers)\)",setup_tools)
+    tool_entries = re.findall(r"END_ENTRY\((ITEM_(?:BRUSH|MILKER)),\s*0,\s*(0x[0-9A-Fa-f]+)\)",setup_tools)
+    tool_entries += re.findall(r"\*entryValue = (ITEM_CLIPPERS);\s*\*entryFlag = 0;\s*\*label46 = (0x[0-9A-Fa-f]+);",setup_tools)
+    if len(tool_labels)!=3 or len(tool_entries)!=3:
+        raise ValueError("Unexpected original animal-tool menu")
+    tool_menu = ["/* shop_tool_upgrade_menu_setup: original labels, order, item ids/descriptions. */"]
+    for label in tool_labels:
+        words = re.search(r"\."+label+r"\s*=\s*(\{[^}]+\})",text_bank).group(1)
+        tool_menu.append(f"static const uint16_t tool_name_{label}[]={words};")
+    tool_menu.append("static const HmbtnSeedShopEntry animal_tools[]={")
+    for label,(item,description) in zip(tool_labels,tool_entries):
+        tool_menu.append(f"{{{names[item]},{description},tool_name_{label},sizeof(tool_name_{label})/sizeof(uint16_t)}},")
+    tool_menu.append("};")
+    Path(output).with_name("animal_tool_menu.inc").write_text("\n".join(tool_menu)+"\n")
     # Storage navigation from item_storage.c, for all three rucksack levels.
     storage = clean((src / "overlay/11_GF_FARM/menu/item_storage.c").read_text())
     links = [fields(row[1:-1])[2] for row in fields(body(storage, "item_markers"))]

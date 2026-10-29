@@ -771,7 +771,7 @@ static bool runtime_tick(HmbtnScenePreview *s,HmbtnLogicalInput input,char *erro
      * Subtract the native projected old centre instead of literal 160/120 to
      * cancel projection rounding. Area loads must not drag old particles. */
     const int32_t *centre=s->session->intro.camera;
-    if(s->session->completion_reported && area==s->session->area && s->session->control.enabled
+    if(s->session->completion_reported && area==s->session->area
             && !s->session->travel_tick && hmbtn_world_outdoors(s->section,s->scene.terrain.size+0x2000)
             && memcmp(previous.target,centre,sizeof(previous.target))) {
         int old_x,old_y,new_x,new_y;
@@ -1009,9 +1009,14 @@ bool hmbtn_scene_preview_draw(HmbtnScenePreview *s,SDL_Renderer *renderer,char *
         }
         for(unsigned i=0;i<3;++i) if(s->session->carry.thrown[i].item.id && s->session->carry.thrown[i].area==s->session->area) {
             const HmbtnThrownItem *t=&s->session->carry.thrown[i];int x,y;
+            if(t->phase==2 && t->timer==3) continue; /* Original blink cadence. */
             const int32_t point[3]={t->position[0]+150,t->position[1]-100,t->position[2]-150};
-            if(hmbtn_model_project_point(&camera,point,&x,&y)
-                    && !hmbtn_house_ui_picture(s->house_ui,s->data_root,s->pixels,t->item.id,x-8,y-10,error,error_size)) return false;
+            if(hmbtn_model_project_point(&camera,point,&x,&y)) {
+                const HmbtnAnimation *art;const HmbtnImageAtlas *atlas;
+                if(!hmbtn_house_ui_picture_art(s->house_ui,s->data_root,t->item.id,&art,&atlas,error,error_size)) return false;
+                const HmbtnAnimationPlayer picture={.animation=t->phase==2 ? 1 : 0};
+                if(!hmbtn_animation_draw(art,atlas,&picture,x,y,s->pixels,320,240,FRAME_BYTES,error,error_size)) return false;
+            }
         }
         }
         if (s->opening) {

@@ -1,4 +1,7 @@
 #include "event_item.h"
+#ifdef NDEBUG
+#undef NDEBUG
+#endif
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
@@ -34,7 +37,8 @@ int main(void)
     inventory=before;
     assert(hmbtn_event_items_take(&inventory,290,1,-1,1)==3 && inventory.held_item.id==290
         && inventory.items[0].id==290 && !inventory.items[1].id && inventory.items[2].id==290);
-    before=inventory;assert(hmbtn_event_items_take(&inventory,290,1,2,1)==-1 && !memcmp(&before,&inventory,sizeof(before)));
+    /* which=2 now includes the implemented icebox; 4 is unsupported. */
+    before=inventory;assert(hmbtn_event_items_take(&inventory,290,1,4,1)==-1 && !memcmp(&before,&inventory,sizeof(before)));
     inventory.rucksack_level=3;assert(hmbtn_event_items_take(&inventory,290,1,1,1)==-1);
     puts("Script item presentation, cake consumption, restoration and bounded per-record removal passed.");return 0;
 }

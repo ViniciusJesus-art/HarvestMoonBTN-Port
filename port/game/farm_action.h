@@ -9,6 +9,7 @@ typedef struct HmbtnFarmAction {
     HmbtnFarmActionPhase phase;
     unsigned kind, charge_frames, overcharge_frames, strikes, target;
     unsigned stamina, max_stamina, fatigue, experience[5];
+    unsigned happiness; /* Player status, also changed by original food callbacks. */
     int sound, bank;
     bool bank_pending, finished_bank, changed;
     bool release_sound;

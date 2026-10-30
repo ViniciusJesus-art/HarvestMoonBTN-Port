@@ -90,6 +90,8 @@ static void field(Codec *c,HmbtnSession *d,const HmbtnSession *s)
     COUNT(22);for(unsigned i=0;i<22;++i) B(feed.barn[i]);
     COUNT(10);for(unsigned i=0;i<10;++i) B(feed.coop[i]);
     COUNT(HMBTN_GATHER_RECORDS);for(unsigned i=0;i<HMBTN_GATHER_RECORDS;++i) B(gather.taken[i]);
+    U(pond.random);B(pond.fed);COUNT(HMBTN_POND_FISH);
+    for(unsigned i=0;i<HMBTN_POND_FISH;++i) { W(pond.fish[i].item);W(pond.fish[i].days); }
 }
 static void village(Codec *c,HmbtnSession *d,const HmbtnSession *s)
 {
@@ -152,6 +154,7 @@ static void player(Codec *c,HmbtnSession *d,const HmbtnSession *s)
     S(intro.camera_height);S(intro.camera_distance);
     U(control.mode);U(control.blocked_frames);B(control.carrying);B(control.carrying_big);
     U(farm_action.stamina);U(farm_action.max_stamina);U(farm_action.fatigue);U(farm_action.strikes);U(farm_action.target);
+    U(farm_action.happiness);
     for(unsigned i=0;i<5;++i) U(farm_action.experience[i]);
     U(carry.discarded);B(carry.small_fish_placed);
     U(fishing.random);U(fishing.streak);U(fishing.catch_flags);B(fishing.berry_eaten);
@@ -254,7 +257,7 @@ static bool valid(const HmbtnSession *s,char *error,size_t size)
         && s->game.registration.birthday_season<4 && s->game.registration.birthday_day<30
         && valid_name(s->game.registration.player_name) && valid_name(s->game.registration.farm_name) && valid_name(s->game.registration.dog_name)
         && valid_actor(&s->intro.player) && (s->control.mode==0 || s->control.mode==2 || s->control.mode==4)
-        && s->farm_action.max_stamina<=1000000 && s->farm_action.stamina<=s->farm_action.max_stamina && s->farm_action.fatigue<=100
+        && s->farm_action.max_stamina<=1000000 && s->farm_action.stamina<=s->farm_action.max_stamina && s->farm_action.fatigue<=100 && s->farm_action.happiness<=65535
         && !s->field.indoor && s->greenhouse.indoor && s->field.season<4 && s->greenhouse.season<4
         && (s->area!=124 || s->construction.greenhouse)
         && s->village.ann_birthday_season<4 && s->village.ann_birthday_day<30
@@ -318,6 +321,7 @@ static bool valid(const HmbtnSession *s,char *error,size_t size)
     }
     ok=ok && hmbtn_makers_valid(&s->makers,&s->construction,&s->poultry);
     ok=ok && hmbtn_basket_valid(&s->game.basket,&s->game.inventory);
+    ok=ok && hmbtn_pond_valid(&s->pond) && s->game.inventory.supplies[3]<=999;
     ok=ok && hmbtn_mine_valid(&s->mine,s->area);
     ok=ok && hmbtn_livestock_valid_births(&s->livestock);
     for(unsigned i=0;i<HMBTN_LIVESTOCK;++i) {

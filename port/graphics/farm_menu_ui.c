@@ -5,6 +5,7 @@
 #include "window_frame.h"
 #include "poultry.h"
 #include "livestock.h"
+#include "pond.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -73,7 +74,7 @@ static bool summary(HmbtnFarmMenuUI *u,HmbtnNewGameUI *shared,const HmbtnFarmMen
         for(unsigned i=0;i<s->dog_affection/25 && i<10;++i) if(!sprite(u,3,4,0,120-(int)i*8,184,p,error,size)) return false;
     }
     const unsigned list_art[5]={1,1,1,1,3},list_anim[5]={4,2,3,5,22};
-    const unsigned list_count[5]={hmbtn_farm_menu_animal_count(m,0),hmbtn_farm_menu_animal_count(m,1),hmbtn_farm_menu_animal_count(m,2),s->fish,s->discarded};
+    const unsigned list_count[5]={hmbtn_farm_menu_animal_count(m,0),hmbtn_farm_menu_animal_count(m,1),hmbtn_farm_menu_animal_count(m,2),hmbtn_pond_count(m->pond),s->discarded};
     for(unsigned i=0;i<5;++i) if(!sprite(u,list_art[i],list_anim[i],0,140,72+(int)i*24,p,error,size)
         || !number(shared,p,list_count[i]>99 ? 99 : list_count[i],2,-1,164,76+(int)i*24,error,size)) return false;
     const unsigned feed_anim[4]={8,7,6,9},stock[4]={h->inventory->supplies[2],h->inventory->supplies[0],h->inventory->supplies[3],h->inventory->supplies[1]};

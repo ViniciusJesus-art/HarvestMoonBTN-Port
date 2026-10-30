@@ -471,7 +471,7 @@ static void kitchen_tick(HmbtnHouseInteraction *h,uint32_t pressed,uint32_t held
     } else if(pressed&HMBTN_PAD_TRIANGLE) {
         if(item && item->id) {
             k->return_phase=HMBTN_KITCHEN_ITEMS;kitchen_page(h,HMBTN_KITCHEN_DESCRIPTION);
-            request(h,item->id==164 ? item->modifier+0x3e8 : item->id);
+            request(h,hmbtn_inventory_item_message(item));
         }
     } else if(pressed&HMBTN_PAD_CROSS) {
         if(!item || !item->id) { h->sound=2;return; }
@@ -601,8 +601,8 @@ void hmbtn_house_interaction_tick(HmbtnHouseInteraction *h,uint32_t pressed,uint
             hmbtn_inventory_compact(h->storage==0 ? h->inventory->toolbox : h->storage==1 ? h->inventory->cabinet : h->inventory->icebox,hmbtn_inventory_toolbox_capacity(h->inventory));
             h->sound=0;
         } else if(pressed&HMBTN_PAD_TRIANGLE) {
-            const unsigned id=tool(h,h->cursor,h->page)->id;
-            if(id) { h->mode=HMBTN_HOUSE_BOOK; h->detail=true; request(h,id); h->sound=0; }
+            const HmbtnStoredTool *item=tool(h,h->cursor,h->page);
+            if(item && item->id) { h->mode=HMBTN_HOUSE_BOOK; h->detail=true; request(h,hmbtn_inventory_item_message(item)); h->sound=0; }
             else h->sound=2;
         } else {
             int direction=-1;

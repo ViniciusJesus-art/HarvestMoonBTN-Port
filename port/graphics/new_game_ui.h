@@ -4,6 +4,7 @@
 #include "asset_decode.h"
 
 typedef struct HmbtnNewGameUI HmbtnNewGameUI;
+const HmbtnAnimation *hmbtn_new_game_ui_animation(const HmbtnNewGameUI *);
 struct HmbtnWorldSprite;
 /* Borrow shared icon resources for the original world cursor/shadow (ANI 24). */
 void hmbtn_new_game_ui_cursor(const HmbtnNewGameUI *ui, struct HmbtnWorldSprite *sprite,

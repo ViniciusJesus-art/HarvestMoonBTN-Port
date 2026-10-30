@@ -1,12 +1,21 @@
 # Status do porte nativo
 
-**Atualizado em:** 2026-10-29
+**Atualizado em:** 2026-10-30
 **Escopo atual:** Linux e Windows; Android é futuro.  
 **Prioridade:** port funcional com reaproveitamento do C original, conforme a fila PF do [ROADMAP.md](ROADMAP.md).
 **Concluídas:** MA-01..06 e PF-01..05 — base central, regras compartilhadas, cultivo, evento, atualização independente do desenho e saves nativos estáveis.
 
 **PF-06 em andamento:** batata, grama/feno, culturas base de verão/outono, clima diário/chuva, sementes sazonais de Won, desbloqueios do supermercado, Pink Cat/Toy Flower, variantes de Magic Red e Moondrop/visitas de Karen, carpintaria, ampliação do galinheiro e primeira casa (depósitos/núcleo da cozinha) concluídos nos respectivos recortes; obra/mapas/cochos do celeiro também entregues; aquisição/capacidade/alimentação bovina/ovina, segunda casa/lareira, estufa, Orangecup, ferramentas animais e leite/lã integrados; demais sistemas originais ainda parciais/ausentes.
-**Próxima implementação:** PF-06 — cesta de remessas.
+**Próxima implementação:** PF-06 — lago da fazenda e ração de peixes.
+Restaurante de Kai entregue em [PF06_KAI_RESTAURANT.md](PF06_KAI_RESTAURANT.md).
+Refeições da hospedaria entregues em [PF06_INN_MEALS.md](PF06_INN_MEALS.md).
+Vinícola entregue em [PF06_WINERY.md](PF06_WINERY.md).
+Clínica e remédios entregues em [PF06_CLINIC.md](PF06_CLINIC.md).
+Consumo direto entregue em [PF06_FOOD_USE.md](PF06_FOOD_USE.md).
+Embrulhos entregues no recorte de [PF06_WRAPPING.md](PF06_WRAPPING.md).
+Alimentos entregues no recorte de [PF06_GROCERIES.md](PF06_GROCERIES.md):
+compra dos cinco produtos, mão/mochila/geladeira e curry com ingredientes comprados.
+Cesta de remessas entregue no recorte de [PF06_BASKET.md](PF06_BASKET.md).
 As duas ampliações de mochila foram entregues em [PF06_RUCKSACK.md](PF06_RUCKSACK.md).
 Utensílios/apresentação da cozinha e acessórios de Saibara também entregues nos
 recortes do [roadmap](ROADMAP.md).
@@ -18,16 +27,83 @@ não é requisito nem proibição. PF-06 e cozinha completa seguem abertas.
 MA-07..25 foram substituídas como fila, não concluídas. Refatorações necessárias
 acompanham as entregas funcionais; PF-04 separou atualização/desenho nos fluxos atuais.
 
-## Entrega atual — compra das ampliações de mochila
+## Entrega atual — restaurante de Kai
 
-Balcão original do supermercado, ofertas de 3.000/5.000 G, dez manhãs,
-cancelamento/saldo, mostrar/vestir com ANI original e mesmo inventário/carteira.
-Capacidade 2/4/8 e menus/depósitos existentes, registros preservados e contador
-no codec v17. Debug 7/7, wrapper 1/1 e regressões 5/5; Release 2/2; build Windows
-e unidade/percurso/três retomadas Wine aprovados. 45 processos incluindo
-lançadores/filhos; suíte inteira não executada. `runtime.c` preservado
-integralmente, incluindo portas do usuário. [Fontes e limites](PF06_RUCKSACK.md).
-Cesta, embrulhos, jornal, festivais e relacionamentos completos seguem abertos.
+Conversa/dispatch e agendas originais de verão, cinco itens, preços/descrições,
+cancelamento e saldo insuficiente. Fluxo compartilhado com Doug: débito único,
+comida ANI 5/bebida banco 17 e atributos ao término. Água gratuita tem mensagem
+final própria. Percurso confere almoço/retorno, domingo sem loja e três
+checkpoints reabertos em processos novos. Codec existente suficiente;
+`runtime.c` e portas do usuário preservados integralmente neste recorte.
+[Auditoria, validação e limites](PF06_KAI_RESTAURANT.md). Debug 16/16 e Release
+4/4 selecionados; Windows/Wine unidade/percurso/três retomadas aprovados.
+46 processos incluindo wrappers/produtores/filhos/lançadores, sem suíte inteira.
+Próximo: lago da fazenda e ração de peixes. Outros eventos de Kai, família,
+hospedagem/festivais e PF-06 continuam abertos. Bootstrap não executa o jogo;
+runtime parcial. Wine não substitui validação em Windows físico.
+
+## Referência anterior — refeições da hospedaria
+
+O balcão original de Doug abre seis opções diurnas/quatro noturnas conforme
+horário. Débito único, mensagens originais e consumo automático por ANI;
+comida usa ANI 5, bebida usa banco 17 e restaura o registro completo da mão.
+Água gratuita, limites de atributos e preços originais. Percurso com erva
+realmente coletada, dez serviços, mudança 17:59/18:00, saída pela porta e
+checkpoints em processos novos. Codec existente suficiente, portas preservadas.
+[Auditoria, validação e limites](PF06_INN_MEALS.md). Debug 15/15 e Release 4/4
+selecionados; Windows/Wine unidade/percurso/três retomadas aprovados.
+46 processos incluindo wrappers/produtores/filhos/lançadores, sem suíte inteira.
+Próximo: restaurante de Kai. Hospedagem, eventos/família/festivais e restante
+PF-06 continuam abertos. Bootstrap não executa o jogo; runtime parcial.
+
+## Referência anterior — vinícola
+
+Manna abre a compra de vinho/suco pelo bytecode original, com horários,
+preços, cancelamento, saldo insuficiente, débito/entrega únicos e ANI real.
+Geladeira e consumo usam os domínios existentes: vinho altera fadiga/felicidade,
+suco comprado recupera 5 de stamina; suco preparado usa a qualidade.
+Percurso compra três bebidas, guarda/retira/bebe, coleta uvas e usa o suco
+comprado numa receita real de qualidade 23, com checkpoints em processos novos.
+[Auditoria, validação e limites](PF06_WINERY.md). Codec existente suficiente;
+portas do usuário preservadas. Debug 15/15 e Release 4/4 selecionados;
+Windows/Wine unidade/percurso/três retomadas aprovados. 46 processos incluindo
+tentativas/wrappers/filhos/lançadores, sem suíte inteira.
+Próximo: refeições da hospedaria.
+Vindima/Cliff, festivais e demais progressões continuam abertos.
+O bootstrap `--diagnostics` não executa o jogo; o runtime permanece parcial.
+
+## Referência anterior — clínica e remédios
+
+O atendimento abre pelo script original do médico. Exame de 10 G com fades,
+mensagem sobre fundo preto e diagnóstico de stamina/fadiga; sem cura/tempo
+adicional, conforme o original. Quatro medicamentos com preços/descrições/ANI,
+marcos XL de 51 ervas remetidas e consumo pelo fluxo existente de bebida.
+Percurso instalado entra pela porta, recusa/examina, cruza os marcos com a 51ª
+erva coletada/remetida, compra, guarda na geladeira, retira/bebe e retoma.
+[Auditoria, validação e limites](PF06_CLINIC.md). Codec suficiente e animações
+de portas do usuário preservadas. Debug 11/11 e Release 4/4 selecionados;
+Windows/Wine unidade/percurso/três retomadas aprovados. 42 processos contando
+tentativas/wrappers/filhos/lançadores, sem suíte inteira.
+Próximo: vinícola; internação/colapso,
+outras lojas e festivais continuam abertos. Bootstrap não executa o jogo;
+runtime parcial.
+
+## Referência anterior — consumo de alimentos e bebidas
+
+Square consome comida/bebida carregada pelas flags e pelo callback originais.
+ANI/som distintos para comer e beber, ocultação da figura, qualidade como byte
+assinado, efeitos/remoção únicos no fim e limites de stamina/fadiga/felicidade.
+Curry/pão/arroz comprados, uvas realmente coletadas e suco preparado/bebido;
+relógio continua onde o mapa permite. Codec v19 acrescenta felicidade junto
+aos atributos existentes; eventos conservam sua restauração temporária.
+
+Debug 13/13 selecionados e regressões de chuva/portas 2/2, Release 2/2;
+Windows/Wine unidade/produtor/percurso/três retomadas aprovados. Foram 48
+processos incluindo tentativas/wrappers/filhos/lançadores, sem suíte inteira.
+[Auditoria, validação e limites](PF06_FOOD_USE.md). As animações de portas do
+usuário foram preservadas. Embrulhos, compras e cesta permanecem entregues.
+Naquela entrega, a próxima etapa era a clínica, agora entregue acima. Outras lojas, recebedores/eventos ainda não
+portados e festivais permanecem abertos.
 O bootstrap `--diagnostics` não executa o jogo; o runtime permanece parcial.
 
 ## Situação atual

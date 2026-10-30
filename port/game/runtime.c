@@ -736,7 +736,9 @@ static bool opening_tick(HmbtnSessionFrame *s, uint32_t held, char *error, size_
     if(!kitchen_audio(s,error,error_size)) return false;
     const bool shopping_berry=s->session->visit.active && s->session->visit.event==298
         && s->session->event_item.phase==HMBTN_EVENT_ITEM_EAT && s->session->event_item.shown==0x67;
+    const bool drinking=hmbtn_event_item_drinking(&s->session->event_item);
     hmbtn_event_item_tick(&s->session->event_item,&s->session->intro.player,s->session->house.inventory,&s->session->farm_action);
+    if(drinking && s->session->event_item.phase==HMBTN_EVENT_ITEM_IDLE) s->session->intro.action_active=false;
     if(shopping_berry && s->session->event_item.phase==HMBTN_EVENT_ITEM_IDLE) ++s->session->menu.stats.power_berries;
     if(s->session->event_item.phase==HMBTN_EVENT_ITEM_IDLE && !s->session->carry.phase) s->session->control.carrying=s->session->house.inventory->held_item.id!=0;
     if(s->session->event_item.sound>=0 && s->session->event_item.phase!=HMBTN_EVENT_ITEM_IDLE) {

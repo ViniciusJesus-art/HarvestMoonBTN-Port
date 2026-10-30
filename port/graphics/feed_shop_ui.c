@@ -14,7 +14,7 @@ static bool blacksmith_answer(const HmbtnFeedShop *s,HmbtnNewGameUI *ui,uint8_t 
 {
     if((s->phase!=HMBTN_SHOP_MAKER_CONFIRM && s->phase!=HMBTN_SHOP_MAKER_AGAIN)
             || s->closing || s->message.phase!=HMBTN_MESSAGE_WAIT_END) return true;
-    const int x=s->phase==HMBTN_SHOP_MAKER_CONFIRM ? 200 : 224;
+    const int x=s->phase==HMBTN_SHOP_MAKER_CONFIRM && !s->wrapping ? 200 : 224;
     hmbtn_window_frame_draw(p,320,240,x,128,48,36);
     return hmbtn_ui_text(ui,p,shop_yes,WORDS(shop_yes),x+16,132,0,3,error,size)
         && hmbtn_ui_text(ui,p,shop_no,WORDS(shop_no),x+16,146,0,3,error,size)
@@ -78,12 +78,45 @@ bool hmbtn_feed_shop_ui_draw(const HmbtnFeedShop *s,const HmbtnEconomy *economy,
     HmbtnNewGameUI *ui,uint8_t *p,unsigned tick,char *error,size_t size)
 {
     if(s->phase==HMBTN_SHOP_OFF || s->phase==HMBTN_SHOP_NAME || s->phase==HMBTN_SHOP_MAKER_CUE
-            || s->phase==HMBTN_SHOP_RUCKSACK_CUE || s->phase==HMBTN_SHOP_RUCKSACK_UPGRADE) return true;
-    if(s->blacksmith || s->rucksack || s->basket) {
+            || s->phase==HMBTN_SHOP_RUCKSACK_CUE || s->phase==HMBTN_SHOP_RUCKSACK_UPGRADE || s->phase==HMBTN_SHOP_SERVE) return true;
+    if(s->wrapping && (s->phase==HMBTN_SHOP_OFFER || !s->gift || s->request==0xb9 || s->request==0xbc)) return true;
+    if(s->fish_food) {
         hmbtn_window_frame_draw(p,320,240,227,16,79,34);
         if(!hmbtn_ui_text(ui,p,shop_money_title,WORDS(shop_money_title),231,20,0,3,error,size)
                 || !number(ui,p,economy->gold,8,shop_gold_unit,231,34,error,size)) return false;
-        if(s->rucksack || s->basket) return blacksmith_answer(s,ui,p,error,size);
+        const bool quantity=s->phase==HMBTN_SHOP_COUNT || s->phase==HMBTN_SHOP_INFO || s->phase==HMBTN_SHOP_RESULT;
+        if(!quantity) return true;
+        hmbtn_window_frame_draw(p,320,240,16,16,152,62);
+        return hmbtn_ui_text(ui,p,shop_fish_food,WORDS(shop_fish_food),20,20,0,3,error,size)
+            && number(ui,p,s->quantity,3,shop_units,48,38,error,size)
+            && hmbtn_ui_icon(ui,p,13,(tick/15)%2,20,38,error,size)
+            && hmbtn_ui_icon(ui,p,12,(tick/15)%2,148,38,error,size)
+            && number(ui,p,hmbtn_feed_shop_cost(s),5,shop_gold_unit,32,56,error,size);
+    }
+    if(s->clinic || s->wine || s->inn || s->kai) {
+        if(s->phase==HMBTN_SHOP_CLINIC_FADE_OUT || s->phase==HMBTN_SHOP_CLINIC_FADE_IN || s->clinic_shade) return true;
+        hmbtn_window_frame_draw(p,320,240,227,16,79,34);
+        if(!hmbtn_ui_text(ui,p,shop_money_title,WORDS(shop_money_title),231,20,0,3,error,size)
+                || !number(ui,p,economy->gold,8,shop_gold_unit,231,34,error,size)) return false;
+        if(s->phase==HMBTN_SHOP_MAKER_CONFIRM) return blacksmith_answer(s,ui,p,error,size);
+        const bool list=s->phase==HMBTN_SHOP_SELECT || s->phase==HMBTN_SHOP_TOOL_LIST
+            || (s->phase==HMBTN_SHOP_INFO && (s->after_result==HMBTN_SHOP_SELECT || s->after_result==HMBTN_SHOP_TOOL_LIST));
+        if(!list) return true;
+        const unsigned rows=(s->inn || s->kai) ? hmbtn_meal_shop_rows(s) : s->wine ? 2u : hmbtn_clinic_rows(s),cursor=s->clinic_medicines ? s->sale_cursor : s->selection;
+        hmbtn_window_frame_draw(p,320,240,16,16,208,8+rows*14);
+        for(unsigned i=0;i<rows;++i) {
+            const HmbtnSeedShopEntry *entry=(s->inn || s->kai) ? hmbtn_meal_shop_entry(s,i) : s->wine ? hmbtn_wine_shop_entry(i) : hmbtn_clinic_entry(s,i);
+            if(!hmbtn_ui_text(ui,p,entry->name,entry->name_words,30,20+(int)i*14,0,3,error,size)
+                    || ((s->inn || s->kai || s->wine || s->clinic_medicines) && !number(ui,p,(unsigned)hmbtn_farm_item(entry->item)->buy_price,
+                        5,shop_gold_unit,172,20+(int)i*14,error,size))) return false;
+        }
+        return text_cursor(ui,p,20,20+(int)cursor*14,error,size);
+    }
+    if(s->blacksmith || s->rucksack || s->basket || s->groceries || s->wrapping) {
+        hmbtn_window_frame_draw(p,320,240,227,16,79,34);
+        if(!hmbtn_ui_text(ui,p,shop_money_title,WORDS(shop_money_title),231,20,0,3,error,size)
+                || !number(ui,p,economy->gold,8,shop_gold_unit,231,34,error,size)) return false;
+        if(s->rucksack || s->basket || s->groceries || s->wrapping) return blacksmith_answer(s,ui,p,error,size);
         if(s->phase==HMBTN_SHOP_GREETING || s->phase==HMBTN_SHOP_LEAVE) return true;
         if(s->upgrade) return blacksmith_answer(s,ui,p,error,size);
         const bool tools=s->phase==HMBTN_SHOP_TOOL_LIST

@@ -38,6 +38,8 @@ bool hmbtn_inventory_add_seeds(HmbtnInventory *inventory,unsigned seed,unsigned 
 bool hmbtn_inventory_add_seed_packet(HmbtnInventory *inventory,unsigned seed,HmbtnInventoryPlacement *placement);
 /* Empty-hand collection shared by field, gather and eggs; no pose effects. */
 bool hmbtn_inventory_hold(HmbtnInventory *inventory,HmbtnStoredTool item);
+/* storage_item_message/cooking_item_prompt_tick: bank 3, wrapped contents + 1000. */
+unsigned hmbtn_inventory_item_message(const HmbtnStoredTool *);
 /* item_storage.c modes: toolbox=0, cabinet=1, icebox=2. Cells 0=hand,
  * 1..capacity=bag, 9..16=current page. Move/split/merge rules share live stores. */
 HmbtnStoredTool *hmbtn_inventory_storage_slot(HmbtnInventory *,unsigned store,unsigned cell,unsigned page);

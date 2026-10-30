@@ -19,6 +19,7 @@ struct HmbtnNewGameUI {
     char *root;
     unsigned portrait_bank;
 };
+const HmbtnAnimation *hmbtn_new_game_ui_animation(const HmbtnNewGameUI *u) { return u ? &u->icons : NULL; }
 void hmbtn_new_game_ui_cursor(const HmbtnNewGameUI *u, HmbtnWorldSprite *sprite,
     const int32_t position[3], unsigned variant)
 {

@@ -65,7 +65,7 @@ void hmbtn_farm_menu_tick(HmbtnFarmMenu *m,HmbtnInventory *h,uint32_t pressed,ui
     if(pressed&HMBTN_PAD_CIRCLE) { m->marked=255;m->sound=1;return; }
     HmbtnStoredTool *item=hmbtn_inventory_slot(h,m->cursor);
     if(pressed&HMBTN_PAD_TRIANGLE) {
-        if(item && item->id) { m->detail=true;m->request=item->id;m->loaded=0;m->sound=0; }
+        if(item && item->id) { m->detail=true;m->request=hmbtn_inventory_item_message(item);m->loaded=0;m->sound=0; }
         else m->sound=2;
         return;
     }

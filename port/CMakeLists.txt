@@ -55,7 +55,7 @@ foreach(label swap_equip swap_rucksack farm pieces gold amount_shipped help stat
 endforeach()
 file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/generated/farm_menu_labels.inc" "${farm_labels}")
 set(shop_labels "/* Original feed shop labels. */\n")
-foreach(label money_title gold_unit units fodder chicken_feed buy_chicken sell_chicken buy_cow buy_sheep sell_cow sell_sheep animal_medicine cm_potion sm_potion bell
+foreach(label money_title gold_unit units fodder chicken_feed fish_food buy_chicken sell_chicken buy_cow buy_sheep sell_cow sell_sheep animal_medicine cm_potion sm_potion bell
         farm name_panel_title yes no buy_lumber enlarge_hen_house enlarge_own_house enlarge_barn hothouse lumber improve_tool buy_tool mayonnaise_maker cheese_maker yarn_maker girls_present)
     string(REGEX MATCH "\\.${label} = \\{[^}]+\\}" shop_label "${farm_text_source}")
     if(NOT shop_label)
@@ -65,7 +65,7 @@ foreach(label money_title gold_unit units fodder chicken_feed buy_chicken sell_c
     string(APPEND shop_labels "${shop_label};\n")
 endforeach()
 file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/generated/feed_shop_labels.inc" "${shop_labels}")
-add_library(hmbtn_port_core STATIC game/basket.c game/tv_shopping.c game/tool_upgrade.c game/makers.c game/mine.c game/livestock.c game/game_state.c game/cooking.c game/construction.c game/weather.c game/weather_effects.c game/save.c game/update_clock.c game/runtime.c game/inventory.c game/economy.c game/services.c game/session.c game/daily.c game/exploration.c core/psx_data.c core/psx_random.c graphics/asset_decode.c graphics/window_frame.c
+add_library(hmbtn_port_core STATIC game/pond.c game/basket.c game/tv_shopping.c game/tool_upgrade.c game/makers.c game/mine.c game/livestock.c game/game_state.c game/cooking.c game/construction.c game/weather.c game/weather_effects.c game/save.c game/update_clock.c game/runtime.c game/inventory.c game/economy.c game/services.c game/session.c game/daily.c game/exploration.c core/psx_data.c core/psx_random.c graphics/asset_decode.c graphics/window_frame.c
     graphics/model_decode.c graphics/model_render.c graphics/scene_decode.c game/title_flow.c game/new_game.c
     game/event_script.c game/event_variables.c game/event_item.c game/farm_visit.c game/fishing.c game/item_reaction.c game/farm_intro.c game/ground.c game/house_control.c game/house_interaction.c
     game/house_sleep.c game/house_lumber.c game/farm_field.c game/farm_action.c game/field_effects.c game/farm_menu.c game/farm_carry.c game/farm_feed.c game/farm_gather.c game/poultry.c game/poultry_carry.c game/feed_shop.c game/event_days.c game/farm_clock.c game/farm_shipping.c game/world_map.c game/area_doors.c game/village.c game/village_talk.c audio/psx_audio.c audio/xa_decode.c)
@@ -307,6 +307,49 @@ if(BUILD_TESTING)
     add_executable(hmbtn_tool_upgrade_test tests/tool_upgrade_test.c)
     target_link_libraries(hmbtn_tool_upgrade_test PRIVATE hmbtn_port_core)
     add_test(NAME native_tool_upgrade COMMAND hmbtn_tool_upgrade_test)
+    add_executable(hmbtn_pond_test tests/pond_test.c)
+    target_link_libraries(hmbtn_pond_test PRIVATE hmbtn_port_core)
+    add_test(NAME native_pond COMMAND hmbtn_pond_test)
+    add_executable(hmbtn_fish_food_shop_test tests/fish_food_shop_test.c)
+    target_link_libraries(hmbtn_fish_food_shop_test PRIVATE hmbtn_port_core)
+    add_test(NAME native_fish_food_shop COMMAND hmbtn_fish_food_shop_test)
+    add_executable(hmbtn_pond_playthrough tests/pond_playthrough.c)
+    target_link_libraries(hmbtn_pond_playthrough PRIVATE hmbtn_host)
+    add_executable(hmbtn_kai_shop_test tests/kai_shop_test.c)
+    target_link_libraries(hmbtn_kai_shop_test PRIVATE hmbtn_port_core)
+    add_test(NAME native_kai_shop COMMAND hmbtn_kai_shop_test)
+    add_executable(hmbtn_kai_shop_playthrough tests/kai_shop_playthrough.c)
+    target_link_libraries(hmbtn_kai_shop_playthrough PRIVATE hmbtn_host)
+    add_executable(hmbtn_inn_shop_test tests/inn_shop_test.c)
+    target_link_libraries(hmbtn_inn_shop_test PRIVATE hmbtn_port_core)
+    add_test(NAME native_inn_shop COMMAND hmbtn_inn_shop_test)
+    add_executable(hmbtn_inn_shop_playthrough tests/inn_shop_playthrough.c)
+    target_link_libraries(hmbtn_inn_shop_playthrough PRIVATE hmbtn_host)
+    add_executable(hmbtn_wine_shop_test tests/wine_shop_test.c)
+    target_link_libraries(hmbtn_wine_shop_test PRIVATE hmbtn_port_core)
+    add_test(NAME native_wine_shop COMMAND hmbtn_wine_shop_test)
+    add_executable(hmbtn_wine_shop_playthrough tests/wine_shop_playthrough.c)
+    target_link_libraries(hmbtn_wine_shop_playthrough PRIVATE hmbtn_host)
+    add_executable(hmbtn_clinic_test tests/clinic_test.c)
+    target_link_libraries(hmbtn_clinic_test PRIVATE hmbtn_port_core)
+    add_test(NAME native_clinic COMMAND hmbtn_clinic_test)
+    add_executable(hmbtn_clinic_playthrough tests/clinic_playthrough.c)
+    target_link_libraries(hmbtn_clinic_playthrough PRIVATE hmbtn_host)
+    add_executable(hmbtn_food_use_test tests/food_use_test.c)
+    target_link_libraries(hmbtn_food_use_test PRIVATE hmbtn_port_core)
+    add_test(NAME native_food_use COMMAND hmbtn_food_use_test)
+    add_executable(hmbtn_food_use_playthrough tests/food_use_playthrough.c)
+    target_link_libraries(hmbtn_food_use_playthrough PRIVATE hmbtn_host)
+    add_executable(hmbtn_wrapping_test tests/wrapping_test.c)
+    target_link_libraries(hmbtn_wrapping_test PRIVATE hmbtn_port_core)
+    add_test(NAME native_wrapping COMMAND hmbtn_wrapping_test)
+    add_executable(hmbtn_wrapping_playthrough tests/wrapping_playthrough.c)
+    target_link_libraries(hmbtn_wrapping_playthrough PRIVATE hmbtn_host)
+    add_executable(hmbtn_groceries_test tests/groceries_test.c)
+    target_link_libraries(hmbtn_groceries_test PRIVATE hmbtn_port_core)
+    add_test(NAME native_groceries COMMAND hmbtn_groceries_test)
+    add_executable(hmbtn_groceries_playthrough tests/groceries_playthrough.c)
+    target_link_libraries(hmbtn_groceries_playthrough PRIVATE hmbtn_host)
     add_executable(hmbtn_basket_playthrough tests/basket_playthrough.c)
     target_link_libraries(hmbtn_basket_playthrough PRIVATE hmbtn_host)
     add_executable(hmbtn_basket_test tests/basket_test.c)
@@ -657,6 +700,47 @@ if(BUILD_TESTING)
             "$<TARGET_FILE:hmbtn_tv_shopping_playthrough>" "$<TARGET_FILE:hmbtn_cooking_playthrough>"
             "$<TARGET_FILE:hmbtn_native>" "${HMBTN_TEST_GAME_DATA}")
         set_tests_properties(native_cooking_playthrough PROPERTIES TIMEOUT 420
+            ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_RENDER_DRIVER=software;SDL_AUDIO_DRIVER=dummy")
+        add_test(NAME native_pond_playthrough COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/pond_process.py"
+            "$<TARGET_FILE:hmbtn_pond_playthrough>" "$<TARGET_FILE:hmbtn_native>" "${HMBTN_TEST_GAME_DATA}")
+        set_tests_properties(native_pond_playthrough PROPERTIES TIMEOUT 420
+            ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_RENDER_DRIVER=software;SDL_AUDIO_DRIVER=dummy")
+        add_test(NAME native_kai_shop_playthrough COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/kai_shop_process.py"
+            "$<TARGET_FILE:hmbtn_kai_shop_playthrough>" "$<TARGET_FILE:hmbtn_native>" "${HMBTN_TEST_GAME_DATA}")
+        set_tests_properties(native_kai_shop_playthrough PROPERTIES TIMEOUT 420
+            ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_RENDER_DRIVER=software;SDL_AUDIO_DRIVER=dummy")
+        add_test(NAME native_inn_shop_playthrough COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/inn_shop_process.py"
+            "$<TARGET_FILE:hmbtn_inn_shop_playthrough>" "$<TARGET_FILE:hmbtn_native>" "${HMBTN_TEST_GAME_DATA}")
+        set_tests_properties(native_inn_shop_playthrough PROPERTIES TIMEOUT 420
+            ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_RENDER_DRIVER=software;SDL_AUDIO_DRIVER=dummy")
+        add_test(NAME native_wine_shop_playthrough COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/wine_shop_process.py"
+            "$<TARGET_FILE:hmbtn_wine_shop_playthrough>" "$<TARGET_FILE:hmbtn_native>" "${HMBTN_TEST_GAME_DATA}")
+        set_tests_properties(native_wine_shop_playthrough PROPERTIES TIMEOUT 420
+            ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_RENDER_DRIVER=software;SDL_AUDIO_DRIVER=dummy")
+        add_test(NAME native_clinic_playthrough COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/clinic_process.py"
+            "$<TARGET_FILE:hmbtn_clinic_playthrough>" "$<TARGET_FILE:hmbtn_native>" "${HMBTN_TEST_GAME_DATA}")
+        set_tests_properties(native_clinic_playthrough PROPERTIES TIMEOUT 420
+            ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_RENDER_DRIVER=software;SDL_AUDIO_DRIVER=dummy")
+        add_test(NAME native_food_use_playthrough COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/food_use_process.py"
+            "$<TARGET_FILE:hmbtn_groceries_playthrough>" "$<TARGET_FILE:hmbtn_food_use_playthrough>"
+            "$<TARGET_FILE:hmbtn_native>" "${HMBTN_TEST_GAME_DATA}")
+        set_tests_properties(native_food_use_playthrough PROPERTIES TIMEOUT 300
+            ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_RENDER_DRIVER=software;SDL_AUDIO_DRIVER=dummy")
+        add_test(NAME native_wrapping_playthrough COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/wrapping_process.py"
+            "$<TARGET_FILE:hmbtn_wrapping_playthrough>" "$<TARGET_FILE:hmbtn_native>" "${HMBTN_TEST_GAME_DATA}")
+        set_tests_properties(native_wrapping_playthrough PROPERTIES TIMEOUT 240
+            ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_RENDER_DRIVER=software;SDL_AUDIO_DRIVER=dummy")
+        add_test(NAME native_groceries_playthrough COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/groceries_process.py"
+            "$<TARGET_FILE:hmbtn_groceries_playthrough>" "$<TARGET_FILE:hmbtn_native>" "${HMBTN_TEST_GAME_DATA}")
+        set_tests_properties(native_groceries_playthrough PROPERTIES TIMEOUT 240
             ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_RENDER_DRIVER=software;SDL_AUDIO_DRIVER=dummy")
         add_test(NAME native_basket_playthrough COMMAND "${Python3_EXECUTABLE}"
             "${CMAKE_CURRENT_SOURCE_DIR}/tests/basket_process.py"

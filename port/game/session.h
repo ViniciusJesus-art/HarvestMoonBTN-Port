@@ -22,6 +22,7 @@
 #include "feed_shop.h"
 #include "construction.h"
 #include "fishing.h"
+#include "pond.h"
 #include "field_effects.h"
 #include "house_sleep.h"
 #include "house_lumber.h"
@@ -48,6 +49,7 @@ typedef struct HmbtnSession {
     HmbtnFarmAction farm_action;
     HmbtnMine mine;
     HmbtnFishing fishing;
+    HmbtnPond pond;
     HmbtnFarmCarry carry;
     HmbtnBasketAction basket_action;
     HmbtnFarmFeed feed;

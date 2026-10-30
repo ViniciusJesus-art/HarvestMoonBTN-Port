@@ -73,9 +73,24 @@ static bool feed_shop_message(HmbtnSession *s,const HmbtnExplorationFrame *f,cha
         s->dialogue.message=(HmbtnMessage){0};
         if(!shop->cue_started) {
             const bool ok=shop->phase==HMBTN_SHOP_RUCKSACK_CUE
-                ? hmbtn_event_item_show(&s->event_item,&s->intro.player,s->house.inventory,shop->item)
+                ? hmbtn_event_item_show_record(&s->event_item,&s->intro.player,s->house.inventory,
+                    (HmbtnStoredTool){(uint16_t)shop->item,(uint16_t)(shop->wrapping ? shop->gift : 0),1})
                 : hmbtn_event_item_rucksack(&s->event_item,&s->intro.player,s->house.inventory);
-            if(!ok) { snprintf(error,size,"Cannot present original rucksack purchase");return false; }
+            if(!ok) { snprintf(error,size,"Cannot present original shop item");return false; }
+            shop->cue_started=true;
+        }
+        s->control.mode=0;return true;
+    }
+    if(shop->phase==HMBTN_SHOP_SERVE) {
+        s->dialogue.message=(HmbtnMessage){0};
+        if(!shop->cue_started) {
+            if(!hmbtn_event_item_receive(&s->event_item,&s->intro.player,s->house.inventory,&s->game.clock,shop->item)) {
+                snprintf(error,size,"Cannot receive original shop meal");return false;
+            }
+            if(hmbtn_event_item_drinking(&s->event_item)) {
+                if(!action_bank(f,17,error,size)) return false;
+                s->intro.action_active=true;
+            }
             shop->cue_started=true;
         }
         s->control.mode=0;return true;
@@ -89,6 +104,9 @@ static bool feed_shop_message(HmbtnSession *s,const HmbtnExplorationFrame *f,cha
             shop->cue_started=true;
         }
         s->control.mode=0;return true;
+    }
+    if(shop->clinic && (shop->phase==HMBTN_SHOP_CLINIC_FADE_OUT || shop->phase==HMBTN_SHOP_CLINIC_FADE_IN)) {
+        s->dialogue.message=(HmbtnMessage){0};s->control.mode=0;return true;
     }
     if(shop->phase==HMBTN_SHOP_NAME) {
         if(shop->editor.request && shop->editor.loaded!=shop->editor.request) {
@@ -107,7 +125,7 @@ static bool feed_shop_message(HmbtnSession *s,const HmbtnExplorationFrame *f,cha
         }
         if(!message(f,record,&shop->message,error,size)) return false;
         shop->message.suppress_cursor=shop->phase==HMBTN_SHOP_SELECT || shop->phase==HMBTN_SHOP_COUNT
-            || shop->phase==HMBTN_SHOP_SELL_LIST || shop->phase==HMBTN_SHOP_SELL_CONFIRM
+            || shop->phase==HMBTN_SHOP_TOOL_LIST || shop->phase==HMBTN_SHOP_SELL_LIST || shop->phase==HMBTN_SHOP_SELL_CONFIRM
             || shop->phase==HMBTN_SHOP_MAKER_CONFIRM || shop->phase==HMBTN_SHOP_MAKER_AGAIN;
         shop->loaded=shop->request;
     }
@@ -226,7 +244,7 @@ bool hmbtn_session_exploration_controls(HmbtnSession *s,const HmbtnExplorationFr
         if(s->feed_shop.phase!=HMBTN_SHOP_OFF) {
             hmbtn_feed_shop_tick(&s->feed_shop,&s->house,hmbtn_game_economy(&s->game),&s->menu.stats,input.pressed,held);
             if(s->feed_shop.phase==HMBTN_SHOP_OFF) {
-                if(!s->feed_shop.seeds && !s->feed_shop.rucksack && !s->feed_shop.basket && !s->feed_shop.carpenter && !s->feed_shop.blacksmith) {
+                if(!s->feed_shop.seeds && !s->feed_shop.rucksack && !s->feed_shop.basket && !s->feed_shop.groceries && !s->feed_shop.wrapping && !s->feed_shop.carpenter && !s->feed_shop.blacksmith && !s->feed_shop.clinic && !s->feed_shop.wine && !s->feed_shop.inn && !s->feed_shop.kai && !s->feed_shop.fish_food) {
                     HmbtnIntroActor *merchant=&s->village.people[s->feed_shop.merchant].actor;
                     merchant->facing=s->feed_shop.saved_facing;
                     merchant->sprite=(HmbtnAnimationPlayer){0,(uint16_t)merchant->facing,0};
@@ -257,6 +275,7 @@ bool hmbtn_session_exploration_controls(HmbtnSession *s,const HmbtnExplorationFr
         }
         if(!s->travel_tick && !s->door_tick && !s->sleep.active && !s->morning_fade) {
             hmbtn_farm_carry_flight(&s->carry,hmbtn_session_field(s),f->ground,hmbtn_game_economy(&s->game));
+            if(!hmbtn_farm_carry_splashes(&s->carry,f->animation ? f->animation(f->context,HMBTN_EXP_STAGE,0) : NULL,error,error_size)) return false;
             if(s->carry.request) {
                 s->house.mode=HMBTN_HOUSE_BOOK;s->house.message_bank=3;s->house.request=s->carry.request;
                 s->house.loaded=0;s->house.closing=s->house.detail=false;s->house.sound=3;opened=true;
@@ -294,14 +313,22 @@ bool hmbtn_session_exploration_controls(HmbtnSession *s,const HmbtnExplorationFr
                 && !s->travel_tick && !s->door_tick && !s->control.jumping && !s->control.exit_pending
                 && s->house.mode==HMBTN_HOUSE_FREE && s->farm_action.phase==HMBTN_FARM_ACTION_FREE
                 && (input.pressed&HMBTN_PAD_CROSS)) {
-            if(hmbtn_basket_shop_open(&s->feed_shop,&s->village,&s->intro.player,&s->game.clock,s->area,
+            if(hmbtn_inn_shop_open(&s->feed_shop,&s->village,&s->intro.player,&s->game.clock,s->area,
+                    f->section,f->section_size,s->house.inventory)
+                    || hmbtn_fish_food_shop_open(&s->feed_shop,&s->village,&s->intro.player,&s->game.clock,s->area,
+                    f->section,f->section_size,s->house.inventory)
+                    || hmbtn_basket_shop_open(&s->feed_shop,&s->village,&s->intro.player,&s->game.clock,s->area,
                     f->section,f->section_size,s->house.inventory)
                     || hmbtn_rucksack_shop_open(&s->feed_shop,&s->village,&s->intro.player,&s->game.clock,s->area,
+                    f->section,f->section_size,s->house.inventory)
+                    || hmbtn_wrapping_shop_open(&s->feed_shop,&s->village,&s->intro.player,&s->game.clock,s->area,
+                    f->section,f->section_size,s->house.inventory)
+                    || hmbtn_grocery_shop_open(&s->feed_shop,&s->village,&s->intro.player,&s->game.clock,s->area,
                     f->section,f->section_size,s->house.inventory)
                     || hmbtn_seed_shop_open(&s->feed_shop,&s->village,&s->intro.player,&s->game.clock,s->area,
                     f->section,f->section_size,s->house.inventory->held_item.id)
                     || hmbtn_feed_shop_open(&s->feed_shop,&s->village,&s->intro.player,&s->game.clock,s->area,s->house.inventory->held_item.id)) {
-                if(!s->feed_shop.seeds && !s->feed_shop.rucksack && !s->feed_shop.basket && !s->feed_shop.carpenter) {
+                if(!s->feed_shop.seeds && !s->feed_shop.rucksack && !s->feed_shop.basket && !s->feed_shop.groceries && !s->feed_shop.wrapping && !s->feed_shop.carpenter && !s->feed_shop.inn && !s->feed_shop.fish_food) {
                     HmbtnIntroActor *merchant=&s->village.people[s->feed_shop.merchant].actor;
                     merchant->facing=(s->intro.player.facing+2)&3u;
                     merchant->sprite=(HmbtnAnimationPlayer){0,(uint16_t)merchant->facing,0};
@@ -427,6 +454,17 @@ basket_interaction:
             goto house_done;
         }
         if(!s->feed.phase && !s->carry.phase && !s->quick_ticks && !s->travel_tick && !s->door_tick
+                && !s->control.exit_pending && !s->control.jumping && s->house.mode==HMBTN_HOUSE_FREE
+                && s->farm_action.phase==HMBTN_FARM_ACTION_FREE && (input.pressed&HMBTN_PAD_SQUARE)
+                && hmbtn_event_item_use(&s->event_item,&s->intro.player,s->house.inventory,&s->game.clock)) {
+            if(s->event_item.phase==HMBTN_EVENT_ITEM_USE_DRINK) {
+                /* player_load_tool_anim: mode 0x49 - base 0x3b = row 14. */
+                if(!action_bank(f,14,error,error_size)) return false;
+                s->intro.action_active=true;
+            }
+            s->control.mode=0;goto house_done;
+        }
+        if(!s->feed.phase && !s->carry.phase && !s->quick_ticks && !s->travel_tick && !s->door_tick
                 && !s->house.inventory->held_item.id && !s->control.exit_pending && !s->control.jumping
                 && s->house.mode==HMBTN_HOUSE_FREE && s->farm_action.phase==HMBTN_FARM_ACTION_FREE
                 && (s->house.inventory->equipped.id==0x38 || s->house.inventory->equipped.id==0x39) && (input.pressed&HMBTN_PAD_SQUARE)) {
@@ -488,9 +526,11 @@ basket_interaction:
                 s->house.loaded=0;s->house.closing=s->house.detail=false;s->house.sound=3;opened=true;
             } else { s->control.mode=0;goto house_done; }
         }
-        if(s->feed.phase || ((s->area==96 || s->area==112) && !s->control.exit_pending
+        if(s->feed.phase || ((s->area==0 || s->area==96 || s->area==112) && !s->control.exit_pending
                 && !s->control.jumping && s->house.mode==HMBTN_HOUSE_FREE && !s->quick_ticks)) {
-            if(hmbtn_farm_feed_makers_tick(&s->feed,&s->makers,&s->house,&s->intro.player,
+            if((s->area==0 && hmbtn_farm_feed_pond_tick(&s->feed,&s->pond,&s->house,&s->intro.player,
+                        s->game.clock.season,f->section,f->section_size,input.pressed))
+                    || hmbtn_farm_feed_makers_tick(&s->feed,&s->makers,&s->house,&s->intro.player,
                         s->area,f->section,f->section_size,input.pressed)
                     || hmbtn_farm_feed_tick(&s->feed,&s->house,&s->intro.player,f->section,
                     f->section_size,input.pressed)) {
@@ -630,7 +670,7 @@ bool hmbtn_session_exploration_world(HmbtnSession *s,const HmbtnExplorationFrame
         const bool held_clock=!s->control.enabled || s->travel_tick || s->door_tick || s->control.exit_pending
             || s->sleep.active || s->morning_fade || s->intro.message || s->first_visit_active
             || s->menu.mode!=HMBTN_MENU_NONE || s->house.mode!=HMBTN_HOUSE_FREE || s->feed_shop.phase!=HMBTN_SHOP_OFF
-            || s->talk.active || s->event_item.phase!=HMBTN_EVENT_ITEM_IDLE || s->mine.prompt || s->mine.back_ticks || s->mine.reward;
+            || s->talk.active || (s->event_item.phase!=HMBTN_EVENT_ITEM_IDLE && !hmbtn_event_item_consuming(&s->event_item)) || s->mine.prompt || s->mine.back_ticks || s->mine.reward;
         const unsigned changes=hmbtn_farm_clock_tick(&s->game.clock,held_clock
             || hmbtn_farm_clock_place_held(f->section,16));
         hmbtn_session_clock_events(s,&s->game.clock,changes);

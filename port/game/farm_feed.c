@@ -71,6 +71,30 @@ bool hmbtn_farm_feed_tick(HmbtnFarmFeed *f,HmbtnHouseInteraction *h,HmbtnIntroAc
     return false;
 }
 
+/* player_act_zone_front: ZONE_POND 45 and ZONE_FISH_FOOD_STORE 10.
+ * Reuse the feed pickup phase/ANI; no separate interaction controller. */
+bool hmbtn_farm_feed_pond_tick(HmbtnFarmFeed *f,HmbtnPond *pond,HmbtnHouseInteraction *h,
+    HmbtnIntroActor *p,unsigned season,const uint8_t *section,size_t size,uint32_t pressed)
+{
+    if(f->phase || !pond || !(pressed&HMBTN_PAD_CROSS) || !section || size<16+50*44 || p->facing>3) return false;
+    static const int delta[4][2]={{0,-224},{-224,0},{0,224},{224,0}};
+    const int32_t x=p->position[0]+p->velocity[0]+delta[p->facing][0],z=p->position[2]+p->velocity[2]+delta[p->facing][1];
+    for(unsigned i=0;i<50;++i) {
+        const uint8_t *q=section+16+i*44;const unsigned kind=hmbtn_read_le16(q+2);
+        if(!(hmbtn_read_le16(q)&0x4000u) || (kind!=10 && kind!=45) || p->facing!=hmbtn_read_le16(q+8)
+                || x<=half(q+14) || x>=half(q+20) || z<=half(q+18) || z>=half(q+24)
+                || p->position[1]<=half(q+16)-128 || p->position[1]>=half(q+22)+120) continue;
+        if(h->inventory->held_item.id) return kind==10;
+        unsigned item=0;
+        if(kind==45) { if(season==3) return false;item=hmbtn_pond_take(pond); }
+        else if(h->inventory->supplies[3]) { --h->inventory->supplies[3];item=132; }
+        if(!item) return false;
+        h->inventory->held_item=(HmbtnStoredTool){(uint16_t)item,0,1};f->phase=1;f->sound=7;f->request=0;
+        p->sprite=(HmbtnAnimationPlayer){(uint16_t)(11+p->facing),0,0};p->animation_done=false;return true;
+    }
+    return false;
+}
+
 /* Machine submission shares the feed modal lock/base ANI. Phases 3..5 retain
  * the authoritative held ingredient until the throw animation completes;
  * phase 1 then shows its replacement, with no rucksack-space requirement. */

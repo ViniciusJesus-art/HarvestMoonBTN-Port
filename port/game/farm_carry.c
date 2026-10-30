@@ -1,6 +1,8 @@
 #include "farm_carry.h"
 #include "inventory.h"
 #include "basket.h"
+#include "psx_data.h"
+#include <stdio.h>
 void hmbtn_farm_carried_offset(unsigned facing,bool running,int *x,int *y)
 {
     /* player.c: mark_screen_offsets, groups CARRY_ITEM and POSE_4. */
@@ -18,6 +20,7 @@ void hmbtn_farm_carry_flight(HmbtnFarmCarry *s,HmbtnFarmField *field,
         HmbtnThrownItem *t=&s->thrown[i];
         if(!t->item.id || t->area!=s->area) continue;
         if(t->phase) {
+            if(t->phase==3) continue; /* Tick the decoded splash ANI separately. */
             if(t->timer && !--t->timer) {
                 if(t->phase==1) { t->phase=2;t->timer=4; }
                 else t->item=(HmbtnStoredTool){0};
@@ -38,6 +41,16 @@ void hmbtn_farm_carry_flight(HmbtnFarmCarry *s,HmbtnFarmField *field,
         }
         if(t->position[1]>=t->ground) {
             int32_t landing[3]={t->position[0],t->ground,t->position[2]};
+            /* farm_status_kind gives pond bit 4 priority over other waters.
+             * The landing consumes even a refused fish, as in the original. */
+            if(surface && (hit.flags&0x46u)) {
+                if((hit.flags&4u) && s->pond) {
+                    if(t->item.id>=161 && t->item.id<=163 && !hmbtn_pond_add(s->pond,t->item.id)) s->request=0x382;
+                    if(t->item.id==132) s->pond->fed=true;
+                } else if(t->area==56 && t->item.id==163 && (hit.flags&2u) && !(hit.flags&0x40u)) s->small_fish_placed=true;
+                t->position[1]=t->ground;t->velocity=0;t->phase=3;t->splash=(HmbtnAnimationPlayer){23,0,0};s->sound=16;
+                continue;
+            }
             if(hmbtn_basket_near(s->basket,s->area,landing) && hmbtn_farm_shipping_price(economy,t->item.id)) {
                 if(!hmbtn_basket_add(s->basket,economy,t->item.id)) s->request=0x383;
                 t->item=(HmbtnStoredTool){0};s->sound=9;continue;
@@ -64,6 +77,21 @@ void hmbtn_farm_carry_flight(HmbtnFarmCarry *s,HmbtnFarmField *field,
             ++s->discarded;
         }
     }
+}
+bool hmbtn_farm_carry_splashes(HmbtnFarmCarry *s,const HmbtnAnimation *a,char *error,size_t size)
+{
+    for(unsigned i=0;i<3;++i) {
+        HmbtnThrownItem *t=&s->thrown[i];if(!t->item.id || t->area!=s->area || t->phase!=3) continue;
+        if(!a || !a->data || t->splash.animation>=a->count[3]) { snprintf(error,size,"Missing original water landing ANI");return false; }
+        const uint8_t *range=a->data+a->section[3]+t->splash.animation*4;
+        const unsigned count=hmbtn_read_le16(range);
+        if(t->splash.frame>=count) { snprintf(error,size,"Water landing frame outside range");return false; }
+        const uint8_t *frame=a->data+a->section[4]+hmbtn_read_le16(range+2)+t->splash.frame*10;
+        const bool ended=t->splash.ticks+1u>=((unsigned)frame[6]+1)/2 && (frame[7]!=0 || t->splash.frame+1u>=count);
+        if(!hmbtn_animation_tick(a,&t->splash,error,size)) return false;
+        if(ended) t->item=(HmbtnStoredTool){0};
+    }
+    return true;
 }
 bool hmbtn_farm_carry_tick(HmbtnFarmCarry *s,HmbtnHouseInteraction *h,
     HmbtnFarmField *f,HmbtnIntroActor *p,uint32_t pressed)

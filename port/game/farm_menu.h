@@ -23,6 +23,7 @@ typedef struct HmbtnFarmMenu {
     const struct HmbtnConstruction *construction;
     const struct HmbtnLivestock *livestock;
     const struct HmbtnPoultry *poultry; /* Borrow the session records; never a serialized address. */
+    const struct HmbtnPond *pond;
 } HmbtnFarmMenu;
 /* Bind the game's live economy; does not initialize or reset financial data. */
 void hmbtn_farm_menu_init(HmbtnFarmMenu *menu,const HmbtnEconomy *economy);

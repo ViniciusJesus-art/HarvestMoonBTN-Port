@@ -11,7 +11,8 @@ typedef enum HmbtnFeedShopPhase {
     HMBTN_SHOP_OFFER,HMBTN_SHOP_COUNT,HMBTN_SHOP_RESULT,HMBTN_SHOP_LEAVE,HMBTN_SHOP_NAME,
     HMBTN_SHOP_SELL_LIST,HMBTN_SHOP_SELL_CONFIRM,HMBTN_SHOP_CANCEL_COUNT,HMBTN_SHOP_BUILD_CONFIRM,HMBTN_SHOP_TOOL_LIST,
     HMBTN_SHOP_MAKER_CONFIRM,HMBTN_SHOP_MAKER_AGAIN,HMBTN_SHOP_MAKER_CUE,
-    HMBTN_SHOP_RUCKSACK_CUE,HMBTN_SHOP_RUCKSACK_UPGRADE
+    HMBTN_SHOP_RUCKSACK_CUE,HMBTN_SHOP_RUCKSACK_UPGRADE,
+    HMBTN_SHOP_CLINIC_FADE_OUT,HMBTN_SHOP_CLINIC_FADE_IN,HMBTN_SHOP_SERVE
 } HmbtnFeedShopPhase;
 typedef struct HmbtnFeedShop {
     HmbtnFeedShopPhase phase,next,after_result;
@@ -24,7 +25,7 @@ typedef struct HmbtnFeedShop {
     bool medicine_available,potion_available[2],bell_available;
     bool carpenter;
     bool blacksmith,upgrade;
-    unsigned gift; /* One original random accessory per menu setup. */
+    unsigned gift; /* Random accessory offer, or original content id when wrapping. */
     uint32_t *random; /* Borrow the village generator, retained by session saves. */
     const HmbtnFarmAction *action; /* Live shared tool experience, borrowed. */
     bool cue_started,departure;
@@ -34,6 +35,14 @@ typedef struct HmbtnFeedShop {
     bool seeds; /* Original seasonal seed-table menu, same shop state. */
     bool rucksack; /* Original supermarket record/key 9, shared shop modal. */
     bool basket;
+    bool groceries; /* shop_item_grant mode=FLAG_ONLY retains the cue item. */
+    bool wrapping; /* shop_buy_item_step, key 0x177: accepts occupied hands. */
+    bool clinic,clinic_medicines;
+    bool wine; /* shop_pay_step / shop_wine_menu_setup, original NPC 22. */
+    bool inn,inn_drinks; /* Original day/night menu is chosen when opened. */
+    bool kai; /* NPC 25 dispatches the summer restaurant from its own script. */
+    bool fish_food; /* Supermarket key 132 -> original stock dialogue 2. */
+    unsigned clinic_shade,fade_ticks; /* Original exam fade, advanced by game ticks. */
     HmbtnBasket *basket_state;
     int sound;
     HmbtnPoultry *poultry;
@@ -50,6 +59,23 @@ typedef struct HmbtnSeedShopEntry {
     const uint16_t *name;
     unsigned name_words;
 } HmbtnSeedShopEntry;
+typedef struct HmbtnGroceryStock { unsigned item,description,request,sprite; } HmbtnGroceryStock;
+const HmbtnGroceryStock *hmbtn_grocery_stock(unsigned index);
+bool hmbtn_fish_food_shop_open(HmbtnFeedShop *,HmbtnVillage *,const HmbtnIntroActor *,
+    const HmbtnFarmClock *,unsigned area,const uint8_t *,size_t,const HmbtnInventory *);
+/* Original NPC 8 dispatch(8,5,0,0); script owns hours/presence/empty hands. */
+bool hmbtn_clinic_open(HmbtnFeedShop *,const HmbtnFarmClock *,const HmbtnInventory *);
+unsigned hmbtn_clinic_rows(const HmbtnFeedShop *);
+const HmbtnSeedShopEntry *hmbtn_clinic_entry(const HmbtnFeedShop *,unsigned row);
+unsigned hmbtn_clinic_diagnosis(const HmbtnFarmAction *);
+/* Original dispatch(8,3,0,0); eligibility stays in Manna's conversation. */
+bool hmbtn_wine_shop_open(HmbtnFeedShop *,const HmbtnFarmClock *,const HmbtnInventory *);
+const HmbtnSeedShopEntry *hmbtn_wine_shop_entry(unsigned row);
+bool hmbtn_inn_shop_open(HmbtnFeedShop *,HmbtnVillage *,const HmbtnIntroActor *,
+    const HmbtnFarmClock *,unsigned area,const uint8_t *,size_t,const HmbtnInventory *);
+bool hmbtn_kai_shop_open(HmbtnFeedShop *,const HmbtnFarmClock *,const HmbtnInventory *);
+unsigned hmbtn_meal_shop_rows(const HmbtnFeedShop *);
+const HmbtnSeedShopEntry *hmbtn_meal_shop_entry(const HmbtnFeedShop *,unsigned row);
 /* Base spring/summer/fall stock from shop_seed_menu_setup_a/b/c. Unsupported seasons
  * return no entries. Contextual count/choice below append the unlocked row. */
 unsigned hmbtn_seed_shop_entries(unsigned season);
@@ -67,6 +93,10 @@ bool hmbtn_seed_shop_open(HmbtnFeedShop *shop,HmbtnVillage *village,
 bool hmbtn_rucksack_shop_open(HmbtnFeedShop *,HmbtnVillage *,const HmbtnIntroActor *,
     const HmbtnFarmClock *,unsigned area,const uint8_t *,size_t,const HmbtnInventory *);
 bool hmbtn_basket_shop_open(HmbtnFeedShop *,HmbtnVillage *,const HmbtnIntroActor *,
+    const HmbtnFarmClock *,unsigned area,const uint8_t *,size_t,const HmbtnInventory *);
+bool hmbtn_grocery_shop_open(HmbtnFeedShop *,HmbtnVillage *,const HmbtnIntroActor *,
+    const HmbtnFarmClock *,unsigned area,const uint8_t *,size_t,const HmbtnInventory *);
+bool hmbtn_wrapping_shop_open(HmbtnFeedShop *,HmbtnVillage *,const HmbtnIntroActor *,
     const HmbtnFarmClock *,unsigned area,const uint8_t *,size_t,const HmbtnInventory *);
 /* Raw original group D has eight rows. Contextual count/choice filters to
  * supported crops and the shared Moondrop unlock (seven rows, eight after

@@ -25,6 +25,7 @@ typedef struct HmbtnFarmItem {
     int crop, rules[5], picture, buy_price, sell_price;
     int stamina, fatigue, plant_animation, half_width, half_depth;
     uint32_t class_flags;
+    bool status_use; /* Original callback is farm_clamp_status, never a host pointer. */
 } HmbtnFarmItem;
 /* Definitions are immutable catalog data; cells only hold instance state. */
 typedef struct HmbtnFarmCrop { unsigned season,grown; int regrow; unsigned days[4]; int harvest; } HmbtnFarmCrop;

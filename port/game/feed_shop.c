@@ -14,6 +14,9 @@
 #include <string.h>
 #include "seed_menu.inc"
 #include "animal_tool_menu.inc"
+#include "grocery_stock.inc"
+const HmbtnGroceryStock *hmbtn_grocery_stock(unsigned index)
+{ return index<sizeof(grocery_stock)/sizeof(*grocery_stock) ? &grocery_stock[index] : NULL; }
 unsigned hmbtn_seed_shop_entries(unsigned season)
 {
     return season==0 ? (unsigned)(sizeof(spring_seeds)/sizeof(*spring_seeds))
@@ -221,16 +224,105 @@ bool hmbtn_basket_shop_open(HmbtnFeedShop *s,HmbtnVillage *v,const HmbtnIntroAct
     reset_shop(s);s->basket=true;s->merchant=1;s->clock=clock;s->inventory=h;s->item=100;s->quantity=1;
     start_message(s,HMBTN_SHOP_RUCKSACK_CUE,0);return true;
 }
-static unsigned stock_description(const HmbtnFeedShop *s) { return s->basket ? 0xd5 : s->item==0x6d ? 0xd4 : 0x248; }
-/* shop_item_grant mode=RUCKSACK: show the stock before asking, pay only after
- * the acceptance text closes, then use the base equip ANI. Ten daily ticks
- * gate the next offer; capacity is owned exclusively by the inventory. */
+bool hmbtn_grocery_shop_open(HmbtnFeedShop *s,HmbtnVillage *v,const HmbtnIntroActor *p,
+    const HmbtnFarmClock *clock,unsigned area,const uint8_t *section,size_t bytes,const HmbtnInventory *h)
+{
+    if(!h) return false;
+    const unsigned request=supermarket_request(s,v,p,clock,area,section,bytes,h->held_item.id);
+    for(unsigned i=0;i<sizeof(grocery_stock)/sizeof(*grocery_stock);++i) {
+        if(request!=grocery_stock[i].request) continue;
+        reset_shop(s);s->groceries=true;s->merchant=1;s->clock=clock;s->inventory=h;
+        s->item=grocery_stock[i].item;s->quantity=1;
+        start_message(s,HMBTN_SHOP_RUCKSACK_CUE,0);return true;
+    }
+    return false;
+}
+bool hmbtn_fish_food_shop_open(HmbtnFeedShop *s,HmbtnVillage *v,const HmbtnIntroActor *p,
+    const HmbtnFarmClock *clock,unsigned area,const uint8_t *section,size_t bytes,const HmbtnInventory *h)
+{
+    if(!h || supermarket_request(s,v,p,clock,area,section,bytes,h->held_item.id)!=2) return false;
+    reset_shop(s);s->fish_food=true;s->merchant=1;s->clock=clock;s->inventory=h;s->item=108;s->quantity=1;
+    start_message(s,HMBTN_SHOP_RUCKSACK_CUE,0);return true;
+}
+/* shop_buy_stock_step: preview 0x6c, 1..999 quantity, debit/add after the
+ * accepted message closes, and remove the preview on every exit. */
+static void fish_food_tick(HmbtnFeedShop *s,HmbtnHouseInteraction *h,HmbtnEconomy *e,uint32_t pressed,uint32_t held)
+{
+    if(s->loaded!=s->request) return;
+    if(s->phase==HMBTN_SHOP_RUCKSACK_CUE) {
+        if(s->cue_started && h->inventory->held_item.id==s->item) start_message(s,HMBTN_SHOP_GREETING,h->inventory->supplies[3]>=999 ? 0xd1 : 0xd0);
+        return;
+    }
+    const bool ready=s->message.phase==HMBTN_MESSAGE_WAIT_END,input=s->phase==HMBTN_SHOP_COUNT;
+    s->sound=hmbtn_message_tick(&s->message,input && !s->closing ? 0 : pressed,held);
+    if(s->closing) { if(s->message.phase==HMBTN_MESSAGE_CLOSED) start_message(s,s->next,s->next_request);return; }
+    if(!input) {
+        if(s->message.phase!=HMBTN_MESSAGE_CLOSED) return;
+        const bool accepted=s->phase==HMBTN_SHOP_RESULT && s->request==0xd3;
+        if(accepted && h->inventory->held_item.id==s->item) {
+            const unsigned cost=hmbtn_feed_shop_cost(s);
+            if(e->gold<cost) { start_message(s,HMBTN_SHOP_RESULT,0x4f);return; }
+            if(h->inventory->supplies[3]>999 || s->quantity>999-h->inventory->supplies[3]) { start_message(s,HMBTN_SHOP_RESULT,0xd2);return; }
+            h->inventory->supplies[3]+=s->quantity;hmbtn_economy_gold_change(e,-(int64_t)cost,true);
+        }
+        if(accepted || s->phase==HMBTN_SHOP_LEAVE || s->request==0xd1) {
+            if(h->inventory->held_item.id==s->item) h->inventory->held_item=(HmbtnStoredTool){0};
+            s->phase=HMBTN_SHOP_OFF;s->request=0;
+        } else { s->after_result=HMBTN_SHOP_COUNT;start_message(s,HMBTN_SHOP_COUNT,0x4d); }
+        return;
+    }
+    if(!ready) return;
+    const uint32_t arrows=held&(HMBTN_PAD_UP|HMBTN_PAD_DOWN|HMBTN_PAD_LEFT|HMBTN_PAD_RIGHT);
+    uint32_t action=pressed;
+    if(arrows!=s->previous_arrows) { s->repeat=0;action|=arrows;s->previous_arrows=arrows; }
+    else if(arrows && ++s->repeat>=12 && (s->repeat-12)%3==0) action|=arrows;
+    int quantity=(int)s->quantity;
+    if(action&HMBTN_PAD_RIGHT) ++quantity;
+    else if(action&HMBTN_PAD_LEFT) --quantity;
+    else if(action&HMBTN_PAD_UP) quantity+=10;
+    else if(action&HMBTN_PAD_DOWN) quantity-=10;
+    else if(pressed&HMBTN_PAD_TRIANGLE) { s->sound=0;next(s,HMBTN_SHOP_INFO,0x25b); }
+    else if(pressed&HMBTN_PAD_CIRCLE) { s->sound=1;next(s,HMBTN_SHOP_LEAVE,0xba); }
+    else if(pressed&HMBTN_PAD_CROSS) {
+        s->sound=0;const unsigned message=e->gold<hmbtn_feed_shop_cost(s) ? 0x4f
+            : h->inventory->supplies[3]>999 || s->quantity>999-h->inventory->supplies[3] ? 0xd2 : 0xd3;
+        next(s,HMBTN_SHOP_RESULT,message);
+    }
+    if(quantity!=(int)s->quantity) { s->quantity=quantity>999 ? 1 : quantity<=0 ? 999 : (unsigned)quantity;s->sound=5; }
+}
+static bool wrappable(unsigned id)
+{
+    /* picture_cells.c:item_is_pickup_not_tool; gift refusal precedes it. */
+    const HmbtnFarmItem *item=hmbtn_farm_item(id);
+    return item && id && id!=164 && (item->flags&0x8100u)==0x8000u && item->category!=1;
+}
+bool hmbtn_wrapping_shop_open(HmbtnFeedShop *s,HmbtnVillage *v,const HmbtnIntroActor *p,
+    const HmbtnFarmClock *clock,unsigned area,const uint8_t *section,size_t bytes,const HmbtnInventory *h)
+{
+    /* player_act_zone_front exempts key 0x177 from the empty-hand guard. */
+    if(!h || supermarket_request(s,v,p,clock,area,section,bytes,0)!=3) return false;
+    reset_shop(s);s->wrapping=true;s->merchant=1;s->clock=clock;s->inventory=h;
+    s->item=164;s->gift=h->held_item.id;s->quantity=1;
+    const unsigned message=!s->gift ? 0xb8 : s->gift==164 ? 0xbc : wrappable(s->gift) ? 0xb6 : 0xb9;
+    start_message(s,message==0xb6 ? HMBTN_SHOP_OFFER : HMBTN_SHOP_RESULT,message);return true;
+}
+static unsigned stock_description(const HmbtnFeedShop *s)
+{
+    if(s->groceries) for(unsigned i=0;i<sizeof(grocery_stock)/sizeof(*grocery_stock);++i)
+        if(s->item==grocery_stock[i].item) return grocery_stock[i].description;
+    return s->basket ? 0xd5 : s->item==0x6d ? 0xd4 : 0x248;
+}
+/* shop_item_grant: show stock before asking and pay after acceptance closes.
+ * FLAG_ONLY keeps the item; basket books delivery; rucksack equips with its
+ * base ANI and ten-morning gate. Ownership stays in the existing domains. */
 static void stock_tick(HmbtnFeedShop *s,HmbtnHouseInteraction *h,HmbtnEconomy *e,uint32_t pressed,uint32_t held)
 {
     if(s->loaded!=s->request) return;
     if(s->phase==HMBTN_SHOP_RUCKSACK_CUE) {
-        if(s->cue_started && h->inventory->held_item.id==s->item)
-            start_message(s,HMBTN_SHOP_OFFER,stock_description(s));
+        if(s->cue_started && h->inventory->held_item.id==s->item) {
+            if(s->wrapping) { s->phase=HMBTN_SHOP_OFF;s->request=0; }
+            else start_message(s,HMBTN_SHOP_OFFER,stock_description(s));
+        }
         return;
     }
     if(s->phase==HMBTN_SHOP_RUCKSACK_UPGRADE) {
@@ -246,24 +338,34 @@ static void stock_tick(HmbtnFeedShop *s,HmbtnHouseInteraction *h,HmbtnEconomy *e
     }
     if(confirm && ready) {
         if(pressed&(HMBTN_PAD_UP|HMBTN_PAD_DOWN)) { s->answer^=1;s->sound=5; }
-        if((pressed&HMBTN_PAD_CIRCLE) || ((pressed&HMBTN_PAD_CROSS) && s->answer)) next(s,HMBTN_SHOP_RESULT,0xba);
+        if((pressed&HMBTN_PAD_CIRCLE) || ((pressed&HMBTN_PAD_CROSS) && s->answer)) next(s,HMBTN_SHOP_RESULT,s->wrapping ? 0xb7 : s->groceries ? 0xd8 : 0xba);
         else if(pressed&HMBTN_PAD_CROSS) next(s,HMBTN_SHOP_RESULT,e->gold<hmbtn_feed_shop_cost(s) ? 0x4f : 0xbb);
         return;
     }
-    /* The original accepts Cross or Circle after the description, before
-     * opening Yes/No. Neither key at this step is itself a purchase. */
-    if(s->phase==HMBTN_SHOP_OFFER && ready && (pressed&(HMBTN_PAD_CROSS|HMBTN_PAD_CIRCLE))) {
+    /* Stock waits for Cross/Circle after its description; wrapping opens the
+     * question automatically. Neither transition is itself a purchase. */
+    if(s->phase==HMBTN_SHOP_OFFER && ready && (s->wrapping || (pressed&(HMBTN_PAD_CROSS|HMBTN_PAD_CIRCLE)))) {
         s->answer=0;s->phase=HMBTN_SHOP_MAKER_CONFIRM;s->message.suppress_cursor=true;return;
     }
     if(s->phase!=HMBTN_SHOP_RESULT || s->message.phase!=HMBTN_MESSAGE_CLOSED) return;
-    if(s->basket && s->request==0xbb && hmbtn_basket_buy(s->basket_state,h->inventory,e)) {
+    if(s->wrapping && s->request==0xbb && e->gold>=hmbtn_feed_shop_cost(s)
+            && wrappable(s->gift) && h->inventory->held_item.id==s->gift) {
+        hmbtn_economy_gold_change(e,-(int64_t)hmbtn_feed_shop_cost(s),true);
+        (void)hmbtn_inventory_take(h->inventory,(int)s->gift,1,0,1);
+        s->cue_started=false;start_message(s,HMBTN_SHOP_RUCKSACK_CUE,0);
+    } else if(s->groceries && s->request==0xbb && e->gold>=hmbtn_feed_shop_cost(s)
+            && h->inventory->held_item.id==s->item) {
+        /* FLAG_ONLY keeps the preview as the purchased record; no second grant. */
+        hmbtn_economy_gold_change(e,-(int64_t)hmbtn_feed_shop_cost(s),true);
         s->phase=HMBTN_SHOP_OFF;s->request=0;
-    } else if(!s->basket && s->request==0xbb && hmbtn_inventory_buy_rucksack(h->inventory,e,s->item)) {
+    } else if(s->basket && s->request==0xbb && hmbtn_basket_buy(s->basket_state,h->inventory,e)) {
+        s->phase=HMBTN_SHOP_OFF;s->request=0;
+    } else if(s->rucksack && s->request==0xbb && hmbtn_inventory_buy_rucksack(h->inventory,e,s->item)) {
         s->cue_started=false;start_message(s,HMBTN_SHOP_RUCKSACK_UPGRADE,0);
     } else {
         /* A delayed message must not authorize stale stock or a changed purse. */
         if(s->request==0xbb && e->gold<hmbtn_feed_shop_cost(s)) { start_message(s,HMBTN_SHOP_RESULT,0x4f);return; }
-        if(h->inventory->held_item.id==s->item) h->inventory->held_item=(HmbtnStoredTool){0};
+        if(!s->wrapping && h->inventory->held_item.id==s->item) h->inventory->held_item=(HmbtnStoredTool){0};
         s->phase=HMBTN_SHOP_OFF;s->request=0;
     }
 }
@@ -640,11 +742,284 @@ static void carpenter_tick(HmbtnFeedShop *s,HmbtnHouseInteraction *h,HmbtnEconom
     }
     if(quantity!=(int)s->quantity) { s->quantity=quantity>99 ? 1 : quantity<=0 ? 99 : (unsigned)quantity;s->sound=5; }
 }
+/* shop_medicine_menu_setup / milestone_check_{blue,green}_grass_shipped. */
+#include "clinic_tables.inc"
+static bool clinic_xl(const HmbtnFeedShop *s,unsigned kind)
+{
+    const int bin=hmbtn_farm_shipping_bin(clinic_grass[kind]);
+    return s->economy && bin>=0 && s->economy->shipments[bin]>=CLINIC_SHIPMENT_THRESHOLD;
+}
+unsigned hmbtn_clinic_rows(const HmbtnFeedShop *s)
+{ return s && s->clinic ? (s->clinic_medicines ? 2u+clinic_xl(s,0)+clinic_xl(s,1) : 2u) : 0; }
+const HmbtnSeedShopEntry *hmbtn_clinic_entry(const HmbtnFeedShop *s,unsigned row)
+{
+    if(row>=hmbtn_clinic_rows(s)) return NULL;
+    if(!s->clinic_medicines) return &clinic_main[row];
+    for(unsigned i=0;i<4;++i) {
+        if(i>=2 && !clinic_xl(s,i-2)) continue;
+        if(!row) return &clinic_medicine[i];
+        --row;
+    }
+    return NULL;
+}
+unsigned hmbtn_clinic_diagnosis(const HmbtnFarmAction *a)
+{
+    if(!a) return 0;
+    const uint64_t percent=a->max_stamina ? (uint64_t)a->stamina*100/a->max_stamina : 0;
+    const unsigned row=percent>=70 ? 0 : percent>=50 ? 1 : percent>=20 ? 2 : percent>=5 ? 3 : 4;
+    const unsigned column=a->fatigue<50 ? 0 : a->fatigue<70 ? 1 : a->fatigue<90 ? 2 : 3;
+    return clinic_conditions[row][column];
+}
+bool hmbtn_clinic_open(HmbtnFeedShop *s,const HmbtnFarmClock *clock,const HmbtnInventory *inventory)
+{
+    if(!s || !clock || !inventory || !s->action || !s->economy || inventory->held_item.id || s->phase!=HMBTN_SHOP_OFF) return false;
+    reset_shop(s);s->clinic=true;s->merchant=8;s->clock=clock;s->inventory=inventory;s->quantity=1;s->sound=3;
+    start_message(s,HMBTN_SHOP_GREETING,0xdd);return true;
+}
+/* Same message/list modal as the other shops. Original doctor charges on the
+ * answer/medicine selection, before its acknowledgement, and grants exactly one
+ * carried medicine after that message closes. The exam only diagnoses. */
+static void clinic_tick(HmbtnFeedShop *s,HmbtnHouseInteraction *h,HmbtnEconomy *economy,
+    uint32_t pressed,uint32_t held)
+{
+    if(s->phase==HMBTN_SHOP_OFF) return;
+    if(s->phase==HMBTN_SHOP_RUCKSACK_CUE) {
+        if(s->cue_started && h->inventory->held_item.id==s->item) { s->phase=HMBTN_SHOP_OFF;s->request=0; }
+        return;
+    }
+    if(s->phase==HMBTN_SHOP_CLINIC_FADE_OUT) {
+        /* fade_start_out(20,1,2): length=21, settled at level 22. */
+        ++s->fade_ticks;
+        s->clinic_shade=s->fade_ticks>=21 ? 255 : ((255u*4096/21)*s->fade_ticks)/4096;
+        if(s->fade_ticks>=22) { s->after_result=HMBTN_SHOP_CLINIC_FADE_IN;start_message(s,HMBTN_SHOP_INFO,0xe9); }
+        return;
+    }
+    if(s->phase==HMBTN_SHOP_CLINIC_FADE_IN) {
+        /* fade_start_in(20,1,2): initial level=19, settled below 1. */
+        ++s->fade_ticks;
+        s->clinic_shade=s->fade_ticks>=19 ? 0 : ((255u*4096/20)*(19-s->fade_ticks))/4096;
+        if(s->fade_ticks>=19) { s->after_result=HMBTN_SHOP_LEAVE;start_message(s,HMBTN_SHOP_RESULT,0xea); }
+        return;
+    }
+    if(s->loaded!=s->request) return;
+    const bool input=s->phase==HMBTN_SHOP_SELECT || s->phase==HMBTN_SHOP_TOOL_LIST || s->phase==HMBTN_SHOP_MAKER_CONFIRM;
+    const bool ready=s->message.phase==HMBTN_MESSAGE_WAIT_END;
+    s->sound=hmbtn_message_tick(&s->message,input && !s->closing ? 0 : pressed,held);
+    if(s->closing) {
+        if(s->message.phase==HMBTN_MESSAGE_CLOSED) start_message(s,s->next,s->next_request);
+        return;
+    }
+    if(!input) {
+        if(s->message.phase!=HMBTN_MESSAGE_CLOSED) return;
+        if(s->phase==HMBTN_SHOP_LEAVE) { s->phase=HMBTN_SHOP_OFF;s->request=0;return; }
+        if(s->phase==HMBTN_SHOP_GREETING) {
+            start_message(s,s->clinic_medicines ? HMBTN_SHOP_TOOL_LIST : HMBTN_SHOP_SELECT,0x46);return;
+        }
+        if(s->phase==HMBTN_SHOP_RESULT && s->request==0xfb) {
+            start_message(s,HMBTN_SHOP_RUCKSACK_CUE,0);s->cue_started=false;return;
+        }
+        if(s->phase==HMBTN_SHOP_RESULT && s->request==0x4f && s->clinic_medicines) {
+            start_message(s,HMBTN_SHOP_INFO,0xfc);s->after_result=HMBTN_SHOP_SELECT;return;
+        }
+        if(s->phase==HMBTN_SHOP_RESULT && s->request==0xea) {
+            start_message(s,HMBTN_SHOP_LEAVE,hmbtn_clinic_diagnosis(s->action));return;
+        }
+        if(s->after_result==HMBTN_SHOP_CLINIC_FADE_OUT || s->after_result==HMBTN_SHOP_CLINIC_FADE_IN) {
+            start_message(s,s->after_result,0);s->fade_ticks=0;return;
+        }
+        s->clinic_medicines=s->after_result==HMBTN_SHOP_TOOL_LIST;
+        start_message(s,s->after_result,0x46);return;
+    }
+    if(!ready) return;
+    if(s->phase==HMBTN_SHOP_MAKER_CONFIRM) {
+        if(pressed&(HMBTN_PAD_UP|HMBTN_PAD_DOWN)) { s->answer^=1;s->sound=2; }
+        else if(pressed&(HMBTN_PAD_CROSS|HMBTN_PAD_CIRCLE)) {
+            const bool yes=!(pressed&HMBTN_PAD_CIRCLE) && !s->answer;
+            s->sound=yes ? 0 : 1;s->after_result=HMBTN_SHOP_SELECT;
+            if(!yes) next(s,HMBTN_SHOP_RESULT,0xe8);
+            else if(economy->gold<10) next(s,HMBTN_SHOP_RESULT,0x4f);
+            else {
+                hmbtn_economy_gold_change(economy,-10,false);
+                s->after_result=HMBTN_SHOP_CLINIC_FADE_OUT;next(s,HMBTN_SHOP_RESULT,0xe7);
+            }
+        }
+        return;
+    }
+    unsigned *cursor=s->clinic_medicines ? &s->sale_cursor : &s->selection;
+    const unsigned rows=hmbtn_clinic_rows(s);if(*cursor>=rows) *cursor=0;
+    const uint32_t arrows=held&(HMBTN_PAD_UP|HMBTN_PAD_DOWN);
+    uint32_t action=pressed;
+    if(arrows!=s->previous_arrows) { s->repeat=0;action|=arrows;s->previous_arrows=arrows; }
+    else if(arrows && ++s->repeat>=12 && (s->repeat-12)%3==0) action|=arrows;
+    if(action&(HMBTN_PAD_UP|HMBTN_PAD_DOWN)) {
+        *cursor=(*cursor+(action&HMBTN_PAD_UP ? rows-1 : 1))%rows;s->sound=5;
+    } else if(pressed&HMBTN_PAD_TRIANGLE) {
+        s->sound=0;s->after_result=s->phase;next(s,HMBTN_SHOP_INFO,hmbtn_clinic_entry(s,*cursor)->description);
+    } else if(pressed&HMBTN_PAD_CIRCLE) {
+        s->sound=1;s->after_result=HMBTN_SHOP_SELECT;
+        next(s,s->clinic_medicines ? HMBTN_SHOP_INFO : HMBTN_SHOP_LEAVE,s->clinic_medicines ? 0xfc : 0xde);
+    } else if(pressed&HMBTN_PAD_CROSS) {
+        s->sound=0;
+        if(!s->clinic_medicines) {
+            if(s->selection) { s->clinic_medicines=true;next(s,HMBTN_SHOP_GREETING,0xe6); }
+            else { s->answer=0;next(s,HMBTN_SHOP_MAKER_CONFIRM,0xe5); }
+        } else {
+            s->item=hmbtn_clinic_entry(s,*cursor)->item;
+            if(economy->gold<hmbtn_feed_shop_cost(s)) next(s,HMBTN_SHOP_RESULT,0x4f);
+            else {
+                hmbtn_economy_gold_change(economy,-(int64_t)hmbtn_feed_shop_cost(s),false);
+                next(s,HMBTN_SHOP_RESULT,0xfb);
+            }
+        }
+    }
+}
+
+/* shop_wine_menu_setup / shop_pay_step: one selected item, immediate debit,
+ * acknowledgement, then the same carry cue used by the other original shops. */
+#include "wine_menu.inc"
+const HmbtnSeedShopEntry *hmbtn_wine_shop_entry(unsigned row)
+{ return row<sizeof(wine_stock)/sizeof(*wine_stock) ? &wine_stock[row] : NULL; }
+bool hmbtn_wine_shop_open(HmbtnFeedShop *s,const HmbtnFarmClock *clock,const HmbtnInventory *inventory)
+{
+    if(!s || !clock || !inventory || !s->economy || inventory->held_item.id || s->phase!=HMBTN_SHOP_OFF) return false;
+    reset_shop(s);s->wine=true;s->merchant=22;s->clock=clock;s->inventory=inventory;s->quantity=1;
+    s->item=wine_stock[0].item;s->sound=3;start_message(s,HMBTN_SHOP_GREETING,0xb0);return true;
+}
+static void wine_tick(HmbtnFeedShop *s,HmbtnHouseInteraction *h,HmbtnEconomy *economy,
+    uint32_t pressed,uint32_t held)
+{
+    if(s->phase==HMBTN_SHOP_OFF) return;
+    if(s->phase==HMBTN_SHOP_RUCKSACK_CUE) {
+        if(s->cue_started && h->inventory->held_item.id==s->item) { s->phase=HMBTN_SHOP_OFF;s->request=0; }
+        return;
+    }
+    if(s->loaded!=s->request) return;
+    const bool input=s->phase==HMBTN_SHOP_SELECT;
+    const bool ready=s->message.phase==HMBTN_MESSAGE_WAIT_END;
+    s->sound=hmbtn_message_tick(&s->message,input && !s->closing ? 0 : pressed,held);
+    if(s->closing) {
+        if(s->message.phase==HMBTN_MESSAGE_CLOSED) start_message(s,s->next,s->next_request);
+        return;
+    }
+    if(!input) {
+        if(s->message.phase!=HMBTN_MESSAGE_CLOSED) return;
+        if(s->phase==HMBTN_SHOP_LEAVE) { s->phase=HMBTN_SHOP_OFF;s->request=0; }
+        else if(s->phase==HMBTN_SHOP_RESULT) {
+            if(s->request==0x4f) start_message(s,HMBTN_SHOP_GREETING,0xb5);
+            else { start_message(s,HMBTN_SHOP_RUCKSACK_CUE,0);s->cue_started=false; }
+        } else start_message(s,HMBTN_SHOP_SELECT,0x46);
+        return;
+    }
+    if(!ready) return;
+    const unsigned rows=(unsigned)(sizeof(wine_stock)/sizeof(*wine_stock));
+    if(s->selection>=rows) s->selection=0;
+    const uint32_t arrows=held&(HMBTN_PAD_UP|HMBTN_PAD_DOWN);
+    uint32_t action=pressed;
+    if(arrows!=s->previous_arrows) { s->repeat=0;action|=arrows;s->previous_arrows=arrows; }
+    else if(arrows && ++s->repeat>=12 && (s->repeat-12)%3==0) action|=arrows;
+    if(action&(HMBTN_PAD_UP|HMBTN_PAD_DOWN)) {
+        s->selection=(s->selection+(action&HMBTN_PAD_UP ? rows-1 : 1))%rows;s->sound=5;
+        s->item=wine_stock[s->selection].item;
+    } else if(pressed&HMBTN_PAD_TRIANGLE) {
+        s->sound=0;s->after_result=HMBTN_SHOP_SELECT;
+        next(s,HMBTN_SHOP_INFO,wine_stock[s->selection].description);
+    } else if(pressed&HMBTN_PAD_CIRCLE) { s->sound=1;next(s,HMBTN_SHOP_LEAVE,0xb1); }
+    else if(pressed&HMBTN_PAD_CROSS) {
+        s->sound=0;const unsigned cost=hmbtn_feed_shop_cost(s);
+        if(economy->gold<cost) next(s,HMBTN_SHOP_RESULT,0x4f);
+        else {
+            hmbtn_economy_gold_change(economy,-(int64_t)cost,false);
+            next(s,HMBTN_SHOP_RESULT,0xb4);
+        }
+    }
+}
+
+/* player_deliver_to_villager's Doug/PLACE_1B exception and shop_goods_run. */
+#include "inn_menu.inc"
+#include "kai_menu.inc"
+unsigned hmbtn_meal_shop_rows(const HmbtnFeedShop *s)
+{
+    if(!s) return 0;
+    if(s->kai) return (unsigned)(sizeof(kai_stock)/sizeof(*kai_stock));
+    return s->inn ? (s->inn_drinks ? (unsigned)(sizeof(inn_night)/sizeof(*inn_night)) : (unsigned)(sizeof(inn_day)/sizeof(*inn_day))) : 0;
+}
+const HmbtnSeedShopEntry *hmbtn_meal_shop_entry(const HmbtnFeedShop *s,unsigned row)
+{ return row<hmbtn_meal_shop_rows(s) ? (s->kai ? &kai_stock[row] : s->inn_drinks ? &inn_night[row] : &inn_day[row]) : NULL; }
+bool hmbtn_kai_shop_open(HmbtnFeedShop *s,const HmbtnFarmClock *clock,const HmbtnInventory *h)
+{
+    /* Kai's original conversation checks route kind 6 and empty hands before
+     * dispatch(8,8,0,0). Seasonal presence belongs to the imported schedules. */
+    if(!s || !clock || !h || h->held_item.id || s->phase!=HMBTN_SHOP_OFF) return false;
+    reset_shop(s);s->kai=true;s->merchant=25;s->clock=clock;s->inventory=h;s->quantity=1;
+    s->item=kai_stock[0].item;s->sound=3;start_message(s,HMBTN_SHOP_GREETING,kai_messages[0]);return true;
+}
+bool hmbtn_inn_shop_open(HmbtnFeedShop *s,HmbtnVillage *v,const HmbtnIntroActor *p,
+    const HmbtnFarmClock *clock,unsigned area,const uint8_t *section,size_t bytes,const HmbtnInventory *h)
+{
+    if(!s || !v || !p || !clock || !h || !section || bytes<0x2000 || s->phase!=HMBTN_SHOP_OFF
+            || area!=204 || hmbtn_read_le16(section+2)!=27 || hmbtn_village_zone_target(v,section,bytes,p)!=6) return false;
+    /* No empty-hand or extra business-hours gate: original delivery-zone
+     * exception starts this menu when Doug is at its target, preserving hand. */
+    reset_shop(s);s->inn=true;s->merchant=6;s->clock=clock;s->inventory=h;s->quantity=1;
+    s->inn_drinks=clock->hour<6 || clock->hour>=18;s->item=hmbtn_meal_shop_entry(s,0)->item;s->sound=3;
+    start_message(s,HMBTN_SHOP_GREETING,inn_intros[s->inn_drinks]);return true;
+}
+static void meal_tick(HmbtnFeedShop *s,HmbtnEconomy *economy,uint32_t pressed,uint32_t held)
+{
+    const unsigned *messages=s->kai ? kai_messages+1 : inn_messages;
+    if(s->phase==HMBTN_SHOP_OFF) return;
+    if(s->phase==HMBTN_SHOP_SERVE) {
+        /* Exploration waits for the event-item ANI before ticking this again. */
+        if(s->cue_started) { s->phase=HMBTN_SHOP_OFF;s->request=0; }
+        return;
+    }
+    if(s->loaded!=s->request) return;
+    const bool input=s->phase==HMBTN_SHOP_SELECT;
+    const bool ready=s->message.phase==HMBTN_MESSAGE_WAIT_END;
+    s->sound=hmbtn_message_tick(&s->message,input && !s->closing ? 0 : pressed,held);
+    if(s->closing) {
+        if(s->message.phase==HMBTN_MESSAGE_CLOSED) start_message(s,s->next,s->next_request);
+        return;
+    }
+    if(!input) {
+        if(s->message.phase!=HMBTN_MESSAGE_CLOSED) return;
+        if(s->phase==HMBTN_SHOP_LEAVE) { s->phase=HMBTN_SHOP_OFF;s->request=0; }
+        else if(s->phase==HMBTN_SHOP_RESULT) {
+            if(s->request==messages[0]) { s->after_result=HMBTN_SHOP_SELECT;start_message(s,HMBTN_SHOP_INFO,messages[1]); }
+            else if(s->request==messages[2]) start_message(s,HMBTN_SHOP_RESULT,
+                s->kai && s->item==KAI_WATER ? KAI_WATER_REPLY : messages[3]);
+            else { start_message(s,HMBTN_SHOP_SERVE,0);s->cue_started=false; }
+        } else start_message(s,HMBTN_SHOP_SELECT,0x46);
+        return;
+    }
+    if(!ready) return;
+    const unsigned rows=hmbtn_meal_shop_rows(s);if(s->selection>=rows) s->selection=0;
+    const uint32_t arrows=held&(HMBTN_PAD_UP|HMBTN_PAD_DOWN);
+    uint32_t action=pressed;
+    if(arrows!=s->previous_arrows) { s->repeat=0;action|=arrows;s->previous_arrows=arrows; }
+    else if(arrows && ++s->repeat>=12 && (s->repeat-12)%3==0) action|=arrows;
+    if(action&(HMBTN_PAD_UP|HMBTN_PAD_DOWN)) {
+        s->selection=(s->selection+(action&HMBTN_PAD_UP ? rows-1 : 1))%rows;s->sound=5;
+        s->item=hmbtn_meal_shop_entry(s,s->selection)->item;
+    } else if(pressed&HMBTN_PAD_TRIANGLE) {
+        s->sound=0;s->after_result=HMBTN_SHOP_SELECT;next(s,HMBTN_SHOP_INFO,hmbtn_meal_shop_entry(s,s->selection)->description);
+    } else if(pressed&HMBTN_PAD_CIRCLE) { s->sound=1;next(s,HMBTN_SHOP_LEAVE,s->kai ? KAI_CANCEL : INN_CANCEL); }
+    else if(pressed&HMBTN_PAD_CROSS) {
+        const unsigned cost=hmbtn_feed_shop_cost(s);s->sound=0;
+        if(economy->gold<cost) next(s,HMBTN_SHOP_RESULT,messages[0]);
+        else { hmbtn_economy_gold_change(economy,-(int64_t)cost,false);next(s,HMBTN_SHOP_RESULT,messages[2]); }
+    }
+}
+
 void hmbtn_feed_shop_tick(HmbtnFeedShop *s,HmbtnHouseInteraction *h,HmbtnEconomy *economy,HmbtnFarmStatistics *stats,
     uint32_t pressed,uint32_t held)
 {
     s->sound=-1;
-    if(s->rucksack || s->basket) { stock_tick(s,h,economy,pressed,held);return; }
+    if(s->fish_food) { fish_food_tick(s,h,economy,pressed,held);return; }
+    if(s->inn || s->kai) { meal_tick(s,economy,pressed,held);return; }
+    if(s->wine) { wine_tick(s,h,economy,pressed,held);return; }
+    if(s->clinic) { clinic_tick(s,h,economy,pressed,held);return; }
+    if(s->rucksack || s->basket || s->groceries || s->wrapping) { stock_tick(s,h,economy,pressed,held);return; }
     if(s->blacksmith) { blacksmith_tick(s,h,economy,pressed,held);return; }
     if(s->carpenter) { carpenter_tick(s,h,economy,pressed,held);return; }
     if(s->seeds) { seed_tick(s,h,economy,pressed,held);return; }

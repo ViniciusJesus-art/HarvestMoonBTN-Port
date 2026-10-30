@@ -493,3 +493,142 @@ não são concluídos por esse serviço. Bootstrap `--diagnostics` não executa 
 [Auditoria C/BIN, percurso e validação](PF06_RUCKSACK.md). Debug/Release e
 Windows/Wine aprovados; 45 processos, sem suíte inteira. `runtime.c` e portas
 preservados. Próximo: cesta de remessas. Bootstrap `--diagnostics` não executa o jogo.
+
+
+## Cesta de remessas — PF-06, 2026-10-30
+
+| Original | Adaptação | Estado e evidência |
+|---|---|---|
+| `shop_basket_step`, `shop_item_grant`, `estate_marker_stamp` | `feed_shop`, `basket`, inventário/economia existentes | **A:** 5.000 G, estoque/pedido 10, ANI/confirmar/cancelar/saldo e entrega única na fazenda. |
+| `player_use_held_item`, `farm_record_hit_test`, `estate_request_near_active` | `basket`, `farm_carry`, `exploration`, `house_control` | **A:** pegar/deixar/transportar, alcance direto 400 versus arremesso 200, portas e colisão andando/correndo. |
+| `estate_basket_add/merge`, `item_sell_price`, `estate_shipment_settle` | `basket`, `farm_shipping`, economia/relógio existentes | **A:** limite 30, bônus de mel na inserção, 25 contagens/valor, descarte do excedente com aviso original, transferência única/clamp e pagamento comum. |
+| `estate_code_status`, `item_code_to_picture` | `house_ui`/cache `estate_art`, `scene_preview` | **A:** estoque sprite 24 e pack 6/sprite 0, ANI base e imagem ocultada ao esvaziar; sem recurso substituto. |
+| `FarmBasket`, registro móvel 195 | `game.basket`, codec v18 | **A:** proprietário único e mão como referência, posição/área/conteúdo/valor e retomada no chão/carregada/vendida. |
+
+[Auditoria C/BIN, percurso e limites](PF06_BASKET.md). Debug/Release e
+Windows/Wine aprovados; 50 processos, sem suíte inteira. Portas preservadas.
+Próximo: alimentos do supermercado. Recuperação em callbacks ainda não portados,
+outros recipientes e festivais ficam abertos. Bootstrap não executa o jogo.
+
+
+## Alimentos do supermercado — PF-06, 2026-10-30
+
+| Original | Adaptação | Estado e evidência |
+|---|---|---|
+| Cinco `shop_grant_*`, `shop_item_grant` modo zero | `feed_shop`, modal/Yes-No existentes | **A:** cue/descrições, cancelamento 2:0xd8/saldo, débito e contabilidade após fechar o aceite; produto permanece na mão. |
+| `shop_key_values`, `estate_records`, `estate_code_status` | Gerador de tabelas, sondas comuns, `scene_preview` | **A:** cinco balcões/pedidos/artes originais, estoque sempre visível e repetível; mesmos horários/presença de Jeff. |
+| `item_info`, armazenamento e receitas originais | Catálogo, `inventory`, `cooking`, `house_interaction` e cache existentes | **A:** preços/pictures/classes comuns, R2 e geladeira, seis compras e preparo de curry com ingredientes comprados, receita e retomada. |
+| Registros de mão/mochila/geladeira/economia/receitas | Codec existente | **A:** sem extensão de formato; checkpoints estáveis com curry na mão, ingredientes e prato/receita. |
+
+[Auditoria, validação e limites](PF06_GROCERIES.md). Debug 10/10 selecionados,
+Release 2/2 e Windows/Wine unidade/percurso/três retomadas aprovados.
+37 processos, sem suíte inteira; portas preservadas.
+Próximo: embrulhos do supermercado. Consumo direto de alimentos, farmácia,
+outras lojas/festivais continuam pendentes. Bootstrap não executa o jogo.
+
+
+## Embrulhos do supermercado — PF-06, 2026-10-30
+
+| Original | Adaptação | Estado e evidência |
+|---|---|---|
+| `player_act_zone_front`, chave 0x177, `shop_buy_item_step` | Balcão/modal/Yes-No `feed_shop` existentes | **A:** mãos ocupadas, elegibilidade/recusas/100 G, preservação ao cancelar, cobrança/contabilidade após fechar o aceite. |
+| `shop_item_show_step`, `stored_item_set`, `player_show_item` | `event_item_show_record`, inventário e cache existentes | **A:** ANI 11+direção, registro 164/modificador do conteúdo/quantidade 1, sem concessão adicional; arte original por ID apesar de picture -1. |
+| `estate_code_status`, registro 118 | `scene_preview`, pack do supermercado | **A:** papel de embrulho, sprite 10 sempre publicado. |
+| `storage_item_message`, `cooking_item_prompt_tick` | `inventory_item_message`, mochila/móveis/cozinha | **A:** banco 3, conteúdo + 1000; R2 preserva modificador, depósitos recusados pela classe original sem perda. |
+| Comandos 57/58/30 e variáveis da conversa original | `village_talk`/inventário existentes | **A:** pão comprado/embrulhado entregue ao Gotz, amizade 50 → 52 e consumo único, checkpoint na mão/bolsa/após entrega. |
+
+[Auditoria C/BIN, validação e limites](PF06_WRAPPING.md). Debug (14/14 iniciais,
+três unidades e percurso final), Release unidade/percurso e Windows/Wine
+unidade/percurso/três retomadas aprovados. 49 processos, sem suíte inteira.
+Portas preservadas, codec existente suficiente. Próximo: consumo direto de alimentos; farmácia,
+outras lojas e festivais abertos. Bootstrap não executa o jogo.
+
+
+## Consumo de alimentos e bebidas — PF-06, 2026-10-30
+
+| Original | Adaptação | Estado e evidência |
+|---|---|---|
+| `player_try_carry_throw`, `player_use_held_item(1)`, `stored_item_kind` | `event_item_use`, controles de exploração existentes | **A:** Square, categoria/flags/callback, comida ANI 5/som 74 e bebida banco 14/range 0/som 75. |
+| `player_run_action`, `player_entry_refresh`, `player_draw_carried_item` | `event_item`, `scene_preview` e restauração pontual do banco em `runtime` | **A:** figura oculta no frame 2 da comida e durante bebida, efeito/remoção após ANI, sem duplicação; restaurações de eventos preservadas. |
+| `item_run_use`, `farm_clamp_status` e `item_info` | Catálogo gerado, atributos existentes em `farm_action` | **A:** callback identificado sem ponteiro PS1, qualidade s8, clamps/06:00/felicidade, óleo/farinha/curry/embrulhos recusados como alimento. |
+| Atributos do jogador | Codec v19 | **A:** felicidade junto a stamina/fadiga, checkpoints depois de comer, bebida na mão e depois de beber. |
+| Compras/coleta/receitas originais | Percursos existentes e `food_use_playthrough` | **A:** curry/pão/arroz adquiridos, uvas do outono/coleta real, suco preparado, stamina 100/fadiga 9/saldo 450 G. |
+
+[Auditoria, validação e limites](PF06_FOOD_USE.md). Debug 13/13 selecionados,
+regressões de chuva/portas 2/2 e Release 2/2; Windows/Wine unidade/produtor/
+percurso/três retomadas aprovados. 48 processos, sem suíte inteira.
+Portas do usuário preservadas.
+Próximo: clínica e remédios. Bootstrap não executa o jogo; runtime parcial.
+
+
+## Clínica e remédios — PF-06, 2026-10-30
+
+| Original | Adaptação | Estado e evidência |
+|---|---|---|
+| NPC 8, `event_cmd_dispatch(8,5,0,0)`, porta 27 | Bytecode/rotas/zonas existentes e `village_talk` | **A:** acesso à clínica e início/espera/fim do atendimento pelo script original. |
+| `shop_medicine_menu_setup`, marcos azul/verde | Tabelas geradas e `feed_shop` | **A:** exame/remédios, preços/descrições/ordem; XL após 51 remessas nos contadores comuns. |
+| `shop_doctor_step`, `shop_condition_message`, fades | Modal, economia, atributos e sombra abaixo das mensagens | **A:** exame 10 G, recusa/saldo, duas transições e 20 diagnósticos; original sem cura/tempo extra. |
+| `shop_item_carry_step`, catálogo e callback de consumo | Apresentação/inventário/geladeira e bebida existentes | **A:** quatro compras, recebimento/efeitos únicos, ANI real de bebida e limites de atributos. |
+| Estado estável | Codec existente v19 | **A:** compras guardadas, medicamento na mão e depois dos consumos reabertos em processos novos. |
+
+[Auditoria, validação e limites](PF06_CLINIC.md). Debug 11/11, Release 4/4
+selecionados; Windows/Wine unidade/percurso/três retomadas aprovados.
+42 processos incluindo tentativas/wrappers/filhos/lançadores, sem suíte inteira.
+Portas do usuário preservadas;
+sem edição de fonte/recursos/fluxo PS1. Próximo: vinícola. Colapso/internação,
+outras lojas e festivais abertos. Bootstrap não executa o jogo; runtime parcial.
+
+
+## Vinícola — PF-06, 2026-10-30
+
+| Original | Adaptação | Estado e evidência |
+|---|---|---|
+| NPC 22, `event_cmd_dispatch(8,3,0,0)`, porta 13 | Conversa/rotas/zonas existentes e `village_talk` | **A:** acesso original à casa da vinícola, início/espera/fim da compra com Manna. |
+| `shop_wine_menu_setup`, `shop_pay_step` | Tabela gerada e modal `feed_shop` | **A:** vinho 300 G/suco 200 G, descrições, cancelamento, falta de saldo/reabertura e débito único na seleção. |
+| `shop_item_carry_step`, catálogo e geladeira | Apresentação/inventário/depósito existentes | **A:** unidade na mão por ANI, estoque repetível e guardar/retirar pelos controles. |
+| `item_run_use`, `farm_clamp_status`, receita de suco | Bebida e cozinha existentes | **A:** vinho 0/-5/+1, suco comprado +5/-2 e uso do ingrediente adquirido com uva coletada: suco 180, qualidade 23. |
+| Estado estável | Codec existente v19 | **A:** compras guardadas, vinho na mão e após consumo/preparo reabertos em processos novos. |
+
+[Auditoria, validação e limites](PF06_WINERY.md). Debug 15/15, Release 4/4;
+Windows/Wine unidade/percurso/três retomadas aprovados. 46 processos incluindo
+tentativas/wrappers/filhos/lançadores, sem suíte inteira.
+Portas preservadas; sem edição
+de fonte/recursos/fluxo PS1. Próximo: refeições da hospedaria. Vindima/Cliff,
+festivais e demais sistemas permanecem abertos. Bootstrap não executa o jogo;
+runtime parcial.
+
+
+## Refeições da hospedaria — PF-06, 2026-10-30
+
+| Original | Adaptação | Estado e evidência |
+|---|---|---|
+| `player_deliver_to_villager`, Doug/local 0x1b, zona 36 | Alvo/alcance/presença existentes e `inn_shop_open` | **A:** balcão original com mão ocupada, sem substituir conversa fora da zona ou inventar vendedor. |
+| `shop_menu_setup_food_or_drinks`, `shop_goods_run` | Tabelas geradas/modal de lojas/economia | **A:** seis opções diurnas/quatro noturnas, preços, água, descrições, recusas, mensagens e débito único. |
+| `player_receive_item(2/3)`, flags 0x1200/0x1600 | Recebimento em `event_item`, animações/renderização existentes | **A:** comida ANI 5/som 74, bebida banco 17/som 75, ocultação e restauração integral do registro da mão. |
+| `player_entry_refresh`, `farm_clamp_status` | Callback de atributos comum | **A:** efeitos únicos após ANI, limites e felicidade preservada; sem fade/tempo artificial. |
+| Estado estável | Codec existente v19 | **A:** checkpoints após cardápio diurno, noturno e saída, reabertos em processos novos. |
+
+[Auditoria, validação e limites](PF06_INN_MEALS.md). Debug 15/15, Release 4/4;
+Windows/Wine unidade/percurso/três retomadas aprovados. 46 processos incluindo
+wrappers/produtores/filhos/lançadores, sem suíte inteira. Portas preservadas;
+sem alteração de fonte/recursos/fluxo PS1. Próximo: restaurante de Kai.
+Hospedagem, demais eventos/família/festivais continuam abertos.
+Bootstrap não executa o jogo; runtime parcial.
+
+## Restaurante de Kai — PF-06, 2026-10-30
+
+| Original | Adaptação | Estado e evidência |
+|---|---|---|
+| NPC 25, variável 38/tipo de rota 6, dispatch `(8,8,0,0)` | `village_talk` e agendas importadas existentes | **A:** verão, presença, pausas e domingo mantidos no roteiro; sem loja direta por área. |
+| `shop_menu_setup_snacks` | Tabela `kai_menu.inc` gerada do C | **A:** cinco linhas, nomes, IDs, descrições e mensagens originais; preços no catálogo comum. |
+| `shop_goods_run` | `meal_tick`/UI compartilhados com Doug | **A:** informações, cancelamento, falta de saldo, débito único e mensagem específica de água 2:0x200. |
+| `player_receive_item`, `farm_clamp_status` | Recebimento/ANIs/callback existentes | **A:** comida ANI 5/bebida banco 17, atributos no término e restauração do inventário, água gratuita/repetível. |
+| Estado estável | Codec existente v19 | **A:** checkpoints após água, comida e serviço encerrado, três retomadas em processos novos. |
+
+[Auditoria, validação e limites](PF06_KAI_RESTAURANT.md). Debug 16/16,
+Release 4/4; Windows/Wine unidade/percurso/três retomadas aprovados.
+46 processos incluindo wrappers/produtores/filhos/lançadores, sem suíte inteira.
+`runtime.c` idêntico ao início do recorte; portas do usuário preservadas.
+Sem alteração de fonte/recursos/fluxo PS1. Próximo: lago/ração de peixes.
+Eventos restantes de Kai, família/hospedagem/festivais e PF-06 continuam abertos.
+Bootstrap não executa o jogo; runtime parcial. Wine não substitui Windows físico.

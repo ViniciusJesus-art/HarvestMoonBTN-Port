@@ -12,6 +12,8 @@
 #include "farm_field.h"
 #include "economy.h"
 #include <string.h>
+unsigned hmbtn_inventory_item_message(const HmbtnStoredTool *item)
+{ return !item || !item->id ? 0 : item->id==164 ? 0x3e8u+item->modifier : item->id; }
 unsigned hmbtn_inventory_lumber_limit(void) { return 9999; }
 unsigned hmbtn_inventory_rucksack_offer(const HmbtnInventory *h)
 {

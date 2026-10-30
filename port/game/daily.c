@@ -30,6 +30,7 @@ void hmbtn_session_clock_events(void *context,const HmbtnFarmClock *clock,unsign
         if(s->construction.greenhouse) hmbtn_farm_field_new_day(&s->greenhouse,clock->season);
         hmbtn_poultry_new_day(&s->poultry,&s->feed,clock);
         hmbtn_livestock_new_day(&s->livestock,&s->feed,clock);
+        hmbtn_pond_new_day(&s->pond);
         hmbtn_poultry_carry_sync(&s->poultry,&s->house);
         hmbtn_farm_feed_new_day(&s->feed);hmbtn_farm_gather_new_day(&s->gather);
         hmbtn_weather_new_day(&s->game.weather,clock,&s->game.registration,NULL);
@@ -81,7 +82,7 @@ bool hmbtn_session_morning(HmbtnSession *s,bool slept)
     s->farm_action.phase=HMBTN_FARM_ACTION_FREE;s->farm_action.bank=-1;
     const unsigned discarded=s->carry.discarded;
     memset(&s->carry,0,sizeof(s->carry));s->carry.discarded=discarded;
-    s->carry.basket=&s->game.basket;
+    s->carry.basket=&s->game.basket;s->carry.pond=&s->pond;
     memset(s->field_effects,0,sizeof(s->field_effects));
     s->travel_tick=s->door_tick=s->overnight_tick=0;s->morning_fade=45;
     s->intro.area=80;s->intro.camera_actor=0;s->intro.camera_gliding=false;

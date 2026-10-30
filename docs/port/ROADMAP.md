@@ -1,6 +1,6 @@
 # Roadmap do porte nativo — Linux e Windows
 
-Atualizado em 2026-10-28. Android é futuro. **Este arquivo é a fonte principal
+Atualizado em 2026-10-30. Android é futuro. **Este arquivo é a fonte principal
 para selecionar, ordenar e concluir as próximas tarefas.** O produto continua
 parcial; o bootstrap `--diagnostics` não executa o jogo e o runtime ainda não
 executa o jogo completo.
@@ -917,20 +917,139 @@ festivais permanecem em recortes próprios; não há nova política de saves.
 [Fontes, implementação, validação e limites](PF06_RUCKSACK.md). Nenhum trabalho
 adicional sobre compatibilidade de saves; cesta, embrulhos e jornal ficam abertos.
 
-### Próxima implementação recomendada — PF-06, cesta de remessas
+### Cesta de remessas — PF-06 concluído no recorte
 
-1. Auditar `shop_basket_step`, `shop_item_grant`, `estate_marker_stamp`,
-   `estate_basket_add/merge/check` e ações de cesta em `people/player.c`, além
-   do registro de compra, preço, sprite e flags no C/BIN instalado. Conferir
-   aquisição, posição/área, transporte/depósito, capacidade e regras de itens.
-2. Adaptar a compra ao balcão/modal/economia existentes e a cesta à mesma
-   sessão/carry/remessa: um único objeto com posição, conteúdo e valor, sem
-   outra bolsa ou carteira. Reutilizar arte, ANI, colisões e portas atuais.
-3. Aceite: compra/cancelamento/saldo/posse únicos, pegar/transportar/deixar e
-   reencontrar a cesta, enchimento até o limite original e recusa sem perder
-   itens, transferência única à remessa e pagamento pelo relógio comum;
-   conteúdo/posição/retomada em Linux/Windows. Até 50 processos por rodada.
-   Cavalo, embrulhos, festivais e relacionamentos seguem separados.
+- [x] C/BIN: compra de 5.000 G, registro 117/pedido 10, confirmação/saldo,
+  entrega na fazenda e posse única com posição/área/conteúdo.
+- [x] Pegar/deixar, portas, colisão andando/correndo, inserir/arremessar,
+  capacidade 30, aviso original e descarte do excedente com conteúdo preservado.
+- [x] Alcance direto de 400 e captura de arremesso de 200 separados;
+  arte/ANI originais, transferência única à remessa e pagamento às 17:58.
+- [x] Codec v18, retomada cheia no chão/nas mãos e após pagamento;
+  Debug 8/8, wrapper 1/1, regressões 5/5, Release 2/2 e Windows/Wine aprovados.
+  50 processos incluindo wrappers/filhos/lançadores; portas preservadas.
+
+[Fontes, comportamento, validação e limites](PF06_BASKET.md). O critério antigo
+sobre devolver o excedente foi ajustado ao original: cesta cheia mostra 3:0x383
+e limpa o item tentado. Não houve trabalho separado de compatibilidade de saves.
+
+### Alimentos do supermercado — PF-06 concluído no recorte
+
+- [x] C/BIN: arroz/pão/óleo/farinha/curry, preços 100/100/50/50/50 G,
+  registros/chaves/arte originais e modo `SHOP_GRANT_FLAG_ONLY`.
+- [x] Balcão e apresentação na mão, confirmação/recusa 2:0xd8/saldo,
+  débito/contabilidade únicos após fechar o aceite e estoque repetível.
+- [x] Mão/mochila/geladeira pelo fluxo existente; seis compras reais e preparo
+  de curry com arroz/tempero comprados, fades/XA/prato/receita e retomada.
+- [x] Portas preservadas e codec existente suficiente, sem trabalho separado
+  sobre compatibilidade de saves. Debug 10/10 selecionados, Release 2/2,
+  Windows/Wine unidade/percurso/três retomadas aprovados; 37 processos.
+
+[Auditoria, implementação, testes e limites](PF06_GROCERIES.md). Comer diretamente
+os alimentos permanece pendente; este recorte cobre compra/armazenamento/cozinha.
+
+### Embrulhos do supermercado — PF-06 concluído no recorte
+
+- [x] C/BIN: balcão 118/chave 0x177/pedido 3, preço 100 G, elegibilidade,
+  recusas/aceite e apresentação de `{164,ID do conteúdo,1}` pela ANI original.
+- [x] Cancelamento/saldo preservam o produto; débito/contabilidade únicos após
+  fechar o aceite. Mão/mochila e descrições consultam o conteúdo embrulhado;
+  depósitos proibidos pela classe original recusam sem perda.
+- [x] Pão comprado → embrulho pago → mochila/retomada → presente para Gotz,
+  bytecode original, consumo único e amizade 50 → 52. Portas preservadas,
+  sem mudança necessária de formato de save.
+- [x] Debug: 14/14 regressões iniciais, três unidades e percurso final/retomadas
+  aprovados após conferir descrições. Release unidade/percurso e Windows/Wine
+  unidade/percurso/três retomadas aprovados; 49 processos, sem suíte inteira.
+
+[Auditoria C/BIN, implementação, validação e limites](PF06_WRAPPING.md).
+
+### Consumo direto de alimentos e bebidas — PF-06 concluído no recorte
+
+- [x] C/BIN: Square, classificação pelas flags/callback, ANI base 5/som 74
+  para comer e banco 14/range 0/som 75 para beber; ocultação original.
+- [x] Consumo/efeitos únicos ao fim da ANI, qualidade como byte assinado,
+  stamina/fadiga/felicidade e limites, exceção das 06:00; eventos preservam
+  os itens temporariamente substituídos. Ingredientes/embrulhos não viram comida.
+- [x] Curry/pão/arroz comprados, uvas coletadas no outono pelo calendário
+  compartilhado, suco preparado/bebido e três checkpoints; relógio comum e
+  inventário autoritativo. Felicidade persistida no codec v19.
+- [x] Animações de portas preservadas; Debug 13/13 selecionados e regressões
+  de chuva/portas 2/2, Release 2/2 e Windows/Wine unidade/produtor/percurso/
+  três retomadas aprovados. 48 processos incluindo tentativas e lançadores.
+
+[Auditoria, implementação, validação e limites](PF06_FOOD_USE.md). O recorte
+cobre itens carregados de categoria 0 com callback de atributos representado;
+Power Berries automáticas e restaurações de eventos mantêm seus fluxos próprios.
+
+### Clínica e remédios — PF-06 concluído no recorte
+
+Atendimento do NPC 8 pelo bytecode original `(8,5,0,0)`, porta/rotas/horários
+existentes, menu exame/remédios, informações, cancelamentos e saldo insuficiente.
+Exame de 10 G com fades, mensagem sobre fundo preto e diagnóstico de stamina/
+fadiga; o original não cura nem avança o tempo, e esse comportamento foi mantido.
+Quatro medicamentos, preços/descrições/ordem originais, XL derivados das 51
+remessas de erva azul/verde, cobrança/entrega únicas, geladeira e consumo pela
+ANI de bebida já adaptada. Codec existente suficiente; portas preservadas.
+
+Percurso instalado compra e guarda os quatro, cruza os dois marcos por coleta/
+remessa efetiva da 51ª erva, retira/bebe e reabre checkpoints em processos novos.
+[Auditoria, validação e limites](PF06_CLINIC.md). Colapso/internação, outras lojas,
+festivais e PF-06 permanecem abertos. Bootstrap não executa o jogo.
+
+### Vinícola — PF-06 concluído no recorte
+
+Compra pelo script original de Manna `(8,3,0,0)`, acesso/horários/presença,
+vinho 300 G e suco de uva 200 G, descrições/cancelamento/saldo insuficiente,
+débito e recebimento únicos com ANI, estoque repetível e geladeira.
+Consumo distingue vinho (fadiga/felicidade), suco comprado (stamina fixa) e
+suco preparado (qualidade). Percurso usa suco comprado e uvas coletadas numa
+receita real, com bônus original de qualidade e retomada em processos novos.
+Codec existente suficiente, portas preservadas.
+[Auditoria, implementação, validação e limites](PF06_WINERY.md).
+Vindima/Cliff, demais eventos e PF-06 continuam abertos. Bootstrap não executa o jogo.
+
+### Refeições da hospedaria — PF-06 concluído no recorte
+
+Balcão original de Doug (zona 36/NPC 6/local 27), seis opções diurnas e quatro
+noturnas, mudança às 18h, preços/descrições/cancelamento/saldo insuficiente,
+débito e consumo únicos. Recebimento restaura o registro completo que estava
+na mão, com comida ANI 5 e bebida no banco 17; água gratuita conforme original.
+Percurso coleta uma erva, mantém-na durante dez serviços, confere 17:59/18:00,
+saldo/atributos, sai pela porta e reabre checkpoints em processos novos.
+Codec existente suficiente; alterações de portas do usuário preservadas.
+[Auditoria, implementação, validação e limites](PF06_INN_MEALS.md).
+Hospedagem, eventos/família/festivais e PF-06 continuam abertos. Bootstrap não executa o jogo.
+
+### Restaurante de Kai — PF-06 concluído no recorte
+
+Conversa original do NPC 25/dispatch `(8,8,0,0)`, agenda de verão e tipo de
+rota 6, cinco itens/preços/descrições, cancelamento e saldo insuficiente.
+Fluxo de refeições compartilhado com Doug: débito único e consumo por ANI,
+com atributos aplicados ao término e restauração da mão. Água gratuita usa
+mensagem final própria, sem alterar a compra seguinte. Percurso confere
+almoço/retorno, domingo sem loja e três retomadas em processos novos.
+Codec existente suficiente; portas do usuário preservadas.
+[Auditoria, implementação, validação e limites](PF06_KAI_RESTAURANT.md).
+Eventos restantes de Kai, família/festivais/hospedagem e PF-06 seguem abertos.
+Bootstrap não executa o jogo; runtime parcial.
+
+### Próxima implementação recomendada — PF-06, lago da fazenda e ração de peixes
+
+1. Auditar `field/pond.c`, `estate_fish_food_add/take`, a loja de ração
+   (`shop_fish_food_menu_setup` e seu fluxo de compra), zonas/ações de
+   `people/player.c` e callbacks de `world/clock_events.c` no C/BIN: acesso,
+   aquisição, colocação/retirada de peixes, alimentação e ciclo diário.
+2. Reaproveitar pesca, inventário, remessa, economia e relógio existentes.
+   Adaptar somente o estado/algoritmos do lago ainda ausentes, com capacidade,
+   crescimento/reprodução e apresentação conforme o original. A ração deve
+   vir da compra real, sem peixes ou estoque gratuitos para pular dependências.
+3. Aceite: pescar, colocar peixe no lago, comprar e usar ração pela interação
+   original, passar manhãs, conferir regras de evolução, retirar/remeter e
+   retomar estado estável. Cobrir cancelamento/saldo insuficiente/capacidade
+   e aplicação diária única. Linux/Windows, até 50 processos por rodada,
+   preservando as portas do usuário. Concursos, outros serviços e festivais
+   permanecem separados.
 
 A fila continua sendo este arquivo. Não habilitar uma melhoria ainda sem seus
 mapas/estado/uso real e não criar aquisição gratuita para saltar dependências.
@@ -956,7 +1075,15 @@ O custo da tabela original é referência de conteúdo, não limite de hardware 
 | 16 — concluída no recorte | Apresentação do preparo e indicadores | Fade/XA/resultado e consumo únicos, painéis/marcas, ficha, sete preparos com utensílios comprados e retomada; critérios acima. |
 | 17 — concluída no recorte | Acessórios de Saibara | Orichalcum escavado, sorteio original, duas confirmações, fila comum/três manhãs, cue/retirada na mão, mochila/remessa e retomada; ver PF06_ACCESSORIES.md. |
 | 18 — concluída no recorte | Aquisição das ampliações de mochila | Balcão original, 3.000/5.000 G, dez manhãs, mostrar/vestir, capacidades 2/4/8 e retomada; ver PF06_RUCKSACK.md. |
-| **19 — próxima** | Cesta de remessas | Compra, objeto único/posição/conteúdo, transporte, limite original, remessa/pagamento e retomada, conforme recorte acima. |
+| 19 — concluída no recorte | Cesta de remessas | Compra única, transporte/portas/colisão, 30 produtos, arremesso/aviso, remessa/pagamento e retomada; ver PF06_BASKET.md. |
+| 20 — concluída no recorte | Alimentos do supermercado | Cinco produtos no balcão original, estoque repetível, mão/mochila/geladeira, curry com ingredientes comprados e retomada; ver PF06_GROCERIES.md. |
+| 21 — concluída no recorte | Embrulhos do supermercado | Compra real, conteúdo/ANI, mochila/descrições, recusas dos depósitos, entrega/afinidade pelo bytecode e retomada; ver PF06_WRAPPING.md. |
+| 22 — concluída no recorte | Consumo de alimentos e bebidas | Square/ANI/som, efeitos assinados, mão/qualidade/atributos, compras/coleta/cozinha, relógio e retomada; ver PF06_FOOD_USE.md. |
+| 23 — concluída no recorte | Clínica e remédios | Atendimento/exame/diagnóstico sem cura, quatro compras/ANI, 51 remessas para XL, geladeira/consumo e retomada; ver PF06_CLINIC.md. |
+| 24 — concluída no recorte | Vinícola | Compra com Manna, preços/recusas/ANI, geladeira, efeitos distintos de bebidas, bônus de receita com ingrediente comprado e retomada; ver PF06_WINERY.md. |
+| 25 — concluída no recorte | Refeições da hospedaria | Balcão de Doug, menus diurno/noturno, dez serviços, receber/comer/beber/restaurar mão, atributos/economia e retomada; ver PF06_INN_MEALS.md. |
+| 26 — concluída no recorte | Restaurante de Kai | Roteiro/agenda sazonal originais, cinco itens/água, preços/mensagens, consumo por ANI, almoço/domingo e retomada. |
+| **27 — próxima** | Lago da fazenda e ração de peixes | Compra/uso de ração, peixes capturados, colocação/retirada, ciclo diário e retomada, conforme recorte acima. |
 
 `shop_greenhouse_step`, em `menu/shop_dialogues.c`, trata melhorias de
 ferramentas; acessórios usam `shop_item_menu_step`. Não são fluxos de construção. `field/greenhouse.c` contém

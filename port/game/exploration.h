@@ -7,7 +7,7 @@
  * No SDL, files, renderer, host voice handles or host clock in this interface. */
 typedef enum HmbtnExplorationAnimation {
     HMBTN_EXP_PLAYER,HMBTN_EXP_ACTION,HMBTN_EXP_EVENT_PLAYER,
-    HMBTN_EXP_VILLAGER,HMBTN_EXP_CHICK,HMBTN_EXP_HEN,HMBTN_EXP_LIVESTOCK
+    HMBTN_EXP_VILLAGER,HMBTN_EXP_CHICK,HMBTN_EXP_HEN,HMBTN_EXP_LIVESTOCK,HMBTN_EXP_STAGE
 } HmbtnExplorationAnimation;
 typedef enum HmbtnExplorationEffectKind {
     HMBTN_EXP_UI_SOUND,HMBTN_EXP_KEY_SOUND,HMBTN_EXP_RELEASE_WATER,

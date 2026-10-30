@@ -106,7 +106,8 @@ def main(root, output):
         class_flags=re.fullmatch(r"\{\s*\.word\s*=\s*(0x[0-9a-fA-F]+)\s*\}",values[8])
         if not class_flags:
             raise ValueError(f"Unexpected class flags: {key}")
-        item_rows[key] = f"{{{prefix},{{{rule}}},{suffix},{class_flags[1]}u}},"
+        status_use = "true" if values[9] == "farm_clamp_status" else "false"
+        item_rows[key] = f"{{{prefix},{{{rule}}},{suffix},{class_flags[1]}u,{status_use}}},"
     if set(item_rows) != set(range(380)):
         raise ValueError("Original item table must define all 380 rows")
     out.extend(item_rows[key] for key in range(380))
@@ -290,6 +291,89 @@ def main(root, output):
     Path(output).with_name("saibara_gifts.inc").write_text(
         "/* shop_tool_upgrade_menu_setup: original random present ids. */\n"
         "static const unsigned saibara_gifts[]={"+body(shop,"girls_present_messages")+"};\n")
+    # Clinic labels/order/description ids are original menu rows. XL stock is
+    # derived from the same authoritative shipment bins as milestone_refresh_all.
+    setup = shop[shop.index("static s32 shop_medicine_menu_setup(void)\n{"):
+                 shop.index("static s32 shop_goods_menu_setup(void)",shop.index("static s32 shop_medicine_menu_setup(void)\n{"))]
+    fixed = re.findall(r"ADD_ENTRY\(LOCALIZED_NAME\(text_bank.names.(\w+)\),\s*(\w+),\s*[01],\s*(0x[0-9A-Fa-f]+)\)", setup)
+    xl = re.findall(r"\*text = LOCALIZED_NAME\(text_bank.names.(\w+_xl)\)",setup)
+    bod = re.search(r"END_ENTRY\((ITEM_\w+), 0, (0x[0-9A-Fa-f]+)\)",setup)
+    turbo = re.search(r"\*entryValue = (ITEM_\w+);\s*\*entryFlag = 0;\s*\*label46 = (0x[0-9A-Fa-f]+)",setup)
+    if len(fixed)!=4 or len(xl)!=2 or not bod or not turbo:
+        raise ValueError("Unexpected original clinic menu")
+    entries=fixed+[(xl[0],bod[1],bod[2]),(xl[1],turbo[1],turbo[2])]
+    clinic=["/* Original shop_medicine_menu_setup and shop_condition_messages. */"]
+    for label,_,_ in entries:
+        words=re.search(r"\."+label+r"\s*=\s*(\{[^}]+\})",text_bank).group(1)
+        clinic.append(f"static const uint16_t clinic_name_{label}[]={words};")
+    for kind,rows in (("main",entries[:2]),("medicine",entries[2:])):
+        clinic.append(f"static const HmbtnSeedShopEntry clinic_{kind}[]={{")
+        for label,item,description in rows:
+            value=names[item] if item in names else number(item)
+            clinic.append(f"{{{value},{description},clinic_name_{label},sizeof(clinic_name_{label})/sizeof(uint16_t)}},")
+        clinic.append("};")
+    grass_threshold=int(re.search(r"#define GRASS_SHIPMENT_THRESHOLD\s+(\d+)",milestones).group(1))
+    clinic.append(f"enum {{ CLINIC_SHIPMENT_THRESHOLD={grass_threshold} }};")
+    clinic.append("static const unsigned clinic_grass[]={"+str(names["ITEM_BLUE_GRASS"])+","+str(names["ITEM_GREEN_GRASS"])+"};")
+    clinic.append("static const unsigned clinic_conditions[5][4]={"+body(shop,"shop_condition_messages")+"};")
+    Path(output).with_name("clinic_tables.inc").write_text("\n".join(clinic)+"\n")
+    wine_setup=shop[shop.index("static s32 shop_wine_menu_setup(void)\n{"):
+                    shop.index("static u16 girls_present_messages",shop.index("static s32 shop_wine_menu_setup(void)\n{"))]
+    wine_entries=re.findall(r"ADD_ENTRY\(LOCALIZED_NAME\(text_bank.names.(\w+)\),\s*(ITEM_\w+),\s*0,\s*(0x[0-9A-Fa-f]+)\)",wine_setup)
+    if len(wine_entries)!=2:
+        raise ValueError("Unexpected original wine shop menu")
+    wine=["/* Original shop_wine_menu_setup: labels, order, item ids and descriptions. */"]
+    for label,_,_ in wine_entries:
+        words=re.search(r"\."+label+r"\s*=\s*(\{[^}]+\})",text_bank).group(1)
+        wine.append(f"static const uint16_t wine_name_{label}[]={words};")
+    wine.append("static const HmbtnSeedShopEntry wine_stock[]={")
+    for label,item,description in wine_entries:
+        wine.append(f"{{{names[item]},{description},wine_name_{label},sizeof(wine_name_{label})/sizeof(uint16_t)}},")
+    wine.append("};")
+    Path(output).with_name("wine_menu.inc").write_text("\n".join(wine)+"\n")
+    inn_setup=shop[shop.index("static s32 shop_menu_setup_food_or_drinks(void)\n{"):
+                   shop.index("static s32 shop_menu_setup_snacks(void)\n{")]
+    inn_entries=re.findall(r"ADD_ENTRY\(LOCALIZED_NAME\(text_bank.names.(\w+)\),\s*(ITEM_\w+|0x[0-9A-Fa-f]+),\s*0,\s*(0x[0-9A-Fa-f]+)\)",inn_setup)
+    water=re.search(r"\*text = LOCALIZED_NAME\(text_bank.names.(\w+)\);\s*\*entryValue = (ITEM_\w+);\s*\*entryFlag = 0;\s*\*label46 = (0x[0-9A-Fa-f]+)",inn_setup)
+    intros=re.findall(r"shop_menu_messages\[0\] = (0x[0-9A-Fa-f]+)",inn_setup)
+    if len(inn_entries)!=8 or not water or len(intros)!=2:
+        raise ValueError("Unexpected original inn menus")
+    inn_entries.append(tuple(water.groups()))
+    inn=["/* Original shop_menu_setup_food_or_drinks labels, rows and messages. */"]
+    for label,_,_ in inn_entries:
+        words=re.search(r"\."+label+r"\s*=\s*(\{[^}]+\})",text_bank).group(1)
+        inn.append(f"static const uint16_t inn_name_{label}[]={words};")
+    for kind,rows in (("day",inn_entries[3:8]+inn_entries[-1:]),("night",inn_entries[:3]+inn_entries[-1:])):
+        inn.append(f"static const HmbtnSeedShopEntry inn_{kind}[]={{")
+        for label,item,description in rows:
+            value=names[item] if item in names else number(item)
+            inn.append(f"{{{value},{description},inn_name_{label},sizeof(inn_name_{label})/sizeof(uint16_t)}},")
+        inn.append("};")
+    inn.append("static const unsigned inn_intros[]={"+intros[1]+","+intros[0]+"};")
+    flow=[re.search(r"shop_menu_messages\["+str(i)+r"\] = (0x[0-9A-Fa-f]+)",inn_setup).group(1) for i in range(1,5)]
+    inn.append("static const unsigned inn_messages[]={"+",".join(flow)+"};")
+    cancel=re.search(r"shop_menu_request.second\[1\] = (0x[0-9A-Fa-f]+)",inn_setup).group(1)
+    inn.append(f"enum {{ INN_CANCEL={cancel} }};")
+    Path(output).with_name("inn_menu.inc").write_text("\n".join(inn)+"\n")
+    kai_setup=shop[shop.index("static s32 shop_menu_setup_snacks(void)\n{"):
+                   shop.index("static s32 shop_selected_item = 0;")]
+    kai_entries=re.findall(r"ADD_ENTRY\(LOCALIZED_NAME\(text_bank.names.(\w+)\),\s*(ITEM_\w+),\s*0,\s*(0x[0-9A-Fa-f]+)\)",kai_setup)
+    if len(kai_entries)!=5:
+        raise ValueError("Unexpected original Kai menu")
+    kai=["/* Original shop_menu_setup_snacks and shop_goods_run water reply. */"]
+    for label,_,_ in kai_entries:
+        words=re.search(r"\."+label+r"\s*=\s*(\{[^}]+\})",text_bank).group(1)
+        kai.append(f"static const uint16_t kai_name_{label}[]={words};")
+    kai.append("static const HmbtnSeedShopEntry kai_stock[]={")
+    for label,item,description in kai_entries:
+        kai.append(f"{{{names[item]},{description},kai_name_{label},sizeof(kai_name_{label})/sizeof(uint16_t)}},")
+    kai.append("};")
+    flow=[re.search(r"shop_menu_messages\["+str(i)+r"\] = (0x[0-9A-Fa-f]+)",kai_setup).group(1) for i in range(5)]
+    kai.append("static const unsigned kai_messages[]={"+",".join(flow)+"};")
+    cancel=re.search(r"shop_menu_request.second\[1\] = (0x[0-9A-Fa-f]+)",kai_setup).group(1)
+    water_reply=re.search(r"shop_selected_item == ITEM_WATER\)\s*\{\s*shop_menu_messages\[4\] = (0x[0-9A-Fa-f]+)",shop).group(1)
+    kai.append(f"enum {{ KAI_CANCEL={cancel}, KAI_WATER={names['ITEM_WATER']}, KAI_WATER_REPLY={water_reply} }};")
+    Path(output).with_name("kai_menu.inc").write_text("\n".join(kai)+"\n")
     # Storage navigation from item_storage.c, for all three rucksack levels.
     storage = clean((src / "overlay/11_GF_FARM/menu/item_storage.c").read_text())
     links = [fields(row[1:-1])[2] for row in fields(body(storage, "item_markers"))]
@@ -383,6 +467,20 @@ def main(root, output):
     keys = fields(body(shop, "shop_key_values"))
     if len(keys) % 2:
         raise ValueError("Unpaired original shop keys")
+    groceries = []
+    for label in ("rice_ball", "bread", "oil", "flour", "curry_powder"):
+        grant = re.search(r"static s32 shop_grant_" + label + r"\(void\)\s*\{\s*return shop_item_grant\((ITEM_\w+), 2, (0x[0-9A-Fa-f]+), SHOP_GRANT_FLAG_ONLY\);", shop)
+        if not grant:
+            raise ValueError("Missing original grocery grant: " + label)
+        item = names[grant[1]]
+        requests = [number(keys[i+1]) for i in range(0, len(keys), 2) if number(keys[i]) == item]
+        sprite = re.search(r"case " + grant[1] + r":\s*\*status = (\d+);", estate)
+        if len(requests) != 1 or not sprite:
+            raise ValueError("Missing original grocery key/art: " + label)
+        groceries.append(f"{{{item},{grant[2]},{requests[0]},{sprite[1]}}}")
+    Path(output).with_name("grocery_stock.inc").write_text(
+        "/* shop_grant_*, shop_key_values and estate_code_status; prices remain in item_info. */\n"
+        "static const HmbtnGroceryStock grocery_stock[]={" + ",".join(groceries) + "};\n")
     Path(output).with_name("shop_keys.inc").write_text(
         "/* shop_dialogues.c:shop_key_values, estate record key -> dialogue. */\n"
         "static const unsigned shop_keys[][2]={" +

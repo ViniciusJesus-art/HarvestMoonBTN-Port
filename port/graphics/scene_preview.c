@@ -609,6 +609,7 @@ static const HmbtnAnimation *exploration_animation(void *context,HmbtnExploratio
     case HMBTN_EXP_CHICK:return &s->poultry_art.chick;
     case HMBTN_EXP_HEN:return &s->poultry_art.adult;
     case HMBTN_EXP_LIVESTOCK:return id<10 ? &s->livestock_art.animation[id] : NULL;
+    case HMBTN_EXP_STAGE:return hmbtn_new_game_ui_animation(s->ui);
     default:return NULL;
     }
 }
@@ -876,6 +877,35 @@ bool hmbtn_scene_preview_draw(HmbtnScenePreview *s,SDL_Renderer *renderer,char *
             if(!ani) { snprintf(error,error_size,"Original basket stock art unavailable");return false; }
             actors[count++]=(HmbtnWorldSprite){ani,s->estate_art.atlas,{0},{r->position[0]+150,r->position[1]-100,r->position[2]-150},0,0};
         }
+        if(s->session->area==180 && !(s->session->feed_shop.fish_food && s->session->feed_shop.phase!=HMBTN_SHOP_OFF)) {
+            for(unsigned i=0;i<HMBTN_GATHER_RECORDS;++i) {
+                const HmbtnGatherRecord *r=hmbtn_farm_gather_record(i);if(r->location!=30 || r->item!=132) continue;
+                const HmbtnAnimation *ani=hmbtn_estate_art_sprite(&s->estate_art,7);
+                if(!ani || count>=512) { snprintf(error,error_size,"Original fish food stock art unavailable");return false; }
+                actors[count++]=(HmbtnWorldSprite){ani,s->estate_art.atlas,{0},{r->position[0]+150,r->position[1]-100,r->position[2]-150},0,0};
+            }
+        }
+        /* shop key 0x177 is the wrapping service; its stock stays published. */
+        if(s->session->area==180) {
+            const HmbtnGatherRecord *r=hmbtn_farm_gather_record(118);
+            const HmbtnAnimation *ani=hmbtn_estate_art_sprite(&s->estate_art,10);
+            if(!ani || count>=512) { snprintf(error,error_size,"Original gift wrap stock art unavailable");return false; }
+            actors[count++]=(HmbtnWorldSprite){ani,s->estate_art.atlas,{0},
+                {r->position[0]+150,r->position[1]-100,r->position[2]-150},0,0};
+        }
+        /* FLAG_ONLY never unpublishes the grocery stock during its hand cue. */
+        if(s->session->area==180) for(unsigned i=0;i<HMBTN_GATHER_RECORDS;++i) {
+            const HmbtnGatherRecord *r=hmbtn_farm_gather_record(i);
+            if(r->location!=30) continue;
+            for(unsigned j=0;hmbtn_grocery_stock(j);++j) {
+                const HmbtnGroceryStock *stock=hmbtn_grocery_stock(j);
+                if(stock->item!=r->item) continue;
+                const HmbtnAnimation *ani=hmbtn_estate_art_sprite(&s->estate_art,stock->sprite);
+                if(!ani || count>=512) { snprintf(error,error_size,"Original grocery stock art unavailable");return false; }
+                actors[count++]=(HmbtnWorldSprite){ani,s->estate_art.atlas,{0},
+                    {r->position[0]+150,r->position[1]-100,r->position[2]-150},0,0};
+            }
+        }
         const HmbtnBasket *basket=&s->session->game.basket;
         if(basket->owned && basket->placed && basket->area==s->session->area) {
             const HmbtnAnimation *ani;const HmbtnImageAtlas *atlas;
@@ -1008,9 +1038,11 @@ bool hmbtn_scene_preview_draw(HmbtnScenePreview *s,SDL_Renderer *renderer,char *
             memcpy(actors[count++].position,e->position,sizeof(e->position));
         }
         HmbtnWorldAttachment attachment={0};unsigned attached=0;
-        if(player_drawn && s->session->basket_action.phase!=HMBTN_BASKET_SHIP && s->session->event_item.phase!=HMBTN_EVENT_ITEM_RUCKSACK && ((s->session->quick_ticks && s->session->quick_id) || s->session->house.inventory->held_item.id || s->session->fishing.shown || s->session->event_item.shown || s->session->farm_action.phase==HMBTN_FARM_MEDICINE)
+        if(player_drawn && s->session->basket_action.phase!=HMBTN_BASKET_SHIP && s->session->event_item.phase!=HMBTN_EVENT_ITEM_RUCKSACK
+                && !hmbtn_event_item_drinking(&s->session->event_item) && ((s->session->quick_ticks && s->session->quick_id) || s->session->house.inventory->held_item.id || s->session->fishing.shown || s->session->event_item.shown || s->session->farm_action.phase==HMBTN_FARM_MEDICINE)
                 && !(s->session->fishing.phase==HMBTN_FISHING_EAT && s->session->intro.player.sprite.frame>=2)
-                && !(s->session->event_item.phase==HMBTN_EVENT_ITEM_EAT && s->session->intro.player.sprite.frame>=2)) {
+                && !((s->session->event_item.phase==HMBTN_EVENT_ITEM_EAT || s->session->event_item.phase==HMBTN_EVENT_ITEM_USE_FOOD || s->session->event_item.phase==HMBTN_EVENT_ITEM_SERVE_FOOD)
+                    && s->session->intro.player.sprite.frame>=2)) {
             int offset_x=-8,offset_y=-10;
             if(s->session->control.carrying_big && s->session->control.mode!=4) {
                 static const int offset[4][2]={{-8,-10},{-6,-18},{6,-18},{8,-10}};
@@ -1063,6 +1095,10 @@ bool hmbtn_scene_preview_draw(HmbtnScenePreview *s,SDL_Renderer *renderer,char *
             if(t->phase==2 && t->timer==3) continue; /* Original blink cadence. */
             const int32_t point[3]={t->position[0]+150,t->position[1]-100,t->position[2]-150};
             if(hmbtn_model_project_point(&camera,point,&x,&y)) {
+                if(t->phase==3) {
+                    if(!hmbtn_ui_icon(s->ui,s->pixels,t->splash.animation,t->splash.frame,x,y,error,error_size)) return false;
+                    continue;
+                }
                 const HmbtnAnimation *art;const HmbtnImageAtlas *atlas;
                 if(!hmbtn_house_ui_picture_art(s->house_ui,s->data_root,t->item.id,&art,&atlas,error,error_size)) return false;
                 const HmbtnAnimationPlayer picture={.animation=t->phase==2 ? 1 : 0};
@@ -1098,6 +1134,10 @@ bool hmbtn_scene_preview_draw(HmbtnScenePreview *s,SDL_Renderer *renderer,char *
                     hmbtn_game_registration_const(&s->session->game),s->data_root,s->session->runtime.ticks,s->pixels,error,error_size)) return false;
             if(s->session->feed_shop.phase==HMBTN_SHOP_SELL_LIST || s->session->feed_shop.phase==HMBTN_SHOP_SELL_CONFIRM)
                 for(size_t i=0;i<FRAME_BYTES;++i) if(i%4!=3) s->pixels[i]/=2;
+            /* fade_start_{out,in}(20,1,2) is below the message/menu OT. */
+            const unsigned clinic_shade=s->session->feed_shop.clinic_shade;
+            if(clinic_shade) for(size_t i=0;i<FRAME_BYTES;++i) if(i%4!=3)
+                s->pixels[i]=(uint8_t)(s->pixels[i]>clinic_shade ? s->pixels[i]-clinic_shade : 0);
             if(!hmbtn_feed_shop_ui_draw(&s->session->feed_shop,hmbtn_game_economy_const(&s->session->game),hmbtn_game_registration_const(&s->session->game),s->ui,s->pixels,s->session->runtime.ticks,error,error_size)) return false;
             if (!hmbtn_new_game_ui_draw(s->ui,s->session->animal_name_active ? &s->session->animal_name : s->session->feed_shop.phase==HMBTN_SHOP_NAME ? &s->session->feed_shop.editor : &s->session->dialogue,
                     s->session->runtime.ticks,s->pixels,error,error_size)) return false;

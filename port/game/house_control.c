@@ -137,6 +137,7 @@ void hmbtn_farm_control_tick(HmbtnHouseControl *s,HmbtnIntroActor *p,
         jump_tick(s,p,ground);return;
     }
     if (s->mode && (!hmbtn_farm_settle(field,ground,ahead,0xE080,200)
+            || (s->object_blocked && s->object_blocked(s->collision_context,p->position,ahead))
             || (s->mode!=4 && s->npc_blocked && s->npc_blocked(s->collision_context,p->position,ahead)))) {
         dx=dz=0;
         if (s->blocked_frames < 5) ++s->blocked_frames;
@@ -149,6 +150,7 @@ void hmbtn_farm_control_tick(HmbtnHouseControl *s,HmbtnIntroActor *p,
                     p->position[2]+sides[p->facing&1u][i][1]};
                 if(hmbtn_farm_settle(field,ground,side,0xE080,200)
                         && !hmbtn_farm_field_probe(field,side)
+                        && (!s->object_blocked || !s->object_blocked(s->collision_context,p->position,side))
                         && (s->mode==4 || !s->npc_blocked || !s->npc_blocked(s->collision_context,p->position,side))) open|=1u<<i;
             }
             if(open) { const unsigned i=open==1 ? 0u : 1u;
@@ -157,6 +159,7 @@ void hmbtn_farm_control_tick(HmbtnHouseControl *s,HmbtnIntroActor *p,
     } else { s->blocked_frames=0;if(occupant) dx=dz=0; }
     int32_t next[3]={p->position[0]+dx,p->position[1],p->position[2]+dz};
     if(hmbtn_farm_settle(field,ground,next,0xC080,200)
+            && (!s->object_blocked || !s->object_blocked(s->collision_context,p->position,next))
             && (s->mode==4 || !s->npc_blocked || !s->npc_blocked(s->collision_context,p->position,next))) {
         memcpy(p->position,next,sizeof(next));
     }

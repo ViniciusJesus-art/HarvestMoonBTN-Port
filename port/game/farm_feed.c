@@ -70,3 +70,40 @@ bool hmbtn_farm_feed_tick(HmbtnFarmFeed *f,HmbtnHouseInteraction *h,HmbtnIntroAc
     }
     return false;
 }
+
+/* Machine submission shares the feed modal lock/base ANI. Phases 3..5 retain
+ * the authoritative held ingredient until the throw animation completes;
+ * phase 1 then shows its replacement, with no rucksack-space requirement. */
+bool hmbtn_farm_feed_makers_tick(HmbtnFarmFeed *f,const HmbtnMakers *m,HmbtnHouseInteraction *h,
+    HmbtnIntroActor *p,unsigned area,const uint8_t *section,size_t size,uint32_t pressed)
+{
+    f->sound=-1;f->request=0;
+    static const unsigned kinds[3]={14,33,15};
+    if(f->phase>=3 && f->phase<=5) {
+        if(p->animation_done) {
+            const unsigned output=hmbtn_makers_product(kinds[f->phase-3],h->inventory->held_item.id);
+            if(output) {
+                h->inventory->held_item=(HmbtnStoredTool){(uint16_t)output,0,1};
+                p->sprite=(HmbtnAnimationPlayer){(uint16_t)(11+p->facing),0,0};f->phase=1;f->sound=7;
+            } else { f->phase=0;p->sprite=(HmbtnAnimationPlayer){0,(uint16_t)p->facing,0}; }
+            p->animation_done=false;
+        }
+        return true;
+    }
+    if(f->phase || !m || !(pressed&HMBTN_PAD_CROSS) || !section || size<16+50*44 || p->facing>3) return false;
+    static const int delta[4][2]={{0,-224},{-224,0},{0,224},{224,0}};
+    const int32_t x=p->position[0]+delta[p->facing][0],z=p->position[2]+delta[p->facing][1];
+    for(unsigned i=0;i<50;++i) {
+        const uint8_t *q=section+16+i*44;const unsigned kind=hmbtn_read_le16(q+2);
+        const unsigned type=kind==14 ? 0 : kind==33 ? 1 : kind==15 ? 2 : 3;
+        if(hmbtn_read_le16(q)!=0x4000 || type==3 || !(m->owned&(1u<<type))
+                || area!=(type ? 96u : 112u) || x<=half(q+14) || x>=half(q+20)
+                || z<=half(q+18) || z>=half(q+24) || p->position[1]<=half(q+16)-128
+                || p->position[1]>=half(q+22)+120) continue;
+        if(!hmbtn_makers_product(kind,h->inventory->held_item.id)) { f->request=0x1a2+type;return true; }
+        if(p->facing!=hmbtn_read_le16(q+8)) return true;
+        f->phase=3+type;p->animation_done=false;
+        p->sprite=(HmbtnAnimationPlayer){(uint16_t)(23+p->facing),0,0};return true;
+    }
+    return false;
+}

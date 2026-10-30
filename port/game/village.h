@@ -17,6 +17,7 @@ typedef struct HmbtnVillager {
 struct HmbtnPoultry;
 struct HmbtnConstruction;
 struct HmbtnCooking;
+struct HmbtnMakers;
 typedef struct HmbtnVillage {
     HmbtnVillager people[HMBTN_VILLAGERS];
     HmbtnEventDays days;
@@ -28,6 +29,7 @@ typedef struct HmbtnVillage {
     bool invitation_available,dog_held,player_running;
     const struct HmbtnPoultry *poultry;
     const struct HmbtnConstruction *construction;
+    const struct HmbtnMakers *makers;
     const struct HmbtnCooking *cooking;
     HmbtnAreaDoors *doors; /* Borrowed session controller, never another route owner. */
     const HmbtnWeather *weather; /* Shared session domain; NULL in standalone fixtures. */
@@ -46,6 +48,8 @@ bool hmbtn_village_flag(const HmbtnVillage *v,unsigned id);
 bool hmbtn_village_flag_set(HmbtnVillage *v,unsigned id,bool value);
 /* Derived script flags, never another weather owner. */
 void hmbtn_village_refresh_weather(HmbtnVillage *v);
+/* event_cmd_reset_schedule: rebuild one route after Saibara starts work. */
+bool hmbtn_village_reset_schedule(HmbtnVillage *,unsigned id,char *,size_t);
 bool hmbtn_village_sync(HmbtnVillage *v,const HmbtnFarmClock *clock,char *error,size_t size);
 void hmbtn_village_tick(HmbtnVillage *v,const uint8_t *section,size_t size,const HmbtnModel *ground,bool held);
 /* One active transform per resident. Event aliases point into the session;

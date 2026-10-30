@@ -103,6 +103,26 @@ bool hmbtn_farm_field_has_grown(const HmbtnFarmField *f,unsigned seed)
         if(f->cells[i].value==seed && f->cells[i].kind==crop->grown) return true;
     return false;
 }
+/* field_find_ready_grown / field_grown_cell_request: consume one established
+ * grass tile locally first, then across the field. No harvested fodder is added. */
+bool hmbtn_farm_field_graze(HmbtnFarmField *f,const int32_t position[3])
+{
+    if(!f || f->indoor || f->season==3) return false;
+    const HmbtnFarmCrop *crop=hmbtn_farm_crop(GRASS);
+    int col,row;const bool local=hmbtn_farm_field_world_cell(f,position,&col,&row);
+    for(unsigned pass=0;pass<2;++pass) {
+        if(!pass && !local) continue;
+        const int x0=pass ? 0 : col>0 ? col-1 : 0,y0=pass ? 0 : row>0 ? row-1 : 0;
+        const int x1=pass ? HMBTN_FIELD_COLS : x0+3,y1=pass ? HMBTN_FIELD_ROWS : y0+3;
+        for(int y=y0;y<y1 && y<HMBTN_FIELD_ROWS;++y) for(int x=x0;x<x1 && x<HMBTN_FIELD_COLS;++x) {
+            HmbtnFarmTile *t=&f->cells[y*HMBTN_FIELD_COLS+x];
+            if(t->value!=GRASS || t->kind<crop->grown) continue;
+            t->kind=(uint8_t)crop->regrow;t->watered_days=0;t->growth_flags|=0x8000;
+            return true;
+        }
+    }
+    return false;
+}
 static void dry(HmbtnFarmTile *t)
 {
     if(t->ground==WATERED) { t->ground=TILLED;if(t->value==WATERED) t->value=TILLED; }

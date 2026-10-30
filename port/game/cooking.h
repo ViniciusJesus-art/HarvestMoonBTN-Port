@@ -5,6 +5,8 @@
  * consumption from the live rucksack before the icebox, and saved recipes.
  * No SDL, rendering, global farm state or copied inventory. */
 const HmbtnStoredTool *hmbtn_cooking_source(const HmbtnInventory *,unsigned page,unsigned cell);
+/* cooking_item_stored, for record-view missing-ingredient marks. Empty is valid. */
+bool hmbtn_cooking_item_stored(const HmbtnInventory *,unsigned id);
 unsigned hmbtn_cooking_option_item(unsigned bit);
 const uint16_t *hmbtn_cooking_dish_name(unsigned id);
 unsigned hmbtn_cooking_allowed_options(const HmbtnCooking *);

@@ -6,6 +6,7 @@
 #include "construction.h"
 #include "cooking.h"
 #include "poultry.h"
+#include "makers.h"
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -18,6 +19,7 @@ static bool girl(unsigned id) { return id==3 || id==7 || id==9 || id==14 || id==
 bool hmbtn_village_flag(const HmbtnVillage *v,unsigned id)
 {
     if(!v || id>=HMBTN_VILLAGE_FLAGS) return false;
+    if(id==0x37 && v->makers) return v->makers->mornings_left!=0;
     if(id==0x38 && v->construction) return v->construction->mornings_left!=0;
     if(id==0x3B && v->construction) return v->construction->house_level>=1;
     if(id==0x3C && v->construction) return v->construction->barn_level>=1;
@@ -32,7 +34,7 @@ bool hmbtn_village_flag(const HmbtnVillage *v,unsigned id)
 }
 bool hmbtn_village_flag_set(HmbtnVillage *v,unsigned id,bool value)
 {
-    if(!v || id>=HMBTN_VILLAGE_FLAGS || ((id==0x38 || id==0x39 || (id>=0x3B && id<=0x3E)) && v->construction) || (id==0x3A && v->poultry)
+    if(!v || id>=HMBTN_VILLAGE_FLAGS || (id==0x37 && v->makers) || ((id==0x38 || id==0x39 || (id>=0x3B && id<=0x3E)) && v->construction) || (id==0x3A && v->poultry)
         || (id>=0x5b && id<=0x5d && v->cooking)) return false;
     v->flags[id]=value;return true;
 }
@@ -65,6 +67,28 @@ static int history(const HmbtnVillage *v,unsigned id)
     }
     return -1;
 }
+static bool load_schedule(HmbtnVillage *v,unsigned id,char *error,size_t size)
+{
+    HmbtnVillager *p=&v->people[id];int at=history(v,id);
+    p->step=0;p->placed=false;p->actor.visible=false;
+    p->delay=0;p->blocked_by_player=false;
+    for(unsigned i=0;i<30;++i) {
+        p->schedule[i][0]=p->schedule[i][1]=0;p->schedule[i][2]=p->schedule[i][3]=54;
+        if(at>=0) {
+            if((size_t)at>v->schedule_size || 240>v->schedule_size-(size_t)at) {
+                snprintf(error,size,"Villager %u schedule outside imported block",id);return false;
+            }
+            for(unsigned a=0;a<4;++a) p->schedule[i][a]=hmbtn_read_le16(v->schedule_data+at+i*8+a*2);
+        }
+    }
+    return true;
+}
+bool hmbtn_village_reset_schedule(HmbtnVillage *v,unsigned id,char *error,size_t size)
+{
+    if(!v || !id || id>=HMBTN_VILLAGERS || !load_schedule(v,id,error,size)) return false;
+    HmbtnVillager *p=&v->people[id];p->location=54;p->row=p->column=p->wait=0;
+    return true;
+}
 void hmbtn_village_refresh_weather(HmbtnVillage *v)
 {
     for(unsigned i=0;i<HMBTN_WEATHER_KINDS;++i)
@@ -80,18 +104,7 @@ bool hmbtn_village_sync(HmbtnVillage *v,const HmbtnFarmClock *c,char *error,size
     const unsigned key=(c->year*4+c->season)*30+c->day;
     if(key!=v->date_key) {
         for(unsigned id=0;id<HMBTN_VILLAGERS;++id) {
-            HmbtnVillager *p=&v->people[id];int at=history(v,id);
-            p->step=0;p->placed=false;p->actor.visible=false;
-            p->delay=0;p->blocked_by_player=false;
-            for(unsigned i=0;i<30;++i) {
-                p->schedule[i][0]=p->schedule[i][1]=0;p->schedule[i][2]=p->schedule[i][3]=54;
-                if(at>=0) {
-                    if((size_t)at>v->schedule_size || 240>v->schedule_size-(size_t)at) {
-                        snprintf(error,size,"Villager %u schedule outside imported block",id);return false;
-                    }
-                    for(unsigned a=0;a<4;++a) p->schedule[i][a]=hmbtn_read_le16(v->schedule_data+at+i*8+a*2);
-                }
-            }
+            if(!load_schedule(v,id,error,size)) return false;
         }
         v->date_key=key;
     }

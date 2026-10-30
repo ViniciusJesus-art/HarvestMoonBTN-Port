@@ -38,7 +38,8 @@ int main(int argc,char **argv)
     HmbtnSession *g=hmbtn_scene_preview_session(s);g->game.economy.gold=10000;g->game.inventory.supplies[0]=20;
     g->poultry.upgraded=true;g->construction.house_level=1;
     g->village.flags[251+288]=g->village.flags[251+140]=true;
-    CHECK(barley(s,error,sizeof(error)) && step(s,HMBTN_PAD_DOWN,error,sizeof(error)) && g->feed_shop.item==0x161);
+    CHECK(barley(s,error,sizeof(error)) && step(s,HMBTN_PAD_DOWN,error,sizeof(error))
+        && step(s,HMBTN_PAD_DOWN,error,sizeof(error)) && step(s,HMBTN_PAD_DOWN,error,sizeof(error)) && g->feed_shop.item==0x161);
     CHECK(capture_stable(s,&host,shots,"barley-cow-menu",error,sizeof(error)));
     CHECK(step(s,HMBTN_PAD_TRIANGLE,error,sizeof(error)) && shop_wait(s,HMBTN_SHOP_RESULT,error,sizeof(error)) && g->feed_shop.request==0x67);
     CHECK(shop_wait(s,HMBTN_SHOP_SELECT,error,sizeof(error)) && step(s,HMBTN_PAD_CROSS,error,sizeof(error)));

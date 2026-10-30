@@ -23,7 +23,7 @@ file(READ "${text_bank_source}" house_text_source)
 set(house_labels "/* Generated from the original C interface labels. */\n")
 foreach(label year storage_equip storage_toolbox storage_icebox storage_cabinet storage_rucksack utensils ingredient use sugar salt vinegar soy_sauce miso_paste ingredient_title ingredient_rucksack ingredient_icebox slash sleep_menu
         how_to_operate_configuration how_to_operate_buttons configuration_screen
-        type_1 type_2 type_3 on off stereo mono yes no)
+        type_1 type_2 type_3 on off stereo mono yes no money_title gold_unit)
     string(REGEX MATCH "\\.${label} = \\{[^}]+\\}" house_label "${house_text_source}")
     if(NOT house_label)
         message(FATAL_ERROR "Missing original label ${label}")
@@ -55,8 +55,8 @@ foreach(label swap_equip swap_rucksack farm pieces gold amount_shipped help stat
 endforeach()
 file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/generated/farm_menu_labels.inc" "${farm_labels}")
 set(shop_labels "/* Original feed shop labels. */\n")
-foreach(label money_title gold_unit units fodder chicken_feed buy_chicken sell_chicken buy_cow buy_sheep sell_cow sell_sheep animal_medicine
-        farm name_panel_title yes no buy_lumber enlarge_hen_house enlarge_own_house enlarge_barn hothouse lumber improve_tool buy_tool)
+foreach(label money_title gold_unit units fodder chicken_feed buy_chicken sell_chicken buy_cow buy_sheep sell_cow sell_sheep animal_medicine cm_potion sm_potion bell
+        farm name_panel_title yes no buy_lumber enlarge_hen_house enlarge_own_house enlarge_barn hothouse lumber improve_tool buy_tool mayonnaise_maker cheese_maker yarn_maker girls_present)
     string(REGEX MATCH "\\.${label} = \\{[^}]+\\}" shop_label "${farm_text_source}")
     if(NOT shop_label)
         message(FATAL_ERROR "Missing original feed shop label ${label}")
@@ -65,7 +65,7 @@ foreach(label money_title gold_unit units fodder chicken_feed buy_chicken sell_c
     string(APPEND shop_labels "${shop_label};\n")
 endforeach()
 file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/generated/feed_shop_labels.inc" "${shop_labels}")
-add_library(hmbtn_port_core STATIC game/livestock.c game/game_state.c game/cooking.c game/construction.c game/weather.c game/weather_effects.c game/save.c game/update_clock.c game/runtime.c game/inventory.c game/economy.c game/services.c game/session.c game/daily.c game/exploration.c core/psx_data.c core/psx_random.c graphics/asset_decode.c graphics/window_frame.c
+add_library(hmbtn_port_core STATIC game/basket.c game/tv_shopping.c game/tool_upgrade.c game/makers.c game/mine.c game/livestock.c game/game_state.c game/cooking.c game/construction.c game/weather.c game/weather_effects.c game/save.c game/update_clock.c game/runtime.c game/inventory.c game/economy.c game/services.c game/session.c game/daily.c game/exploration.c core/psx_data.c core/psx_random.c graphics/asset_decode.c graphics/window_frame.c
     graphics/model_decode.c graphics/model_render.c graphics/scene_decode.c game/title_flow.c game/new_game.c
     game/event_script.c game/event_variables.c game/event_item.c game/farm_visit.c game/fishing.c game/item_reaction.c game/farm_intro.c game/ground.c game/house_control.c game/house_interaction.c
     game/house_sleep.c game/house_lumber.c game/farm_field.c game/farm_action.c game/field_effects.c game/farm_menu.c game/farm_carry.c game/farm_feed.c game/farm_gather.c game/poultry.c game/poultry_carry.c game/feed_shop.c game/event_days.c game/farm_clock.c game/farm_shipping.c game/world_map.c game/area_doors.c game/village.c game/village_talk.c audio/psx_audio.c audio/xa_decode.c)
@@ -97,6 +97,8 @@ set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
     "${CMAKE_SOURCE_DIR}/src/overlay/11_GF_FARM/menu/storage_swap.c"
     "${CMAKE_SOURCE_DIR}/src/main/sound/sound.c")
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+    "${CMAKE_SOURCE_DIR}/src/main/sound/cd_audio.c")
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
     "${CMAKE_SOURCE_DIR}/src/main/sound/sound_request.c"
     "${CMAKE_SOURCE_DIR}/src/overlay/11_GF_FARM/farm_data.c"
     "${CMAKE_SOURCE_DIR}/src/overlay/common/farm_section_table.h"
@@ -104,7 +106,9 @@ set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
     "${CMAKE_SOURCE_DIR}/src/overlay/11_GF_FARM/animals/animals.c"
     "${CMAKE_SOURCE_DIR}/src/overlay/11_GF_FARM/animals/animals.h"
+    "${CMAKE_SOURCE_DIR}/src/overlay/11_GF_FARM/field/mine.c"
     "${CMAKE_SOURCE_DIR}/src/overlay/11_GF_FARM/animals/livestock.c"
+    "${CMAKE_SOURCE_DIR}/src/overlay/11_GF_FARM/animals/livestock.h"
     "${CMAKE_SOURCE_DIR}/src/overlay/11_GF_FARM/menu/shop_dialogues.c"
     "${CMAKE_SOURCE_DIR}/src/overlay/11_GF_FARM/estate.c"
     "${CMAKE_SOURCE_DIR}/src/overlay/11_GF_FARM/event/milestones.c"
@@ -127,7 +131,7 @@ add_library(hmbtn_host STATIC core/app.c platform/sdl_host.c platform/app_icon.c
     installer/disc_import.c installer/sha256.c installer/setup.c
     graphics/diagnostic_screen.c graphics/title_preview.c input/window_input.c
     input/game_input.c filesystem/resource_file.c filesystem/service_resources.c filesystem/event_resources.c filesystem/action_resources.c filesystem/text_resources.c filesystem/data_directory.c filesystem/save_file.c audio/title_audio.c audio/service_audio.c audio/xa_stream.c
-    graphics/new_game_ui.c graphics/house_ui.c graphics/farm_menu_ui.c graphics/feed_shop_ui.c graphics/village_art.c graphics/estate_art.c graphics/poultry_art.c graphics/livestock_art.c graphics/scene_preview.c)
+    graphics/new_game_ui.c graphics/house_ui.c graphics/farm_menu_ui.c graphics/feed_shop_ui.c graphics/mine_ui.c graphics/village_art.c graphics/estate_art.c graphics/poultry_art.c graphics/livestock_art.c graphics/scene_preview.c)
 target_include_directories(hmbtn_host PUBLIC core platform graphics input filesystem game installer)
 target_include_directories(hmbtn_host PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated")
 target_link_libraries(hmbtn_host PUBLIC hmbtn_port_core SDL3::SDL3)
@@ -168,6 +172,11 @@ if(BUILD_TESTING)
     set_tests_properties(native_save_files PROPERTIES TIMEOUT 120)
     add_executable(hmbtn_livestock_playthrough tests/livestock_playthrough.c)
     target_link_libraries(hmbtn_livestock_playthrough PRIVATE hmbtn_host)
+    add_executable(hmbtn_animal_funeral_test tests/animal_funeral_test.c)
+    target_link_libraries(hmbtn_animal_funeral_test PRIVATE hmbtn_port_core)
+    add_test(NAME native_animal_funeral COMMAND hmbtn_animal_funeral_test)
+    add_executable(hmbtn_animal_funeral_playthrough tests/animal_funeral_playthrough.c)
+    target_link_libraries(hmbtn_animal_funeral_playthrough PRIVATE hmbtn_host)
     add_executable(hmbtn_livestock_test tests/livestock_test.c)
     target_link_libraries(hmbtn_livestock_test PRIVATE hmbtn_port_core)
     add_test(NAME native_livestock COMMAND hmbtn_livestock_test)
@@ -281,6 +290,56 @@ if(BUILD_TESTING)
     target_link_libraries(hmbtn_weather_doors_playthrough PRIVATE hmbtn_host)
     add_executable(hmbtn_world_fidelity_playthrough tests/world_fidelity_playthrough.c)
     target_link_libraries(hmbtn_world_fidelity_playthrough PRIVATE hmbtn_host)
+    add_executable(hmbtn_makers_playthrough tests/makers_playthrough.c)
+    target_link_libraries(hmbtn_makers_playthrough PRIVATE hmbtn_host)
+    add_executable(hmbtn_tv_shopping_test tests/tv_shopping_test.c)
+    add_executable(hmbtn_cooking_presentation_test tests/cooking_presentation_test.c)
+    target_link_libraries(hmbtn_cooking_presentation_test PRIVATE hmbtn_port_core)
+    add_test(NAME native_cooking_presentation COMMAND hmbtn_cooking_presentation_test)
+    add_executable(hmbtn_cooking_playthrough tests/cooking_playthrough.c)
+    target_link_libraries(hmbtn_cooking_playthrough PRIVATE hmbtn_host)
+    target_link_libraries(hmbtn_tv_shopping_test PRIVATE hmbtn_port_core)
+    add_test(NAME native_tv_shopping COMMAND hmbtn_tv_shopping_test)
+    add_executable(hmbtn_tv_shopping_playthrough tests/tv_shopping_playthrough.c)
+    target_link_libraries(hmbtn_tv_shopping_playthrough PRIVATE hmbtn_host)
+    add_executable(hmbtn_tool_upgrade_playthrough tests/tool_upgrade_playthrough.c)
+    target_link_libraries(hmbtn_tool_upgrade_playthrough PRIVATE hmbtn_host)
+    add_executable(hmbtn_tool_upgrade_test tests/tool_upgrade_test.c)
+    target_link_libraries(hmbtn_tool_upgrade_test PRIVATE hmbtn_port_core)
+    add_test(NAME native_tool_upgrade COMMAND hmbtn_tool_upgrade_test)
+    add_executable(hmbtn_basket_playthrough tests/basket_playthrough.c)
+    target_link_libraries(hmbtn_basket_playthrough PRIVATE hmbtn_host)
+    add_executable(hmbtn_basket_test tests/basket_test.c)
+    target_link_libraries(hmbtn_basket_test PRIVATE hmbtn_port_core)
+    add_test(NAME native_basket COMMAND hmbtn_basket_test)
+    add_executable(hmbtn_rucksack_playthrough tests/rucksack_playthrough.c)
+    target_link_libraries(hmbtn_rucksack_playthrough PRIVATE hmbtn_host)
+    add_executable(hmbtn_rucksack_test tests/rucksack_test.c)
+    target_link_libraries(hmbtn_rucksack_test PRIVATE hmbtn_port_core)
+    add_test(NAME native_rucksack COMMAND hmbtn_rucksack_test)
+    add_executable(hmbtn_accessories_test tests/accessories_test.c)
+    target_link_libraries(hmbtn_accessories_test PRIVATE hmbtn_port_core)
+    add_test(NAME native_accessories COMMAND hmbtn_accessories_test)
+    add_executable(hmbtn_accessories_playthrough tests/accessories_playthrough.c)
+    target_link_libraries(hmbtn_accessories_playthrough PRIVATE hmbtn_host)
+    add_executable(hmbtn_makers_test tests/makers_test.c)
+    target_link_libraries(hmbtn_makers_test PRIVATE hmbtn_port_core)
+    add_test(NAME native_makers COMMAND hmbtn_makers_test)
+    add_executable(hmbtn_mine_test tests/mine_test.c)
+    target_link_libraries(hmbtn_mine_test PRIVATE hmbtn_port_core)
+    add_test(NAME native_mine COMMAND hmbtn_mine_test)
+    add_executable(hmbtn_mine_playthrough tests/mine_playthrough.c)
+    target_link_libraries(hmbtn_mine_playthrough PRIVATE hmbtn_host)
+    add_executable(hmbtn_livestock_pasture_test tests/livestock_pasture_test.c)
+    target_link_libraries(hmbtn_livestock_pasture_test PRIVATE hmbtn_port_core)
+    add_test(NAME native_livestock_pasture COMMAND hmbtn_livestock_pasture_test)
+    add_executable(hmbtn_livestock_pasture_playthrough tests/livestock_pasture_playthrough.c)
+    target_link_libraries(hmbtn_livestock_pasture_playthrough PRIVATE hmbtn_host)
+    add_executable(hmbtn_livestock_breeding_test tests/livestock_breeding_test.c)
+    target_link_libraries(hmbtn_livestock_breeding_test PRIVATE hmbtn_port_core)
+    add_test(NAME native_livestock_breeding COMMAND hmbtn_livestock_breeding_test)
+    add_executable(hmbtn_livestock_breeding_playthrough tests/livestock_breeding_playthrough.c)
+    target_link_libraries(hmbtn_livestock_breeding_playthrough PRIVATE hmbtn_host)
     add_executable(hmbtn_livestock_sale_test tests/livestock_sale_test.c)
     target_link_libraries(hmbtn_livestock_sale_test PRIVATE hmbtn_port_core)
     add_test(NAME native_livestock_sale COMMAND hmbtn_livestock_sale_test)
@@ -578,6 +637,62 @@ if(BUILD_TESTING)
         endforeach()
         add_test(NAME native_weather_doors_playthrough COMMAND hmbtn_weather_doors_playthrough "${HMBTN_TEST_GAME_DATA}" "${CMAKE_CURRENT_BINARY_DIR}/weather-doors-test.hms")
         add_test(NAME native_world_fidelity_playthrough COMMAND hmbtn_world_fidelity_playthrough "${HMBTN_TEST_GAME_DATA}")
+        add_test(NAME native_animal_funeral_playthrough COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/animal_funeral_process.py"
+            "$<TARGET_FILE:hmbtn_animal_funeral_playthrough>" "$<TARGET_FILE:hmbtn_native>" "${HMBTN_TEST_GAME_DATA}")
+        set_tests_properties(native_animal_funeral_playthrough PROPERTIES TIMEOUT 240
+            ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_RENDER_DRIVER=software;SDL_AUDIO_DRIVER=dummy")
+        add_test(NAME native_tool_upgrade_playthrough COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/tool_upgrade_process.py"
+            "$<TARGET_FILE:hmbtn_tool_upgrade_playthrough>" "$<TARGET_FILE:hmbtn_native>" "${HMBTN_TEST_GAME_DATA}")
+        set_tests_properties(native_tool_upgrade_playthrough PROPERTIES TIMEOUT 240
+            ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_RENDER_DRIVER=software;SDL_AUDIO_DRIVER=dummy")
+        add_test(NAME native_tv_shopping_playthrough COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/tv_shopping_process.py"
+            "$<TARGET_FILE:hmbtn_tv_shopping_playthrough>" "$<TARGET_FILE:hmbtn_native>" "${HMBTN_TEST_GAME_DATA}")
+        set_tests_properties(native_tv_shopping_playthrough PROPERTIES TIMEOUT 240
+            ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_RENDER_DRIVER=software;SDL_AUDIO_DRIVER=dummy")
+        add_test(NAME native_cooking_playthrough COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/cooking_process.py"
+            "$<TARGET_FILE:hmbtn_tv_shopping_playthrough>" "$<TARGET_FILE:hmbtn_cooking_playthrough>"
+            "$<TARGET_FILE:hmbtn_native>" "${HMBTN_TEST_GAME_DATA}")
+        set_tests_properties(native_cooking_playthrough PROPERTIES TIMEOUT 420
+            ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_RENDER_DRIVER=software;SDL_AUDIO_DRIVER=dummy")
+        add_test(NAME native_basket_playthrough COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/basket_process.py"
+            "$<TARGET_FILE:hmbtn_basket_playthrough>" "$<TARGET_FILE:hmbtn_native>" "${HMBTN_TEST_GAME_DATA}")
+        set_tests_properties(native_basket_playthrough PROPERTIES TIMEOUT 240
+            ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_RENDER_DRIVER=software;SDL_AUDIO_DRIVER=dummy")
+        add_test(NAME native_rucksack_playthrough COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/rucksack_process.py"
+            "$<TARGET_FILE:hmbtn_rucksack_playthrough>" "$<TARGET_FILE:hmbtn_native>" "${HMBTN_TEST_GAME_DATA}")
+        set_tests_properties(native_rucksack_playthrough PROPERTIES TIMEOUT 240
+            ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_RENDER_DRIVER=software;SDL_AUDIO_DRIVER=dummy")
+        add_test(NAME native_accessories_playthrough COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/accessories_process.py"
+            "$<TARGET_FILE:hmbtn_accessories_playthrough>" "$<TARGET_FILE:hmbtn_native>" "${HMBTN_TEST_GAME_DATA}")
+        set_tests_properties(native_accessories_playthrough PROPERTIES TIMEOUT 240
+            ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_RENDER_DRIVER=software;SDL_AUDIO_DRIVER=dummy")
+        add_test(NAME native_makers_playthrough COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/makers_process.py"
+            "$<TARGET_FILE:hmbtn_makers_playthrough>" "$<TARGET_FILE:hmbtn_native>" "${HMBTN_TEST_GAME_DATA}")
+        set_tests_properties(native_makers_playthrough PROPERTIES TIMEOUT 240
+            ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_RENDER_DRIVER=software;SDL_AUDIO_DRIVER=dummy")
+        add_test(NAME native_mine_playthrough COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/mine_process.py"
+            "$<TARGET_FILE:hmbtn_mine_playthrough>" "$<TARGET_FILE:hmbtn_native>" "${HMBTN_TEST_GAME_DATA}")
+        set_tests_properties(native_mine_playthrough PROPERTIES TIMEOUT 300
+            ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_RENDER_DRIVER=software;SDL_AUDIO_DRIVER=dummy")
+        add_test(NAME native_livestock_pasture_playthrough COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/livestock_pasture_process.py"
+            "$<TARGET_FILE:hmbtn_livestock_pasture_playthrough>" "$<TARGET_FILE:hmbtn_native>" "${HMBTN_TEST_GAME_DATA}")
+        set_tests_properties(native_livestock_pasture_playthrough PROPERTIES TIMEOUT 240
+            ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_RENDER_DRIVER=software;SDL_AUDIO_DRIVER=dummy")
+        add_test(NAME native_livestock_breeding_playthrough COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/livestock_breeding_process.py"
+            "$<TARGET_FILE:hmbtn_livestock_breeding_playthrough>" "$<TARGET_FILE:hmbtn_native>" "${HMBTN_TEST_GAME_DATA}")
+        set_tests_properties(native_livestock_breeding_playthrough PROPERTIES TIMEOUT 240
+            ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_RENDER_DRIVER=software;SDL_AUDIO_DRIVER=dummy")
         add_test(NAME native_livestock_sale_playthrough COMMAND "${Python3_EXECUTABLE}"
             "${CMAKE_CURRENT_SOURCE_DIR}/tests/grass_process_playthrough.py"
             "$<TARGET_FILE:hmbtn_livestock_sale_playthrough>" "$<TARGET_FILE:hmbtn_native>" "${HMBTN_TEST_GAME_DATA}")

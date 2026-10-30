@@ -5,6 +5,7 @@
  * Scene loads, music, fades and bed morph presentation remain host operations.
  * Weather follows field growth/feed cleanup; family/helpers/absent species remain pending. */
 #include "session.h"
+#include "inventory.h"
 #include <string.h>
 uint64_t hmbtn_session_date(const HmbtnFarmClock *clock)
 {
@@ -19,7 +20,10 @@ void hmbtn_session_clock_events(void *context,const HmbtnFarmClock *clock,unsign
     hmbtn_farm_shipping_clock(hmbtn_game_economy(&s->game),clock,changes);
     if(s->village_ready && s->game.economy.shipping.fish_shipped>=200) s->village.flags[0x5F]=true;
     if(s->village_ready) hmbtn_village_clock(&s->village,clock,changes,s->game.weather.today,false);
-    if(changes&HMBTN_CLOCK_HOUR) hmbtn_poultry_hour(&s->poultry,clock,s->game.weather.today);
+    if(changes&HMBTN_CLOCK_HOUR) {
+        hmbtn_poultry_hour(&s->poultry,clock,s->game.weather.today);
+        hmbtn_livestock_hour(&s->livestock,&s->field,clock,s->game.weather.today);
+    }
     if((changes&HMBTN_CLOCK_DAY) && s->daily_date!=hmbtn_session_date(clock)) {
         s->daily_date=hmbtn_session_date(clock);
         hmbtn_farm_field_new_day(&s->field,clock->season);
@@ -30,6 +34,8 @@ void hmbtn_session_clock_events(void *context,const HmbtnFarmClock *clock,unsign
         hmbtn_farm_feed_new_day(&s->feed);hmbtn_farm_gather_new_day(&s->gather);
         hmbtn_weather_new_day(&s->game.weather,clock,&s->game.registration,NULL);
         hmbtn_construction_new_day(&s->construction,&s->poultry);
+        hmbtn_makers_new_day(&s->makers);
+        hmbtn_inventory_rucksack_new_day(&s->game.inventory);
         /* weather.c: greenhouse_reset_level; original 31/100 loss. The
          * construction stream is native/persistent, independent of drawing. */
         if(s->game.weather.today>=HMBTN_WEATHER_STORM && hmbtn_construction_storm(&s->construction))
@@ -75,6 +81,7 @@ bool hmbtn_session_morning(HmbtnSession *s,bool slept)
     s->farm_action.phase=HMBTN_FARM_ACTION_FREE;s->farm_action.bank=-1;
     const unsigned discarded=s->carry.discarded;
     memset(&s->carry,0,sizeof(s->carry));s->carry.discarded=discarded;
+    s->carry.basket=&s->game.basket;
     memset(s->field_effects,0,sizeof(s->field_effects));
     s->travel_tick=s->door_tick=s->overnight_tick=0;s->morning_fade=45;
     s->intro.area=80;s->intro.camera_actor=0;s->intro.camera_gliding=false;

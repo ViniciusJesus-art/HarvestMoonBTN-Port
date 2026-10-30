@@ -59,7 +59,7 @@ static bool cooked(HmbtnScenePreview *s,char *error,size_t size)
 {
     HmbtnSession *g=hmbtn_scene_preview_session(s);
     REQUIRE(kitchen_wait(s,HMBTN_KITCHEN_RESULT,error,size));
-    for(unsigned i=0;i<200 && g->house.mode!=HMBTN_HOUSE_FREE;++i) REQUIRE(step(s,HMBTN_PAD_CROSS,error,size));
+    for(unsigned i=0;i<600 && g->house.mode!=HMBTN_HOUSE_FREE;++i) REQUIRE(step(s,HMBTN_PAD_CROSS,error,size));
     REQUIRE(g->house.mode==HMBTN_HOUSE_FREE && !g->carry.phase);return true;
 }
 static bool capture_stable(HmbtnScenePreview *s,HmbtnHost *host,const char *shots,const char *name,char *error,size_t size)
@@ -155,8 +155,9 @@ int main(int argc,char **argv)
     CHECK(step(s,HMBTN_PAD_CIRCLE,error,sizeof(error)) && kitchen_wait(s,HMBTN_KITCHEN_ITEMS,error,sizeof(error)));
     CHECK(g->game.inventory.items[0].id==0x9a && g->game.inventory.icebox[0].id==0x59);
     CHECK(step(s,HMBTN_PAD_START,error,sizeof(error)) && kitchen_wait(s,HMBTN_KITCHEN_CONFIRM,error,sizeof(error)) && step(s,HMBTN_PAD_CROSS,error,sizeof(error)));
-    CHECK(g->game.inventory.held_item.id==0xd4 && g->game.inventory.held_item.modifier==30 && !g->game.inventory.items[0].id && !g->game.inventory.icebox[0].id);
+    CHECK(!g->game.inventory.held_item.id && g->game.inventory.items[0].id==0x9a && g->game.inventory.icebox[0].id==0x59);
     CHECK(kitchen_wait(s,HMBTN_KITCHEN_RESULT,error,sizeof(error)) && capture_stable(s,&host,shots,"house-cooked-dish",error,sizeof(error)));
+    CHECK(g->game.inventory.held_item.id==0xd4 && g->game.inventory.held_item.modifier==30 && !g->game.inventory.items[0].id && !g->game.inventory.icebox[0].id);
     CHECK(cooked(s,error,sizeof(error)) && hmbtn_cooking_record_count(&g->game.cooking)==1);
     CHECK(field_reload(&s,&host,argv[1],argv[3],error,sizeof(error)));g=hmbtn_scene_preview_session(s);
     CHECK(g->game.inventory.held_item.id==0xd4 && g->game.cooking.records[0].id==0xd4 && g->game.inventory.cabinet[0].id==0x7b);
@@ -180,7 +181,8 @@ int main(int argc,char **argv)
     /* Fixture ownership of seasonings: their TV purchase is a later delivery.
      * This verifies selection, exact original salt recipe and failed cooking. */
     g->game.cooking.utensils=0x80;g->game.inventory.items[0]=(HmbtnStoredTool){0x43,0,1};
-    CHECK(kitchen_new(s,error,sizeof(error)) && step(s,HMBTN_PAD_LEFT,error,sizeof(error)) && step(s,HMBTN_PAD_CROSS,error,sizeof(error)));
+    CHECK(kitchen_new(s,error,sizeof(error)) && step(s,HMBTN_PAD_UP,error,sizeof(error))
+        && step(s,HMBTN_PAD_LEFT,error,sizeof(error)) && step(s,HMBTN_PAD_CROSS,error,sizeof(error)));
     CHECK(kitchen_wait(s,HMBTN_KITCHEN_SEASONING,error,sizeof(error)) && step(s,HMBTN_PAD_DOWN,error,sizeof(error)) && step(s,HMBTN_PAD_CROSS,error,sizeof(error)));
     CHECK(g->house.kitchen.options==0x100 && capture_stable(s,&host,shots,"house-seasonings",error,sizeof(error)));
     CHECK(step(s,HMBTN_PAD_CIRCLE,error,sizeof(error)) && kitchen_wait(s,HMBTN_KITCHEN_TOOLS,error,sizeof(error)));

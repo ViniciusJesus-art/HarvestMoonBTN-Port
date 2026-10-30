@@ -18,6 +18,8 @@ typedef struct HmbtnFarmCarry {
     unsigned discarded;
     unsigned area; /* Current scene; flights retain the scene in which they began. */
     bool small_fish_placed; /* Original beach throw prerequisite for squid. */
+    HmbtnBasket *basket; /* Borrowed game.basket, never another container. */
+    unsigned request;
 } HmbtnFarmCarry;
 /* Loose field items and mature crops share the same forward world probe. */
 bool hmbtn_farm_carry_tick(HmbtnFarmCarry *state,HmbtnHouseInteraction *inventory,

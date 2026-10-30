@@ -45,8 +45,8 @@ int main(void)
     assert(hmbtn_livestock_sale_slot(p,true,0)==1 && hmbtn_livestock_sale_slot(p,true,1)==HMBTN_LIVESTOCK);
     s->feed_shop.phase=HMBTN_SHOP_SELECT;s->feed_shop.merchant=15;s->feed_shop.request=0x46;
     s->feed.barn[3]=true;s->game.economy.gold=100;
-    input(s,HMBTN_PAD_DOWN);input(s,HMBTN_PAD_DOWN);input(s,HMBTN_PAD_DOWN);
-    assert(s->feed_shop.selection==6 && hmbtn_barn_shop_rows(&s->feed_shop)==6);
+    for(unsigned i=0;i<5;++i) input(s,HMBTN_PAD_DOWN);
+    assert(s->feed_shop.selection==6 && hmbtn_barn_shop_rows(&s->feed_shop)==9);
     input(s,HMBTN_PAD_TRIANGLE);assert(s->feed_shop.next_request==0x69);until(s,HMBTN_SHOP_SELECT);
     input(s,HMBTN_PAD_CROSS);assert(s->feed_shop.next_request==0x75);until(s,HMBTN_SHOP_SELL_LIST);
     input(s,HMBTN_PAD_UP);assert(s->feed_shop.sale_cursor==6 && s->feed_shop.sale_top==3);

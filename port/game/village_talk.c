@@ -62,6 +62,14 @@ static HmbtnEventResult command(void *context,const HmbtnEventCommand *c,char *e
         done=found!=0;
         break;
     }
+    case 31: { /* Saibara's original accessory handback, event_cue_issue. */
+        if(t->target!=4 || e!=1 || !slot(v) || x || y || !t->shop || !t->shop->makers) goto boundary;
+        const unsigned item=(unsigned)t->slots[v];
+        if(!hmbtn_saibara_accessory(item) || item!=t->shop->makers->pending || t->shop->makers->mornings_left) goto boundary;
+        done=!t->inventory->held_item.id;
+        if(done) t->show_item=item;
+        break;
+    }
     case 32: { /* event_item_store: equipped, rucksack, then optional toolbox. */
         if(!hmbtn_inventory_capacity(t->inventory) || (e && !slot(v))) goto invalid;
         int item=e ? (int)((uint32_t)t->slots[v]&0xFFFFu) : v;
@@ -121,8 +129,8 @@ static HmbtnEventResult command(void *context,const HmbtnEventCommand *c,char *e
                 done=t->shop->construction && t->shop->construction->mornings_left;break;
             }
             if(x) goto boundary;
-            if(!y && ((t->target==35 && e==10) || (t->target==24 && e==9) || (t->target==4 && e==2))) {
-                if(!(t->target==4 ? hmbtn_blacksmith_shop_open(t->shop,t->clock,t->inventory)
+            if(!y && ((t->target==35 && e==10) || (t->target==24 && e==9) || (t->target==4 && (e==2 || e==4)))) {
+                if(!(t->target==4 ? (e==4 ? hmbtn_blacksmith_upgrade_open(t->shop,t->clock,t->inventory) : hmbtn_blacksmith_shop_open(t->shop,t->clock,t->inventory))
                     : t->target==35 ? hmbtn_won_seed_shop_open(t->shop,t->clock)
                     : hmbtn_carpenter_shop_open(t->shop,t->clock))) goto boundary;
                 break;
@@ -141,7 +149,15 @@ static HmbtnEventResult command(void *context,const HmbtnEventCommand *c,char *e
         /* Only queries of initial-state systems; shops/story mutations are boundaries. */
         if(v==2 && e==1) { done=false;break; } /* No weddings in this session. */
         if(v==18 && x==0) { done=false;break; } /* No livestock spawn gate armed. */
-        if(v==20 && e==0) { done=false;break; } /* No construction order. */
+        if(v==20 && t->shop && t->shop->makers && t->target==4 && !y) {
+            HmbtnMakers *m=t->shop->makers;
+            if(e==0) { done=m->pending && !m->mornings_left;break; }
+            if(e==1 && slot(x)) { t->slots[x]=(int32_t)m->pending;break; }
+            if(e==2 && !x) {
+                if(!hmbtn_makers_deliver(m)) goto boundary;
+                break;
+            }
+        }
         if(v==29 && slot(e)) { t->slots[e]=0;done=hmbtn_event_comparison(0,x,y);break; }
         goto boundary;
     case 94:
@@ -223,7 +239,7 @@ bool hmbtn_village_talk_tick(HmbtnVillageTalk *t,char *error,size_t size)
             memcpy(live->items,t->saved_inventory.items,sizeof(live->items));
             t->house->event_count1=t->saved_event_count1;
             if(t->house->progress) *t->house->progress=t->saved_progress;
-            t->show_tool=t->show_frames=0;
+            t->show_tool=t->show_frames=t->show_item=0;
         }
         HmbtnIntroActor *a=&t->village->people[t->target].actor;
         a->facing=t->saved_facing;a->sprite=(HmbtnAnimationPlayer){0,(uint16_t)a->facing,0};

@@ -138,7 +138,9 @@ int main(void)
         CHECK(hmbtn_world_door_at(section,sizeof(section),&p,&exit,&door_model) && exit.target==interiors[i]);
         p.position[1]=201;CHECK(!hmbtn_world_door_at(section,sizeof(section),&p,&exit,&door_model));p.position[1]=0;
     }
-    hmbtn_write_le16(z+2,234); /* Mine floors remain outside this recut. */
+    hmbtn_write_le16(z+2,234);
+    CHECK(hmbtn_world_door_at(section,sizeof(section),&p,&exit,&door_model) && exit.target==234);
+    hmbtn_write_le16(z+2,233); /* The unrelated festival area remains outside this recut. */
     CHECK(!hmbtn_world_door_at(section,sizeof(section),&p,&exit,&door_model));
     hmbtn_write_le16(z+2,80);hmbtn_write_le16(z+10,0);hmbtn_write_le16(z+12,15);
     CHECK(!hmbtn_farm_house_door_at(section,sizeof(section),&p,&exit,&door_model));

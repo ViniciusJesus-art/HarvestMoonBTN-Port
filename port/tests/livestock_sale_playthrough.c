@@ -17,7 +17,7 @@ static bool barley(HmbtnScenePreview *s,char *error,size_t size)
 static bool choose(HmbtnScenePreview *s,unsigned selection,char *error,size_t size)
 {
     HmbtnSession *g=hmbtn_scene_preview_session(s);
-    for(unsigned i=0;i<6 && g->feed_shop.selection!=selection;++i) REQUIRE(step(s,HMBTN_PAD_DOWN,error,size));
+    for(unsigned i=0;i<hmbtn_barn_shop_rows(&g->feed_shop) && g->feed_shop.selection!=selection;++i) REQUIRE(step(s,HMBTN_PAD_DOWN,error,size));
     REQUIRE(g->feed_shop.selection==selection);return true;
 }
 int main(int argc,char **argv)
@@ -43,7 +43,7 @@ int main(int argc,char **argv)
     g->livestock.animals[6].prize_winner=true;g->livestock.animals[6].days_since_shearing=0;
     g->livestock.animals[8].dead=true;g->feed.barn[3]=true;
     CHECK(choose(s,6,error,sizeof(error)) && capture(s,&host,shots,"barley-sale-menu",error,sizeof(error)));
-    CHECK(g->feed_shop.request==0x46 && shop_cursor_pixels(s,23,62,error,sizeof(error)));
+    CHECK(g->feed_shop.request==0x46 && shop_cursor_pixels(s,23,90,error,sizeof(error)));
     CHECK(step(s,HMBTN_PAD_TRIANGLE,error,sizeof(error)) && shop_wait(s,HMBTN_SHOP_RESULT,error,sizeof(error)) && g->feed_shop.request==0x69);
     CHECK(shop_wait(s,HMBTN_SHOP_SELECT,error,sizeof(error)) && step(s,HMBTN_PAD_CROSS,error,sizeof(error)));
     CHECK(shop_wait(s,HMBTN_SHOP_SELL_LIST,error,sizeof(error)));

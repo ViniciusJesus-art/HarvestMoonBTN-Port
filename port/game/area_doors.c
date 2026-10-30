@@ -18,7 +18,10 @@ HmbtnDoorPassage hmbtn_area_doors_request(HmbtnAreaDoors *d,const uint8_t *secti
                 || model>=HMBTN_SCENE_MODELS || (flags!=0x9000 && flags!=0x1000)) continue;
         /* ZONE id -2 is a swinging door within this map, not an area exit.
          * Both sides share the same event/model (inn rooms, clinic, etc.). */
-        if(flags==0x1000 && hmbtn_read_le16(zone+2)!=0xfffe) return HMBTN_DOOR_READY;
+        /* Doug's exterior (area 48, event 34) also uses 0x1000, with
+         * SCENE_ENTRY_TWIN on its two real door leaves. */
+        if(flags==0x1000 && hmbtn_read_le16(zone+2)!=0xfffe
+                && !(hmbtn_read_le16(section+0x948+model*44)&0x400u)) return HMBTN_DOOR_READY;
         HmbtnAreaDoor *door=&d->models[model];
         /* Two route events can address the opposite leaves of one door. */
         for(unsigned j=0;j<HMBTN_SCENE_MODELS;++j)

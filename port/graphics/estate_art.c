@@ -6,6 +6,12 @@
 #include <string.h>
 typedef struct HmbtnEstateArtToc { unsigned count;uint32_t offsets[46]; } HmbtnEstateArtToc;
 #include "estate_art_tables.inc"
+#include "kitchen_positions.inc"
+bool hmbtn_estate_utensil_position(unsigned house,unsigned utensil,int32_t position[3])
+{
+    if(!position || !house || house>2 || utensil>=8) return false;
+    memcpy(position,kitchen_positions[house-1][utensil],3*sizeof(*position));return true;
+}
 void hmbtn_estate_art_close(HmbtnEstateArt *a) { free(a->data);free(a->atlas);memset(a,0,sizeof(*a)); }
 bool hmbtn_estate_art_update(HmbtnEstateArt *a,const char *root,unsigned row,char *error,size_t size)
 {

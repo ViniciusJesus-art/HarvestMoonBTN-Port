@@ -10,8 +10,24 @@
  */
 #include "inventory.h"
 #include "farm_field.h"
+#include "economy.h"
 #include <string.h>
 unsigned hmbtn_inventory_lumber_limit(void) { return 9999; }
+unsigned hmbtn_inventory_rucksack_offer(const HmbtnInventory *h)
+{
+    if(!h || h->rucksack_level>1) return 0;
+    return !h->rucksack_level ? 0x6d : h->rucksack_mornings_left ? 0 : 0x6e;
+}
+bool hmbtn_inventory_buy_rucksack(HmbtnInventory *h,HmbtnEconomy *e,unsigned item)
+{
+    const HmbtnFarmItem *info=hmbtn_farm_item(item);
+    if(!h || !e || !item || item!=hmbtn_inventory_rucksack_offer(h) || h->held_item.id!=item
+            || !info || info->buy_price<=0 || e->gold<(unsigned)info->buy_price) return false;
+    hmbtn_economy_gold_change(e,-(int64_t)info->buy_price,true);
+    ++h->rucksack_level;h->rucksack_mornings_left=10;return true;
+}
+void hmbtn_inventory_rucksack_new_day(HmbtnInventory *h)
+{ if(h && h->rucksack_mornings_left) --h->rucksack_mornings_left; }
 
 static int scan_items(const HmbtnInventory *h,HmbtnInventory *write,
     int id,int where,int which,unsigned count)
@@ -62,7 +78,7 @@ bool hmbtn_inventory_can_store_tool(const HmbtnInventory *h,bool spill)
 bool hmbtn_inventory_store_tool(HmbtnInventory *h,HmbtnStoredTool item,
     bool spill,HmbtnInventoryPlacement *placement)
 {
-    if(!item.id) return false;
+    if(!item.id || item.id==100) return false;
     HmbtnStoredTool *slot=(HmbtnStoredTool *)free_tool_slot(h,spill,placement);
     if(!slot) return false;
     *slot=item;
@@ -124,7 +140,7 @@ bool hmbtn_inventory_hold(HmbtnInventory *h,HmbtnStoredTool item)
 static bool allowed(const HmbtnStoredTool *item,unsigned dest)
 {
     if(!item->id) return true;
-    if(item->id==0x109 || item->id==0x10A) return false; /* A live carried animal keeps its reserved record. */
+    if(item->id==100 || item->id==0x109 || item->id==0x10A) return false; /* A live carried animal keeps its reserved record. */
     const HmbtnFarmItem *info=hmbtn_farm_item(item->id);
     return info && (dest==0 || dest==9 || (info->class_flags&0x80000000u));
 }
@@ -189,6 +205,7 @@ HmbtnStoredTool *hmbtn_inventory_storage_slot(HmbtnInventory *h,unsigned store,u
 { return (HmbtnStoredTool *)hmbtn_inventory_storage_slot_const(h,store,cell,page); }
 bool hmbtn_inventory_storage_accepts(unsigned store,unsigned id)
 {
+    if(id==100) return false;
     if(!id) return true;
     const HmbtnFarmItem *info=hmbtn_farm_item(id);
     if(!info || store>2 || !(info->class_flags&0x80000000u)) return false;

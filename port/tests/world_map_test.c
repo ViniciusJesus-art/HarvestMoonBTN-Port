@@ -22,7 +22,7 @@ int main(void)
         CHECK(hmbtn_world_area(area,season,&logical,&resource));
         CHECK(logical==(area&~3u) && resource==logical+season);
     }
-    const unsigned pending[]={4,20,84,100,120,216,234,245,255,999,UINT32_MAX};
+    const unsigned pending[]={4,20,84,100,120,216,233,255,999,UINT32_MAX};
     for(unsigned i=0;i<sizeof(pending)/sizeof(pending[0]);++i)
         CHECK(!hmbtn_world_area(pending[i],0,&logical,&resource));
     CHECK(!hmbtn_world_area(32,4,&logical,&resource));

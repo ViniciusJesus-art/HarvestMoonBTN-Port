@@ -4,6 +4,10 @@
 #include "inventory.h"
 #include "farm_field.h"
 #include "psx_data.h"
+#include "tv_shopping.h"
+#include "economy.h"
+#include "construction.h"
+#include "village.h"
 #include <string.h>
 #include "storage_links.inc"
 
@@ -22,6 +26,7 @@ void hmbtn_house_interaction_init(HmbtnHouseInteraction *h,HmbtnGameState *state
     h->registration=hmbtn_game_registration_const(state);
     h->weather=&state->weather;
     h->progress=&state->progress;h->cooking=&state->cooking;
+    h->shopping=&state->shopping;h->economy=&state->economy;
 }
 bool hmbtn_house_expand_reading(const HmbtnHouseInteraction *h, uint8_t *record,
     size_t size)
@@ -92,6 +97,9 @@ void hmbtn_house_tv_program(const HmbtnHouseInteraction *h, unsigned channel,
     } else if((h->clock->season==0 && h->clock->day<5) || (h->clock->season==3 && h->clock->day>=28)) {
         *message=h->clock->day+(h->clock->season==0 ? 610 : 587); *group=10;
     } else {
+        const unsigned offer=hmbtn_tv_shopping_program(h->shopping,h->clock,h->weather->today,
+            h->construction ? h->construction->house_level : 0);
+        if(offer<9) { *message=0x258+offer;*group=2;return; }
         static const unsigned rows[7][3]={{40,560,14},{38,520,15},{18,500,3},
             {20,480,12},{35,440,13},{38,400,11},{23,371,9}};
         const unsigned *r=rows[h->clock->weekday];
@@ -117,7 +125,7 @@ bool hmbtn_house_interact(HmbtnHouseInteraction *h,const uint8_t *section,
         if(!(hmbtn_read_le16(p)&0x4000) || x<=half(p+14) || x>=half(p+20)
                 || z<=half(p+18) || z>=half(p+24) || y<=half(p+16)-128 || y>=half(p+22)+120) continue;
         const unsigned id=hmbtn_read_le16(p+2);
-        if(half(p+8)!=(int32_t)player->facing && !(id==16 && half(p+8)==5)) return false;
+        if(half(p+8)!=(int32_t)player->facing && !(id==16 && half(p+8)==5) && id!=21) return false;
         h->closing=h->detail=false; h->sound=3; h->steps=0; h->message_bank=3;
         switch(id) {
         case 1:
@@ -126,7 +134,18 @@ bool hmbtn_house_interact(HmbtnHouseInteraction *h,const uint8_t *section,
             h->options.manual_row=h->options.manual_column=0;
             request(h,0x3b0); break;
         case 2: h->mode=HMBTN_HOUSE_BED; h->bed_choice=0; request(h,0x1b7); break;
-        case 3: h->mode=HMBTN_HOUSE_TV_SELECT; request(h,0x3a1); break;
+        case 3:
+            /* Original refresh prepares all four programs even when the
+             * player selects weather instead of the entertainment channel. */
+            (void)hmbtn_tv_shopping_program(h->shopping,h->clock,h->weather->today,
+                h->construction ? h->construction->house_level : 0);
+            h->mode=HMBTN_HOUSE_TV_SELECT; request(h,0x3a1); break;
+        case 21:
+            if(!h->village || !h->economy || !h->shopping) return false;
+            h->mode=HMBTN_HOUSE_PHONE;h->message_bank=2;h->phone_answer=0;
+            h->phone_offer=hmbtn_tv_shopping_accepted(h->shopping);
+            h->phone_phase=h->clock->weekday==6 && h->phone_offer<9 ? 0u : 3u;
+            request(h,h->phone_phase==0 ? 0x11b : 0x11a);break;
         case 8: h->mode=HMBTN_HOUSE_CALENDAR; h->calendar_day=h->clock->day; request(h,0x3b4); break;
         case 22: h->storage=0;h->mode=HMBTN_HOUSE_TOOLBOX_OPEN; h->pan=0; h->cursor=h->page=0; h->picked=255; h->sound=-1; break;
         case 5:case 24:
@@ -158,6 +177,40 @@ static void close_menu(HmbtnHouseInteraction *h)
     }
     if(h->message.phase==HMBTN_MESSAGE_CLOSED && !h->pan) h->mode=HMBTN_HOUSE_FREE;
     if(h->mode==HMBTN_HOUSE_TV || h->mode==HMBTN_HOUSE_TV_SELECT) { h->tv_group=18; h->tv_dirty=true; }
+}
+/* shop_fee_step: first confirm the 10 G call, then the catalog purchase.
+ * Phase 1 is the connecting message; phase 3 is a final message. */
+static void phone_tick(HmbtnHouseInteraction *h,uint32_t pressed,uint32_t held)
+{
+    const bool ready=h->message.phase==HMBTN_MESSAGE_WAIT_END;
+    const bool question=h->phone_phase==0 || h->phone_phase==2;
+    h->sound=hmbtn_message_tick(&h->message,question && ready && !h->closing ? 0 : pressed,held);
+    if(h->closing) { if(h->message.phase==HMBTN_MESSAGE_CLOSED) h->mode=HMBTN_HOUSE_FREE;return; }
+    if(question) {
+        if(!ready) return;
+        if(pressed&(HMBTN_PAD_UP|HMBTN_PAD_DOWN)) { h->phone_answer^=1;h->sound=5; }
+        if(!(pressed&(HMBTN_PAD_CROSS|HMBTN_PAD_CIRCLE))) return;
+        const bool yes=!h->phone_answer && !(pressed&HMBTN_PAD_CIRCLE);
+        h->sound=yes ? 0 : 1;
+        if(h->phone_phase==0) {
+            if(!yes) { close_menu(h);return; }
+            if(h->economy->gold<10) { h->phone_phase=3;request(h,0x4f);return; }
+            hmbtn_economy_gold_change(h->economy,-10,true);
+            h->phone_phase=1;request(h,0x11c);
+        } else {
+            unsigned message=0x127;
+            if(yes) {
+                const bool bought=hmbtn_tv_shopping_buy(h->shopping,h->economy,h->phone_offer);
+                if(bought) hmbtn_village_flag_set(h->village,0x67+h->phone_offer,true);
+                message=bought ? 0x126 : 0x4f;
+            }
+            h->phone_phase=3;request(h,message);
+        }
+        h->phone_answer=0;
+    } else if(h->message.phase==HMBTN_MESSAGE_CLOSED) {
+        if(h->phone_phase==1) { h->phone_phase=2;request(h,0x11d+h->phone_offer); }
+        else close_menu(h);
+    }
 }
 uint32_t hmbtn_house_world_buttons(const HmbtnHouseOptions *o,uint32_t held)
 {
@@ -243,6 +296,19 @@ static unsigned kitchen_known_slot(const HmbtnCooking *c,unsigned row)
 static void kitchen_cook(HmbtnHouseInteraction *h)
 {
     HmbtnKitchenMenu *k=&h->kitchen;
+    if(!hmbtn_cooking_available(h->cooking,h->inventory,k->options,k->values)) {
+        h->sound=2;kitchen_page(h,HMBTN_KITCHEN_ITEMS);return;
+    }
+    /* The original commits only after the confirmation text closes and the
+     * screen fade settles. No inventory/recipe mutation on this button. */
+    k->return_phase=k->phase;k->phase=HMBTN_KITCHEN_CLOSE_CONFIRM;k->fade=0;
+    k->audio_started=k->audio_finished=false;
+    h->message.phase=HMBTN_MESSAGE_CLOSING;h->message.box_frame=0;
+    h->request=h->loaded=0;
+}
+static void kitchen_apply_result(HmbtnHouseInteraction *h)
+{
+    HmbtnKitchenMenu *k=&h->kitchen;
     if(!hmbtn_cooking_make(h->cooking,h->inventory,k->options,k->values,&k->result)) {
         h->sound=2;kitchen_page(h,HMBTN_KITCHEN_ITEMS);return;
     }
@@ -256,7 +322,18 @@ static void kitchen_cook(HmbtnHouseInteraction *h)
             : k->result.quality==h->cooking->records[k->prior_record].quality ? 0x3c0
             : k->result.quality>h->cooking->records[k->prior_record].quality ? 0x3c3 : 0x3c4;
     }
-    kitchen_page(h,HMBTN_KITCHEN_RESULT);request(h,message);
+    k->result_message=message;k->phase=HMBTN_KITCHEN_TRACK;
+    h->message=(HmbtnMessage){0};h->request=h->loaded=0;
+}
+unsigned hmbtn_house_kitchen_shade(const HmbtnHouseInteraction *h)
+{
+    if(!h || h->mode!=HMBTN_HOUSE_COOKING) return 0;
+    const HmbtnKitchenMenu *k=&h->kitchen;
+    if(k->phase==HMBTN_KITCHEN_TRACK) return 255;
+    if(k->phase!=HMBTN_KITCHEN_FADE_OUT && k->phase!=HMBTN_KITCHEN_FADE_IN) return 0;
+    const unsigned length=k->phase==HMBTN_KITCHEN_FADE_OUT ? 11u : 10u;
+    const unsigned shade=(255u*4096u/length)*k->fade/4096u;
+    return shade>255 ? 255 : shade;
 }
 /* Same original questions, utensil/seasoning and ingredient grids, recipe records
  * and result/save decisions; message ownership stays in the existing house modal.
@@ -264,11 +341,35 @@ static void kitchen_cook(HmbtnHouseInteraction *h)
 static void kitchen_tick(HmbtnHouseInteraction *h,uint32_t pressed,uint32_t held)
 {
     HmbtnKitchenMenu *k=&h->kitchen;
+    if(k->phase==HMBTN_KITCHEN_CLOSE_CONFIRM) {
+        h->sound=hmbtn_message_tick(&h->message,0,0);
+        if(h->message.phase==HMBTN_MESSAGE_CLOSED) k->phase=HMBTN_KITCHEN_FADE_OUT;
+        return;
+    }
+    if(k->phase==HMBTN_KITCHEN_FADE_OUT) {
+        if(++k->fade>=12) kitchen_apply_result(h);
+        return;
+    }
+    if(k->phase==HMBTN_KITCHEN_TRACK) {
+        if(k->audio_finished) { k->phase=HMBTN_KITCHEN_FADE_IN;k->fade=9; }
+        return;
+    }
+    if(k->phase==HMBTN_KITCHEN_FADE_IN) {
+        if(k->fade) --k->fade;
+        if(!k->fade) { kitchen_page(h,HMBTN_KITCHEN_RESULT);request(h,k->result_message); }
+        return;
+    }
     const bool ready=h->message.phase==HMBTN_MESSAGE_WAIT_END;
     const bool plain=k->phase==HMBTN_KITCHEN_OPEN || k->phase==HMBTN_KITCHEN_DESCRIPTION
         || (k->phase==HMBTN_KITCHEN_RESULT && h->request<0x3c3);
     h->sound=hmbtn_message_tick(&h->message,(!ready || plain || h->closing) ? pressed : 0,held);
-    if(h->closing) { if(h->message.phase==HMBTN_MESSAGE_CLOSED) h->mode=HMBTN_HOUSE_FREE;return; }
+    if(h->closing) {
+        if(h->message.phase==HMBTN_MESSAGE_CLOSED) {
+            if(k->record_pending) { (void)hmbtn_cooking_remember(h->cooking,&k->result);k->record_pending=false; }
+            h->mode=HMBTN_HOUSE_FREE;
+        }
+        return;
+    }
     if(plain) {
         if(h->message.phase!=HMBTN_MESSAGE_CLOSED) return;
         if(k->phase==HMBTN_KITCHEN_OPEN) kitchen_page(h,HMBTN_KITCHEN_FIRST);
@@ -302,7 +403,7 @@ static void kitchen_tick(HmbtnHouseInteraction *h,uint32_t pressed,uint32_t held
             } else if(k->phase==HMBTN_KITCHEN_CONFIRM) {
                 if(k->choice) kitchen_page(h,HMBTN_KITCHEN_ITEMS);else kitchen_cook(h);
             } else {
-                if(!k->choice) (void)hmbtn_cooking_remember(h->cooking,&k->result);
+                k->record_pending=!k->choice;
                 close_menu(h);
             }
         }
@@ -315,7 +416,8 @@ static void kitchen_tick(HmbtnHouseInteraction *h,uint32_t pressed,uint32_t held
     }
     if(k->phase==HMBTN_KITCHEN_RECORDS) {
         const unsigned count=hmbtn_cooking_record_count(h->cooking);
-        if(pressed&(HMBTN_PAD_CIRCLE|HMBTN_PAD_START)) kitchen_page(h,HMBTN_KITCHEN_SECOND);
+        if(pressed&HMBTN_PAD_START) close_menu(h);
+        else if(pressed&HMBTN_PAD_CIRCLE) kitchen_page(h,HMBTN_KITCHEN_SECOND);
         else if(count && (pressed&(HMBTN_PAD_UP|HMBTN_PAD_DOWN|HMBTN_PAD_LEFT|HMBTN_PAD_RIGHT))) {
             k->cursor=(k->cursor+((pressed&HMBTN_PAD_DOWN) ? 1u : (pressed&HMBTN_PAD_UP) ? count-1
                 : (pressed&HMBTN_PAD_RIGHT) ? 10u : count-(10u%count)))%count;h->sound=5;
@@ -340,8 +442,15 @@ static void kitchen_tick(HmbtnHouseInteraction *h,uint32_t pressed,uint32_t held
             if(k->options) k->options=0;
             else kitchen_page(h,HMBTN_KITCHEN_SECOND);
         } else if(pressed&(HMBTN_PAD_UP|HMBTN_PAD_DOWN|HMBTN_PAD_LEFT|HMBTN_PAD_RIGHT)) {
-            k->cursor=(k->cursor+((pressed&(HMBTN_PAD_UP|HMBTN_PAD_DOWN)) && !seasoning ? 4u
-                : (pressed&(HMBTN_PAD_LEFT|HMBTN_PAD_UP)) ? count-1 : 1))%count;h->sound=5;
+            if(seasoning) k->cursor=(k->cursor+((pressed&(HMBTN_PAD_LEFT|HMBTN_PAD_UP)) ? count-1 : 1))%count;
+            else if(pressed&(HMBTN_PAD_UP|HMBTN_PAD_DOWN)) k->cursor^=4u;
+            else k->cursor=k->cursor/4*4+(k->cursor+((pressed&HMBTN_PAD_LEFT) ? 3u : 1u))%4;
+            h->sound=5;
+        } else if(!seasoning && (pressed&HMBTN_PAD_TRIANGLE)) {
+            if(h->cooking->utensils&(1u<<k->cursor)) {
+                k->return_phase=HMBTN_KITCHEN_TOOLS;kitchen_page(h,HMBTN_KITCHEN_DESCRIPTION);
+                request(h,k->cursor<7 ? hmbtn_cooking_option_item(k->cursor) : 0x79);h->sound=0;
+            } else h->sound=2;
         } else if(pressed&HMBTN_PAD_CROSS) {
             if(!seasoning && k->cursor==7) {
                 if(h->cooking->utensils&0x80) { k->cursor=0;kitchen_page(h,HMBTN_KITCHEN_SEASONING); } else h->sound=2;
@@ -385,6 +494,7 @@ static void kitchen_tick(HmbtnHouseInteraction *h,uint32_t pressed,uint32_t held
 void hmbtn_house_interaction_tick(HmbtnHouseInteraction *h,uint32_t pressed,uint32_t held)
 {
     h->sound=-1;
+    if(h->mode==HMBTN_HOUSE_PHONE) { phone_tick(h,pressed,held);return; }
     if(h->mode==HMBTN_HOUSE_COOKING) { kitchen_tick(h,pressed,held);return; }
     if(h->mode==HMBTN_HOUSE_FREE || h->mode==HMBTN_HOUSE_SLEEP) return;
     if(h->mode==HMBTN_HOUSE_TOOLBOX_OPEN) {
@@ -395,6 +505,10 @@ void hmbtn_house_interaction_tick(HmbtnHouseInteraction *h,uint32_t pressed,uint
     const bool dialogue=h->mode==HMBTN_HOUSE_TV || h->mode==HMBTN_HOUSE_BOOK
         || ((h->mode==HMBTN_HOUSE_CALENDAR || h->mode==HMBTN_HOUSE_OPTIONS) && h->detail);
     h->sound=hmbtn_message_tick(&h->message,dialogue ? pressed : 0,held);
+    if(h->mode==HMBTN_HOUSE_TV && h->tv_group==2 && h->loaded==h->request
+            && (ready || h->message.phase==HMBTN_MESSAGE_WAIT_END) && !h->closing
+            && h->request>=0x258 && h->request<=0x260)
+        hmbtn_tv_shopping_watched(h->shopping,h->request-0x258);
     if(h->closing) {
         if(h->pan) { h->pan-=32; return; }
         if(h->message.phase==HMBTN_MESSAGE_CLOSED) h->mode=HMBTN_HOUSE_FREE;

@@ -2,7 +2,7 @@
 
 Atualizado em 2026-10-27. **A fila principal está no [ROADMAP.md](ROADMAP.md).**
 MA-01..06 e PF-01..05 foram concluídas. PF-06 entregou batata, grama/feno e culturas base de verão/outono;
-clima diário/chuva também está integrado; sementes sazonais de Won também integradas; desbloqueios do supermercado e flores simples também integrados; Magic Red e suas variantes também integradas; Moondrop e visitas de Karen também integradas; carpintaria/galinheiro e primeira casa/depósitos/núcleo da cozinha também entregues; obra/cochos do celeiro também entregues; aquisição/capacidade/alimentação bovina/ovina também entregues; segunda casa/estufa/Orangecup, ferramentas animais e venda com Barley também entregues; a próxima entrega é **PF-06 — reprodução bovina/ovina**. Correções de portas internas, chuva em portas/eventos, coleta nas bordas e descarte estão em [PF06_WORLD_FIDELITY.md](PF06_WORLD_FIDELITY.md). Nabo/batata/tomate/milho/cebola/berinjela/cenoura/batata-doce têm compra
+clima diário/chuva também está integrado; sementes sazonais de Won também integradas; desbloqueios do supermercado e flores simples também integrados; Magic Red e suas variantes também integradas; Moondrop e visitas de Karen também integradas; carpintaria/galinheiro e primeira casa/depósitos/núcleo da cozinha também entregues; obra/cochos do celeiro também entregues; aquisição/capacidade/alimentação bovina/ovina também entregues; segunda casa/estufa/Orangecup, ferramentas animais e venda com Barley também entregues; reprodução bovina/ovina também entregue; funerais bovinos/ovinos também entregues; pastagem/transporte, mineração, máquinas, melhorias de ferramentas e aquisição de utensílios também entregues nos recortes do roadmap. Apresentação do preparo por fade/XA e indicadores da cozinha também entregue. Acessórios de Saibara também entregues em [PF06_ACCESSORIES.md](PF06_ACCESSORIES.md). Ampliações de mochila entregues em [PF06_RUCKSACK.md](PF06_RUCKSACK.md). A próxima entrega é **PF-06 — cesta de remessas**. Correções de portas internas, chuva em portas/eventos, coleta nas bordas e descarte estão em [PF06_WORLD_FIDELITY.md](PF06_WORLD_FIDELITY.md). Nabo/batata/tomate/milho/cebola/berinjela/cenoura/batata-doce têm compra
 até venda; grama tem corte/rebrota, estoque e cochos compartilhados.
 A cadeia MA-07..25 foi substituída por entregas funcionais; a tabela de
 correspondência está no roadmap. IDs MA nas classificações abaixo indicam o
@@ -59,10 +59,10 @@ sem exigir infraestrutura de rede agora.
 |---|---|
 | Clima completo e demais callbacks diários | Pipeline MA-18/19, campo/animais; previsão/troca diária e irrigação entregues; faltam danos de tempestades, callbacks ausentes e meteorologia integral a partir do original. |
 | Demais culturas, melhorias e ações/ferramentas | MA-15/16/20 e sessão sem desenho; regras originais, produtos e transições completas por recorte. |
-| Vacas, ovelhas, cachorro, cavalo, ajudantes e concursos | Vacas/ovelhas: coleção/compra/nome/arte/capacidade/alimentação/crescimento/conversa/medicina/status/saves entregues no recorte base. Produção/venda/reprodução/pastagem/funerais pendentes; pets/ajudantes/concursos continuam separados. |
+| Vacas, ovelhas, cachorro, cavalo, ajudantes e concursos | Vacas/ovelhas: coleção/compra/nome/arte/capacidade/alimentação/crescimento/conversa/medicina/status/saves entregues no recorte base. Leite/lã, venda e reprodução entregues nos recortes do roadmap; funerais bovinos/ovinos entregues; pastagem/transporte/sino entregues no recorte; pets/ajudantes/concursos continuam separados. |
 | Família, casamento e progressão de história | Comandos, flags, calendário e relacionamentos comuns; não usar valores iniciais fixos para simular progresso. |
-| Festivais, minijogos, minas e serviços restantes | Inventário de módulos originais e contratos nativos; selecionar um roteiro/sistema e seu percurso verificável. |
-| Saves host versionados | Estado central estável, sem dump de structs/ponteiros; testar ida/volta e corrupção da versão atual em Linux/Windows. Compatibilidade entre versões de desenvolvimento não é exigida; v8 rejeita versões diferentes claramente. Importação de save PS1 é decisão separada, não requisito implícito de compatibilidade binária. |
+| Festivais, minijogos e serviços restantes | Mineração e máquinas de Saibara entregues nos recortes; melhorias de ferramentas também entregues; aquisição de utensílios por TV/telefone/Zack e aparelhos também entregues; preparo por fade/XA e indicadores também entregues; acessórios de Saibara entregues; ampliações de mochila entregues; próximo: cesta de remessas. Festivais e demais módulos devem ter percurso próprio verificável. |
+| Saves host versionados | Estado central estável, sem dump de structs/ponteiros; testar ida/volta e corrupção da versão atual em Linux/Windows. Adaptar apenas o necessário ao estado implementado; compatibilidade entre versões não é requisito nem proibição. Importação PS1 continua decisão separada. |
 | Traduções com alterações de código | Identificar dados/scripts versus regras alteradas; definir compatibilidade sem assumir que substituir recursos basta. |
 | Fidelidade gráfica, áudio e RNG | Comparações reproduzíveis de imagem/ritmo/afinação/volumes; registrar decisões de interpolação/reverb/sequência RNG sem exigir rebuild PS1. |
 | Distribuição Linux/Windows | Validar instalação limpa, atualização, dados ausentes/corrompidos, cancelamento e janela/áudio em Windows real; executar workflow de pacotes com autorização adequada para publicação quando aplicável. |
@@ -120,3 +120,16 @@ uso real do celeiro foi atendido no recorte base; próximos critérios de constr
 são da segunda casa no [ROADMAP.md](ROADMAP.md). Venda/produção/reprodução,
 pastagem/cues completas/vozes e funeral ainda precisam de integração, usando a
 mesma coleção e ações. Não declarar criação integral nem duplicar seus estados.
+
+## PF-06 — máquinas de Saibara, 2026-10-29
+
+Encomenda/entrega e uso das três máquinas concluídos no recorte com adamantita
+escavada, dinheiro, confirmações/prazo, script 354, mapas/ANI/qualidades/remessa
+reais. [Referência, validação e limites](PF06_MAKERS.md). Próxima fila:
+melhorias de ferramentas; acessórios/festivais e demais sistemas seguem abertos.
+
+## PF-06 — melhorias de ferramentas, 2026-10-29
+
+As cinco ferramentas têm encomenda original por minério/XP/saldo, prazo/retirada
+e ações por carga com grades originais. [Referência, aceite e limites](PF06_TOOL_UPGRADES.md).
+Aquisição dos utensílios entregue em [PF06_TV_SHOPPING.md](PF06_TV_SHOPPING.md). Preparo/indicadores entregues em [PF06_COOKING_PRESENTATION.md](PF06_COOKING_PRESENTATION.md). Acessórios entregues em [PF06_ACCESSORIES.md](PF06_ACCESSORIES.md). Ampliações de mochila entregues em [PF06_RUCKSACK.md](PF06_RUCKSACK.md). Fila seguinte: cesta de remessas; festivais abertos.

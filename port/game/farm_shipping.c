@@ -4,6 +4,17 @@
 #include "farm_field.h"
 #include <string.h>
 #include "shipping_tables.inc"
+unsigned hmbtn_farm_shipping_price(const HmbtnEconomy *e,unsigned id)
+{
+    const HmbtnFarmItem *item=hmbtn_farm_item(id);
+    return !e || !item || item->sell_price<=0 ? 0 : (unsigned)item->sell_price+(id==SHIPPING_HONEY && e->shipping.honey_bonus ? 10u : 0u);
+}
+int hmbtn_farm_shipping_bin(unsigned id) { return id<380 ? shipping_bins[id] : -1; }
+void hmbtn_farm_shipping_merge(HmbtnEconomy *e,const unsigned counts[25],unsigned value)
+{
+    for(unsigned i=0;i<25;++i) { unsigned total=e->shipments[i]+counts[i];e->shipments[i]=total>999 ? 999 : total; }
+    e->shipping.pending_value+=value;e->shipping.item_shipped=true;
+}
 
 /* Adapt milestone_check_group_a/b/c (source f251e35) to a pure query.
  * Original flags are recomputed at initialization/area entry/shop refresh;
@@ -22,7 +33,7 @@ bool hmbtn_farm_shipping_add(HmbtnEconomy *economy,unsigned id)
     const HmbtnFarmItem *item=hmbtn_farm_item(id);
     if(!economy || !item || item->sell_price<=0) return false;
     HmbtnFarmShipping *s=&economy->shipping;
-    s->pending_value+=(uint32_t)item->sell_price+(id==SHIPPING_HONEY && s->honey_bonus ? 10u : 0u);
+    s->pending_value+=hmbtn_farm_shipping_price(economy,id);
     const int bin=shipping_bins[id];
     if(bin>=0 && economy->shipments[bin]<999) ++economy->shipments[bin];
     if(id>=SHIPPING_FISH_FIRST && id<SHIPPING_FISH_FIRST+3) ++s->fish_shipped;

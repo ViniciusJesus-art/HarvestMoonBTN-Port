@@ -101,6 +101,17 @@ int main(int argc, char **argv)
     for (unsigned i=0;i<641;++i) hmbtn_xa_stream_tick(&stream);
     CHECK(!stream.active);
     hmbtn_xa_stream_close(&stream);
+    char *cooking_path=NULL;CHECK(SDL_asprintf(&cooking_path,"%s/04.XA",str)>=0);
+    sector_make(b,3,1,true);file=SDL_IOFromFile(cooking_path,"wb");
+    CHECK(file && SDL_WriteIO(file,b,sizeof(b))==sizeof(b) && SDL_CloseIO(file));
+    CHECK(hmbtn_xa_stream_start(&stream,temp,0x16,error,sizeof(error))
+        && stream.track==0x16 && stream.channel==3 && stream.volume==0xe9);
+    for(unsigned i=0;i<4;++i) hmbtn_xa_stream_tick(&stream);
+    memset(pcm,0,sizeof(pcm));CHECK(hmbtn_xa_stream_mix(&stream,pcm,16,error,sizeof(error)) && pcm[0]>0);
+    for(unsigned i=0;i<117;++i) hmbtn_xa_stream_tick(&stream);
+    CHECK(stream.active && !stream.volume);
+    hmbtn_xa_stream_tick(&stream);CHECK(!stream.active);
+    hmbtn_xa_stream_close(&stream);CHECK(SDL_RemovePath(cooking_path));SDL_free(cooking_path);
     CHECK(SDL_RemovePath(path));
     file=SDL_IOFromFile(path,"wb"); CHECK(file && SDL_WriteIO(file,b,5)==5 && SDL_CloseIO(file));
     CHECK(!hmbtn_xa_stream_start(&stream,temp,4,error,sizeof(error)) && !stream.file);

@@ -13,7 +13,7 @@ typedef struct HmbtnXAStream {
     bool active, primed, ended;
 } HmbtnXAStream;
 
-/* Only the two childhood song cues currently integrated (cd_audio_tracks 4/5).
+/* Childhood cues 4/5 and cooking result 0x16 use original cd_audio_tracks rows.
  * One sector of PCM, one open file, no whole-track allocation. */
 bool hmbtn_xa_stream_start(HmbtnXAStream *stream, const char *root, unsigned track,
     char *error, size_t error_size);

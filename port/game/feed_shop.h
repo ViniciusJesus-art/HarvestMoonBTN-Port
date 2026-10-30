@@ -5,10 +5,13 @@
 #include "poultry.h"
 #include "construction.h"
 #include "livestock.h"
+#include "makers.h"
 typedef enum HmbtnFeedShopPhase {
     HMBTN_SHOP_OFF,HMBTN_SHOP_GREETING,HMBTN_SHOP_SELECT,HMBTN_SHOP_INFO,
     HMBTN_SHOP_OFFER,HMBTN_SHOP_COUNT,HMBTN_SHOP_RESULT,HMBTN_SHOP_LEAVE,HMBTN_SHOP_NAME,
-    HMBTN_SHOP_SELL_LIST,HMBTN_SHOP_SELL_CONFIRM,HMBTN_SHOP_CANCEL_COUNT,HMBTN_SHOP_BUILD_CONFIRM,HMBTN_SHOP_TOOL_LIST
+    HMBTN_SHOP_SELL_LIST,HMBTN_SHOP_SELL_CONFIRM,HMBTN_SHOP_CANCEL_COUNT,HMBTN_SHOP_BUILD_CONFIRM,HMBTN_SHOP_TOOL_LIST,
+    HMBTN_SHOP_MAKER_CONFIRM,HMBTN_SHOP_MAKER_AGAIN,HMBTN_SHOP_MAKER_CUE,
+    HMBTN_SHOP_RUCKSACK_CUE,HMBTN_SHOP_RUCKSACK_UPGRADE
 } HmbtnFeedShopPhase;
 typedef struct HmbtnFeedShop {
     HmbtnFeedShopPhase phase,next,after_result;
@@ -18,12 +21,20 @@ typedef struct HmbtnFeedShop {
     unsigned saved_facing;
     uint32_t previous_arrows;
     bool closing;
-    bool medicine_available;
+    bool medicine_available,potion_available[2],bell_available;
     bool carpenter;
-    bool blacksmith;
+    bool blacksmith,upgrade;
+    unsigned gift; /* One original random accessory per menu setup. */
+    uint32_t *random; /* Borrow the village generator, retained by session saves. */
+    const HmbtnFarmAction *action; /* Live shared tool experience, borrowed. */
+    bool cue_started,departure;
+    HmbtnMakers *makers; /* Session order/ownership, shared with schedules. */
     const HmbtnInventory *inventory; /* Authoritative tool ownership, borrowed. */
     HmbtnConstruction *construction; /* Loan from this session, not a shop-owned copy. */
     bool seeds; /* Original seasonal seed-table menu, same shop state. */
+    bool rucksack; /* Original supermarket record/key 9, shared shop modal. */
+    bool basket;
+    HmbtnBasket *basket_state;
     int sound;
     HmbtnPoultry *poultry;
     HmbtnLivestock *livestock;
@@ -53,6 +64,10 @@ void hmbtn_feed_shop_tick(HmbtnFeedShop *shop,HmbtnHouseInteraction *inventory,
 bool hmbtn_seed_shop_open(HmbtnFeedShop *shop,HmbtnVillage *village,
     const HmbtnIntroActor *player,const HmbtnFarmClock *clock,unsigned area,
     const uint8_t *section,size_t section_size,unsigned held_item);
+bool hmbtn_rucksack_shop_open(HmbtnFeedShop *,HmbtnVillage *,const HmbtnIntroActor *,
+    const HmbtnFarmClock *,unsigned area,const uint8_t *,size_t,const HmbtnInventory *);
+bool hmbtn_basket_shop_open(HmbtnFeedShop *,HmbtnVillage *,const HmbtnIntroActor *,
+    const HmbtnFarmClock *,unsigned area,const uint8_t *,size_t,const HmbtnInventory *);
 /* Raw original group D has eight rows. Contextual count/choice filters to
  * supported crops and the shared Moondrop unlock (seven rows, eight after
  * Karen's event, including Orangecup). */
@@ -68,6 +83,9 @@ unsigned hmbtn_carpenter_shop_rows(const HmbtnFeedShop *shop);
 unsigned hmbtn_barn_shop_rows(const HmbtnFeedShop *);
 unsigned hmbtn_barn_shop_row(const HmbtnFeedShop *,unsigned row);
 bool hmbtn_blacksmith_shop_open(HmbtnFeedShop *,const HmbtnFarmClock *,const HmbtnInventory *);
+bool hmbtn_blacksmith_upgrade_open(HmbtnFeedShop *,const HmbtnFarmClock *,const HmbtnInventory *);
+unsigned hmbtn_blacksmith_rows(const HmbtnFeedShop *);
+unsigned hmbtn_blacksmith_row(const HmbtnFeedShop *,unsigned row);
 unsigned hmbtn_blacksmith_tool_count(const HmbtnFeedShop *);
 const HmbtnSeedShopEntry *hmbtn_blacksmith_tool_entry(const HmbtnFeedShop *,unsigned row);
 unsigned hmbtn_feed_shop_cost(const HmbtnFeedShop *shop);

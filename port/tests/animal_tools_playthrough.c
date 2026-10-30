@@ -58,7 +58,8 @@ int main(int argc,char **argv)
     CHECK(step(s,HMBTN_PAD_CROSS,error,sizeof(error)) && g->talk.active);
     CHECK(shop_wait(s,HMBTN_SHOP_SELECT,error,sizeof(error)) && g->feed_shop.blacksmith);
     CHECK(capture(s,&host,shots,"saibara-main",error,sizeof(error)));
-    CHECK(step(s,HMBTN_PAD_DOWN,error,sizeof(error)) && step(s,HMBTN_PAD_CROSS,error,sizeof(error)));
+    CHECK(step(s,HMBTN_PAD_DOWN,error,sizeof(error)) && step(s,HMBTN_PAD_DOWN,error,sizeof(error))
+        && step(s,HMBTN_PAD_CROSS,error,sizeof(error)));
     CHECK(shop_wait(s,HMBTN_SHOP_TOOL_LIST,error,sizeof(error)) && hmbtn_blacksmith_tool_count(&g->feed_shop)==3);
     CHECK(capture(s,&host,shots,"saibara-tools",error,sizeof(error)));
     CHECK(step(s,HMBTN_PAD_TRIANGLE,error,sizeof(error)) && shop_wait(s,HMBTN_SHOP_INFO,error,sizeof(error)));

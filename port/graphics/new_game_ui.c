@@ -267,7 +267,10 @@ bool hmbtn_new_game_ui_draw(HmbtnNewGameUI *u,const HmbtnNewGame *g,
     if(hmbtn_message_box(m,&x,&y,&w,&h)) hmbtn_window_frame_draw(p,WIDTH,HEIGHT,x,y,w,h);
     if(m->phase==HMBTN_MESSAGE_PRINTING || m->phase==HMBTN_MESSAGE_SCROLLING || m->phase==HMBTN_MESSAGE_WAIT_END || m->phase==HMBTN_MESSAGE_WAIT_PAGE) {
         if(!text(u,p,m->words+m->page,m->cursor-m->page,30,168-(int)m->scroll_y,0,3,true,error,error_size)) return false;
-        if(m->face && !hmbtn_texture_draw(u->atlas,960,175,80,80,8,0,490,26,84,p,WIDTH,HEIGHT,error,error_size)) return false;
+        /* text_draw_face ignores bank -1 even after FACE_SHOW. Phone messages
+         * use FF6/FF4/FF5 without selecting a portrait: there is no image. */
+        if(m->face && m->face_bank!=UINT32_MAX
+                && !hmbtn_texture_draw(u->atlas,960,175,80,80,8,0,490,26,84,p,WIDTH,HEIGHT,error,error_size)) return false;
         if(!m->suppress_cursor && !editor && !birthday && g->step!=26 && !(g->step==100 && m->choices) && (m->phase==HMBTN_MESSAGE_WAIT_END || m->phase==HMBTN_MESSAGE_WAIT_PAGE)) {
             if(!hmbtn_animation_draw(&u->icons,u->atlas,&u->heart,285,217,p,WIDTH,HEIGHT,
                     WIDTH*HEIGHT*4,error,error_size)

@@ -2,6 +2,7 @@
 #define HMBTN_ESTATE_ART_H
 #include "asset_decode.h"
 typedef struct HmbtnEstateArt { uint8_t *data;HmbtnImageAtlas *atlas;HmbtnAnimation sprites[45];unsigned row; } HmbtnEstateArt;
+bool hmbtn_estate_utensil_position(unsigned house_level,unsigned utensil,int32_t position[3]);
 void hmbtn_estate_art_close(HmbtnEstateArt *art);
 bool hmbtn_estate_greenhouse_crop_look(unsigned seed,unsigned stage,unsigned *sprite,unsigned *animation);
 bool hmbtn_estate_art_update(HmbtnEstateArt *art,const char *root,unsigned row,char *error,size_t size);

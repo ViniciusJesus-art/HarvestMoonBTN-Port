@@ -67,6 +67,27 @@ def main(root, output):
         "/* farm_tables.c picture_grids[25], original nine seed targets. */\n"
         "static const int seed_grid[9][2]={" +
         ",".join("{%d,%d}" % offsets[i] for i in range(1, 10)) + "};\n")
+    # All tool reach grids, in source part order. No reconstructed rectangles.
+    tool_rows=[]
+    for entry in grids[:25]:
+        rows=fields(fields(entry[1:-1])[0][1:-1]);parts={}
+        for y,row in enumerate(rows):
+            for x,value in enumerate(fields(row[1:-1])):
+                if int(value,0): parts[int(value,0)]=(x-6,y-6)
+        if set(parts)!=set(range(1,len(parts)+1)) or len(parts)>25:
+            raise ValueError("Unexpected original tool grid")
+        tool_rows.append((len(parts),"{"+",".join("{%d,%d}" % parts[i] for i in range(1,len(parts)+1))+"}"))
+    greenhouse=clean((src / "overlay/11_GF_FARM/field/greenhouse.c").read_text())
+    player=clean((src / "overlay/11_GF_FARM/people/player.c").read_text())
+    rules=["/* Original greenhouse level tables, tool charge counts and picture grids. */"]
+    for name in ("greenhouse_level_values","greenhouse_level_alt_values"):
+        rules.append("static const unsigned "+name+"[]={"+body(greenhouse,name)+"};")
+    rules.append("static const unsigned tool_grid_counts[]={"+",".join(str(n) for n,_ in tool_rows)+"};")
+    rules.append("static const int8_t tool_grids[25][25][2]={"+",".join(row for _,row in tool_rows)+"};")
+    for name in ("tool_charge_steps_a","tool_charge_steps_b","tool_charge_steps_c"):
+        rules.append("static const unsigned "+name+"[]={"+body(player,name)+"};")
+    rules.append("static const int tool_stamina_costs[5][5]={"+body(player,"tool_stamina_costs")+"};")
+    Path(output).with_name("tool_rules.inc").write_text("\n".join(rules)+"\n")
     out = ["/* Generated from original C tables; do not edit. */"]
     out.append("static const HmbtnFarmItem farm_items[380] = {")
     item_rows = {}
@@ -112,6 +133,12 @@ def main(root, output):
     greenhouse=clean((src / "overlay/11_GF_FARM/field/greenhouse.c").read_text())
     out.append("static const HmbtnGreenhouseUV greenhouse_uvs[29]={"+body(greenhouse,"greenhouse_quad_uvs")+"};")
     sound = clean((src / "main/sound/sound.c").read_text())
+    cd_audio=clean((src / "main/sound/cd_audio.c").read_text())
+    xa_tracks=fields(body(cd_audio,"cd_audio_tracks"))
+    if len(xa_tracks)!=26: raise ValueError("Unexpected original XA track count")
+    Path(output).with_name("xa_tracks.inc").write_text(
+        "/* cd_audio.c:cd_audio_tracks, volume countdown / file / channel. */\n"
+        "static const unsigned xa_tracks[26][3]={"+",".join(xa_tracks)+"};\n")
     out.append("static const HmbtnFarmSound farm_sounds[]={" + body(sound, "sound_defs") + "};")
     Path(output).write_text("\n".join(out) + "\n")
     swap=clean((src / "overlay/11_GF_FARM/menu/storage_swap.c").read_text())
@@ -212,12 +239,22 @@ def main(root, output):
         "/* Original shop_silo_offers and milestone_arm_countdown (--timer < 0). */\n"
         "static const HmbtnConstructionOffer construction_offers[]={" + ",".join(offers) + "};\n"
         f"enum {{ CONSTRUCTION_MORNINGS={int(timer.group(1))+1}, LUMBER_MAX={limit.group(1)}, LUMBER_ITEM={names['ITEM_LUMBER']} }};\n")
+    mine = clean((src / "overlay/11_GF_FARM/field/mine.c").read_text())
+    mine_out=["/* Original field/mine.c tables. */"]
+    for name in ["mine_layer_weights", "mine_layer_weights_mine"]:
+        mine_out.append("static const int16_t "+name+"[10][8]={"+body(mine,name)+"};")
+    for name in ["mine_layer_events", "mine_layer_events_mine"]:
+        mine_out.append("static const int16_t "+name+"[8]={"+",".join(str(number(v)) for v in fields(body(mine,name)))+"};")
+    words=body(mine,"mine_messages").replace("TEXT_CODE_SPACE","0xffd").replace("TEXT_LINE_BREAK","0xfffe").replace("TEXT_END","0xffff")
+    mine_out.append("static const uint16_t mine_messages[68]={"+words+"};")
+    mine_out.append("static const MineTexture mine_cell_textures[3]={"+body(mine,"mine_cell_textures")+"};")
+    Path(output).with_name("mine_tables.inc").write_text("\n".join(mine_out)+"\n")
     livestock = clean((src / "overlay/11_GF_FARM/animals/livestock.c").read_text())
     animals = clean((src / "overlay/11_GF_FARM/animals/animals.c").read_text())
     animal_header = clean((src / "overlay/11_GF_FARM/animals/animals.h").read_text())
     farm_load = clean((src / "overlay/11_GF_FARM/farm_load.c").read_text())
     farm_data = clean((src / "overlay/11_GF_FARM/farm_data.c").read_text())
-    defines = re.findall(r"#define (LIVESTOCK_\w+)\s+(0x[0-9a-fA-F]+|[0-9]+)\b", livestock + "\n" + animal_header)
+    defines = re.findall(r"#define (LIVESTOCK_\w+)\s+(0x[0-9a-fA-F]+|[0-9]+)\b", livestock + "\n" + animal_header + "\n" + clean((src / "overlay/11_GF_FARM/animals/livestock.h").read_text()))
     native = ["/* Original livestock.c constants/frame tables and animals.c placement. */"]
     native.extend(f"enum {{ {key}={value} }};" for key, value in defines)
     messages = re.findall(r"(LIVESTOCK_MSG_\w+)\s*=\s*(0x[0-9a-fA-F]+)", animal_header)
@@ -225,12 +262,13 @@ def main(root, output):
     native.append("static const NativeFrameRow cow_frames[9]={"+body(livestock,"livestock_frame_table")+"};")
     native.append("static const NativeFrame sheep_frames[6][4]={"+body(livestock,"livestock_frame_table_b")+"};")
     native.append("static const int32_t row_spots[6][4]={"+body(animals,"farm_row_spots")+"};")
+    native.append("static const NativeGateRow animal_gates[4]={"+body(probe,"farm_zone_rows")+"};")
     Path(output).with_name("livestock_tables.inc").write_text("\n".join(native)+"\n")
     offsets = fields(body(farm_load,"farm_slot_file_offsets"))
     toc = fields(body(farm_data,"farm_slot_toc_0"))
     Path(output).with_name("livestock_art_tables.inc").write_text(
         "/* farm_load.c slot 0 and farm_data.c:farm_slot_toc_0. */\n"
-        f"enum {{ LIVESTOCK_FILE_START={offsets[0]}, LIVESTOCK_FILE_BYTES={offsets[1]}-{offsets[0]} }};\n"
+        f"enum {{ LIVESTOCK_FILE_START={offsets[0]}, LIVESTOCK_FILE_BYTES={offsets[1]}-{offsets[0]}, LIVESTOCK_BARN_START={offsets[1]}, LIVESTOCK_BARN_BYTES={offsets[2]}-{offsets[1]} }};\n"
         "static const unsigned livestock_offsets[]={"+toc[1][1:-1]+"};\n")
     text_bank = clean((src / "main/text/text_bank.c").read_text())
     setup_tools = shop[shop.index("static s32 shop_tool_upgrade_menu_setup(void)\n{"):
@@ -249,6 +287,9 @@ def main(root, output):
         tool_menu.append(f"{{{names[item]},{description},tool_name_{label},sizeof(tool_name_{label})/sizeof(uint16_t)}},")
     tool_menu.append("};")
     Path(output).with_name("animal_tool_menu.inc").write_text("\n".join(tool_menu)+"\n")
+    Path(output).with_name("saibara_gifts.inc").write_text(
+        "/* shop_tool_upgrade_menu_setup: original random present ids. */\n"
+        "static const unsigned saibara_gifts[]={"+body(shop,"girls_present_messages")+"};\n")
     # Storage navigation from item_storage.c, for all three rucksack levels.
     storage = clean((src / "overlay/11_GF_FARM/menu/item_storage.c").read_text())
     links = [fields(row[1:-1])[2] for row in fields(body(storage, "item_markers"))]
@@ -387,6 +428,14 @@ def main(root, output):
         "static const HmbtnEstateArtToc estate_art_tocs[10]={"+",".join(art)+"};\n"
         "static const unsigned greenhouse_crop_sprites[][2]={"+
         ",".join("{%d,%s}" % (names[item],sprite) for item,sprite in greenhouse_sprites)+"};\n")
+    kitchen_positions=[]
+    for level in (1,2):
+        rows=fields(body(estate,f"estate_result_rows_house{level}"))[2:]
+        if len(rows)!=8: raise ValueError("Unexpected original kitchen appliance layout")
+        kitchen_positions.append("{"+",".join(fields(row[1:-1])[0] for row in rows)+"}")
+    Path(output).with_name("kitchen_positions.inc").write_text(
+        "/* estate.c:estate_result_rows_house1/2; utensil ANI indices 4..11. */\n"
+        "static const int32_t kitchen_positions[2][8][3]={"+",".join(kitchen_positions)+"};\n")
     sections=clean((src / "overlay/common/farm_section_table.h").read_text())
     section_offsets=[int(v,0) for v in fields(body(sections,"section_table"))]
     if len(section_offsets)!=1021:

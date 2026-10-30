@@ -36,6 +36,7 @@
 #include "poultry_art.h"
 #include "livestock_art.h"
 #include "feed_shop_ui.h"
+#include "mine_ui.h"
 #include "farm_menu_ui.h"
 #include "house_sleep.h"
 #include "house_ui.h"
@@ -198,6 +199,7 @@ static bool load_area(HmbtnScenePreview *s, const char *root, unsigned area,
             snprintf(error,error_size,"Area %u is not integrated",area);return false;
         }
     }
+    resource_area=hmbtn_makers_scene(&s->session->makers,logical,resource_area);
     area=logical;
     /* Seasonal section packs can leave texture padding used by their model
      * untouched (e.g. summer farm page 8, UV 128,242). Compose the area's base
@@ -245,7 +247,7 @@ static bool load_area(HmbtnScenePreview *s, const char *root, unsigned area,
         && hmbtn_bank_apply(bank,bank_size,s->atlas,error,error_size);
     free(bank);
     if (!ok) { free(section); return false; }
-    HmbtnModelRenderer *geometry = hmbtn_model_renderer_create(scene.primitive_capacity);
+    HmbtnModelRenderer *geometry = hmbtn_model_renderer_create(scene.primitive_capacity+(hmbtn_mine_kind(area) ? scene.models[0].primitive_count : 0u));
     if (!geometry) { free(section); snprintf(error,error_size,"Cannot allocate bounded scene ordering"); return false; }
     if(!s->restoring) hmbtn_session_area_begin(s->session,area,s->section ? hmbtn_read_le16(s->section+2) : 0,s->section!=NULL);
     if(s->opening && (area==0 || area==172 || area==176 || area==204)) {
@@ -263,12 +265,16 @@ static bool load_area(HmbtnScenePreview *s, const char *root, unsigned area,
     s->fire_frame=s->fire_ticks=0;
     if(s->opening && !hmbtn_estate_art_update(&s->estate_art,root,hmbtn_read_le16(section+10),error,error_size)) return false;
     s->session->triggers.field=&s->session->field;
-    if(s->opening && area==96 && !hmbtn_livestock_art_load(&s->livestock_art,root,error,error_size)) return false;
+    if(s->opening && (area==0 || area==96) && !hmbtn_livestock_art_load(&s->livestock_art,root,error,error_size)) return false;
     bool hens_here=area==112 || hmbtn_poultry_held_slot(&s->session->poultry)<HMBTN_HENS;
     for(unsigned i=0;i<HMBTN_HENS;++i) hens_here|=s->session->poultry.hens[i].occupied && s->session->poultry.hens[i].area==area;
     if(s->opening && hens_here && !hmbtn_poultry_art_load(&s->poultry_art,root,error,error_size)) return false;
     if(!s->restoring) hmbtn_session_area_ready(s->session,area,&s->scene);
     else s->session->intro.ground=&s->scene.terrain;
+    if(hmbtn_mine_kind(area) && (!hmbtn_mine_bind(&s->session->mine,&s->scene)
+            || !hmbtn_mine_retexture(&s->session->mine,s->section+0x2000,s->scene.terrain.size))) {
+        snprintf(error,error_size,"Cannot bind original mine cells");return false;
+    }
     HmbtnFarmField *field=hmbtn_session_field(s->session);
     if(!field) {
         free(s->field_block);s->field_block=NULL;free(s->field_atlas);s->field_atlas=NULL;
@@ -369,7 +375,7 @@ static bool load_event(HmbtnScenePreview *s, unsigned event, char *error, size_t
         } else { snprintf(error,error_size,"Unsupported opening actor flags 0x%04x",flags); return false; }
     }
     const bool world_event=event==129 || event==130 || event==289;
-    const uint64_t expected = event==18 || event==19 ? UINT64_C(1)<<3 : event==140 ? UINT64_C(1)<<21 : event==299 || world_event ? 0 : event==172 ? (UINT64_C(1)<<10)|(UINT64_C(1)<<15)|(UINT64_C(1)<<19)
+    const uint64_t expected = event>=290 && event<=298 ? UINT64_C(1)<<26 : event==18 || event==19 ? UINT64_C(1)<<3 : event==140 ? UINT64_C(1)<<21 : event==299 || world_event ? 0 : event==172 ? (UINT64_C(1)<<10)|(UINT64_C(1)<<15)|(UINT64_C(1)<<19)
         : event==12 ? (UINT64_C(1)<<17)|(UINT64_C(1)<<23)|(UINT64_C(1)<<26)
         : event == 116 || event == 121 || hmbtn_farm_visit_supported(event) ? UINT64_C(1)<<17
         : event == 117 ? 14u : event == 118 ? 2u : event == 120 ? 30u
@@ -619,6 +625,7 @@ static bool exploration_effect(void *context,const HmbtnExplorationEffect *effec
     }
     case HMBTN_EXP_RELEASE_WATER:hmbtn_sound_release_voice(s->audio.sound,s->watering_voice);s->watering_voice=0;return true;
     case HMBTN_EXP_RETEXTURE:
+        if(hmbtn_mine_kind(s->session->area)) return hmbtn_mine_retexture(&s->session->mine,s->section+0x2000,s->scene.terrain.size);
         return hmbtn_farm_field_retexture(hmbtn_session_field_const(s->session),s->section+(s->scene.terrain.data-s->section),s->scene.terrain.size);
     case HMBTN_EXP_MESSAGE_ART:return hmbtn_ui_message_art(s->ui,effect->record,effect->bytes,error,error_size);
     case HMBTN_EXP_STEREO:hmbtn_sound_stereo(s->audio.sound,effect->id!=0);return true;
@@ -820,6 +827,14 @@ bool hmbtn_scene_preview_draw(HmbtnScenePreview *s,SDL_Renderer *renderer,char *
         const int32_t centre[3]={s->centre_x,s->opening ? s->session->intro.camera[1] : 0,s->centre_z};
         const HmbtnCamera camera=scene_camera(s,centre);
         HmbtnWorldSprite actors[512]; unsigned count = 0;
+        if(s->session->area==80 && s->session->construction.house_level) for(unsigned i=0;i<8;++i) {
+            if(!(s->session->game.cooking.utensils&(1u<<i))) continue;
+            const HmbtnAnimation *ani=hmbtn_estate_art_sprite(&s->estate_art,4+i);
+            if(!ani) { snprintf(error,error_size,"Missing original kitchen utensil art %u",i);return false; }
+            actors[count]=(HmbtnWorldSprite){ani,s->estate_art.atlas,{0},{0},0,0};
+            if(!hmbtn_estate_utensil_position(s->session->construction.house_level,i,actors[count].position)) return false;
+            ++count;
+        }
         if(s->session->control.enabled) for(unsigned i=125;i<=172;++i) {
             const unsigned item=hmbtn_farm_gather_item(&s->session->gather,i,hmbtn_read_le16(s->section+2),s->session->game.clock.season);
             const int art=hmbtn_estate_item_art(item);
@@ -840,6 +855,33 @@ bool hmbtn_scene_preview_draw(HmbtnScenePreview *s,SDL_Renderer *renderer,char *
                 actors[count++]=(HmbtnWorldSprite){ani,s->estate_art.atlas,{0},
                     {record->position[0]+150,record->position[1]-100,record->position[2]-150},0,0};
             }
+        }
+        /* estate_items_restore/estate_code_status: the same stock record
+         * changes from sprite 8 to 9; the cue removes it until this shop closes. */
+        const unsigned rucksack=hmbtn_inventory_rucksack_offer(&s->session->game.inventory);
+        if(s->session->area==180 && rucksack && !(s->session->feed_shop.rucksack && s->session->feed_shop.phase!=HMBTN_SHOP_OFF)) {
+            for(unsigned i=0;i<HMBTN_GATHER_RECORDS;++i) {
+                const HmbtnGatherRecord *record=hmbtn_farm_gather_record(i);
+                if(record->location!=30 || !(record->flags&0x8000u)) continue;
+                const HmbtnAnimation *ani=hmbtn_estate_art_sprite(&s->estate_art,8+rucksack-0x6d);
+                if(!ani || count>=512) { snprintf(error,error_size,"Original supermarket rucksack sprite unavailable");return false; }
+                actors[count++]=(HmbtnWorldSprite){ani,s->estate_art.atlas,{0},
+                    {record->position[0]+150,record->position[1]-100,record->position[2]-150},0,0};
+            }
+        }
+        if(s->session->area==180 && !s->session->game.basket.owned
+                && !(s->session->feed_shop.basket && s->session->feed_shop.phase!=HMBTN_SHOP_OFF)) {
+            const HmbtnGatherRecord *r=hmbtn_farm_gather_record(117);
+            const HmbtnAnimation *ani=hmbtn_estate_art_sprite(&s->estate_art,24);
+            if(!ani) { snprintf(error,error_size,"Original basket stock art unavailable");return false; }
+            actors[count++]=(HmbtnWorldSprite){ani,s->estate_art.atlas,{0},{r->position[0]+150,r->position[1]-100,r->position[2]-150},0,0};
+        }
+        const HmbtnBasket *basket=&s->session->game.basket;
+        if(basket->owned && basket->placed && basket->area==s->session->area) {
+            const HmbtnAnimation *ani;const HmbtnImageAtlas *atlas;
+            if(!hmbtn_house_ui_picture_art(s->house_ui,s->data_root,100,&ani,&atlas,error,error_size)) return false;
+            actors[count]=(HmbtnWorldSprite){ani,atlas,{0},{0},s->session->basket_action.bounce ? -3 : 0,0};
+            memcpy(actors[count++].position,basket->position,sizeof(basket->position));
         }
         for(unsigned i=0;i<HMBTN_HENS;++i) {
             const HmbtnHen *hen=&s->session->poultry.hens[i];
@@ -966,7 +1008,7 @@ bool hmbtn_scene_preview_draw(HmbtnScenePreview *s,SDL_Renderer *renderer,char *
             memcpy(actors[count++].position,e->position,sizeof(e->position));
         }
         HmbtnWorldAttachment attachment={0};unsigned attached=0;
-        if(player_drawn && ((s->session->quick_ticks && s->session->quick_id) || s->session->house.inventory->held_item.id || s->session->fishing.shown || s->session->event_item.shown || s->session->farm_action.phase==HMBTN_FARM_MEDICINE)
+        if(player_drawn && s->session->basket_action.phase!=HMBTN_BASKET_SHIP && s->session->event_item.phase!=HMBTN_EVENT_ITEM_RUCKSACK && ((s->session->quick_ticks && s->session->quick_id) || s->session->house.inventory->held_item.id || s->session->fishing.shown || s->session->event_item.shown || s->session->farm_action.phase==HMBTN_FARM_MEDICINE)
                 && !(s->session->fishing.phase==HMBTN_FISHING_EAT && s->session->intro.player.sprite.frame>=2)
                 && !(s->session->event_item.phase==HMBTN_EVENT_ITEM_EAT && s->session->intro.player.sprite.frame>=2)) {
             int offset_x=-8,offset_y=-10;
@@ -981,9 +1023,18 @@ bool hmbtn_scene_preview_draw(HmbtnScenePreview *s,SDL_Renderer *renderer,char *
             else if(s->session->house.inventory->held_item.id && !(s->session->quick_ticks && s->session->quick_tool))
                 hmbtn_farm_carried_offset(s->session->intro.player.facing,s->session->control.mode==4,&offset_x,&offset_y);
             attachment.sprite=player_sprite;attachment.screen_x=offset_x;attachment.screen_y=offset_y;
-            if(!hmbtn_house_ui_picture_art(s->house_ui,s->data_root,
-                        s->session->event_item.shown ? s->session->event_item.shown : s->session->fishing.shown ? s->session->fishing.shown : s->session->quick_ticks && s->session->quick_id ? s->session->quick_id
-                            : s->session->farm_action.phase==HMBTN_FARM_MEDICINE ? s->session->house.inventory->equipped.id : s->session->house.inventory->held_item.id,
+            const unsigned attached_item=s->session->event_item.shown ? s->session->event_item.shown
+                : s->session->fishing.shown ? s->session->fishing.shown
+                : s->session->quick_ticks && s->session->quick_id ? s->session->quick_id
+                : s->session->farm_action.phase==HMBTN_FARM_MEDICINE ? s->session->house.inventory->equipped.id
+                : s->session->house.inventory->held_item.id;
+            if(attached_item==0x6d || attached_item==0x6e) {
+                attachment.animation=hmbtn_estate_art_sprite(&s->estate_art,8+attached_item-0x6d);
+                attachment.atlas=s->estate_art.atlas;
+                if(s->estate_art.row!=8 || !attachment.animation) {
+                    snprintf(error,error_size,"Original carried rucksack sprite unavailable");return false;
+                }
+            } else if(!hmbtn_house_ui_picture_art(s->house_ui,s->data_root,attached_item,
                         &attachment.animation,&attachment.atlas,error,error_size)) return false;
             attached=1;
         }
@@ -1050,9 +1101,15 @@ bool hmbtn_scene_preview_draw(HmbtnScenePreview *s,SDL_Renderer *renderer,char *
             if(!hmbtn_feed_shop_ui_draw(&s->session->feed_shop,hmbtn_game_economy_const(&s->session->game),hmbtn_game_registration_const(&s->session->game),s->ui,s->pixels,s->session->runtime.ticks,error,error_size)) return false;
             if (!hmbtn_new_game_ui_draw(s->ui,s->session->animal_name_active ? &s->session->animal_name : s->session->feed_shop.phase==HMBTN_SHOP_NAME ? &s->session->feed_shop.editor : &s->session->dialogue,
                     s->session->runtime.ticks,s->pixels,error,error_size)) return false;
+            if(!hmbtn_mine_ui_draw(&s->session->mine,s->ui,s->pixels,error,error_size)) return false;
             if(s->session->menu.mode==HMBTN_MENU_STATUS && !hmbtn_farm_menu_ui_draw(s->menu_ui,s->house_ui,s->ui,&s->session->menu,&s->session->house,&s->session->farm_action,
                     hmbtn_game_registration_const(&s->session->game),s->data_root,s->session->runtime.ticks,s->pixels,error,error_size)) return false;
         }
+        /* The cooking fade covers the background, icons and message together.
+         * Progress belongs to the game tick, never to frame presentation. */
+        const unsigned cooking_shade=hmbtn_house_kitchen_shade(&s->session->house);
+        if(cooking_shade) for(size_t i=0;i<FRAME_BYTES;++i) if(i%4!=3)
+            s->pixels[i]=(uint8_t)(s->pixels[i]>cooking_shade ? s->pixels[i]-cooking_shade : 0);
         if (!SDL_UpdateTexture(s->texture,NULL,s->pixels,320*4)) goto sdl_error;
         s->dirty = false;
     }
@@ -1088,6 +1145,7 @@ bool hmbtn_scene_preview_area_location(HmbtnScenePreview *s,unsigned area,unsign
 {
     unsigned logical,resource;uint8_t header[16];
     if(!location || !hmbtn_world_area_buildings(area,s->session->game.clock.season,s->session->poultry.upgraded,s->session->construction.house_level,s->session->construction.barn_level,s->session->construction.greenhouse,&logical,&resource)) return false;
+    resource=hmbtn_makers_scene(&s->session->makers,logical,resource);
     if(!hmbtn_resource_read(s->data_root,"A_FILE/00_gf.bin",scene_sections[resource][0],header,sizeof(header),error,size)) return false;
     *location=hmbtn_read_le16(header+2);return true;
 }

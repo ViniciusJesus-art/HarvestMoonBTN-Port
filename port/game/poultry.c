@@ -56,7 +56,10 @@ bool hmbtn_animal_medicine_tick(HmbtnPoultry *p,HmbtnLivestock *livestock,unsign
     a->sound=-1;a->changed=a->finished_bank=a->release_sound=false;a->broken_item=0;
     if(a->phase==HMBTN_FARM_MEDICINE) {
         if(!player->animation_done) return true;
-        if(p && a->target<HMBTN_HENS) {
+        const bool potion=a->kind==0x1f || a->kind==0x20;
+        if(potion) a->changed=a->target>=HMBTN_HENS && a->target<HMBTN_HENS+HMBTN_LIVESTOCK
+            && hmbtn_livestock_breed(livestock,a->target-HMBTN_HENS,a->kind==0x20);
+        else if(p && a->target<HMBTN_HENS) {
             HmbtnHen *hen=&p->hens[a->target];
             if(hen->occupied && !hen->dead && hen->stage==HMBTN_HEN_ADULT && hen->days_sick) {
                 hen->days_sick=0;hen->timer=0;hen->praise=hen->affection>=10 ? 45 : 0;
@@ -66,7 +69,7 @@ bool hmbtn_animal_medicine_tick(HmbtnPoultry *p,HmbtnLivestock *livestock,unsign
         else if(a->target>=HMBTN_HENS && a->target<HMBTN_HENS+HMBTN_LIVESTOCK)
             a->changed=hmbtn_livestock_cure(livestock,a->target-HMBTN_HENS);
         /* stored_item_release runs even when the target is absent or healthy. */
-        if(h->inventory->equipped.id==0x1E && h->inventory->equipped.count && !--h->inventory->equipped.count) h->inventory->equipped=(HmbtnStoredTool){0};
+        if(h->inventory->equipped.id==(potion ? a->kind : 0x1eu) && h->inventory->equipped.count && !--h->inventory->equipped.count) h->inventory->equipped=(HmbtnStoredTool){0};
         const unsigned fatigue=(h->weather->today!=0)+(h->clock->hour>=22 ? 1u : h->clock->hour<6 ? 2u : 0u)+(a->stamina==0 ? 2u : 0u);
         a->fatigue=a->fatigue+fatigue>100 ? 100 : a->fatigue+fatigue;
         a->sound=17;a->finished_bank=true;a->bank=-1;a->phase=HMBTN_FARM_ACTION_FREE;
@@ -74,7 +77,7 @@ bool hmbtn_animal_medicine_tick(HmbtnPoultry *p,HmbtnLivestock *livestock,unsign
         return true;
     }
     if(a->phase!=HMBTN_FARM_ACTION_FREE || !(pressed&HMBTN_PAD_SQUARE) || player->facing>3
-            || h->inventory->equipped.id!=0x1E || !h->inventory->equipped.count || h->inventory->held_item.id || a->fatigue>=100) return false;
+            || (h->inventory->equipped.id<0x1e || h->inventory->equipped.id>0x20) || !h->inventory->equipped.count || h->inventory->held_item.id || a->fatigue>=100) return false;
     /* player_probe_target(kind 0x18) probes 128 forward, against the original
      * chicken halfWidth/halfDepth (strict 200). It latches before the animation. */
     static const int step[4][2]={{0,-128},{-128,0},{0,128},{128,0}};
@@ -90,7 +93,9 @@ bool hmbtn_animal_medicine_tick(HmbtnPoultry *p,HmbtnLivestock *livestock,unsign
         if(target<HMBTN_LIVESTOCK) a->target=HMBTN_HENS+target;
         else if(a->target==HMBTN_HENS) a->target=HMBTN_HENS+HMBTN_LIVESTOCK;
     }
-    a->phase=HMBTN_FARM_MEDICINE;a->kind=5;a->bank=22;a->bank_pending=true;
+    a->phase=HMBTN_FARM_MEDICINE;a->kind=h->inventory->equipped.id;
+    /* PLAYER_MODE_USE_MEDICINE=0x51 / USE_POTION=0x55, minus 0x3b. */
+    a->bank=a->kind==0x1e ? 22 : 26;a->bank_pending=true;
     player->sprite=(HmbtnAnimationPlayer){(uint16_t)player->facing,0,0};player->animation_done=false;return true;
 }
 static void place(HmbtnHen *h,unsigned i)
@@ -275,19 +280,31 @@ bool hmbtn_poultry_incubator_tick(HmbtnPoultry *p,HmbtnFarmFeed *action,HmbtnHou
     }
     return false;
 }
-bool hmbtn_poultry_expand_dead(const HmbtnPoultry *p,uint8_t *record,size_t size)
+bool hmbtn_animal_death_expand(const HmbtnPoultry *p,const HmbtnLivestock *livestock,uint8_t *record,size_t size)
 {
     if(!record || size!=8192) return false;
     uint16_t words[HMBTN_MESSAGE_WORDS];unsigned count=0;
     for(unsigned i=0;i<HMBTN_MESSAGE_WORDS;++i) {
         uint16_t c=hmbtn_read_le16(record+0x1800+i*2);
-        if(c==0x401D || c==0x4020) {
-            for(unsigned j=0;j<HMBTN_HENS;++j) {
-                const HmbtnHen *h=&p->hens[j];
-                if(!h->occupied || !h->dead || h->died_of_age!=(c==0x401D)) continue;
-                for(unsigned k=0;k<8 && h->name[k]!=0xFFFF;++k) {
+        if(c>=0x401b && c<=0x4020) {
+            /* Original text_list_generators[selector % 3](selector / 3). */
+            const unsigned selector=c-0x401b,species=selector%3;
+            const bool old_age=selector<3;
+            const unsigned limit=species==2 ? (p ? HMBTN_HENS : 0) : (livestock ? HMBTN_LIVESTOCK : 0);
+            for(unsigned j=0;j<limit;++j) {
+                const uint16_t *name;
+                if(species==2) {
+                    const HmbtnHen *h=&p->hens[j];
+                    if(!h->occupied || !h->dead || h->died_of_age!=old_age) continue;
+                    name=h->name;
+                } else {
+                    const HmbtnFarmAnimal *a=&livestock->animals[j];
+                    if(!a->occupied || !a->dead || a->sheep!=(species==1) || a->died_of_age!=old_age) continue;
+                    name=a->name;
+                }
+                for(unsigned k=0;k<HMBTN_NAME_CHARS && name[k]!=0xFFFF;++k) {
                     if(count>=HMBTN_MESSAGE_WORDS) return false;
-                    words[count++]=h->name[k];
+                    words[count++]=name[k];
                 }
                 if(count+2>=HMBTN_MESSAGE_WORDS) return false;
                 words[count++]=0x51;words[count++]=0xFFFE; /* text_died_suffix */
@@ -296,7 +313,7 @@ bool hmbtn_poultry_expand_dead(const HmbtnPoultry *p,uint8_t *record,size_t size
         if(c==0xFFFF) break;
     }
     if(!count || words[count-1]!=0xFFFF) return false;
-    /* Lists can span ten names. Page complete lines through the existing native
+    /* Lists can span a full herd or coop. Page complete lines through the existing native
      * message renderer, retaining the source's explicit page boundaries. */
     unsigned out=0,lines=0;bool leading=false;
     for(unsigned i=0;i<count;++i) {
@@ -319,3 +336,6 @@ bool hmbtn_poultry_expand_dead(const HmbtnPoultry *p,uint8_t *record,size_t size
 bool hmbtn_poultry_medicine_tick(HmbtnPoultry *p,unsigned area,HmbtnFarmAction *action,
     HmbtnIntroActor *player,HmbtnHouseInteraction *house,uint32_t pressed)
 { return hmbtn_animal_medicine_tick(p,NULL,area,action,player,house,pressed); }
+
+bool hmbtn_poultry_expand_dead(const HmbtnPoultry *p,uint8_t *record,size_t size)
+{ return hmbtn_animal_death_expand(p,NULL,record,size); }

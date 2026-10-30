@@ -22,6 +22,33 @@ static bool schedules(HmbtnScenePreview *s,char *error,size_t size)
     }
     return true;
 }
+/* Original area-48 entrance: FACING (0x1000), event 34, twin 0/1.
+ * Keep the user's 30-unit retreat / acceleration 8 / 31-tick entry. */
+static bool doug_entrance(HmbtnScenePreview *s,HmbtnHost *host,const char *shots,char *error,size_t size)
+{
+    HmbtnSession *g=hmbtn_scene_preview_session(s);
+    for(unsigned season=0;season<4;++season) {
+        g->game.clock.season=season;g->game.clock.hour=14;
+        REQUIRE(hmbtn_scene_preview_load_area(s,48,error,size) && step(s,0,error,size));
+        const uint8_t *section=hmbtn_scene_preview_resources(s).section,*z=section+16;
+        REQUIRE(hmbtn_read_le16(z)==0x1000 && hmbtn_read_le16(z+2)==204+season && hmbtn_read_le16(z+10)==34);
+        const unsigned model=hmbtn_read_le16(z+12),twin=hmbtn_read_le16(section+0x948+model*44+8);
+        HmbtnSceneData *scene=hmbtn_scene_preview_resources(s).scene;
+        const uint16_t base=scene->angle[model][1],other=scene->angle[twin][1];
+        at(s,z);g->game.inventory.held_item=(HmbtnStoredTool){0x44,7,1};
+        const int32_t start=g->intro.player.position[0];
+        REQUIRE(step(s,HMBTN_PAD_CROSS,error,size) && g->door_tick && !g->travel_tick);
+        for(unsigned t=0;t<16;++t) REQUIRE(step(s,0,error,size));
+        REQUIRE(g->area==48 && g->door_angle==-0x420 && g->intro.player.position[0]==start+16*30
+            && scene->angle[model][1]==(uint16_t)(base-0x420)
+            && scene->angle[twin][1]==(uint16_t)(other+0x420));
+        REQUIRE(capture(s,host,shots,"doug-exterior-open",error,size));
+        for(unsigned t=0;t<80 && (g->area!=204 || g->door_tick || g->travel_tick);++t) REQUIRE(step(s,0,error,size));
+        REQUIRE(g->area==204 && !g->control.exit_pending && !g->carry.phase
+            && g->game.inventory.held_item.id==0x44 && g->game.inventory.held_item.modifier==7);
+    }
+    g->game.clock.season=0;g->game.inventory.held_item=(HmbtnStoredTool){0};return true;
+}
 static bool rooms(HmbtnScenePreview *s,HmbtnHost *host,const char *shots,char *error,size_t size)
 {
     const unsigned areas[]={156,192,196,204,208};unsigned doors=0;
@@ -188,6 +215,7 @@ int main(int argc,char **argv)
     for(unsigned t=0;t<110;++t) CHECK(step(s,0,error,sizeof(error)));
     CHECK(schedules(s,error,sizeof(error)));
     CHECK(discard(s,&host,shots,error,sizeof(error)));
+    CHECK(doug_entrance(s,&host,shots,error,sizeof(error)));
     CHECK(rooms(s,&host,shots,error,sizeof(error)));
     CHECK(market(s,&host,shots,error,sizeof(error)));
     CHECK(rain(s,&host,shots,error,sizeof(error)));

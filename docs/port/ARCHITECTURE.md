@@ -13,7 +13,7 @@ continuam concluídas; referências futuras a MA-07..25 identificam escopos do
 plano anterior, substituído pelas entregas PF do roadmap. PF-01 (inventário/dinheiro) e PF-02 (primeiro cultivo/ciclo diário) foram
 concluídas; PF-03 integrou comandos compartilhados e o convite de Duke.
 PF-04 consolidou a coordenação em `game/runtime.c` e separou atualização/desenho,
-inclusive título/cadastro. PF-05 entregou saves nativos estáveis; PF-06 entregou batata, grama/feno e culturas base de verão/outono; clima diário/chuva também integrado; sementes sazonais de Won, desbloqueios do supermercado e Pink Cat/Toy Flower integrados; Magic Red e suas variantes também integradas; Moondrop e visitas de Karen também integradas; carpintaria, galinheiro e primeira casa integrados como dependências da estufa, incluindo depósitos e núcleo da cozinha; obra/mapas/cochos do celeiro também integrados; aquisição/presença/alimentação de vacas e ovelhas também integradas; segunda casa e lareira de inverno também integradas; estufa com campo próprio e motor comum, obra, tempestade/reconstrução e save também integrados; produção/reprodução/ciclo completo ainda parciais; Orangecup também integrada; compra de ferramentas animais/escovação/leite/lã também integrados; venda de vacas e ovelhas também integrada; próxima entrega: reprodução bovina/ovina. Aquisição de utensílios e apresentação completa da cozinha continuam pendentes. Não há requisito de
+inclusive título/cadastro. PF-05 entregou saves nativos estáveis; PF-06 entregou batata, grama/feno e culturas base de verão/outono; clima diário/chuva também integrado; sementes sazonais de Won, desbloqueios do supermercado e Pink Cat/Toy Flower integrados; Magic Red e suas variantes também integradas; Moondrop e visitas de Karen também integradas; carpintaria, galinheiro e primeira casa integrados como dependências da estufa, incluindo depósitos e núcleo da cozinha; obra/mapas/cochos do celeiro também integrados; aquisição/presença/alimentação de vacas e ovelhas também integradas; segunda casa e lareira de inverno também integradas; estufa com campo próprio e motor comum, obra, tempestade/reconstrução e save também integrados; produção/reprodução/ciclo completo ainda parciais; Orangecup também integrada; compra de ferramentas animais/escovação/leite/lã também integrados; venda de vacas e ovelhas também integrada; próxima entrega: reprodução bovina/ovina. Aquisição de utensílios por TV/telefone/Zack e aparelhos nas duas casas entregues no recorte final abaixo; preparo por fade/XA e indicadores entregues no recorte final abaixo. Não há requisito de
 concluir toda a reorganização antes de aproveitar uma função original.
 
 A arquitetura atual tem uma base nativa reutilizável e acoplamentos por resolver;
@@ -493,12 +493,12 @@ limites em [PF04_UPDATE_PRESENTATION.md](PF04_UPDATE_PRESENTATION.md).
 ## Saves nativos e retomada — PF-05
 
 `game/save.c/.h` define disponibilidade e codec nativo sem SDL/arquivos.
-A versão atual é **v11**, com depósitos, utensílios e receitas em GAME; prazo,
+A versão atual é **v16**, com depósitos, utensílios e receitas em GAME; prazo,
 tipo de obra, níveis da casa/celeiro, estufa/RNG de perda e entregas de lenha do dia em AUXI, junto ao clima e à progressão de Moondrop. FILD grava ambos os campos, dimensões verificadas, estações e RNGs de plantio; não grava caches de geometria.
 Vacas/ovelhas e seu RNG ficam na seção LSTK. PLAY não grava mais contagens de
-gado: status as deriva da coleção. O leitor aceita somente v11: a compatibilidade entre versões de desenvolvimento
-foi dispensada pelo usuário em 2026-10-27. Versões v1..v9/futuras são recusadas
-com mensagem para iniciar jogo novo; nenhum arquivo antigo é apagado/consertado.
+gado: status as deriva da coleção. GAME também preserva data/slots da TV Shopping;
+AUXI guarda a encomenda compartilhada de ferramentas/máquinas. Esta entrega
+adapta os campos necessários, sem abrir trabalho de compatibilidade de saves.
 `menu.stats.building_score` foi removido do estado/codec: o status deriva a
 contribuição dos níveis autoritativos. `menu.stats.recipes` também foi removido:
 a quantidade de receitas é derivada de `game.cooking.records`. Somente
@@ -774,7 +774,7 @@ segura da faixa zero madura; inverno limpa as plantas. Produto azul `0x53`
 não gera renda; vermelho `0x54` gera 200 G no sistema de remessas existente,
 sem um contador dedicado no mapeamento original. Won tem seis entradas, com
 Magic Red visível 4/fonte 5/descrição `0x16a`; Toy Flower passa à visível 5.
-Na entrega de Magic Red, v3 acrescentou o RNG e leu v1/v2 com seed 1; o formato atual é v11, sem leitura de versões anteriores.
+Na entrega de Magic Red, v3 acrescentou o RNG e leu v1/v2 com seed 1; o formato atual é v12, sem leitura de versões anteriores.
 Fonte, arquivos e evidências em [PF06_MAGIC_RED.md](PF06_MAGIC_RED.md).
 
 
@@ -870,8 +870,8 @@ interpreta escolhas de três/quatro opções além das duas já existentes.
 pelo usuário foi preservada. Carregar a casa ampliada não reinicializa campo,
 inventário, móveis ou receitas.
 
-Compra de utensílios pela TV, indicadores completos da ficha e animação/som do
-preparo ainda não foram integrados. Nenhum utensílio é concedido ao concluir a
+Compra de utensílios pela TV e aparelhos foram integrados no recorte final
+abaixo; fade/XA e indicadores do preparo também foram integrados no recorte final. Nenhum utensílio é concedido ao concluir a
 obra; receitas sem utensílios funcionam com ingredientes disponíveis. Detalhes,
 matriz, arquivos e resultados em [PF06_HOUSE_EXPANSION.md](PF06_HOUSE_EXPANSION.md).
 
@@ -954,7 +954,7 @@ textura da lareira conforme seus retângulos/durações. Draw não executa a aç
 
 Geladeira, armário, cozinha, calendário, TV, opções e diário usam as mesmas
 interfaces/zonas. A segunda casa não concede utensílios, esposa ou filho.
-Família e a aquisição de utensílios seguem pendentes. Fontes, testes e forma de
+Família segue pendente; utensílios foram integrados no recorte final abaixo. Fontes, testes e forma de
 experimentar: [PF06_SECOND_HOUSE.md](PF06_SECOND_HOUSE.md).
 
 ## PF-06 — Estufa e dois campos no mesmo motor
@@ -1078,3 +1078,152 @@ está suspenso. A seleção de Barley usa a mensagem comum 2/0x46; 2/0x6b é
 cancelamento. O helper de cursor da loja aplica o deslocamento vertical de
 seis pixels do original. Retorno de objetos ao plantio usa o mesmo campo,
 catálogo e flag de atualização, sem coleção adicional ou mudança de save.
+
+
+A reprodução de [29/10](PF06_LIVESTOCK_BREEDING.md) acrescenta `births[2]`
+(mãe/filhote/parto pendente) e `animals[].pregnancy/reserved` à coleção única.
+Uma reserva não é um animal ocupado. Capacidade e maternidades leem o nível do
+celeiro; UI/loja continuam consultando o mesmo domínio. O ciclo diário marca o
+parto e o controlador de eventos executa o recurso 299 com os mesmos comandos,
+editor e regras de pausa das galinhas. Nomes maternos vêm das fontes 0x16/0x17.
+O carregador ANI mantém os dois bancos originais de texturas do gado no atlas
+próprio. LSTK v12 grava campos explícitos e valida relações/exclusividade; não
+há migradores. Funerais bovinos/ovinos ainda precisam liberar registros e reservas.
+
+A entrada externa do Doug é a exceção serializada `0x1000` com modelos gêmeos:
+runtime e pedidos das rotas a distinguem da passagem sem porta. Animações e
+tempos locais do usuário foram conservados.
+
+
+A entrega de [funerais bovinos/ovinos](PF06_ANIMAL_FUNERALS.md) amplia as
+consultas do evento 172 no controlador existente. A coleção de gado oferece
+consulta por espécie/causa e limpeza dos mortos; `release_birth` é comum à
+venda e ao funeral. Filhotes já nascidos são preservados, reservas vazias não
+contam como morte. A expansão de listas 0x401B..0x4020 é comum às três espécies
+em `poultry.c`; o wrapper anterior conserva seus consumidores. O roteiro
+continua proprietário da sequência, relógio, afinidade e ponto de limpeza.
+
+As flags e relações persistentes existentes já representam o estado necessário;
+não houve mudança de codec nesta entrega. A orientação atual do usuário é
+adaptar save conforme a funcionalidade, sem exigir nem proibir compatibilidade
+entre versões; isso substitui diretrizes anteriores sobre esse tema. O recorte
+seguinte de pastagem/transporte/sino está registrado abaixo.
+
+
+## PF-06 — Pastagem e transporte do gado
+
+`livestock.c` conserva uma coleção para celeiro (96) e fazenda (0). Destino e
+estado dirigidos representam sino/empurrão; o contato contínuo é transitório.
+`exploration.c` liga o contato aos controles livres e entrega piso/campo,
+seção e o controlador de portas ao movimento. Passagens vêm da tabela original
+`farm_zone_rows`, extraída no configure. A entrada externa pede a porta real e
+espera chegada livre. O footprint pode atravessar o plano da passagem, mantendo
+piso válido no centro. Não foram alterados os tempos locais das portas.
+
+`daily.c` chama a regra horária independentemente da área visível;
+`farm_field_graze` consome uma grama madura local/global com rebrota/skip-day,
+sem produzir estoque. Afeição, contagem e condições distintas de clima foram
+confrontadas com o BIN. O overnight mantém animais externos fora dos cochos,
+repõe fileiras dos internos e recolhe mães nas maternidades reservadas.
+`scene_preview.c` carrega o mesmo atlas/ANI também na fazenda; draw continua
+sem atualizar regras. `feed_shop` deriva a disponibilidade do sino pelo
+inventário existente e usa a transação comum; a ação animal usa ANI 21.
+LSTK v13 guarda contagem/destino/área, apenas conforme o estado necessário.
+
+[Referências, particularidades e validação](PF06_LIVESTOCK_PASTURE.md).
+Cues/vozes integrais, cachorro/cavalo, ajudantes, máquinas e concursos continuam
+pendentes. A próxima dependência funcional é mineração/aquisição de adamantita,
+antes de implementar máquinas sem aquisição real.
+
+
+## PF-06 — Mineração e aquisição de minérios
+
+`HmbtnMine` pertence à sessão: andar/células/escadas/chance/RNG são estado;
+offset de primitiva, vínculo de célula e pergunta/recompensa são transitórios.
+`mine.c` adapta probe/dig/guardas/sorteio/retorno de `field/mine.c`; tabelas
+numéricas e texto/textura são extraídos no configure e conferidos no BIN.
+Os IDs 234..254 passam individualmente por `world_map.c`, sem transformação
+sazonal. O anexo 244 conserva a exploração do fundo da primeira cadeia.
+
+A ação comum da enxada recebe o contexto opcional da mina; consumidores
+anteriores conservam sua assinatura pelo wrapper comum. Achados usam
+`event_item`/ANI e inventário existentes; a exploração coordena os efeitos
+únicos de moeda/berry e a pergunta, sem outro loop de viagens. A confirmação
+prepara `travel_exit` e o fluxo atual carrega o mapa/fade. O gancho de área
+prepara estado; o host vincula células e reserva/revela a geometria real da
+escada. `mine_ui.c` desenha apenas o painel; desenho não sorteia nem coleta.
+O chunk de campo v14 serializa o estado estável e o rebind restaura offsets e
+texturas. Material coletado continua no mesmo inventário/economia/remessa.
+
+[Regras C/BIN, limites e validação](PF06_MINING.md). A escavação conferida usa
+enxada; o módulo não gera rochas de minério quebráveis pelo martelo. Outras
+ações/ferramentas e conteúdo do anexo seguem parciais. A aquisição real de
+adamantita permite selecionar encomenda/entrega/uso das máquinas de Saibara.
+
+## PF-06 — máquinas de Saibara, 2026-10-29
+
+`makers.c` mantém posse/encomenda/prazo na sessão, emprestados à loja e agenda.
+A flag 0x37 é derivada; `daily.c` avança cinco manhãs sob a guarda de data e o
+script 354 aplica a entrega. `feed_shop` reutiliza confirmações e `event_item`
+para o material; a transição comum e o reset da agenda de Saibara encerram a
+compra. Ampliações físicas e capacidades continuam nos donos anteriores.
+
+O carregador seleciona 120/104/108 por posse, mantendo áreas lógicas 112/96.
+`farm_feed` reutiliza seu bloqueio de ação e ANI para substituir a matéria-prima
+na mão por maionese/queijo/fio da mesma qualidade. Mochila cheia não impede a
+conversão. Remessa e economia permanecem comuns; codec v15 acrescenta somente
+posse/encomenda/prazo. [Auditoria C/BIN, testes e limites](PF06_MAKERS.md).
+Melhorias de ferramentas e acessórios da forja continuam pendentes.
+
+## PF-06 — melhorias de ferramentas, 2026-10-29
+
+`tool_upgrade.c` adapta a validação original e compartilha tabelas extraídas de
+XP/preço/grades/contagem/custos com `feed_shop` e `farm_action`. A conversa 354
+abre o serviço a partir do minério na mão e ferramenta equipada. A mesma fila
+`makers` admite IDs 1..25, com três manhãs, e o script concede o novo registro
+antes de limpar a encomenda. Máquina e ferramenta não ocupam filas independentes.
+
+`HmbtnFarmAction` executa a grade em ordem, um alvo por tick, sem multiplicar XP
+ou custo por célula. Usa a ANI da carga alcançada, o pool existente de efeitos,
+texturas e estoques comuns. Machado/martelo acumulam 1<<carga, e a enxada usa uma
+célula nas minas. Estado de resultado é transitório; o codec estável v15 só amplia
+a validação de IDs pendentes. [Auditoria e limites](PF06_TOOL_UPGRADES.md).
+
+
+## PF-06 — TV Shopping e utensílios, 2026-10-29
+
+`game.shopping` possui somente os nove slots e o stamp u16 da TV. O modal de
+casa empresta esse estado, a economia, a construção e a vila da sessão para a
+TV/telefone. O catálogo e o ledger continuam comuns; flags de entrega residem
+na vila, e a posse continua exclusivamente em `game.cooking.utensils`.
+
+Os eventos 290..298 passam pelo mesmo executor, serviços e controlador de
+atores. A entrega dos oito aparelhos atualiza a posse e limpa a flag pendente;
+a Power Berry usa o recebimento/comer existente. Os gatilhos BIN, sem contador
+inventado, determinam a janela de terça a sexta ao sair da casa. Sprites e
+posições extraídos de `estate.c` consultam a mesma posse nas duas ampliações.
+O codec v16 acrescenta somente a data/slots da oferta. Nenhuma mudança no bloco
+de transição/interação das portas foi feita neste recorte.
+
+[Aquisição, auditoria, testes e limites](PF06_TV_SHOPPING.md). A próxima entrega
+é a apresentação final do preparo/indicadores, conforme o roadmap; o runtime
+segue parcial e o bootstrap de diagnóstico não executa o jogo.
+
+
+## PF-06 — Apresentação do preparo e indicadores, 2026-10-29
+
+`HmbtnKitchenMenu` mantém fases transitórias para fechar a confirmação,
+escurecer, aplicar o resultado uma vez, aguardar XA e revelar a mensagem.
+`runtime` usa START_XA/WAIT_XA no serviço existente e reconhece seus resultados
+antes do adaptador de eventos. O stream compartilha o mixer/decodificador e
+consulta a linha original 22: `04.XA`, canal 3, volume/countdown 0xe9.
+
+O renderer aplica a sombra após a UI, sem avançar estado; ingredientes/receitas
+continuam nos mesmos donos e a contagem da ficha continua derivada. A checagem
+visual consulta posse/estoque para marcar faltas; não há cópias persistentes.
+Nenhuma alteração do codec foi necessária: o save já exige menus/ações fechados.
+No original esse preparo usa preto/XA, sem ANI de personagem cozinhando.
+
+[Auditoria C/BIN, sete preparos, PCM, regressões e limites](PF06_COOKING_PRESENTATION.md).
+Próximo: acessórios de Saibara conforme o roadmap. PF-06 e o runtime permanecem
+parciais; o bootstrap de diagnóstico não executa o jogo.

@@ -28,14 +28,17 @@ HmbtnSession *hmbtn_session_create(const uint16_t *layout,size_t count)
     hmbtn_farm_field_init_greenhouse(&s->greenhouse);
     s->construction.damage_random=1;
     hmbtn_house_interaction_init(&s->house,&s->game);
+    s->house.village=&s->village;s->house.construction=&s->construction;
     hmbtn_new_game_init(&s->dialogue,hmbtn_game_registration(&s->game));
     s->village.player=&s->intro.player;s->village.weather=&s->game.weather;s->village.doors=&s->area_doors;
-    s->village.poultry=&s->poultry;s->village.construction=&s->construction;s->village.cooking=&s->game.cooking;
-    hmbtn_farm_action_init(&s->farm_action);
+    s->village.makers=&s->makers;s->village.poultry=&s->poultry;s->village.construction=&s->construction;s->village.cooking=&s->game.cooking;
+    hmbtn_farm_action_init(&s->farm_action);hmbtn_mine_enter(&s->mine,0);
     hmbtn_farm_menu_init(&s->menu,hmbtn_game_economy_const(&s->game));
     s->livestock.construction=&s->construction;s->feed_shop.livestock=&s->livestock;s->menu.livestock=&s->livestock;
     s->menu.poultry=&s->poultry;s->feed_shop.poultry=&s->poultry;s->feed_shop.economy=&s->game.economy;
-    s->feed_shop.progress=&s->game.progress;s->feed_shop.construction=&s->construction;s->menu.construction=&s->construction;s->menu.cooking=&s->game.cooking;
+    s->feed_shop.random=&s->village.random;
+    s->carry.basket=&s->game.basket;s->feed_shop.basket_state=&s->game.basket;
+    s->feed_shop.action=&s->farm_action;s->feed_shop.makers=&s->makers;s->feed_shop.progress=&s->game.progress;s->feed_shop.construction=&s->construction;s->menu.construction=&s->construction;s->menu.cooking=&s->game.cooking;
     /* Preserve zeroed poultry and the pre-handoff village. The village's
      * existing defaults are installed only when its schedules arrive. */
     return s;
@@ -54,7 +57,7 @@ bool hmbtn_session_bind_schedules(HmbtnSession *s,const uint8_t *data,size_t siz
     if(!s->village_initialized) {
         hmbtn_village_init(&s->village,data,size);s->village_initialized=true;
         s->village.player=&s->intro.player;s->village.weather=&s->game.weather;s->village.doors=&s->area_doors;
-        s->village.poultry=&s->poultry;s->village.construction=&s->construction;s->village.cooking=&s->game.cooking;
+        s->village.makers=&s->makers;s->village.poultry=&s->poultry;s->village.construction=&s->construction;s->village.cooking=&s->game.cooking;
         hmbtn_village_refresh_weather(&s->village);
     } else {
         s->village.schedule_data=data;s->village.schedule_size=size;
@@ -255,11 +258,13 @@ void hmbtn_session_finish_visit(HmbtnSession *s)
 {
     if(!s || !s->visit.active) return;
     const bool ellen=s->visit.event==130;
+    const bool shopping=s->visit.event>=290 && s->visit.event<=298;
     hmbtn_session_release_event_actors(s);
     s->visit=(HmbtnFarmVisit){0};s->intro.game_command=NULL;s->intro.game_context=NULL;
     s->intro.player_free=false;
     s->village.flags[3]=s->village.flags[4]=s->village.flags[5]=s->village.flags[0xB0]=false;
     s->village.people[17].placed=false;s->intro.mayor.visible=false;
     if(ellen) s->intro.elli.visible=s->intro.ellen.visible=s->intro.stu.visible=false;
+    if(shopping) s->intro.zack.visible=false;
     memset(s->intro.mayor.velocity,0,sizeof(s->intro.mayor.velocity));
 }

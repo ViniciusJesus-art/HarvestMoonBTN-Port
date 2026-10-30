@@ -7,6 +7,7 @@ typedef struct HmbtnHouseControl {
     unsigned mode, blocked_frames;
     /* NPC probe only: running bypasses this, never ground/field collision. */
     bool (*npc_blocked)(const void *context,const int32_t from[3],const int32_t to[3]);
+    bool (*object_blocked)(const void *context,const int32_t from[3],const int32_t to[3]);
     const void *collision_context;
     bool enabled, exit_pending, carrying;
     bool carrying_big;

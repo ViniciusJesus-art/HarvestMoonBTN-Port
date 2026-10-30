@@ -1,14 +1,34 @@
 # Status do porte nativo
 
-**Atualizado em:** 2026-10-28
+**Atualizado em:** 2026-10-29
 **Escopo atual:** Linux e Windows; Android é futuro.  
 **Prioridade:** port funcional com reaproveitamento do C original, conforme a fila PF do [ROADMAP.md](ROADMAP.md).
 **Concluídas:** MA-01..06 e PF-01..05 — base central, regras compartilhadas, cultivo, evento, atualização independente do desenho e saves nativos estáveis.
 
 **PF-06 em andamento:** batata, grama/feno, culturas base de verão/outono, clima diário/chuva, sementes sazonais de Won, desbloqueios do supermercado, Pink Cat/Toy Flower, variantes de Magic Red e Moondrop/visitas de Karen, carpintaria, ampliação do galinheiro e primeira casa (depósitos/núcleo da cozinha) concluídos nos respectivos recortes; obra/mapas/cochos do celeiro também entregues; aquisição/capacidade/alimentação bovina/ovina, segunda casa/lareira, estufa, Orangecup, ferramentas animais e leite/lã integrados; demais sistemas originais ainda parciais/ausentes.
-**Próxima implementação:** PF-06 — reprodução bovina/ovina, começando por poções/gestação/reserva de vaga. Venda com Barley e correções de portas internas/chuva/coleta/descarte entregues no recorte de [PF06_WORLD_FIDELITY.md](PF06_WORLD_FIDELITY.md). Reprodução/eventos animais e cozinha completa continuam pendentes. Saves atuais v11, sem compatibilidade exigida com versões anteriores.
+**Próxima implementação:** PF-06 — cesta de remessas.
+As duas ampliações de mochila foram entregues em [PF06_RUCKSACK.md](PF06_RUCKSACK.md).
+Utensílios/apresentação da cozinha e acessórios de Saibara também entregues nos
+recortes do [roadmap](ROADMAP.md).
+Melhorias de ferramentas de Saibara entregues no recorte: minério/XP, preço,
+confirmações, três manhãs, retirada com guarda de espaço e carga/alcance/efeitos
+reais das cinco ferramentas. [Relatório e validação](PF06_TOOL_UPGRADES.md).
+**Saves:** adaptar o necessário à funcionalidade; compatibilidade entre versões
+não é requisito nem proibição. PF-06 e cozinha completa seguem abertas.
 MA-07..25 foram substituídas como fila, não concluídas. Refatorações necessárias
 acompanham as entregas funcionais; PF-04 separou atualização/desenho nos fluxos atuais.
+
+## Entrega atual — compra das ampliações de mochila
+
+Balcão original do supermercado, ofertas de 3.000/5.000 G, dez manhãs,
+cancelamento/saldo, mostrar/vestir com ANI original e mesmo inventário/carteira.
+Capacidade 2/4/8 e menus/depósitos existentes, registros preservados e contador
+no codec v17. Debug 7/7, wrapper 1/1 e regressões 5/5; Release 2/2; build Windows
+e unidade/percurso/três retomadas Wine aprovados. 45 processos incluindo
+lançadores/filhos; suíte inteira não executada. `runtime.c` preservado
+integralmente, incluindo portas do usuário. [Fontes e limites](PF06_RUCKSACK.md).
+Cesta, embrulhos, jornal, festivais e relacionamentos completos seguem abertos.
+O bootstrap `--diagnostics` não executa o jogo; o runtime permanece parcial.
 
 ## Situação atual
 
@@ -32,7 +52,7 @@ Compilar PS1, manter MIPS/ABI ou reproduzir SHA-1 não são critérios do produt
 
 | Marco | Situação | Próximo encaminhamento |
 |---|---|---|
-| Base MA | MA-01..06 concluídas; plano restante substituído | Preservar estado/sessão/serviços/tick; PF-01..05 concluídas; seguir PF-06 (Reprodução bovina/ovina a seguir (venda com Barley, ferramentas animais/leite/lã, Orangecup/estufa/segunda casa entregues); primeira casa/depósitos/núcleo da cozinha e carpintaria/galinheiro, Moondrop, Magic Red, flores simples, desbloqueios do supermercado, sementes sazonais de Won, clima diário/chuva, culturas base de verão/outono, batata e grama/feno entregues), sem uma nova fase geral de reorganização. |
+| Base MA | MA-01..06 concluídas; plano restante substituído | Preservar estado/sessão/serviços/tick; PF-01..05 concluídas; seguir PF-06 (Utensílios da cozinha a seguir (melhorias de ferramentas, máquinas de Saibara, mineração/aquisição de minérios, pastagem/transporte/sino, funerais e reprodução entregues; venda com Barley, ferramentas animais/leite/lã, Orangecup/estufa/segunda casa entregues); primeira casa/depósitos/núcleo da cozinha e carpintaria/galinheiro, Moondrop, Magic Red, flores simples, desbloqueios do supermercado, sementes sazonais de Won, clima diário/chuva, culturas base de verão/outono, batata e grama/feno entregues), sem uma nova fase geral de reorganização. |
 | M1 — Aplicação nativa | Funcional no recorte atual | Preservar entrada/janela; validar Windows real. |
 | M2 — Recursos e apresentação | Funcional parcialmente | Preservar leitores/backends; ampliar fidelidade com comparação reproduzível. |
 | M3 — Título/cadastro | Funcional parcialmente | Tick/apresentação separados na PF-04; preservar fluxos e rastrear algoritmos/inicialização. |
@@ -45,7 +65,34 @@ checklists sobrepostos. São registros históricos, não contagem atual de siste
 nem denominador de progresso da migração. O [backlog complementar](ROADMAP_PENDENTE_CODEX.md)
 reconcilia esses temas; a ordem executável e o aceite estão no roadmap principal.
 
-## Última referência — PF-06, fidelidade do mundo e venda com Barley
+## Última referência — PF-06, funerais bovinos/ovinos
+
+Evento instalado 172 ampliado para vacas e ovelhas: seis ramos por espécie e
+causa, mensagens/listas completas, atores/música/igreja originais, tempo e
+penalidade única. Limpeza libera mortos e reservas associadas; conserva vivos,
+filhos nascidos, outro parto e incubadoras. Funeral seguido de nascimento e
+eclosão pelo evento 299 validado. Nenhuma mudança de codec foi necessária.
+
+Linux Debug: 14/14 selecionados; Release: 3/3; build MinGW Release e três testes
+no Wine, com repetição do percurso após conferir o bônus original do mel. Até
+47 processos, sem suíte inteira. Alterações locais preservadas.
+[Fontes C/BIN, arquivos e limites](PF06_ANIMAL_FUNERALS.md).
+
+## Referência histórica — PF-06, reprodução bovina/ovina
+
+Compra/uso de poções de 3.000 G, maternidades 1/2, reserva de registro, contador
+1→21 e nascimento/nomeação pelo evento 299 integrados. Mesmo inventário,
+coleção/ciclo diário e editor; guardas de produção/venda e banco de texturas do
+celeiro originais. Save v12 com validação das relações e retomada em novo app.
+Porta externa do Doug anima as duas folhas nas quatro estações, preservando
+recuo/ritmo/tempos ajustados pelo usuário e as 18 travessias internas.
+
+Linux Debug: 12/12 selecionados; Release: 2/2 mais percursos diretos; Windows
+MinGW Release compilado e três testes aprovados no Wine. Limite de até 49
+processos respeitado. Fontes/BIN, decisões e limites em
+[PF06_LIVESTOCK_BREEDING.md](PF06_LIVESTOCK_BREEDING.md).
+
+## Referência histórica — PF-06, fidelidade do mundo e venda com Barley
 
 **Revisão 2026-10-29:** caminhada real pelas portas internas, mensagem correta
 de Barley, cursores alinhados e devolução de pedra/galho ao plantio corrigidos.
@@ -618,3 +665,50 @@ passaram. **49 processos** incluindo repetições/wrappers/filhos; limite 50.
 Capturas de menu, fala de custo e interior inspecionadas. Suíte completa de 124,
 Windows, Release, sanitizers, instalação limpa e janela/áudio físicos não
 executados. Detalhes e lista de arquivos em [PF06_CARPENTRY.md](PF06_CARPENTRY.md).
+
+
+## PF-06 — TV Shopping e utensílios — 2026-10-29
+
+Concluído o recorte de aquisição: programa de sábado após ampliação, oferta
+assistida, telefone da hospedaria, taxa de ligação, confirmações/cancelamento,
+preços do catálogo e nove entregas originais de Zack (oito utensílios e Power
+Berry). Gatilhos BIN determinam a entrega, sem contador inventado. Aparelhos
+aparecem nas posições das duas ampliações e liberam as opções da cozinha
+existente. A faca entregue foi usada para preparar/registrar salada consumindo
+o ingrediente; seu preço original de remessa zero foi respeitado.
+
+Debug: configure/build, regressão 8/8 e wrapper 1/1 com retomadas em outros
+processos. Release: configure/build e seleção 2/2. Windows x64: build local,
+unidade/percurso sob Wine e retomadas pendente/concluída pelo aplicativo
+aprovados. Percurso atualizado também repetido em Debug/Release/Wine para a
+prioridade do telefone sobre descartar um item na mão. Capturas inspecionadas;
+portas do usuário preservadas por comparação do bloco completo inicial.
+Até 49 processos nesta rodada, contando tentativas, wrappers, filhos e
+lançadores; nenhuma suíte inteira. Windows/janela/áudio físicos, instalação
+limpa, sanitizers e verificação PS1 não executados.
+
+Relatório: [PF06_TV_SHOPPING.md](PF06_TV_SHOPPING.md). Próximo: apresentação final
+do preparo (ANI/som/tempo) e indicadores da cozinha/ficha. PF-06 permanece
+aberta; o runtime é parcial e o bootstrap de diagnóstico não executa o jogo.
+
+
+## PF-06 — Preparo e indicadores da cozinha — 2026-10-29
+
+Entregue a sequência C/BIN de fechar confirmação, fade, consumo único,
+faixa XA 22, aguardar áudio e revelar resultado. O original usa tela preta,
+sem ANI de personagem cozinhando nesse fluxo. Painéis de utensílios/temperos,
+receitas e faltas, quantidades e navegação foram adaptados; contagem na ficha
+continua derivada. Escolhas de guardar resultado melhor/pior respeitam o fim
+da mensagem. Nenhuma alteração de codec foi necessária.
+
+Debug: regras 7/7, percurso com aquisição real e retomada em processos separados,
+portas/chuva/mundo e regressão final das duas ampliações 2/2. Release: regras/XA
+2/2, percurso e retomada aprovados. Windows x64/Wine: build, regras/XA, sete
+preparos e retomada aprovados. PCM original não nulo até o fim e capturas dos
+painéis/ficha inspecionados. Portas do usuário preservadas por comparação.
+45 processos contabilizados incluindo tentativas/wrappers/filhos/lançadores;
+sem suíte inteira, sanitizers, instalação limpa ou janela/áudio/Windows físicos.
+
+[Relatório e reprodução](PF06_COOKING_PRESENTATION.md). Próximo: acessórios de
+Saibara, usando loja/fila/minérios existentes. PF-06 permanece aberta; runtime
+parcial e bootstrap de diagnóstico que não executa o jogo continuam explícitos.

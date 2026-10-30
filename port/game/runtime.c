@@ -33,6 +33,21 @@ static const HmbtnServiceResult *service_resource(HmbtnSessionFrame *s,HmbtnServ
 { if(!s->resource) { snprintf(e,n,"Missing resource provider");return NULL; } return s->resource(s->context,kind,id,bank,e,n); }
 static const HmbtnServiceResult *service_audio(HmbtnSessionFrame *s,HmbtnServiceKind kind,unsigned id,char *e,size_t n)
 { if(!s->audio) { snprintf(e,n,"Missing audio provider");return NULL; } return s->audio(s->context,kind,id,e,n); }
+static bool kitchen_audio(HmbtnSessionFrame *s,char *error,size_t size)
+{
+    HmbtnHouseInteraction *h=&s->session->house;HmbtnKitchenMenu *k=&h->kitchen;
+    if(h->mode!=HMBTN_HOUSE_COOKING || k->phase!=HMBTN_KITCHEN_TRACK || k->audio_finished) return true;
+    /* Consume the cooking wait before the scripted-event adapter sees its
+     * result. Both clients use the same service channel and XA stream. */
+    const HmbtnServiceResult *r=service_audio(s,k->audio_started ? HMBTN_SERVICE_WAIT_XA : HMBTN_SERVICE_START_XA,0x16,error,size);
+    if(!r) return false;
+    if(r->status==HMBTN_SERVICE_PENDING) return true;
+    if(r->status!=HMBTN_SERVICE_DONE || !hmbtn_service_ack(&s->session->services,r->ticket)) {
+        snprintf(error,size,"Cannot acknowledge cooking XA result");return false;
+    }
+    if(k->audio_started) k->audio_finished=true;else k->audio_started=true;
+    return true;
+}
 static bool service_read(HmbtnSessionFrame *s,HmbtnServiceKind kind,unsigned id,unsigned bank,uint8_t *data,size_t bytes,uint32_t *value,char *e,size_t n)
 { if(!s->read) { snprintf(e,n,"Missing resource reader");return false; } return s->read(s->context,kind,id,bank,data,bytes,value,e,n); }
 static bool message_record(HmbtnSessionFrame *s,const uint8_t *record,size_t bytes,HmbtnMessage *m,char *error,size_t size)
@@ -64,28 +79,37 @@ static HmbtnEventResult animal_command(void *context,const HmbtnEventCommand *c,
     if(!s) { snprintf(error,size,"Event command outside session tick");return HMBTN_EVENT_ERROR; }
     if(c->type==0x51 && c->command==14 && s->session->animal_event==172) {
         if(c->operand==0 && c->x>=0 && c->x<=2 && c->y>=0 && c->y<=1)
-            return c->x==2 && hmbtn_poultry_dead(&s->session->poultry,c->y==0) ? HMBTN_EVENT_DONE : HMBTN_EVENT_WAIT;
+            return (c->x==2 ? hmbtn_poultry_dead(&s->session->poultry,c->y==0)
+                : hmbtn_livestock_dead(&s->session->livestock,c->x==1,c->y==0)) ? HMBTN_EVENT_DONE : HMBTN_EVENT_WAIT;
         if(c->operand==1 && !c->x && !c->y) {
-            s->session->carry.discarded+=hmbtn_poultry_clear_dead(&s->session->poultry);
+            s->session->carry.discarded+=hmbtn_poultry_clear_dead(&s->session->poultry)
+                +hmbtn_livestock_clear_dead(&s->session->livestock);
             if(s->session->carry.discarded>99) s->session->carry.discarded=99;
+            /* Original dispatch 14/1 falls through ESTATE_GIFT_ROW97_BONUS
+             * (BIN 0x800ea8e4..0x800ea934), used by item_sell_price(HONEY). */
+            s->session->game.economy.shipping.honey_bonus=true;
             return HMBTN_EVENT_DONE;
         }
     }
     if(c->type==0x51 && c->command==13 && s->session->animal_event==299 && !c->y) {
-        if(c->operand==0 && !c->x) return HMBTN_EVENT_DONE;
+        if(c->operand==0 && !c->x) {
+            hmbtn_livestock_birth_begin(&s->session->livestock,&s->session->game.clock);return HMBTN_EVENT_DONE;
+        }
         if(c->operand==1 && c->x>=0 && c->x<=3)
-            return c->x>=2 && hmbtn_poultry_hatch_ready(&s->session->poultry,(unsigned)c->x-2) ? HMBTN_EVENT_DONE : HMBTN_EVENT_WAIT;
-        if(c->operand==2 && c->x>=2 && c->x<=3) {
-            HmbtnHen *hen=hmbtn_poultry_hatch_ready(&s->session->poultry,(unsigned)c->x-2);
-            if(!hen) { snprintf(error,size,"Chick naming lost its reserved slot");return HMBTN_EVENT_ERROR; }
+            return (c->x<2 ? hmbtn_livestock_birth_ready(&s->session->livestock,(unsigned)c->x)
+                : hmbtn_poultry_hatch_ready(&s->session->poultry,(unsigned)c->x-2)!=NULL) ? HMBTN_EVENT_DONE : HMBTN_EVENT_WAIT;
+        if(c->operand==2 && c->x>=0 && c->x<=3) {
+            HmbtnHen *hen=c->x>=2 ? hmbtn_poultry_hatch_ready(&s->session->poultry,(unsigned)c->x-2) : NULL;
+            HmbtnFarmAnimal *calf=c->x<2 ? hmbtn_livestock_newborn(&s->session->livestock,(unsigned)c->x) : NULL;
+            if(!hen && !calf) { snprintf(error,size,"Animal naming lost its reserved slot");return HMBTN_EVENT_ERROR; }
             if(!s->session->animal_name_active) {
                 hmbtn_name_editor_begin(&s->session->animal_name);s->session->animal_name.no_cancel=true;s->session->animal_name_active=true;
                 return HMBTN_EVENT_WAIT;
             }
             if(!s->session->animal_name.finished || s->session->animal_name.message.phase!=HMBTN_MESSAGE_CLOSED) return HMBTN_EVENT_WAIT;
-            memcpy(hen->name,s->session->animal_name.name,sizeof(hen->name));s->session->animal_name_active=false;return HMBTN_EVENT_DONE;
+            memcpy(hen ? hen->name : calf->name,s->session->animal_name.name,sizeof(s->session->animal_name.name));s->session->animal_name_active=false;return HMBTN_EVENT_DONE;
         }
-        if(c->operand==3 && !c->x) { hmbtn_poultry_name_end(&s->session->poultry);return HMBTN_EVENT_DONE; }
+        if(c->operand==3 && !c->x) { hmbtn_poultry_name_end(&s->session->poultry);hmbtn_livestock_birth_end(&s->session->livestock);return HMBTN_EVENT_DONE; }
     }
     if(c->type==0x5B && s->session->animal_event==172 && c->command==32 && c->operand==1 && c->x==-20 && c->y==-1000) {
         /* event_cmd_apply_var_table: bachelorettes use affection, others friendship. */
@@ -117,6 +141,19 @@ static HmbtnEventResult visit_command(void *context,const HmbtnEventCommand *c,c
     if(!s) { snprintf(error,size,"Event command outside session tick");return HMBTN_EVENT_ERROR; }
     if(c->type==81 && c->command==27)
         return hmbtn_event_progress_command(&owner->game.progress,c,error,size);
+    if(owner->visit.event>=290 && owner->visit.event<=298 && !c->x && !c->y) {
+        if(c->type==81 && c->command==7 && c->operand==(int)owner->visit.event-290 && c->operand<8) {
+            owner->game.cooking.utensils|=1u<<(unsigned)c->operand;
+            hmbtn_village_flag_set(&owner->village,0x67+(unsigned)c->operand,false);return HMBTN_EVENT_DONE;
+        }
+        if(owner->visit.event==298 && c->type==31 && c->command==0x67 && !c->operand)
+            return hmbtn_event_item_begin(&owner->event_item,&owner->intro.player,&owner->game.inventory,0x67,true) ? HMBTN_EVENT_DONE : HMBTN_EVENT_WAIT;
+        /* Installed ninth script dispatches ESTATE_BITS with zero. Its event
+         * done flag prevents another delivery; preserve that original call. */
+        if(owner->visit.event==298 && c->type==81 && c->command==6 && !c->operand) return HMBTN_EVENT_DONE;
+    }
+    if(owner->visit.event==298 && c->type==69 && c->command==1 && !c->operand && c->x==0x20000000 && !c->y)
+        return owner->event_item.phase!=HMBTN_EVENT_ITEM_IDLE ? HMBTN_EVENT_DONE : HMBTN_EVENT_WAIT;
     if(owner->visit.event==18) {
         if(c->type==55 && !c->command && c->operand==5 && !c->x && !c->y) {
             owner->intro.slots[5]=(int32_t)owner->visit.prop.item;return HMBTN_EVENT_DONE;
@@ -194,9 +231,12 @@ static bool visit_begin(HmbtnSessionFrame *s,unsigned event,char *error,size_t s
     if(!load_event(s,event,error,size) || !hmbtn_farm_visit_begin(&s->session->visit,&s->session->triggers,event,&s->session->village)) return false;
     s->session->visit.start_area=s->session->area;
     s->session->intro.game_command=visit_command;s->session->intro.game_context=s->session;
-    if(event!=18 && event!=19 && event!=129 && event!=130 && event!=140 && !hmbtn_session_bind_event_actor(s->session,17,
+    if(event<290 && event!=18 && event!=19 && event!=129 && event!=130 && event!=140 && !hmbtn_session_bind_event_actor(s->session,17,
             HMBTN_SESSION_ACTOR_PRIMARY,event==289)) {
         snprintf(error,size,"Conflicting visitor actor 17");return false;
+    }
+    if(event>=290 && event<=298 && !hmbtn_session_bind_event_actor(s->session,26,HMBTN_SESSION_ACTOR_INTRO,false)) {
+        snprintf(error,size,"Conflicting TV Shopping delivery actor Zack");return false;
     }
     if(event==140) {
         HmbtnIntroActor *actor=hmbtn_session_bind_event_actor(s->session,21,HMBTN_SESSION_ACTOR_VISIT,true);
@@ -256,6 +296,13 @@ static bool village_conversation(HmbtnSessionFrame *s,uint32_t pressed,uint32_t 
         }
     }
     if(!hmbtn_session_talk_tick(s->session,error,size)) return false;
+    if(t->show_item) {
+        if(!hmbtn_event_item_show(&s->session->event_item,&s->session->intro.player,
+                &s->session->game.inventory,t->show_item)) {
+            snprintf(error,size,"Cannot present Saibara accessory");return false;
+        }
+        t->show_item=0;
+    }
     if(t->show_tool) {
         /* player_show_tool: use the existing base ANI 0x47 and item picture. */
         s->session->quick_tool=true;s->session->quick_id=t->show_tool;s->session->quick_ticks=t->show_frames;
@@ -287,7 +334,8 @@ static bool village_conversation(HmbtnSessionFrame *s,uint32_t pressed,uint32_t 
     s->session->control.carrying=s->session->house.inventory->held_item.id!=0;
     const HmbtnFarmItem *carried=hmbtn_farm_item(s->session->house.inventory->held_item.id);
     s->session->control.carrying_big=s->session->control.carrying && carried && (carried->flags&0x180u);
-    if(!s->session->quick_ticks) s->session->intro.player.sprite=(HmbtnAnimationPlayer){(uint16_t)(s->session->control.carrying_big ? 41 : s->session->control.carrying ? 27 : 0),(uint16_t)s->session->intro.player.facing,0};
+    if(!s->session->quick_ticks && s->session->event_item.phase==HMBTN_EVENT_ITEM_IDLE)
+        s->session->intro.player.sprite=(HmbtnAnimationPlayer){(uint16_t)(s->session->control.carrying_big ? 41 : s->session->control.carrying ? 27 : 0),(uint16_t)s->session->intro.player.facing,0};
     return true;
 }
 static bool morning(HmbtnSessionFrame *,bool,char *,size_t);
@@ -311,29 +359,132 @@ static bool exploration_boundary(void *context,HmbtnSession *session,HmbtnExplor
     }
     case HMBTN_EXP_TRANSITION: {  // Sistema de Interação com portas 
         if(s->session->door_tick) {
+
+
+
+
             if(s->session->travel_exit.target==0xfffe) {
-                /* player_walk_start(10), then FARM_MODE_ZONE_WALK's 27
-                 * ticks for ZONE_ID_NO_RESET. NO_INPUT skips the E080 bump
-                 * probe; position still settles on C080 ground. */
+
                 HmbtnIntroActor *p=&s->session->intro.player;
-                const unsigned face=p->facing,axis=face&1u ? 0u : 2u;
-                int32_t next[3];memcpy(next,p->position,sizeof(next));
+                const unsigned face=p->facing;
+                const unsigned axis=(face&1u) ? 0u : 2u;
+
+                const unsigned event=hmbtn_read_le16(
+                    s->section+16+s->session->travel_exit.zone*44+10);
+
+
+                HmbtnDoorPassage passage=HMBTN_DOOR_READY;
+
+                // Solicita a abertura somente até iniciar a travessia.
+                if(s->session->door_tick==1) {
+                    passage=hmbtn_area_doors_request(
+                        &s->session->area_doors,
+                        s->section,0x2000,event,face);
+                }
+
+
+                s->session->control.mode=2;
+                p->pose=false;
+
+                if(passage==HMBTN_DOOR_WAIT) {
+
+                    // ETAPA 1: Andar para trás enquanto a porta abre.
+                    if(s->session->door_angle>-0x420) {
+
+                        const unsigned opposite_face=(face+2u)%4u;
+
+                        const unsigned animation=opposite_face+
+                            (s->session->control.carrying_big ? 42u :
+                            s->session->control.carrying ? 15u : 1u);
+
+                        if(p->sprite.animation!=animation)
+                            p->sprite=(HmbtnAnimationPlayer){
+                                (uint16_t)animation,0,0};
+
+                        // Mesmo ritmo utilizado nas portas externas.
+                        s->session->door_speed+=8;
+                        s->session->door_angle-=s->session->door_speed;
+
+                        if(s->session->door_angle<-0x420)
+                            s->session->door_angle=-0x420;
+
+                        // Movimento para trás.
+                        int32_t next[3];
+                        memcpy(next,p->position,sizeof(next));
+                        next[axis]+=face<2 ? 30 : -30;
+
+                        HmbtnGroundHit hit;
+                        if(hmbtn_ground_find(
+                            &s->scene->terrain,next,0xc080,200,&hit)) {
+                            next[1]=hit.height;
+                            memcpy(p->position,next,sizeof(next));
+                        }
+
+                    } else {
+                        // Já recuou; aguarda a porta terminar de abrir.
+                        p->sprite=(HmbtnAnimationPlayer){
+                            (uint16_t)(s->session->control.carrying_big ? 41 :
+                            s->session->control.carrying ? 27 : 0),
+                            (uint16_t)face,0};
+                    }
+
+                    memcpy(s->session->intro.camera,
+                        p->position,sizeof(s->session->intro.camera));
+
+                    return true;
+                }
+
+                // ETAPA 2: Porta aberta, caminhar para a frente.
+                // UNHANDLED conserva o avanço antigo como fallback.
+                int32_t next[3];
+                memcpy(next,p->position,sizeof(next));
+
                 next[axis]+=face<2 ? -41 : 41;
+
                 HmbtnGroundHit hit;
-                if(hmbtn_ground_find(&s->scene->terrain,next,0xc080,200,&hit)) {
-                    next[1]=hit.height;memcpy(p->position,next,sizeof(next));
+                if(hmbtn_ground_find(
+                    &s->scene->terrain,next,0xc080,200,&hit)) {
+                    next[1]=hit.height;
+                    memcpy(p->position,next,sizeof(next));
                 }
-                memcpy(s->session->intro.camera,p->position,sizeof(next));
-                const unsigned animation=face+(s->session->control.carrying_big ? 42u : s->session->control.carrying ? 15u : 1u);
-                if(p->sprite.animation!=animation) p->sprite=(HmbtnAnimationPlayer){(uint16_t)animation,0,0};
-                s->session->control.mode=2;p->pose=false;
-                if(++s->session->door_tick>37) {
-                    s->session->door_tick=0;s->session->control.exit_pending=false;
-                    s->session->control.mode=s->session->control.blocked_frames=0;
-                    p->sprite=(HmbtnAnimationPlayer){(uint16_t)(s->session->control.carrying_big ? 41 : s->session->control.carrying ? 27 : 0),(uint16_t)face,0};
+
+                memcpy(s->session->intro.camera,
+                    p->position,sizeof(s->session->intro.camera));
+
+                const unsigned animation=face+
+                    (s->session->control.carrying_big ? 42u :
+                    s->session->control.carrying ? 15u : 1u);
+
+                if(p->sprite.animation!=animation)
+                    p->sprite=(HmbtnAnimationPlayer){
+                        (uint16_t)animation,0,0};
+
+                // Compensa a distância percorrida para trás.
+                // Mantém aproximadamente o deslocamento original.
+
+
+                if(++s->session->door_tick>=28) {
+
+                    // ETAPA 3: Finaliza a travessia.
+                    // A porta fechará automaticamente após o hold.
+                    s->session->door_tick=0;
+                    s->session->control.exit_pending=false;
+
+                    s->session->control.mode=0;
+                    s->session->control.blocked_frames=0;
+
+                    p->sprite=(HmbtnAnimationPlayer){
+                        (uint16_t)(s->session->control.carrying_big ? 41 :
+                        s->session->control.carrying ? 27 : 0),
+                        (uint16_t)face,0};
                 }
+
                 return true;
             }
+
+
+
+
             /* doors.c supplies swing direction and 0x420 limit. Preserve the
              * native retreat, acceleration 5 and 31-tick entry timing. */
             if(s->session->door_angle>-0x420) {
@@ -415,24 +566,47 @@ static bool exploration_boundary(void *context,HmbtnSession *session,HmbtnExplor
             } else if(s->session->travel_exit.target==0xfffe) {
                 hmbtn_area_doors_bind(&s->session->area_doors,s->scene);
                 hmbtn_area_doors_request(&s->session->area_doors,s->section,0x2000,event,s->session->intro.player.facing);
-                s->session->door_tick=1;s->session->control.exit_pending=true;
+
+
+                s->session->door_tick=1;
+                s->session->door_speed=0;
+                s->session->door_angle=0;
+                s->session->control.exit_pending=true;
+
+
+
                 result->consumed=true;
             } else {
-            hmbtn_area_doors_claim(&s->session->area_doors,s->scene,s->session->door_model);
-            s->session->control.exit_pending=true;s->session->door_tick=1;s->session->door_speed=s->session->door_angle=0;
-            s->session->door_base_angle=s->scene->angle[s->session->door_model][1];s->session->door_twin=-1;
-            if(s->scene->flags[s->session->door_model]&0x400u) {
-                const unsigned twin=hmbtn_read_le16(s->section+0x948+s->session->door_model*44+8);
-                if(twin>=HMBTN_SCENE_MODELS) { snprintf(error,error_size,"Invalid twin door model");return false; }
-                s->session->door_twin=(int)twin;s->session->door_twin_base=s->scene->angle[twin][1];
-            }
-            if(!key_sound(s,2,1,12,60,127)) {
-                snprintf(error,error_size,"Original door opening tone unavailable");return false;
-            }
-            s->session->intro.player.sprite=(HmbtnAnimationPlayer){(uint16_t)(s->session->control.carrying_big ? 41 : s->session->control.carrying ? 27 : 0),(uint16_t)s->session->intro.player.facing,0};
-            if(hmbtn_read_le16(s->section+16+s->session->travel_exit.zone*44)==0x1000) { s->session->door_tick=0;s->session->travel_tick=1; }
-            result->consumed=true;return true;
-            }
+                hmbtn_area_doors_claim(
+                    &s->session->area_doors,
+                    s->scene,
+                    s->session->door_model
+                );
+
+
+
+                s->session->door_tick=1;
+                s->session->door_speed=0;
+                s->session->door_angle=0;
+                s->session->control.exit_pending=true;
+
+                s->session->door_base_angle= s->scene->angle[s->session->door_model][1];
+
+
+                s->session->door_twin=-1;
+                if(s->scene->flags[s->session->door_model]&0x400u) {
+                    const unsigned twin=hmbtn_read_le16(s->section+0x948+s->session->door_model*44+8);
+                    if(twin>=HMBTN_SCENE_MODELS) { snprintf(error,error_size,"Invalid twin door model");return false; }
+                    s->session->door_twin=(int)twin;s->session->door_twin_base=s->scene->angle[twin][1];
+                }
+                if(!key_sound(s,2,1,12,60,127)) {
+                    snprintf(error,error_size,"Original door opening tone unavailable");return false;
+                }
+                s->session->intro.player.sprite=(HmbtnAnimationPlayer){(uint16_t)(s->session->control.carrying_big ? 41 : s->session->control.carrying ? 27 : 0),(uint16_t)s->session->intro.player.facing,0};
+                if(hmbtn_read_le16(s->section+16+s->session->travel_exit.zone*44)==0x1000
+                        && !(s->scene->flags[s->session->door_model]&0x400u)) { s->session->door_tick=0;s->session->travel_tick=1; }
+                result->consumed=true;return true;
+                }
         return true;
     }
     case HMBTN_EXP_SLEEP: {
@@ -495,8 +669,11 @@ static bool opening_tick(HmbtnSessionFrame *s, uint32_t held, char *error, size_
             && !s->session->intro.fade_level
             && !s->session->travel_tick && !s->session->door_tick && !s->session->sleep.active && !s->session->control.exit_pending
             && s->session->house.mode==HMBTN_HOUSE_FREE && s->session->menu.mode==HMBTN_MENU_NONE && !s->session->carry.phase && !s->session->quick_ticks) {
-        unsigned event=hmbtn_poultry_dead(&s->session->poultry,false) || hmbtn_poultry_dead(&s->session->poultry,true) ? 172
-            : hmbtn_poultry_hatch_ready(&s->session->poultry,0) || hmbtn_poultry_hatch_ready(&s->session->poultry,1) ? 299 : 0;
+        unsigned event=hmbtn_poultry_dead(&s->session->poultry,false) || hmbtn_poultry_dead(&s->session->poultry,true)
+                || hmbtn_livestock_dead(&s->session->livestock,false,false) || hmbtn_livestock_dead(&s->session->livestock,false,true)
+                || hmbtn_livestock_dead(&s->session->livestock,true,false) || hmbtn_livestock_dead(&s->session->livestock,true,true) ? 172
+            : hmbtn_poultry_hatch_ready(&s->session->poultry,0) || hmbtn_poultry_hatch_ready(&s->session->poultry,1)
+                || hmbtn_livestock_birth_ready(&s->session->livestock,0) || hmbtn_livestock_birth_ready(&s->session->livestock,1) ? 299 : 0;
         if(event && !animal_event_begin(s,event,error,error_size)) return false;
     }
     if(s->session->completion_reported && s->session->control.enabled && s->session->first_visit_started
@@ -556,7 +733,11 @@ static bool opening_tick(HmbtnSessionFrame *s, uint32_t held, char *error, size_
     (void)effect(s,(HmbtnRuntimeEffect){.kind=HMBTN_RUNTIME_XA_TICK});
     if(s->session->services.channels[HMBTN_SERVICE_AUDIO].request.kind==HMBTN_SERVICE_WAIT_XA)
         (void)effect(s,(HmbtnRuntimeEffect){.kind=HMBTN_RUNTIME_AUDIO_POLL});
+    if(!kitchen_audio(s,error,error_size)) return false;
+    const bool shopping_berry=s->session->visit.active && s->session->visit.event==298
+        && s->session->event_item.phase==HMBTN_EVENT_ITEM_EAT && s->session->event_item.shown==0x67;
     hmbtn_event_item_tick(&s->session->event_item,&s->session->intro.player,s->session->house.inventory,&s->session->farm_action);
+    if(shopping_berry && s->session->event_item.phase==HMBTN_EVENT_ITEM_IDLE) ++s->session->menu.stats.power_berries;
     if(s->session->event_item.phase==HMBTN_EVENT_ITEM_IDLE && !s->session->carry.phase) s->session->control.carrying=s->session->house.inventory->held_item.id!=0;
     if(s->session->event_item.sound>=0 && s->session->event_item.phase!=HMBTN_EVENT_ITEM_IDLE) {
         const HmbtnFarmSound *fx=hmbtn_farm_sound((unsigned)s->session->event_item.sound);
@@ -702,12 +883,18 @@ static bool opening_tick(HmbtnSessionFrame *s, uint32_t held, char *error, size_
             uint8_t record[8192];uint16_t words[1024];unsigned count=0;
             if(!service_read(s,HMBTN_SERVICE_TEXT_DATA,s->session->intro.message,s->session->intro.message_bank,
                     record,sizeof(record),NULL,error,error_size)) return false;
-            if(s->session->animal_event==172 && !hmbtn_poultry_expand_dead(&s->session->poultry,record,sizeof(record))) {
+            if(s->session->animal_event==172 && !hmbtn_animal_death_expand(&s->session->poultry,&s->session->livestock,record,sizeof(record))) {
                 snprintf(error,error_size,"Funeral names exceed message capacity");return false;
             }
             for(unsigned i=0;i<1024 && count<1024;++i) {
                 uint16_t c=hmbtn_read_le16(record+0x1800+i*2);
                 const uint16_t *name=c==0x400a ? s->session->game.registration.player_name : c==0x400c ? s->session->game.registration.dog_name : c==0x400d ? s->session->game.registration.farm_name : NULL;
+                /* text_insert_source 0x16/0x17: maternity-slot mothers. */
+                if(s->session->animal_event==299 && (c==0x4016 || c==0x4017)) {
+                    const HmbtnLivestockBirth *birth=&s->session->livestock.births[c-0x4016];
+                    if(!birth->active) { snprintf(error,error_size,"Birth message lost its mother");return false; }
+                    name=s->session->livestock.animals[birth->mother].name;
+                }
                 if(name) { for(unsigned j=0;j<8 && name[j]!=0xffff && count<1023;++j) words[count++]=name[j]; }
                 else words[count++]=c;
                 if(c==0xffff) break;
@@ -807,6 +994,7 @@ void hmbtn_session_area_begin(HmbtnSession *s,unsigned area,unsigned previous,bo
 }
 void hmbtn_session_area_ready(HmbtnSession *s,unsigned area,const HmbtnSceneData *scene)
 {
+    hmbtn_mine_enter(&s->mine,area);
     s->area_doors=(HmbtnAreaDoors){0};
     s->area=s->carry.area=area;s->intro.ground=&scene->terrain;s->refused_zone=-1;
     if(s->village_ready) hmbtn_village_enter(&s->village);

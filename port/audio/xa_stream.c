@@ -2,6 +2,7 @@
 #include "psx_audio.h"
 #include <stdio.h>
 #include <string.h>
+#include "xa_tracks.inc"
 
 void hmbtn_xa_stream_close(HmbtnXAStream *s)
 {
@@ -37,23 +38,23 @@ static bool next_frame(HmbtnXAStream *s, int16_t frame[2], char *error, size_t e
 bool hmbtn_xa_stream_start(HmbtnXAStream *s, const char *root, unsigned track,
     char *error, size_t error_size)
 {
-    if (!s || !root || !*root || (track != 4 && track != 5)) {
-        snprintf(error,error_size,"Unsupported childhood XA track"); return false;
+    if (!s || !root || !*root || (track != 4 && track != 5 && track != 0x16)) {
+        snprintf(error,error_size,"Unsupported native XA track"); return false;
     }
     hmbtn_xa_stream_close(s);
     char *path = NULL;
-    if (SDL_asprintf(&path,"%s/disc/STR/01.XA",root) < 0) {
+    if (SDL_asprintf(&path,"%s/disc/STR/%02u.XA",root,xa_tracks[track][1]+1) < 0) {
         snprintf(error,error_size,"Cannot allocate XA path"); return false;
     }
     s->file = SDL_IOFromFile(path,"rb"); SDL_free(path);
-    if (!s->file) { snprintf(error,error_size,"Cannot open disc/STR/01.XA: %s",SDL_GetError()); return false; }
+    if (!s->file) { snprintf(error,error_size,"Cannot open original XA file %u: %s",xa_tracks[track][1]+1,SDL_GetError()); return false; }
     const Sint64 size = SDL_GetIOSize(s->file);
     if (size <= 0 || size%HMBTN_XA_SECTOR_BYTES || size/HMBTN_XA_SECTOR_BYTES > 32768) {
         snprintf(error,error_size,"Extracted XA file has invalid sector size/count"); goto fail;
     }
     s->sectors = (uint32_t)(size/HMBTN_XA_SECTOR_BYTES);
-    s->track = track; s->channel = track; s->countdown = 4;
-    s->volume = track == 4 ? 0x3EA : 0x4F8;
+    s->track = track; s->channel = xa_tracks[track][2]; s->countdown = 4;
+    s->volume = xa_tracks[track][0];
     if (!next_frame(s,s->current,error,error_size) || !next_frame(s,s->next,error,error_size)) goto fail;
     s->primed = s->active = true;
     printf("Native XA track %u ready: filtered channel %u, %u Hz, sector streaming.\n",track,s->channel,s->decoder.rate);

@@ -13,7 +13,7 @@ extraiu o tick de exploração livre, sem depender do desenho. A entrega
 PF-01 concluiu as regras compartilhadas de inventário/dinheiro e PF-02 integrou
 o primeiro cultivo completo/ciclo diário. PF-03 compartilhou comandos e integrou
 Duke; PF-04 consolidou o tick e separou atualização/desenho. PF-05 entregou saves
-nativos do estado estável. PF-06 integrou batata, grama/feno, culturas base de verão/outono, clima diário/chuva, sementes sazonais de Won, desbloqueios do supermercado, Pink Cat/Toy Flower e variantes de Magic Red; Moondrop e visitas de Karen também integradas; carpintaria/galinheiro também integrados; cadeia da estufa, ferramentas animais e venda com Barley entregues nos recortes abaixo; próximo recorte: reprodução bovina/ovina. Nenhuma depende de terminar o interpretador inteiro. A matriz cobre os principais pontos de integração,
+nativos do estado estável. PF-06 integrou batata, grama/feno, culturas base de verão/outono, clima diário/chuva, sementes sazonais de Won, desbloqueios do supermercado, Pink Cat/Toy Flower e variantes de Magic Red; Moondrop e visitas de Karen também integradas; carpintaria/galinheiro também integrados; cadeia da estufa, ferramentas animais e venda com Barley entregues nos recortes abaixo; reprodução bovina/ovina entregue; funerais bovinos/ovinos entregues; próximo recorte: pastagem/transporte do gado. Nenhuma depende de terminar o interpretador inteiro. A matriz cobre os principais pontos de integração,
 não é uma lista exaustiva de todas as funções decompiladas.
 
 ## Prioridade funcional e extensibilidade
@@ -233,7 +233,7 @@ recorte funcional é clima diário/chuva, com critérios definidos no roadmap.
 | `F/farm_data.c`: `house_door_positions`; `F/people/player.c`: `player_result_camera_points`; zonas BIN | `P/daily.c`, `house_sleep.c`, `runtime.c`, `house_interaction.c` | **A:** despertar/cama conforme nível autoritativo; TV/calendário/baú/diário nos novos lugares. Preserva curva de porta ajustada pelo usuário; nível é argumento de gameplay. | Casa ampliada: móveis reais, dormir/salvar/carregar e conservação de campo/inventário; regressões de chuva/portas/interiores. |
 | `F/menu/item_storage.c`: navegação `item_markers`, resolução/trocas, classes/pilhas; `F/event/event_commands.c`: `event_items_take` | `P/inventory.c`, `game_state.h`, `house_interaction.c`, `exploration.c`, `graphics/house_ui.c`, gerador | **A:** geladeira/armário em `game.inventory`; UI empresta, scripts compartilham. Navegação extraída, pilhas de 99 e retirada de unidade; baú conserva algoritmo anterior. Valores de conteúdo originais não são imposição de hardware. | Depósito com mão ocupada, classes/recusa atômica, pilhas/overflow, modificador, última página, mochila expandida, scripts e save/load. |
 | `F/menu/house.c`: `cooking_find_record`, `cooking_claim_recipe_tools`, `cooking_claim_entry_slots`, `cooking_sum_wanted_cues`, `cooking_clear_pattern_value`, `farm_cue_add_delta`; `src/main/game/cooking_recipes.c` | `P/cooking.c/.h`, `cmake/generate_farm_tables.py` | **A, núcleo funcional:** receitas/bônus/nomes extraídos, matching ordenado/grupos/qualidade adaptados, sem SDL/globais PS1. Não compila módulos originais diretamente. | Vetores bamboo rice/raisin bread/pickles/fiasco, utensílio ausente, grupos, prioridade/bônus; regras e percurso com dados. |
-| `F/menu/house.c`: `cooking_record_available`, `cooking_timer_decrement`, `cooking_hold_result`, `cooking_record_store`, fases do modal; `status_pages.c` | `P/cooking.c`, `house_interaction.c`, `game_state.h`, `farm_menu.c`, `new_game.c`, `graphics/house_ui.c`, `save.c` | **A/M:** cozinha empresta inventário; receitas/utensílios pertencem a `game.cooking`; consumo mochila→geladeira, resultado na mão; contagem derivada. Mensagens BIN e escolhas de 3/4 opções. Aquisição pela TV e apresentação completa pendentes, sem concessão gratuita. | Cancelar sem consumir, preparar/guardar/repetir/variar, falta de ingredientes, registros/save/carga, temperos com fixture de posse e fiasco; desenho não altera domínio. |
+| `F/menu/house.c`: `cooking_record_available`, `cooking_timer_decrement`, `cooking_hold_result`, `cooking_record_store`, fases do modal; `status_pages.c` | `P/cooking.c`, `house_interaction.c`, `game_state.h`, `farm_menu.c`, `new_game.c`, `graphics/house_ui.c`, `save.c` | **A/M:** cozinha empresta inventário; receitas/utensílios pertencem a `game.cooking`; consumo mochila→geladeira, resultado na mão; contagem derivada. Mensagens BIN e escolhas de 3/4 opções. Aquisição pela TV/telefone/Zack e aparelhos entregues no recorte abaixo, sem concessão gratuita; preparo por fade/XA e indicadores entregues no recorte final abaixo. | Cancelar sem consumir, preparar/guardar/repetir/variar, falta de ingredientes, registros/save/carga, temperos com fixture de posse e fiasco; desenho não altera domínio. |
 
 Arquivos, percurso reproduzível, validação **23/23 CTests** e fronteiras em
 [PF06_HOUSE_EXPANSION.md](PF06_HOUSE_EXPANSION.md). Esta seção atualiza o estado
@@ -354,3 +354,142 @@ conserva item e bloqueia entrada manual durante a caminhada.
 pedra/galho, com normalização de figuras de inverno e sem sobrepor culturas.
 Mensagens/pixels do mercado e Barley, persistência e limites do BIN modificado
 registrados em [PF06_INTERACTION_FIXES.md](PF06_INTERACTION_FIXES.md).
+
+
+## PF-06 — Reprodução e revisão da hospedaria, 2026-10-29
+
+| Origem | Adaptação/estado atual | Aceite e limites |
+|---|---|---|
+| `F/animals/livestock.c`: `livestock_start_pregnancy/_b`, overnight, copy placement, produção; `animals.c`: modo/reserva/mensagens | **A:** `P/livestock.c/.h`, mesma coleção/ciclo; maternidades 1/2, reserva sem animal fictício, 1→21, filhotes e guardas por espécie | Recusas/capacidade/produção/venda, integridade de índices, vinte noites e repetição sem duplicação. Funerais bovinos/ovinos ainda pendentes. |
+| `F/menu/shop_dialogues.c`, `F/people/player.c`: poções e uso | **A/M:** `P/feed_shop.c`, `P/poultry.c`, `P/exploration.c`, UI existente | Preços 3.000 G, estoque derivado, compra atômica, linha ANI 26, dose única mesmo sem alvo. |
+| `F/event/event_commands.c`: `animal_naming_*`; script instalado 299; `text.c`: fontes 0x16/0x17 | **A/M:** `P/runtime.c`, `P/farm_intro.c`, editor compartilhado | Parto nas duas maternidades com texto/nome/câmera/fade reais, sem cancelar; galinhas protegidas. |
+| `F/world/scene.c`, `F/farm_load.c`, `F/farm_data.c`: slot 1 do celeiro | **A/M:** `graphics/livestock_art.c`, gerador de tabelas | ANI compartilhado + segundo banco original; pixels reais de prenhes e filhotes, sem substituir imagens. |
+| Gestação/slots/reivindicação originais | **A:** LSTK v12, codec explícito | Relações validadas e snapshots gestação/pós-parto em outro processo; sem migradores. |
+| Zona da hospedaria 48→204..207, evento 34, `0x1000`, twin | **A/M:** `P/area_doors.c`, `P/runtime.c` | Ambas as folhas animam antes da entrada nas quatro estações; ajustes do usuário preservados. |
+
+[Fontes C/BIN, arquivos, resultados e limites](PF06_LIVESTOCK_BREEDING.md).
+
+
+## PF-06 — Funerais bovinos/ovinos, 2026-10-29
+
+| Origem | Adaptação | Aceite/limites |
+|---|---|---|
+| `F/animals/animals.c`: `farm_kind_selected`, `farm_clear_flagged_items` | **A:** `P/livestock.c/.h`, consultas por espécie/causa, limpeza e liberação comum de reservas com a venda | Mortes noturnas reais; apenas registros devidos removidos, filho nascido/vivos/gestações preservados. Não altera ciclo diário ou codec. |
+| `F/event/event_commands.c`: teste/limpeza `EVENT_CMD_ANIMAL_DEATH`; script instalado 172 | **A/M:** `P/runtime.c`, mesmo interpretador, efeitos e gatilho matinal | Seis ramos, tempo/penalidade e bônus original do mel, morte antes de parto, limpeza única e retomada sem repetição. |
+| `src/main/text/text.c`: geradores de nomes de mortos e fontes 0x1B..0x20 | **A/M:** `P/poultry.c/.h`, expansão/paginação comuns, wrapper anterior preservado | Todas as espécies/causas; vinte nomes completos, textos/atores/igreja reais. |
+| Estado existente de gado/aves/reservas | **M:** codec existente, sem novos campos necessários | Estado pendente/concluído em aplicativo novo; compatibilidade não é requisito nem proibição. |
+
+[Relatório C/BIN e validação](PF06_ANIMAL_FUNERALS.md). Linux Debug 14/14,
+Release 3/3, build Windows e três testes no Wine. Próximo: pastagem/transporte/sino;
+máquinas, concursos e demais sistemas continuam pendentes.
+
+
+## PF-06 — Pastagem/transporte/sino, 2026-10-29
+
+| Origem | Adaptação | Aceite/limites |
+|---|---|---|
+| `F/people/player.c`, `farm_shared.h`, `animals/animals.c`: contato/destino/aproximação | **A:** `P/livestock.c/.h`, `P/exploration.c`, mesma coleção/controles/colisão | Contato 51, destino 800, resposta por afeição, obstáculos e múltiplos animais; walker/cues integrais continuam parciais. |
+| `F/farm_probe.c`: `farm_zone_rows[0]`; `farm_walker_try_exits` | **A/M:** tabela gerada, portas existentes e área no mesmo registro | Ambos os sentidos, porta externa real, chegada ocupada aguarda; preserva animações locais do usuário. |
+| `F/animals/livestock.c`: action timers/overnight; `field.c`: busca/consumo de grama | **A:** `P/daily.c`, `P/livestock.c`, `P/farm_field.c` | Cinco horas elegíveis, grama por animal, rebrota/sem feno grátis, clima original por espécie, inverno/noite/cochos e maternidade. |
+| `shop_fodder_menu_setup`, `shop_barn_step`, ferramenta sino | **A/M:** loja/UI/inventário/ANI existentes | 500 G, saldo/espaço/posse, descrição 2:0x281, ANI 21/som 13; cães ainda ausentes. |
+| Arte original e estado de colocação/pastagem | **A/M:** carregador também na fazenda; LSTK v13 | Mesmo ator/atlas, desenho puro, contagem/destino/área retomados. Compatibilidade não é objetivo nem proibição. |
+
+[Relatório C/BIN e validação](PF06_LIVESTOCK_PASTURE.md). Próxima dependência:
+mineração e aquisição real de adamantita para as máquinas de Saibara.
+
+
+## PF-06 — Mineração e aquisição de minérios, 2026-10-29
+
+| Origem | Adaptação | Aceite/limites |
+|---|---|---|
+| `F/field/mine.c`: probe/dig/tabelas/texturas/escadas/retorno | **A:** `P/mine.c/.h`, tabelas extraídas, estado da sessão | Dois percursos/dez andares, bordas/raio, RNG/achados únicos, último andar, perguntas e saída real. Loot pela enxada conforme C/BIN; sem rochas sintéticas. |
+| `F/people/player.c`: enxada/XP/show/coin/berry | **A/M:** `P/farm_action.c`, `P/event_item.c`, `P/exploration.c`, ANI/inventário/economia comuns | Energia, XP, moeda única, berry/limite, minério/receita/sucata com figura real; adamantita coletada/guardada/remetida. Melhorias de ferramentas continuam parciais. |
+| `F/world/scene.c`, `F/farm_main.c`: seleção/entrada/modelo | **A/M:** `P/world_map.c`, gancho no runtime e `graphics/scene_preview.c` | IDs individuais 234..254, anexo 244 preserva andar, offsets nativos e escada inicialmente oculta; portas do usuário preservadas. |
+| `shop_result_update` e perguntas locais | **A/M:** mensagem existente e `graphics/mine_ui.c/.h` | Sim/não, recuo e fade; desenho puro. |
+| `FarmClearData` | **A:** chunk de campo v14 | Estado subterrâneo em apps novos Linux e Windows/Wine, vínculos refeitos; apenas adaptação necessária ao estado. |
+
+[Relatório C/BIN e validação](PF06_MINING.md). Próxima entrega: máquinas de
+Saibara, usando a aquisição real de adamantita e respeitando guardas/prazo.
+
+## PF-06 — máquinas de Saibara, 2026-10-29
+
+| Origem | Adaptação nativa | Aceite |
+|---|---|---|
+| `milestone_set_coop_barn_bits/set_timer/tick/status_query` | **A:** `makers.c`, sessão/agenda/relógio | Oferta sequencial, uma encomenda, cinco manhãs e entrega única pelo script 354. |
+| `shop_item_menu_step` | **A:** `feed_shop`/UI/`event_item`, transição comum | Adamantita escavada, dinheiro, duas confirmações, cancelamento, cobrança/material únicos e agenda de Saibara. |
+| `scene_resolve_selection` e modelos/zonas 14/33/15 | **A:** seleção de recursos do carregador | Mapas 120/104/108, áreas lógicas e capacidades conservadas. |
+| `player_zone_*_box_use`, `PLAYER_MODE_MAKE_*` | **A:** `farm_feed` com ANI/inventário/remessa comuns | Maionese/queijo/fio S/M/L/G e ovo de Popuri; sem exigir vaga adicional na mochila. |
+| Estado de encomenda/posse | **A:** codec v15 | Rebind e retomada de estados pendentes/concluídos. |
+
+[Auditoria, validação e limites](PF06_MAKERS.md). Próxima fila: melhorias reais
+de ferramentas de Saibara. Acessórios e demais sistemas continuam abertos.
+
+## PF-06 — melhorias de ferramentas, 2026-10-29
+
+| Origem | Adaptação nativa | Aceite |
+|---|---|---|
+| `shop_tool_upgrade_state`, `shop_greenhouse_step`, helpers de `greenhouse.c` | **A:** `tool_upgrade`/`feed_shop`/UI | Minério na mão, ferramenta/XP, níveis/saltos, duas confirmações e cobrança única. |
+| `milestone_set_timer/tick/status_query`, script 354 | **A:** fila `makers` e conversa existentes | Três manhãs, espaço/retirada/novo registro e bloqueio de pedido duplicado. |
+| `player_result_step`, `player_tool_clear[_alt]`, `picture_grid_find_cell` | **A:** grades extraídas e `farm_action` | Carga efetiva, área/força, energia/XP/água, estoque/efeitos, inverno/estufa e uma célula de mina. |
+| Estado original de pedido | **A:** intervalo ampliado do codec v15 | Retomada pendente/concluída sem duplicar inventário/economia. |
+
+[Auditoria C/BIN, testes e limites](PF06_TOOL_UPGRADES.md). Próximo recorte:
+apresentação final do preparo/indicadores, após aquisição dos utensílios entregue abaixo. Acessórios da forja e festivais abertos.
+
+
+## TV Shopping e utensílios — PF-06, 2026-10-29
+
+| Original | Adaptação | Estado e evidência |
+|---|---|---|
+| `messages.c:ending_offer_advance/confirm/message_pick_ending` | `P/tv_shopping.c`, `game_state.h`, `house_interaction.c` | **A:** nove slots, stamp u16, casa/dia/clima, programa 2 e assistir até o fim. |
+| `player_act_zone_front`, `shop_fee_step`, `ending_offer_buy` | `P/house_interaction.c`, `exploration.c`, `graphics/house_ui.c` | **A:** telefone real 204..207, taxa/catálogo/ledger, confirmações, cancelamento e saldo; item na mão preservado. |
+| Scripts BIN 290..298, condições 84..92, `UTENSIL_GET` e `receive_item` | `P/farm_visit.c`, `runtime.c`, `event_item.c`, `session.c`, `graphics/scene_preview.c` | **A:** bytecode/ANI/banco/mensagens originais, janela de entrega e posse única; nona oferta é Power Berry. |
+| `estate_items_restore`, `estate_result_rows_house1/2`, ANI 4..11 | `cmake/generate_farm_tables.py`, `graphics/estate_art.c`, `scene_preview.c` | **A:** aparelhos nas posições de cada ampliação, derivados da posse comum da cozinha. |
+| `text_draw_face(id=-1)` | `graphics/new_game_ui.c` | **A:** mensagem sem banco não desenha retrato inexistente/herdado. |
+| Estado de ofertas/utensílios/receitas/flags | `P/save.c`, codec v16 | **A:** pendente e concluído retomados pelo aplicativo; sem projeto de migração nesta entrega. |
+
+Regras, nove ciclos instalados, faca/receita/consumo, aparelhos e retomadas em
+[PF06_TV_SHOPPING.md](PF06_TV_SHOPPING.md). Indicadores completos e ANI/som do
+preparo permanecem parciais; aquisição não depende de fixtures de utensílios.
+
+
+## Apresentação do preparo e indicadores — PF-06, 2026-10-29
+
+| Original | Adaptação | Estado e evidência |
+|---|---|---|
+| `house.c:cooking_cook_confirm_tick/record_confirm_tick/apply_result/menu_tick` e `screen_fade.c` | `P/house_interaction.c/.h`, `graphics/scene_preview.c` | **A:** fechamento/fade antes de consumir, commit único, preto/XA e retorno ao resultado. O original não contém ANI de personagem cozinhando nesta sequência. |
+| `cd_audio.c:cd_audio_tracks[22]` | `cmake/generate_farm_tables.py`, `audio/xa_stream.c/.h`, `P/runtime.c` | **A:** arquivo/canal/countdown originais e START_XA/WAIT_XA nos serviços/mixer existentes. PCM do recurso local decodificado até o fim; outros tracks não habilitados sem consumidores. |
+| `cooking_draw_pending_flags/draw_utensils/draw_value_grid/draw_timer_grid` e `item_anim_draw` | `graphics/house_ui.c`, `P/cooking.c/.h` | **A:** painéis, temperos, quantidades, marcação de faltas, descrições e navegação originais. |
+| `cooking_result_*`, `cooking_record_store`, `status_recipe_count` | `P/house_interaction.c`, `P/cooking.c`, status existente | **A:** confirmação/fechamento antes de atualizar registro; nova/melhor/pior/igual/fiasco, contagem única na ficha e retomada. |
+
+[Auditoria, percurso com utensílios comprados, sete preparos e testes](PF06_COOKING_PRESENTATION.md).
+Não implica cobertura individual de todos os pratos, festivais, relacionamentos
+ou indicadores da ficha associados a esses sistemas ainda pendentes.
+
+
+## Acessórios de Saibara — PF-06, 2026-10-29
+
+| Original | Adaptação | Estado e evidência |
+|---|---|---|
+| `shop_tool_upgrade_menu_setup`, `girls_present_messages`, `rand_range` | `feed_shop`, gerador C e UI existentes; RNG emprestado da vila | **A:** linha original e sorteio único de 0xf7..0xf9 por montagem; legenda original e sem sorteio no desenho. |
+| `shop_item_menu_step`, `milestone_set_timer/tick`, `item_info` | `makers`, `feed_shop`, `inventory`, `economy` | **A:** Orichalcum acessível, 1.000 G, duas confirmações, consumo/débito únicos e três manhãs na mesma fila das máquinas/ferramentas. |
+| Script 354, `event_cue_issue`, `player_show_item` | `village_talk`, `runtime`, controlador `event_item` existente | **A:** retirada com mão livre, cue/ANI preservada ao terminar conversa, ID/0/1 na mão; mochila/remessa e codec v16 existentes. |
+
+[Auditoria C/BIN, percurso e validação](PF06_ACCESSORIES.md). Debug/Release e
+Windows/Wine aprovados; 46 processos. Portas do usuário preservadas.
+Próximo: aquisição das ampliações de mochila; relacionamentos/embrulhos/festivais
+não são concluídos por esse serviço. Bootstrap `--diagnostics` não executa o jogo.
+
+
+## Ampliações de mochila — PF-06, 2026-10-29
+
+| Original | Adaptação | Estado e evidência |
+|---|---|---|
+| `player_act_zone_front:ZONE_SHOP_COUNTER`, `shop_key_value_lookup`, `estate_items_restore` | `feed_shop`, `inventory`, `scene_preview` | **A:** registro 115 placeholder/flag 0x8000, pedido 9, mesma sonda/guardas das sementes, ofertas e sprites 8/9, inclusive no inverno. |
+| `shop_grant_rucksack_upgrade`, `shop_item_grant`, `milestone_tick/set_status_bits` | `inventory`, `feed_shop`, `daily`, `save` | **A:** 3.000/5.000 G, confirmação/cancelamento/saldo, débito único e dez manhãs na propriedade do inventário; codec v17 para contador. |
+| `event_cue_issue`, `player_start_rucksack`, modo `RUCKSACK_UPGRADE` | Controlador `event_item` e apresentação existentes | **A:** ANI 11+direção para mostrar, 29+direção para vestir, som 8 e limpeza da mão; capacidade confirmada uma vez. |
+| `item_markers`, `storage_spots`, `rucksack_item_slots` | Inventário/menus/depósitos existentes | **E:** capacidade 2/4/8, metadados preservados; compra real seguida de navegação até os novos espaços e retomada. |
+
+[Auditoria C/BIN, percurso e validação](PF06_RUCKSACK.md). Debug/Release e
+Windows/Wine aprovados; 45 processos, sem suíte inteira. `runtime.c` e portas
+preservados. Próximo: cesta de remessas. Bootstrap `--diagnostics` não executa o jogo.

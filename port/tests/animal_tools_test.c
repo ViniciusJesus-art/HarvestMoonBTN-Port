@@ -42,7 +42,7 @@ int main(void)
     }
     assert(hmbtn_blacksmith_tool_count(&s->feed_shop)==3 && !hmbtn_blacksmith_tool_entry(&s->feed_shop,3));
     until(s,HMBTN_SHOP_SELECT);input(s,HMBTN_PAD_CROSS);assert(s->feed_shop.next_request==0x87);
-    until(s,HMBTN_SHOP_SELECT);input(s,HMBTN_PAD_DOWN);input(s,HMBTN_PAD_CROSS);until(s,HMBTN_SHOP_TOOL_LIST);
+    until(s,HMBTN_SHOP_SELECT);input(s,HMBTN_PAD_DOWN);input(s,HMBTN_PAD_DOWN);input(s,HMBTN_PAD_CROSS);until(s,HMBTN_SHOP_TOOL_LIST);
     input(s,HMBTN_PAD_TRIANGLE);assert(s->feed_shop.next_request==0xaa);until(s,HMBTN_SHOP_TOOL_LIST);
     input(s,HMBTN_PAD_CIRCLE);until(s,HMBTN_SHOP_SELECT);assert(s->game.economy.gold==10000);
     input(s,HMBTN_PAD_CROSS);until(s,HMBTN_SHOP_TOOL_LIST);

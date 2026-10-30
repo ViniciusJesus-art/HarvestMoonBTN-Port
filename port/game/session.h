@@ -1,6 +1,9 @@
 #ifndef HMBTN_SESSION_H
 #define HMBTN_SESSION_H
 #include "game_state.h"
+#include "basket.h"
+#include "mine.h"
+#include "makers.h"
 #include "weather_effects.h"
 #include "area_doors.h"
 #include "farm_field.h"
@@ -43,8 +46,10 @@ typedef struct HmbtnSession {
     HmbtnWeatherEffects weather_effects;
     HmbtnAreaDoors area_doors; /* Transient poses; original route cursors persist separately. */
     HmbtnFarmAction farm_action;
+    HmbtnMine mine;
     HmbtnFishing fishing;
     HmbtnFarmCarry carry;
+    HmbtnBasketAction basket_action;
     HmbtnFarmFeed feed;
     HmbtnFarmGather gather;
     HmbtnFeedShop feed_shop;
@@ -62,6 +67,7 @@ typedef struct HmbtnSession {
     HmbtnVillage village;
     HmbtnPoultry poultry;
     HmbtnConstruction construction;
+    HmbtnMakers makers;
     HmbtnLivestock livestock;
     bool village_initialized,village_ready;
     HmbtnFarmIntro intro;

@@ -24,6 +24,7 @@ typedef struct HmbtnVillageTalk {
     unsigned result,boundary_type;
     /* Presentation request from event_item_store; consumed by the world UI. */
     unsigned show_tool,show_frames;
+    unsigned show_item; /* event_cue_issue: carry ANI, separate from tool display. */
     HmbtnVillage *village;
     const HmbtnFarmClock *clock;
     const HmbtnRegistration *registration;

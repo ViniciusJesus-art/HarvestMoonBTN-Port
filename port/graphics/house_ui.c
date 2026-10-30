@@ -1,7 +1,9 @@
 #include "house_ui.h"
 #include "inventory.h"
+#include "farm_field.h"
 #include "resource_file.h"
 #include "window_frame.h"
+#include "estate_art.h"
 #include "psx_data.h"
 #include <stdlib.h>
 #include <stdio.h>
@@ -13,11 +15,11 @@ typedef struct ToolArt {
     unsigned id;
     uint64_t used;
 } ToolArt;
-struct HmbtnHouseUI { ToolArt tools[18];uint64_t serial; };
+struct HmbtnHouseUI { ToolArt tools[18];uint64_t serial;HmbtnEstateArt basket; };
 HmbtnHouseUI *hmbtn_house_ui_create(void) { return calloc(1,sizeof(HmbtnHouseUI)); }
 void hmbtn_house_ui_destroy(HmbtnHouseUI *u)
 {
-    if(u) { for(unsigned i=0;i<18;++i) free(u->tools[i].atlas); free(u); }
+    if(u) { hmbtn_estate_art_close(&u->basket);for(unsigned i=0;i<18;++i) free(u->tools[i].atlas); free(u); }
 }
 static bool number(HmbtnNewGameUI *shared,uint8_t *p,unsigned value,int x,int y,
     unsigned palette,char *error,size_t error_size)
@@ -56,6 +58,11 @@ static ToolArt *picture_art(HmbtnHouseUI *u,const char *root,unsigned id,char *e
 bool hmbtn_house_ui_picture_art(HmbtnHouseUI *u,const char *root,unsigned id,
     const HmbtnAnimation **animation,const HmbtnImageAtlas **atlas,char *error,size_t error_size)
 {
+    if(id==100) {
+        if(!hmbtn_estate_art_update(&u->basket,root,6,error,error_size)) return false;
+        *animation=hmbtn_estate_art_sprite(&u->basket,0);*atlas=u->basket.atlas;
+        return *animation!=NULL;
+    }
     ToolArt *a=picture_art(u,root,id,error,error_size);
     if(!a) return false;
     *animation=&a->animation;*atlas=a->atlas;return true;
@@ -76,11 +83,11 @@ static bool picture(HmbtnHouseUI *u,const char *root,uint8_t *p,unsigned id,int 
     bool centre,char *error,size_t error_size)
 {
     if(!id) return true;
-    ToolArt *a=picture_art(u,root,id,error,error_size);
-    if(!a) return false;
+    const HmbtnAnimation *art;const HmbtnImageAtlas *atlas;
+    if(!hmbtn_house_ui_picture_art(u,root,id,&art,&atlas,error,error_size)) return false;
     const HmbtnAnimationPlayer frame={0};
     if(centre) {
-        const HmbtnAnimation *ani=&a->animation;
+        const HmbtnAnimation *ani=art;
         const uint8_t *f=ani->data+ani->section[4];
         if(hmbtn_read_le16(f)>=ani->count[1]) return true;
         const uint8_t *list=ani->data+ani->section[1]+hmbtn_read_le16(f)*4;
@@ -93,7 +100,7 @@ static bool picture(HmbtnHouseUI *u,const char *root,uint8_t *p,unsigned id,int 
         x+=(32-width)/2-(rawx<32768 ? (int)rawx : (int)rawx-65536);
         y+=(32-height)/2-(rawy<32768 ? (int)rawy : (int)rawy-65536);
     }
-    return hmbtn_animation_draw(&a->animation,a->atlas,&frame,x,y,p,320,240,320*240*4,error,error_size);
+    return hmbtn_animation_draw(art,atlas,&frame,x,y,p,320,240,320*240*4,error,error_size);
 }
 static void position(unsigned cell,int *x,int *y)
 {
@@ -167,7 +174,8 @@ static bool kitchen_draw(HmbtnHouseUI *u,HmbtnNewGameUI *shared,const HmbtnHouse
 {
     if(!menu_background(shared,p,tick,error,size)) return false;
     const HmbtnKitchenMenu *k=&h->kitchen;
-    if(k->phase==HMBTN_KITCHEN_RECORDS) {
+    const HmbtnKitchenPhase phase=k->phase==HMBTN_KITCHEN_CLOSE_CONFIRM || k->phase==HMBTN_KITCHEN_FADE_OUT ? k->return_phase : k->phase;
+    if(phase==HMBTN_KITCHEN_RECORDS) {
         hmbtn_window_frame_draw(p,320,240,8,16,304,148);
         const unsigned count=hmbtn_cooking_record_count(h->cooking),top=k->cursor/20*20;
         unsigned row=0;
@@ -176,66 +184,84 @@ static bool kitchen_draw(HmbtnHouseUI *u,HmbtnNewGameUI *shared,const HmbtnHouse
             const uint16_t *name=hmbtn_cooking_dish_name(h->cooking->records[i].id);
             unsigned length=0;while(name && name[length]!=0xffff && length<16) ++length;
             const unsigned visible=n-top;
-            if(name && !hmbtn_ui_text(shared,p,name,length,20+(int)(visible/10)*148,20+(int)(visible%10)*14,0,3,error,size)) return false;
+            const HmbtnRecipeRecord *r=&h->cooking->records[i];
+            if(name && !hmbtn_ui_text_dim(shared,p,name,length,20+(int)(visible/10)*148,20+(int)(visible%10)*14,
+                    !hmbtn_cooking_available(h->cooking,h->inventory,r->options,r->values),error,size)) return false;
         }
         return !count || hmbtn_ui_icon(shared,p,11,1,10+(int)((k->cursor-top)/10)*148,22+(int)((k->cursor-top)%10)*14,error,size);
     }
-    if(k->phase==HMBTN_KITCHEN_RECORD_VIEW || k->phase==HMBTN_KITCHEN_RECIPE_CONFIRM
-            || (k->phase==HMBTN_KITCHEN_DESCRIPTION && k->return_phase==HMBTN_KITCHEN_RECORDS)) {
-        hmbtn_window_frame_draw(p,320,240,22,16,270,148);
-        const uint16_t *name=k->record<HMBTN_RECIPE_RECORDS ? hmbtn_cooking_dish_name(h->cooking->records[k->record].id) : NULL;
-        unsigned count=0;while(name && name[count]!=0xffff) ++count;
-        if(name && !hmbtn_ui_text(shared,p,name,count,32,22,0,3,error,size)) return false;
-        for(unsigned i=0;i<8;++i) if(!hmbtn_house_ui_item(u,shared,root,p,k->values[i],110+(int)(i%4)*38,64+(int)(i/4)*40,error,size)) return false;
+    if(phase==HMBTN_KITCHEN_RECORD_VIEW || phase==HMBTN_KITCHEN_RECIPE_CONFIRM
+            || (phase==HMBTN_KITCHEN_DESCRIPTION && k->return_phase==HMBTN_KITCHEN_RECORDS)) {
+        /* cooking_draw_value_grid: utensils above, ingredients below. Only
+         * the check view overlays the original missing-entry mark. */
+        const bool check=phase==HMBTN_KITCHEN_DESCRIPTION;
+        hmbtn_window_frame_draw(p,320,240,22,16,270,74);
+        hmbtn_window_frame_draw(p,320,240,22,90,270,74);
+        if(!hmbtn_ui_text(shared,p,house_utensils,WORDS(house_utensils),33,32,0,3,error,size)
+                || !hmbtn_ui_text(shared,p,house_ingredient,WORDS(house_ingredient),33,106,0,3,error,size)) return false;
+        for(unsigned i=0;i<8;++i) {
+            const unsigned mask=i==7 ? 0xf80u : 1u<<i;
+            const unsigned id=k->options&mask ? (i==7 ? 0x79 : hmbtn_cooking_option_item(i)) : 0;
+            const int x=132+(int)(i%4)*34,y=20+(int)(i/4)*34;
+            if(!hmbtn_house_ui_item(u,shared,root,p,id,x,y,error,size)
+                    || !hmbtn_house_ui_item(u,shared,root,p,k->values[i],x,y+74,error,size)) return false;
+            if(check && id && (k->options&mask&~hmbtn_cooking_allowed_options(h->cooking))
+                    && !hmbtn_ui_icon(shared,p,11,0,x,y,error,size)) return false;
+            if(check && k->values[i] && !hmbtn_cooking_item_stored(h->inventory,k->values[i])
+                    && !hmbtn_ui_icon(shared,p,11,0,x,y+74,error,size)) return false;
+        }
         return true;
     }
-    if(k->phase==HMBTN_KITCHEN_TOOLS || k->phase==HMBTN_KITCHEN_SEASONING) {
+    if(k->phase==HMBTN_KITCHEN_TOOLS || k->phase==HMBTN_KITCHEN_SEASONING
+            || (k->phase==HMBTN_KITCHEN_DESCRIPTION && k->return_phase==HMBTN_KITCHEN_TOOLS)) {
         const bool spice=k->phase==HMBTN_KITCHEN_SEASONING;
-        hmbtn_window_frame_draw(p,320,240,22,16,270,148);
-        if(!hmbtn_ui_text(shared,p,spice ? house_use : house_utensils,
-                spice ? WORDS(house_use) : WORDS(house_utensils),30,22,0,3,error,size)) return false;
+        hmbtn_window_frame_draw(p,320,240,22,16,270,74);
+        hmbtn_window_frame_draw(p,320,240,22,90,270,74);
+        if(!hmbtn_ui_text(shared,p,house_use,WORDS(house_use),33,32,0,3,error,size)
+                || !hmbtn_ui_text(shared,p,house_utensils,WORDS(house_utensils),33,106,0,3,error,size)) return false;
+        for(unsigned i=0;i<8;++i) {
+            const unsigned id=i==7 ? 0x79 : hmbtn_cooking_option_item(i);
+            const bool marked=(k->options&(i==7 ? 0xf80u : 1u<<i))!=0;
+            const bool owned=(h->cooking->utensils&(1u<<i))!=0;
+            const int x=132+(int)(i%4)*34,y=20+(int)(i/4)*34;
+            if(!hmbtn_house_ui_item(u,shared,root,p,marked ? id : 0,x,y,error,size)
+                    || !hmbtn_house_ui_item(u,shared,root,p,owned ? id : 0,x,y+74,error,size)) return false;
+            if(owned && marked && !hmbtn_ui_icon(shared,p,11,0,x,y+74,error,size)) return false;
+        }
         if(spice) {
+            hmbtn_window_frame_draw(p,320,240,166,88,104,72);
             const uint16_t *labels[5]={house_sugar,house_salt,house_vinegar,house_soy_sauce,house_miso_paste};
             const unsigned lengths[5]={WORDS(house_sugar),WORDS(house_salt),WORDS(house_vinegar),WORDS(house_soy_sauce),WORDS(house_miso_paste)};
-            for(unsigned i=0;i<5;++i) if(!hmbtn_ui_text_dim(shared,p,labels[i],lengths[i],96,48+(int)i*20,
+            for(unsigned i=0;i<5;++i) if(!hmbtn_ui_text_dim(shared,p,labels[i],lengths[i],177,90+(int)i*14,
                     !(k->options&(1u<<(7+i))),error,size)) return false;
-            return hmbtn_ui_icon(shared,p,11,1,80,50+(int)k->cursor*20,error,size);
+            return hmbtn_ui_icon(shared,p,11,1,175,93+(int)k->cursor*14,error,size);
         }
-        for(unsigned i=0;i<(spice ? 5u : 8u);++i) {
-            const bool owned=spice ? (h->cooking->utensils&0x80)!=0 : (h->cooking->utensils&(1u<<i))!=0;
-            const unsigned id=spice ? hmbtn_cooking_option_item(7+i) : i<7 ? hmbtn_cooking_option_item(i) : 0x79;
-            const int x=72+(int)(i%4)*44,y=46+(int)(i/4)*48;
-            hmbtn_window_frame_draw(p,320,240,x-2,y-2,36,36);
-            if(owned && !hmbtn_house_ui_item(u,shared,root,p,id,x,y,error,size)) return false;
-            const bool marked=spice ? (k->options&(1u<<(7+i)))!=0 : i<7 ? (k->options&(1u<<i))!=0 : (k->options&0xf80)!=0;
-            if(marked && !hmbtn_ui_icon(shared,p,11,0,x,y,error,size)) return false;
-        }
-        return hmbtn_ui_icon(shared,p,11,1,80+(int)(k->cursor%4)*44,70+(int)(k->cursor/4)*48,error,size);
+        return hmbtn_ui_icon(shared,p,11,1,135+(int)(k->cursor%4)*34,103+(int)(k->cursor/4)*34,error,size);
     }
-    if(k->phase==HMBTN_KITCHEN_ITEMS || k->phase==HMBTN_KITCHEN_CONFIRM
+    if(phase==HMBTN_KITCHEN_ITEMS || phase==HMBTN_KITCHEN_CONFIRM
             || (k->phase==HMBTN_KITCHEN_DESCRIPTION && k->return_phase==HMBTN_KITCHEN_ITEMS)) {
         hmbtn_window_frame_draw(p,320,240,22,16,270,74);
         hmbtn_window_frame_draw(p,320,240,22,90,270,74);
-        if(!hmbtn_ui_text(shared,p,house_ingredient_title,WORDS(house_ingredient_title),30,24,0,3,error,size)
+        if(!hmbtn_ui_text(shared,p,house_ingredient_title,WORDS(house_ingredient_title),33,32,0,3,error,size)
                 || !hmbtn_ui_text(shared,p,k->page ? house_ingredient_icebox : house_ingredient_rucksack,
                     k->page ? WORDS(house_ingredient_icebox) : WORDS(house_ingredient_rucksack),30,102,0,3,error,size)) return false;
         if(k->page && !number(shared,p,k->page,48,120,3,error,size)) return false;
         for(unsigned i=0;i<8;++i) {
-            const int x=134+(int)(i%4)*34;
-            if(!hmbtn_house_ui_item(u,shared,root,p,k->values[i],x,22+(int)(i/4)*34,error,size)) return false;
+            const int x=132+(int)(i%4)*34,y=94+(int)(i/4)*34;
+            if(!hmbtn_house_ui_item(u,shared,root,p,k->values[i],x,y-74,error,size)) return false;
             const HmbtnStoredTool *item=hmbtn_cooking_source(h->inventory,k->page,i);
-            if(item && !hmbtn_house_ui_item(u,shared,root,p,item->id,x,96+(int)(i/4)*34,error,size)) return false;
+            if(!hmbtn_house_ui_item(u,shared,root,p,item ? item->id : 0,x,y,error,size)) return false;
+            const HmbtnFarmItem *info=item && item->id ? hmbtn_farm_item(item->id) : NULL;
+            if(info && (info->category==2 || (k->page && info->category==0))) {
+                const unsigned value=item->count>99 ? 99 : item->count;
+                if(!hmbtn_ui_icon(shared,p,10,10,x+2,y+22,error,size)
+                        || (value>=10 && !hmbtn_ui_icon(shared,p,10,value/10,x+12,y+22,error,size))
+                        || !hmbtn_ui_icon(shared,p,10,value%10,x+22,y+22,error,size)) return false;
+            }
             if(item && item->id) for(unsigned j=0;j<8;++j) if(k->values[j]==item->id
-                    && !hmbtn_ui_icon(shared,p,11,0,x,96+(int)(i/4)*34,error,size)) return false;
+                    && !hmbtn_ui_icon(shared,p,11,0,x,y,error,size)) return false;
         }
         return hmbtn_ui_icon(shared,p,11,1,135+(int)(k->cursor%4)*34,103+(int)(k->cursor/4)*34,error,size);
-    }
-    if(k->phase==HMBTN_KITCHEN_RESULT && k->result.id) {
-        const uint16_t *name=hmbtn_cooking_dish_name(k->result.id);unsigned n=0;
-        while(name && name[n]!=0xffff) ++n;
-        hmbtn_window_frame_draw(p,320,240,32,40,256,112);
-        return hmbtn_house_ui_item(u,shared,root,p,k->result.id,144,88,error,size)
-            && (!name || hmbtn_ui_text(shared,p,name,n,48,52,0,3,error,size));
     }
     return true; /* Questions are rendered by the existing original message panel. */
 }
@@ -247,6 +273,23 @@ bool hmbtn_house_ui_draw(HmbtnHouseUI *u,HmbtnNewGameUI *shared,
     if(h->mode==HMBTN_HOUSE_SLEEP) return true;
     if(h->options.clock && !clock_draw(shared,h,p,error,error_size)) return false;
     if(h->mode==HMBTN_HOUSE_FREE || h->mode==HMBTN_HOUSE_TOOLBOX_OPEN) return true;
+    if(h->mode==HMBTN_HOUSE_PHONE) {
+        if(!h->economy) return false;
+        uint16_t gold[16];unsigned value=h->economy->gold,n=8;
+        for(unsigned i=0;i<8;++i) { gold[7-i]=(uint16_t)(0x40+value%10);value/=10; }
+        for(unsigned i=0;i<7 && gold[i]==0x40;++i) gold[i]=0xffd;
+        for(unsigned i=0;i<WORDS(house_gold_unit);++i) gold[n++]=house_gold_unit[i];
+        hmbtn_window_frame_draw(p,320,240,227,16,79,34);
+        if(!hmbtn_ui_text(shared,p,house_money_title,WORDS(house_money_title),231,20,0,3,error,error_size)
+                || !hmbtn_ui_text(shared,p,gold,n,231,34,0,3,error,error_size)) return false;
+        if((h->phone_phase==0 || h->phone_phase==2) && !h->closing && h->message.phase==HMBTN_MESSAGE_WAIT_END) {
+            hmbtn_window_frame_draw(p,320,240,131,72,40,36);
+            return hmbtn_ui_text(shared,p,house_yes,WORDS(house_yes),143,76,0,3,error,error_size)
+                && hmbtn_ui_text(shared,p,house_no,WORDS(house_no),143,90,0,3,error,error_size)
+                && hmbtn_ui_icon(shared,p,11,1,135,82+(int)h->phone_answer*14,error,error_size);
+        }
+        return true;
+    }
     if(h->mode==HMBTN_HOUSE_CALENDAR || h->mode==HMBTN_HOUSE_TOOLBOX
             || h->mode==HMBTN_HOUSE_OPTIONS
             || (h->mode==HMBTN_HOUSE_BOOK && h->detail)) {

@@ -4,11 +4,13 @@
 #include "new_game.h"
 #include "game_state.h"
 #include "cooking.h"
+struct HmbtnConstruction;
+struct HmbtnVillage;
 typedef enum HmbtnHouseMode {
     HMBTN_HOUSE_FREE, HMBTN_HOUSE_TV_SELECT, HMBTN_HOUSE_TV,
     HMBTN_HOUSE_CALENDAR, HMBTN_HOUSE_TOOLBOX_OPEN, HMBTN_HOUSE_TOOLBOX,
     HMBTN_HOUSE_BOOK, HMBTN_HOUSE_OPTIONS, HMBTN_HOUSE_BED,
-    HMBTN_HOUSE_SLEEP,HMBTN_HOUSE_COOKING
+    HMBTN_HOUSE_SLEEP,HMBTN_HOUSE_COOKING,HMBTN_HOUSE_PHONE
 } HmbtnHouseMode;
 typedef struct HmbtnHouseOptions {
     unsigned layout, page, row, column, opening_cursor, manual_row, manual_column;
@@ -18,11 +20,14 @@ typedef struct HmbtnHouseOptions {
 typedef enum HmbtnKitchenPhase {
     HMBTN_KITCHEN_OPEN,HMBTN_KITCHEN_FIRST,HMBTN_KITCHEN_SECOND,HMBTN_KITCHEN_RECORDS,
     HMBTN_KITCHEN_TOOLS,HMBTN_KITCHEN_SEASONING,HMBTN_KITCHEN_ITEMS,HMBTN_KITCHEN_CONFIRM,
-    HMBTN_KITCHEN_RESULT,HMBTN_KITCHEN_DESCRIPTION,HMBTN_KITCHEN_RECORD_VIEW,HMBTN_KITCHEN_RECIPE_CONFIRM
+    HMBTN_KITCHEN_RESULT,HMBTN_KITCHEN_DESCRIPTION,HMBTN_KITCHEN_RECORD_VIEW,HMBTN_KITCHEN_RECIPE_CONFIRM,
+    HMBTN_KITCHEN_CLOSE_CONFIRM,HMBTN_KITCHEN_FADE_OUT,HMBTN_KITCHEN_TRACK,HMBTN_KITCHEN_FADE_IN
 } HmbtnKitchenPhase;
 typedef struct HmbtnKitchenMenu {
     HmbtnKitchenPhase phase,return_phase;
     unsigned cursor,page,choice,options,record,prior_record;
+    unsigned fade,result_message;
+    bool audio_started,audio_finished,record_pending; /* Audio acknowledged by the existing service. */
     uint16_t values[8]; /* Tentative recipe selection only; never copied stores. */
     HmbtnRecipeRecord result;
 } HmbtnKitchenMenu;
@@ -33,6 +38,11 @@ typedef struct HmbtnHouseInteraction {
     const HmbtnWeather *weather; /* Borrowed authoritative state. */
     HmbtnGameProgress *progress;
     HmbtnCooking *cooking;
+    HmbtnTvShopping *shopping;
+    HmbtnEconomy *economy;
+    const struct HmbtnConstruction *construction;
+    struct HmbtnVillage *village;
+    unsigned phone_offer,phone_phase,phone_answer;
     HmbtnKitchenMenu kitchen;
     unsigned storage; /* 0 toolbox, 1 cabinet, 2 icebox; view only. */
     unsigned calendar_day, cursor, page, picked, picked_page, pan;
@@ -58,6 +68,8 @@ bool hmbtn_house_expand_item_reading(const HmbtnHouseInteraction *house,
 bool hmbtn_house_interact(HmbtnHouseInteraction *house, const uint8_t *section,
     size_t size, const HmbtnIntroActor *player);
 void hmbtn_house_interaction_tick(HmbtnHouseInteraction *house, uint32_t pressed, uint32_t held);
+/* screen_fade.c's subtractive shade, including the cooking menu and text. */
+unsigned hmbtn_house_kitchen_shade(const HmbtnHouseInteraction *);
 uint32_t hmbtn_house_world_buttons(const HmbtnHouseOptions *options, uint32_t held);
 void hmbtn_house_options_idle(HmbtnHouseOptions *options, bool moving, unsigned facing);
 unsigned hmbtn_house_calendar_message(unsigned season, unsigned day);

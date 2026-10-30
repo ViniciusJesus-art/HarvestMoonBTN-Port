@@ -40,7 +40,7 @@ de renderização ajudam, mas rede, lockstep, rollback e determinismo global nã
 são requisitos desta fase.
 
 **PF-01..05 concluídas. PF-06 em andamento: batata, grama/feno, culturas base de verão/outono e
-clima diário/chuva entregues; sementes sazonais de Won, desbloqueios do supermercado, flores simples e variantes de Magic Red entregues; Moondrop com suas visitas também entregue; carpintaria/galinheiro e primeira casa entregues na cadeia da estufa; obra/mapas/cochos do celeiro também entregues; aquisição/presença/alimentação de vacas e ovelhas também entregues no recorte base do celeiro; segunda casa e lareira de inverno entregues; estufa de cultivo e Orangecup entregues; ferramentas animais e produção de leite/lã também entregues; próximo recorte, venda de vacas e ovelhas. Venda, reprodução e ciclo animal completo continuam pendentes; leite/lã e escovação foram integrados no recorte abaixo. Geladeira, armário e núcleo da cozinha funcionais; aquisição de utensílios e apresentação completa da cozinha pendentes.** Nabo e batata têm percurso completo de compra de
+clima diário/chuva entregues; sementes sazonais de Won, desbloqueios do supermercado, flores simples e variantes de Magic Red entregues; Moondrop com suas visitas também entregue; carpintaria/galinheiro e primeira casa entregues na cadeia da estufa; obra/mapas/cochos do celeiro também entregues; aquisição/presença/alimentação de vacas e ovelhas também entregues no recorte base do celeiro; segunda casa e lareira de inverno entregues; estufa de cultivo e Orangecup entregues; ferramentas animais e produção de leite/lã também entregues; venda e reprodução de vacas/ovelhas entregues nos recortes abaixo. Funerais bovinos/ovinos entregues no recorte abaixo; pastagem/transporte e ciclo animal completo continuam pendentes; leite/lã e escovação foram integrados no recorte abaixo. Geladeira, armário, núcleo da cozinha e aquisição dos utensílios por TV/telefone/Zack funcionais; aparelhos nas duas casas integrados. Preparo com fade/XA e indicadores da cozinha/ficha entregues no item 16.** Nabo e batata têm percurso completo de compra de
 sementes até venda, com saves preservando o crescimento. A PF-04 separou
 atualização e desenho nos fluxos existentes, inclusive título/cadastro. O reaproveitamento
 é feito por funções adaptadas em `port/`, sem compilar módulos `src/` diretamente.
@@ -79,8 +79,8 @@ reais do domínio, não uma obrigação de concluir todas as linhas anteriores.
 | **PF-02 — Primeiro cultivo completo e passagem dos dias: concluída** | PF-01 para receber/vender produtos; relógio/campo atuais | Adaptar os recortes necessários de `field_daily_tick`, `clock_advance_minute` e coordenação de `clock_events.c`. Integrar semear → regar → dormir → crescer → colher → vender com uma cultura original. Extrair sono/pernoite da cena no escopo necessário. Preservar alimentação, ovos, flags e pagamentos existentes, com ordem explícita e execução única. Definição da cultura separada do estado de cada célula, sem novo teto fixo do catálogo original. Demais culturas/clima não são declarados completos. | Ciclo completo com recursos instalados; dias sem água, estação inválida/virada, regrowth quando aplicável, sono/múltiplos dias, pausas, ovos/ração e remessa sem repetição. |
 | **PF-03 — Eventos reutilizáveis para ampliar a progressão: concluída** | Runtime/serviços atuais; operações PF-01 apenas para comandos que as usam; PF-02 somente para eventos dependentes de cultivos/dias | Evoluir o interpretador existente a partir de `event_script.c`/`event_commands.c`; compartilhar variáveis, flags, aritmética, mensagens, atores e gatilhos conforme os roteiros selecionados exigirem. Escolher e registrar um evento original ainda não suportado antes de editar, incluindo todos os seus comandos/dependências. Entregá-lo jogável, retirar duplicações dos comandos migrados e proteger abertura/visitas/conversas existentes. Erro/ausência nunca é sucesso. Novos eventos usam esse mesmo runtime. | Vetores originais dos comandos selecionados, operandos inválidos, espera/retorno/desvio, efeito único, cancelamento/erro; novo percurso e regressões de infância, Thomas, funeral, torta e ingredientes. |
 | **PF-04 — Atualização independente da apresentação: concluída** | Sessão/serviços/exploração MA-04..06; coordenadores vigentes no momento da entrega | Consolidar tick público de roteiros, portas, viagens e sono; `app.c` agenda update e draw separadamente, inclusive título/cadastro. Cena guarda recursos/caches/desenho; transações pertencem ao gameplay. Retirar os adapters provisórios de coordenação usados em PF-02/03 e migrar percursos de teste para APIs públicas. Pode ser antecipada se um acoplamento bloquear outra entrega. | Mesmo estado com mesmos ticks e 0/30/60 apresentações; desenho sem mutação; transições/sono/cadastro e falhas de recursos; suíte completa. |
-| **PF-05 — Saves nativos e retomada: concluída** | Proprietários de estado atuais identificados; definir quais estados transitórios são salváveis | Formato versionado explícito, sem dump de structs/ponteiros/layout PS1. Salvar e restaurar todo o recorte jogável declarado, incluindo conteúdo referenciado por IDs estáveis. Versão explícita; durante desenvolvimento não há exigência de compatibilidade com saves antigos. Manter rejeição clara e integridade da versão atual. Não depende de terminar todas as espécies/eventos. | Ida/volta, dois saves/sessões, reinício do processo, inventário/dinheiro/data/campo/animais/flags, arquivos truncados/corrompidos, versões e retomada sem efeitos repetidos. |
-| **PF-06 — Completar sistemas do jogo original: em andamento** | Por sistema: estado, operações, comandos e ciclo diário efetivamente usados | Fila incremental: batata, grama/feno, culturas base de verão/outono e clima diário/chuva entregues; sementes sazonais de Won, desbloqueios do supermercado, flores simples e variantes de Magic Red entregues; Moondrop e visitas de Karen entregues; carpintaria/galinheiro e primeira casa entregues; obra e cochos do celeiro entregues, aquisição/capacidade/alimentação bovina/ovina entregues, segunda casa/lareira, estufa de cultivo e Orangecup entregues; compra das ferramentas animais, leite/lã e escovação entregues; venda/reprodução/ciclo completo pendentes; aquisição de utensílios/cozinha completa pendentes; demais culturas/clima completo, espécies, lojas/ferramentas, moradores/relacionamentos, família, áreas, festivais/minijogos e progressão. Adaptar funções já presentes no original e manter os backends. Antes de cada implementação, publicar aqui o sistema selecionado, fontes, lacunas e percurso de aceite. Galinhas, rotas, afinidade e pesca atuais são reconciliadas no domínio necessário; não recomeçar tudo. | Percurso completo e testes de regras de cada sistema; matriz atualizada distingue completo, parcial e ausente. PF-06 só termina com cobertura declarada de toda a progressão original, não por um exemplo isolado. |
+| **PF-05 — Saves nativos e retomada: concluída** | Proprietários de estado atuais identificados; definir quais estados transitórios são salváveis | Formato versionado explícito, sem dump de structs/ponteiros/layout PS1. Salvar e restaurar todo o recorte jogável declarado, incluindo conteúdo referenciado por IDs estáveis. Adaptar a representação ao estado jogável conforme necessário, sem exigir nem proibir compatibilidade entre versões. Não depende de terminar todas as espécies/eventos. | Ida/volta, dois saves/sessões, reinício do processo, inventário/dinheiro/data/campo/animais/flags, arquivos truncados/corrompidos, versões e retomada sem efeitos repetidos. |
+| **PF-06 — Completar sistemas do jogo original: em andamento** | Por sistema: estado, operações, comandos e ciclo diário efetivamente usados | Fila incremental: batata, grama/feno, culturas base de verão/outono e clima diário/chuva entregues; sementes sazonais de Won, desbloqueios do supermercado, flores simples e variantes de Magic Red entregues; Moondrop e visitas de Karen entregues; carpintaria/galinheiro e primeira casa entregues; obra e cochos do celeiro entregues, aquisição/capacidade/alimentação bovina/ovina entregues, segunda casa/lareira, estufa de cultivo e Orangecup entregues; compra das ferramentas animais, leite/lã e escovação entregues; venda/reprodução entregues nos recortes abaixo; funerais bovinos/ovinos entregues abaixo; pastagem/transporte e ciclo completo pendentes; aquisição de utensílios e aparelhos nas duas cozinhas entregues; preparo com fade/XA e indicadores entregues no recorte abaixo; demais culturas/clima completo, espécies, lojas/ferramentas, moradores/relacionamentos, família, áreas, festivais/minijogos e progressão. Adaptar funções já presentes no original e manter os backends. Antes de cada implementação, publicar aqui o sistema selecionado, fontes, lacunas e percurso de aceite. Galinhas, rotas, afinidade e pesca atuais são reconciliadas no domínio necessário; não recomeçar tudo. | Percurso completo e testes de regras de cada sistema; matriz atualizada distingue completo, parcial e ausente. PF-06 só termina com cobertura declarada de toda a progressão original, não por um exemplo isolado. |
 | **PF-07 — Distribuição Linux/Windows e consolidação** | Recorte publicável e instalação BIN existentes; validação de plataformas começa em cada entrega | Configurar/compilar/testar Linux e Windows durante o desenvolvimento. No marco final, validar instalação limpa, saves, atualização, janela/entrada/áudio e progressão completa; registrar diferenças deliberadas. Preservar BIN do usuário e distribuição sem recursos proprietários. Android, conteúdo novo e coop ganham planejamento próprio posteriormente. | Builds/testes reais das plataformas disponíveis, instalação limpa e percurso manual documentado; não presumir Windows pela execução Linux nem concluir port completo apenas pelos CTests. |
 
 ### PF-03 concluída — evento 140, convite de Duke para a vindima
@@ -502,8 +502,9 @@ Entrega de 2026-10-27, com galinheiro como dependência já satisfeita.
 
 Fonte, arquivos, percurso reproduzível e limites em
 [PF06_HOUSE_EXPANSION.md](PF06_HOUSE_EXPANSION.md).
-**A cozinha completa não está concluída:** aquisição/entrega de utensílios pela TV,
-indicadores completos da ficha e som/animação do preparo continuam na fila PF-06.
+**Atualização:** aquisição pela TV/aparelhos e apresentação do preparo por
+fade/XA/indicadores foram entregues nos recortes abaixo. Isso não declara
+cobertura individual de todos os pratos ou de eventos associados à cozinha.
 Não conceder utensílios gratuitos nem declarar todos os pratos alcançáveis apenas
 por extrair as tabelas. Estufa/Orangecup e PF-06 permanecem abertas.
 
@@ -607,7 +608,7 @@ Entrega de 2026-10-28. Quarta obra original, sem novo controlador de construçã
   ambas as camas conferidas.
 
 Relatório/fontes/arquivos/reprodução: [PF06_SECOND_HOUSE.md](PF06_SECOND_HOUSE.md).
-Família/casamento, aquisição de utensílios e cozinha completa continuam pendentes.
+Família/casamento continuam pendentes; aquisição de utensílios e apresentação do preparo/indicadores entregues abaixo.
 Windows, Release, sanitizers e suíte inteira não foram executados. PF-06 segue aberta.
 
 ### PF-06 — Estufa: concluída no recorte de construção/cultivo
@@ -738,18 +739,198 @@ inclui caminhada automática; mensagem de Barley e posição dos cursores seguem
 as rotinas originais. Pedra/galho voltam a células livres do plantio e são
 descartados fora da grade. [Fontes, conferência do BIN e testes](PF06_INTERACTION_FIXES.md).
 
-### Próxima implementação recomendada — PF-06, reprodução bovina/ovina
+### PF-06 — Reprodução bovina/ovina: recorte entregue em 2026-10-29
 
-1. Auditar `livestock_start_pregnancy/_b`, atualização diária, nascimento e
-   reserva de registro em `animals.c`, junto das poções em `shop_barn_step`.
-2. Integrar aquisição/uso com inventário e ações existentes; persistir gestação,
-   mãe/filhote e reserva na mesma coleção. Aplicar guardas originais de venda,
-   ordenha/tosquia e capacidade conforme cada espécie.
-3. Aceite: recusas/fundos/capacidade, uso único e reserva de vaga sem animal
-   fictício; prazo/parto/nome/arte real, falha/repetição sem duplicação, save/load
-   em outro processo e proteção de compra/venda/alimentação/produção.
-4. Definir o recorte de eventos de parto pelos comandos/recursos realmente
-   necessários. Manter PF-06 aberta para festivais, máquinas, pastagem e funerais.
+Selecionada após corrigir a porta externa da hospedaria, preservando os ajustes
+de animação do usuário. Fontes C/BIN, comportamento, arquivos, decisões de
+adaptação e limites em [PF06_LIVESTOCK_BREEDING.md](PF06_LIVESTOCK_BREEDING.md).
+
+- [x] Poções de 3.000 G em Barley: posse/estoques derivados, saldo/espaço,
+  descrições originais, inventário comum e consumo pela ANI original da linha 26.
+- [x] Gestação 1→21, maternidades 1/2 e reserva de registro sem animal fictício.
+  Guardas de idade/saúde/lã, capacidade compartilhada, ordenha/tosquia e venda.
+- [x] Evento original 299: duas maternidades além das incubadoras existentes,
+  mães/filhotes, mensagens/fontes maternas, editor sem cancelamento e arte real.
+  Segundo banco de texturas do celeiro carregado; campos/índices explícitos no v12.
+- [x] Vinte noites alimentadas, recusa/repetição sem duplicação, gestação e nomes
+  retomados em aplicativo novo; compra/venda/cuidados/galinhas/chuva/portas protegidos.
+- [x] Linux Debug: 12/12 selecionados; Release: 2/2 e percursos diretos; Windows
+  MinGW Release e dois percursos/uma unidade no Wine aprovados. Até 49 processos
+  incluindo tentativas, filhos e lançadores Wine; suíte inteira não executada.
+
+### PF-06 — Funerais bovinos/ovinos: recorte entregue em 2026-10-29
+
+Selecionado após reprodução. Reutiliza evento 172, controlador/efeitos existentes,
+coleção, relógio e afinidade. Fontes C/BIN, arquivos e validação em
+[PF06_ANIMAL_FUNERALS.md](PF06_ANIMAL_FUNERALS.md).
+
+- [x] Testes de morte por espécie/causa e gatilho matinal: funerais antes dos
+  nascimentos, sem remover registros durante a atualização diária.
+- [x] Seis ramos originais: mensagens/listas completas de vacas, ovelhas e aves,
+  igreja/Carter/Barley/Rick, tempo e penalidade social única pelo roteiro;
+  efeito de limpeza no bônus de mel confirmado no BIN e preservado.
+- [x] Limpeza dos registros devidos e das reservas da mãe removida; preserva
+  vivos, filhos já nascidos, outro parto pendente e incubadoras. Estado existente
+  já cobre persistência, sem alteração necessária no codec nesta entrega.
+- [x] Sono/mortes reais, causas simultâneas, vinte nomes sem truncamento,
+  descarte limitado a 99, vaga reutilizável, retomada sem repetição e funeral
+  seguido de nascimento/eclosão no evento 299.
+- [x] Linux Debug: 14/14 selecionados; Release: 3/3; build Windows MinGW e
+  unidade/dois percursos no Wine e verificações finais do efeito original no
+  preço do mel. Até 47 processos incluindo tentativas, filhos
+  e lançadores; suíte inteira não executada. Alterações locais preservadas.
+
+### PF-06 — Pastagem e transporte do gado: recorte entregue em 2026-10-29
+
+Fontes, particularidades do C/BIN e validação em
+[PF06_LIVESTOCK_PASTURE.md](PF06_LIVESTOCK_PASTURE.md).
+
+- [x] Barley vende o sino por 500 G, com posse/espaço/saldo, textos e cursor
+  reais; ação ANI 21/som 13 e resposta por afeição na mesma coleção.
+- [x] Empurrão após contato contínuo, destino original, colisão/piso/campo,
+  passagem bidirecional pelos retângulos originais, porta externa e espera
+  por chegada ocupada. Arte original também na fazenda; sem duplicar animais.
+- [x] Cinco atualizações horárias elegíveis, uma grama madura por animal,
+  busca local/global e rebrota sem gerar feno. Clima específico por espécie,
+  inverno, repouso noturno, cochos/afeição e maternidade preservados.
+- [x] Estado externo, contagem e destino no codec existente (v13), adaptado
+  conforme necessário; nenhuma política adicional sobre compatibilidade.
+- [x] Percurso com recursos instalados e regressões de portas/chuva/cursor,
+  ferramentas, reprodução e funerais: 18 casos distintos Debug aprovados,
+  percurso Release e build Windows aprovados, até 50 processos contando
+  lançadores/wrappers/filhos e tentativas. Cues/vozes integrais, pets e concursos
+  continuam pendentes; limites no relatório vinculado.
+
+### PF-06 — Mineração e aquisição de minérios: recorte entregue em 2026-10-29
+
+Fontes C/BIN, regras e validação em [PF06_MINING.md](PF06_MINING.md).
+
+- [x] Entradas reais 68/72, mapas 234..243 e 245..254, anexo 244 e piso/células
+  originais, sem arredondar IDs de andares para grupos sazonais.
+- [x] Enxada/ANI/energia/XP compartilhados, coordenadas/bordas/raio da escada,
+  sorteio original de saída/itens, achados únicos e guarda do último andar.
+  O módulo original confere loot por escavação; não gera rochas artificiais.
+- [x] Pergunta/Yes/No, recuo ao cancelar, descida/modelo e retorno externo;
+  relógio subterrâneo parado, minério/sucata/receita, moeda e Power Berry.
+- [x] Adamantita obtida pela escavação e armazenada/remetida pelo inventário
+  comum; estado subterrâneo no codec atual v14, apenas conforme necessário.
+- [x] Quinze casos distintos Debug aprovados, unidade/dois percursos Release,
+  build Windows e unidade/percurso/duas retomadas no Wine. Até 48 processos,
+  incluindo lançadores, wrappers, filhos e tentativas; suíte inteira ausente.
+  Portas/chuva, pastagem, reprodução e funerais preservados.
+
+### PF-06 — Máquinas de Saibara: recorte entregue em 2026-10-29
+
+Fontes C/BIN, estado, aceite e limites em [PF06_MAKERS.md](PF06_MAKERS.md).
+
+- [x] Adamantita da mina, 20.000 G e uma unidade por máquina, oferta sequencial
+  conforme ampliações/posse, duas confirmações, cancelamento e cobrança única.
+- [x] Apresentação do material, saída/agenda de Saibara, cinco manhãs conferidas
+  no BIN e entrega pelos textos/comandos do script 354, ao voltar a conversar.
+- [x] Mapas/modelos/zonas originais 120/104/108, capacidades preservadas,
+  ovos/leite/lã -> maionese/queijo/fio S/M/L/G, ovo de Popuri -> maionese L,
+  ANI comum, mochila cheia, remessa e estado/retomada necessários no v15.
+- [x] Seleções Debug 13/13 e 8/8; wrapper com três retomadas; unidade/percurso
+  Release e Windows/Wine, retomadas pendente/interior Windows. Até 50 processos
+  incluindo wrappers/filhos/tentativas; portas/chuva e animais preservados.
+  Validação e limites no relatório vinculado; Windows físico ainda não validado.
+
+### PF-06 — Melhorias de ferramentas: recorte entregue em 2026-10-29
+
+Fontes C/BIN, tabelas, aceite e limites em [PF06_TOOL_UPGRADES.md](PF06_TOOL_UPGRADES.md).
+
+- [x] Minério na mão/ferramenta equipada, XP por espécie, cobre/prata/ouro/Mystrile,
+  saltos de nível, duas confirmações/cancelamento e dinheiro/material únicos.
+- [x] Fila compartilhada com máquinas, três manhãs, entrega pelo script 354,
+  recusa sem vaga preservando o pedido, metadata original e retomada.
+- [x] Grade/carga/ANI por nível, áreas de foice/enxada/regador, força de machado/
+  martelo, energia/XP/água, corte/feno/obstáculos, inverno/estufa e mina de uma célula.
+- [x] Debug 6/6, 10/10 e wrapper 1/1; unidade/percurso Release e Windows/Wine,
+  duas retomadas por plataforma, sem suíte inteira. Até 48 processos de testes,
+  incluindo lançadores/wrappers/filhos/tentativas; portas/chuva e máquinas
+  preservadas. Limites e reprodução no relatório; Windows físico não validado.
+
+### PF-06 — Aquisição de utensílios da cozinha: concluída no recorte
+
+- [x] Oferta de sábado após ampliação, programas prioritários, rotação u16 das
+  nove ofertas, assistir até o fim e sprites originais da TV.
+- [x] Telefone da hospedaria, duas confirmações, taxa de 10 G, preços do catálogo,
+  cancelamento/saldo e prioridade sobre descarte de item na mão.
+- [x] Scripts 290..298 e ANI/banco/mensagens de Zack, entrega de terça a sexta
+  das 6h às 11h59, flags/posse únicas e Power Berry original.
+- [x] Oito aparelhos nas posições originais das duas casas, seleção/receita com
+  faca recebida, consumo/registro e remessa sem receita fictícia para salada.
+- [x] Estado pendente/concluído e retomada pelo aplicativo; Debug/Release e
+  Windows x64/Wine, com seleção de regressão de portas/chuva/mundo.
+
+Auditoria C/BIN, percurso, comandos e limites em
+[PF06_TV_SHOPPING.md](PF06_TV_SHOPPING.md). A implementação preserva as edições
+iniciais do usuário nas portas. PF-06 e a cozinha completa permanecem abertas.
+
+### PF-06 — Apresentação do preparo e indicadores: concluída no recorte
+
+- [x] C/BIN confirma fechamento da pergunta, fade, consumo único, faixa XA 22,
+  espera pelo fim e fade-in; não há ANI de personagem cozinhando nesse fluxo.
+- [x] Track/file/canal/countdown do original no stream/mixer existentes, sem
+  áudio substituto ou outro motor de inventário/receitas.
+- [x] Painéis de utensílios/temperos/receita, quantidades, seleção e marcas de
+  falta; navegação de quatro células, descrições e Start na lista originais.
+- [x] Nova/melhor/pior/igual/fiasco, guardar/recusar substituição, consumo da
+  mochila antes da geladeira, desenho sem efeitos no domínio e contagem na ficha.
+- [x] Utensílios comprados no percurso anterior, sete preparos, PCM original,
+  ausência de consumo repetido durante texto/fade/XA, estado estável/retomada.
+- [x] Debug/Release e Windows x64/Wine aprovados, regressões das duas ampliações,
+  portas/chuva e mundo; 45 processos contabilizados, sem suíte inteira.
+
+Fontes, implementação, validação e limites em
+[PF06_COOKING_PRESENTATION.md](PF06_COOKING_PRESENTATION.md). As novas fases são
+transitórias; não houve alteração de codec nem trabalho de compatibilidade.
+O recorte não declara cobertura individual de todos os pratos/festivais/família.
+
+### Acessórios de Saibara — PF-06 concluído no recorte
+
+- [x] C/BIN: sorteio original de pulseira/colar/brincos, Orichalcum, 1.000 G,
+  duas confirmações/cancelamento, três manhãs e script 354 para retirada.
+- [x] Loja/fila/inventário/economia existentes; cue/ANI de minério e recebimento,
+  mão ocupada preserva pedido, registro normal carregável, mochila/remessa reais.
+- [x] Codec v16 conservado, validação da fila ampliada, sorteio no RNG da vila,
+  consumo e entrega únicos, estado/retomadas pendente e concluído.
+- [x] Debug 7/7, wrapper 1/1, regressões 4/4; Release 2/2; build Windows e
+  unidade/percurso/três retomadas Wine aprovados. 46 processos, incluindo
+  tentativas/filhos/lançadores; bloco de portas do usuário idêntico.
+
+[Fontes, validação e limites](PF06_ACCESSORIES.md). Relacionamentos, embrulhos e
+festivais permanecem em recortes próprios; não há nova política de saves.
+
+### Ampliações de mochila — PF-06 concluído no recorte
+
+- [x] C/BIN: registro 115/chave 9, ofertas de 3.000/5.000 G, dez manhãs,
+  cancelamento/saldo, sprites 8/9 e ANI original para mostrar/vestir.
+- [x] Mesma economia/inventário/capacidade, balcão compartilhado com sementes,
+  compra única após fechamento, bolsas cheias e registros preservados.
+- [x] Menu real nos níveis 2/4/8, depósitos compartilhados, inverno e retomadas
+  após primeira compra, durante espera e após segunda; contador no codec v17.
+- [x] Debug 7/7, wrapper 1/1 e regressões 5/5; Release 2/2; Windows/Wine,
+  unidade/percurso/três retomadas aprovados. 45 processos incluindo filhos e
+  lançadores; `runtime.c` integralmente idêntico ao início do recorte.
+
+[Fontes, implementação, validação e limites](PF06_RUCKSACK.md). Nenhum trabalho
+adicional sobre compatibilidade de saves; cesta, embrulhos e jornal ficam abertos.
+
+### Próxima implementação recomendada — PF-06, cesta de remessas
+
+1. Auditar `shop_basket_step`, `shop_item_grant`, `estate_marker_stamp`,
+   `estate_basket_add/merge/check` e ações de cesta em `people/player.c`, além
+   do registro de compra, preço, sprite e flags no C/BIN instalado. Conferir
+   aquisição, posição/área, transporte/depósito, capacidade e regras de itens.
+2. Adaptar a compra ao balcão/modal/economia existentes e a cesta à mesma
+   sessão/carry/remessa: um único objeto com posição, conteúdo e valor, sem
+   outra bolsa ou carteira. Reutilizar arte, ANI, colisões e portas atuais.
+3. Aceite: compra/cancelamento/saldo/posse únicos, pegar/transportar/deixar e
+   reencontrar a cesta, enchimento até o limite original e recusa sem perder
+   itens, transferência única à remessa e pagamento pelo relógio comum;
+   conteúdo/posição/retomada em Linux/Windows. Até 50 processos por rodada.
+   Cavalo, embrulhos, festivais e relacionamentos seguem separados.
 
 A fila continua sendo este arquivo. Não habilitar uma melhoria ainda sem seus
 mapas/estado/uso real e não criar aquisição gratuita para saltar dependências.
@@ -758,22 +939,33 @@ O custo da tabela original é referência de conteúdo, não limite de hardware 
 | Ordem | Trabalho | Dependências e critério de conclusão |
 |---|---|---|
 | 1 — concluída | Carpintaria, madeira e galinheiro: 5.000 G/420 madeiras | Percurso acima, mesma economia/inventário, quatro manhãs, mapas e capacidade reais. |
-| 2 — concluída no recorte | Primeira casa: 4.700 G/370 madeiras | Percurso acima: mapas/móveis, geladeira/armário, núcleo da cozinha, quatro manhãs e save v6. Aquisição de utensílios e apresentação completa da cozinha continuam pendentes. |
-| 3 — concluída no recorte base | Celeiro e aquisição/alimentação de vacas e ovelhas | Obra/mapas/cochos, compra real/nome/arte, coleção única, capacidade 10/20, alimentação/crescimento/conversa/medicina/status e save v8 validados acima. Leite/lã e cuidados entregues no item 7, venda no item 8; reprodução e ciclo completo pendentes. |
-| 4 — concluída no recorte | Segunda casa: 10.000 G/750 madeiras | Percurso acima: obra, mapas/objetos compartilhados, cama/diário, lareira, estado preservado e save v9. Família e aquisição de utensílios continuam pendentes. |
+| 2 — concluída no recorte | Primeira casa: 4.700 G/370 madeiras | Percurso acima: mapas/móveis, geladeira/armário, núcleo da cozinha, quatro manhãs e save v6. Aquisição de utensílios entregue no item 15; apresentação final no item 16. |
+| 3 — concluída no recorte base | Celeiro e aquisição/alimentação de vacas e ovelhas | Obra/mapas/cochos, compra real/nome/arte, coleção única, capacidade 10/20, alimentação/crescimento/conversa/medicina/status e save v8 validados acima. Leite/lã e cuidados entregues no item 7, venda no item 8 e reprodução no item 9 e funerais no item 10; pastagem/transporte e ciclo completo pendentes. |
+| 4 — concluída no recorte | Segunda casa: 10.000 G/750 madeiras | Percurso acima: obra, mapas/objetos compartilhados, cama/diário, lareira, estado preservado e save v9. Família permanece pendente; utensílios entregues no item 15. |
 | 5 — concluída no recorte | Estufa: 30.000 G/580 madeiras | Percurso acima: obra/entrada, campo 7×7 no motor comum, cultivo anual, perda/reconstrução, apresentação e save v10. Transporte de animais e conteúdo restante seguem abertos. |
 | 6 — concluída no recorte | Orangecup | Compra com Won, oito noites regadas na estufa, virada do ano, arte, colheita/venda e persistência v10; regras externas/assimetria visual documentadas acima. |
 | 7 — concluída no recorte | Ferramentas animais e leite/lã | Compra real, ações/ANI, escovação, qualidades, ordenha diária, lã/tosquia/retorno, remessa e v11; limites acima. |
 | 8 — concluída no recorte | Venda de vacas e ovelhas | Lista/seleção/preço/confirmação de Barley, pagamento e liberação de vaga no mesmo domínio; verificação acima. |
-| **9 — próxima** | Reprodução bovina/ovina | Poções, gestação, reserva real de vaga e nascimento no mesmo domínio; critérios acima. |
+| 9 — concluída no recorte | Reprodução bovina/ovina | Poções/gestação/reserva, vinte noites, evento 299/nome/arte, guardas e v12; critérios acima. |
+| 10 — concluída no recorte | Funerais bovinos/ovinos | Evento 172 completo para as três espécies/causas, nomes/tempo/penalidade/limpeza e proteção de partos/estado; critérios acima. |
+| 11 — concluída no recorte | Pastagem e transporte do gado | Empurrão/passagem/porta, sino de Barley e ANI, pasto/clima/colisão/estado na mesma coleção; critérios acima. |
+| 12 — concluída no recorte | Mineração e aquisição de minérios | Duas cadeias de dez andares, escavação/sorteios/escadas/achados, adamantita/inventário/remessa/estado; critérios acima. |
+| 13 — concluída no recorte | Máquinas de Saibara | Adamantita real, encomenda/guardas/cancelamento, cinco manhãs, script de entrega, mapas/zonas e três conversões/remessa; critérios acima. |
+| 14 — concluída no recorte | Melhorias de ferramentas de Saibara | Minérios/XP/dinheiro, confirmações, três manhãs/retirada, carga/alcance/efeitos das cinco ferramentas e retomada; critérios acima. |
+| 15 — concluída no recorte | Aquisição de utensílios da cozinha | TV/telefone/economia, scripts de Zack, oito aparelhos, Power Berry, receita/estado/retomada; critérios acima. |
+| 16 — concluída no recorte | Apresentação do preparo e indicadores | Fade/XA/resultado e consumo únicos, painéis/marcas, ficha, sete preparos com utensílios comprados e retomada; critérios acima. |
+| 17 — concluída no recorte | Acessórios de Saibara | Orichalcum escavado, sorteio original, duas confirmações, fila comum/três manhãs, cue/retirada na mão, mochila/remessa e retomada; ver PF06_ACCESSORIES.md. |
+| 18 — concluída no recorte | Aquisição das ampliações de mochila | Balcão original, 3.000/5.000 G, dez manhãs, mostrar/vestir, capacidades 2/4/8 e retomada; ver PF06_RUCKSACK.md. |
+| **19 — próxima** | Cesta de remessas | Compra, objeto único/posição/conteúdo, transporte, limite original, remessa/pagamento e retomada, conforme recorte acima. |
 
 `shop_greenhouse_step`, em `menu/shop_dialogues.c`, trata melhorias de
-ferramentas/acessórios; não é o fluxo de construção. `field/greenhouse.c` contém
+ferramentas; acessórios usam `shop_item_menu_step`. Não são fluxos de construção. `field/greenhouse.c` contém
 a grade interna e também alguns helpers de níveis de ferramentas: distinguir as funções.
 Continuar adaptando em `port/`, sem editar `src/`, preservar BIN e backends.
 Limite de testes: 50 execuções/processos de teste por rodada, incluindo filhos;
-selecionar regressões pertinentes. **Não manter migradores de saves antigos**
-nesta fase; só a versão atual deve salvar/carregar corretamente.
+selecionar regressões pertinentes. Orientação atual do usuário sobre saves:
+adaptar apenas o necessário ao estado implementado, sem impor compatibilidade
+nem incompatibilidade como requisito e sem abrir trabalho específico sobre isso.
 
 ### Destino das antigas etapas abertas
 

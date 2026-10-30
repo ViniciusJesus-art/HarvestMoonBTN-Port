@@ -63,5 +63,7 @@ void hmbtn_poultry_name_end(HmbtnPoultry *p);
 bool hmbtn_poultry_dead(const HmbtnPoultry *p,bool old_age);
 unsigned hmbtn_poultry_clear_dead(HmbtnPoultry *p);
 bool hmbtn_poultry_incubator_position(unsigned bed,int32_t position[3]);
+/* text_insert_source 0x1b..0x20: lists by species and cause. */
+bool hmbtn_animal_death_expand(const HmbtnPoultry *,const struct HmbtnLivestock *,uint8_t *,size_t);
 bool hmbtn_poultry_expand_dead(const HmbtnPoultry *p,uint8_t *record,size_t size);
 #endif

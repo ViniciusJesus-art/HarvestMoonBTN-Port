@@ -11,6 +11,7 @@ bool hmbtn_world_outdoors(const uint8_t *section,size_t size)
 bool hmbtn_world_area(unsigned selection,unsigned season,unsigned *logical,unsigned *resource)
 {
     if(season>3 || !logical || !resource) return false;
+    if(selection>=234 && selection<=254) { *logical=*resource=selection;return true; }
     if(selection>3 && (selection<24 || selection>=84)
             && !(selection>=92 && selection<100) && !(selection>=112 && selection<116)
             && !(selection>=124 && selection<128) && !(selection>=128 && selection<216)) return false;

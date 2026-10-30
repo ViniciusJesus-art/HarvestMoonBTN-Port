@@ -4,6 +4,10 @@
 /* Existing native harvesting capacity, shared with carried lumber transfers.
  * The carpenter's purchase ceiling is a separate existing shop rule. */
 unsigned hmbtn_inventory_lumber_limit(void);
+/* shop_grant_rucksack_upgrade/milestone_set_status_bits: no extra capacity owner. */
+unsigned hmbtn_inventory_rucksack_offer(const HmbtnInventory *);
+bool hmbtn_inventory_buy_rucksack(HmbtnInventory *,HmbtnEconomy *,unsigned item);
+void hmbtn_inventory_rucksack_new_day(HmbtnInventory *);
 #include <stddef.h>
 
 typedef enum HmbtnInventoryStore { HMBTN_STORE_EQUIPPED,HMBTN_STORE_BAG,HMBTN_STORE_TOOLBOX } HmbtnInventoryStore;

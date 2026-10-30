@@ -1,5 +1,6 @@
 #include "farm_carry.h"
 #include "inventory.h"
+#include "basket.h"
 void hmbtn_farm_carried_offset(unsigned facing,bool running,int *x,int *y)
 {
     /* player.c: mark_screen_offsets, groups CARRY_ITEM and POSE_4. */
@@ -12,7 +13,7 @@ void hmbtn_farm_carry_flight(HmbtnFarmCarry *s,HmbtnFarmField *field,
     const HmbtnModel *ground,HmbtnEconomy *economy)
 {
     static const int step[4][2]={{0,-44},{-44,0},{0,44},{44,0}};
-    s->changed=s->small_fish_placed=false;s->sound=-1;
+    s->changed=s->small_fish_placed=false;s->sound=-1;s->request=0;
     for(unsigned i=0;i<3;++i) {
         HmbtnThrownItem *t=&s->thrown[i];
         if(!t->item.id || t->area!=s->area) continue;
@@ -36,6 +37,11 @@ void hmbtn_farm_carry_flight(HmbtnFarmCarry *s,HmbtnFarmField *field,
             t->ground=surface ? hit.height : 5001;
         }
         if(t->position[1]>=t->ground) {
+            int32_t landing[3]={t->position[0],t->ground,t->position[2]};
+            if(hmbtn_basket_near(s->basket,s->area,landing) && hmbtn_farm_shipping_price(economy,t->item.id)) {
+                if(!hmbtn_basket_add(s->basket,economy,t->item.id)) s->request=0x383;
+                t->item=(HmbtnStoredTool){0};s->sound=9;continue;
+            }
             if(t->area==56 && t->item.id==0xA3 && surface && (hit.flags&2u) && !(hit.flags&0x44u)) s->small_fish_placed=true;
             if(surface && (hit.flags&0x80u) && hmbtn_farm_shipping_add(economy,t->item.id)) {
                 t->item=(HmbtnStoredTool){0};s->sound=0x13;continue;

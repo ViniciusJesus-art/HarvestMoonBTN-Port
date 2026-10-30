@@ -247,8 +247,8 @@ static HmbtnEventResult command(void *ctx, const HmbtnEventCommand *c,
     }
     case 8:
         if((s->event==172 || s->event==299) && !b && ((a==44 && !x && y==1)
-                || (a==-2 && x==1 && !y) || (a==-4 && !x && !y))) {
-            const unsigned target=a==44 ? 44 : a==-4 ? 112 : 80;
+                || (a==-2 && x==1 && !y) || ((a==-3 || a==-4) && !x && !y))) {
+            const unsigned target=a==44 ? 44 : a==-3 ? 96 : a==-4 ? 112 : 80;
             if(s->area==target) return HMBTN_EVENT_DONE;
             s->target_area=target;s->area_pending=true;return HMBTN_EVENT_PENDING;
         }

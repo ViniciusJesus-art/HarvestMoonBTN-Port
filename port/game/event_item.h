@@ -1,7 +1,7 @@
 #ifndef HMBTN_EVENT_ITEM_H
 #define HMBTN_EVENT_ITEM_H
 #include "farm_action.h"
-typedef enum HmbtnEventItemPhase { HMBTN_EVENT_ITEM_IDLE,HMBTN_EVENT_ITEM_SHOW,HMBTN_EVENT_ITEM_EAT } HmbtnEventItemPhase;
+typedef enum HmbtnEventItemPhase { HMBTN_EVENT_ITEM_IDLE,HMBTN_EVENT_ITEM_SHOW,HMBTN_EVENT_ITEM_EAT,HMBTN_EVENT_ITEM_RUCKSACK } HmbtnEventItemPhase;
 typedef struct HmbtnEventItem { HmbtnEventItemPhase phase;unsigned shown;HmbtnStoredTool saved;int sound; } HmbtnEventItem;
 /* event_items_take for the represented hand/rucksack/toolbox stores. Returns
  * copies seen, removes at most count records, and -1 for unavailable stores. */
@@ -13,6 +13,8 @@ bool hmbtn_event_item_begin(HmbtnEventItem *item,HmbtnIntroActor *player,
     HmbtnInventory *inventory,unsigned id,bool eat);
 /* player_show_item: shared base-ANI presentation, inventory receives once. */
 bool hmbtn_event_item_show(HmbtnEventItem *,HmbtnIntroActor *,HmbtnInventory *,unsigned id);
+/* player_start_rucksack: base ANI 29..32 after the shop commits the purchase. */
+bool hmbtn_event_item_rucksack(HmbtnEventItem *,HmbtnIntroActor *,HmbtnInventory *);
 void hmbtn_event_item_tick(HmbtnEventItem *item,HmbtnIntroActor *player,
     HmbtnInventory *inventory,HmbtnFarmAction *status);
 #endif

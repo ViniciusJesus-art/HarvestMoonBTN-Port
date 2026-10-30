@@ -1,6 +1,8 @@
-/* Initial tools, using player_command_validate/player_anim_position_step and
+/* Tools, using player_command_validate/player_anim_position_step and
  * player_run_action. Extra action banks are requested from the host loader. */
 #include "farm_action.h"
+#include "mine.h"
+#include "tool_upgrade.h"
 #include <string.h>
 void hmbtn_farm_action_init(HmbtnFarmAction *a)
 {
@@ -17,8 +19,47 @@ void hmbtn_farm_action_cost(HmbtnFarmAction *a,const HmbtnHouseInteraction *h,un
     a->stamina=a->stamina>amount ? a->stamina-amount : 0;
     a->fatigue=a->fatigue+fatigue>100 ? 100 : a->fatigue+fatigue;
 }
-bool hmbtn_farm_action_tick(HmbtnFarmAction *a,HmbtnIntroActor *p,HmbtnHouseInteraction *h,
-    HmbtnFarmField *field,const HmbtnModel *ground,uint32_t pressed,uint32_t held)
+static bool apply_cell(HmbtnFarmAction *a,HmbtnIntroActor *p,HmbtnHouseInteraction *h,HmbtnFarmField *field,unsigned part)
+{
+    int dx,dr;
+    const unsigned charge=a->charge_frames/20;
+    if(!field || !hmbtn_tool_grid(a->kind,charge,part,p->facing,&dx,&dr)) return false;
+    const int c=a->origin_column+dx,r=a->origin_row+dr;
+    const int cols=(int)hmbtn_farm_field_columns(field),rows=(int)hmbtn_farm_field_rows(field);
+    if(c<0 || c>=cols || r<0 || r>=rows) return false;
+    if(a->kind==1 && !field->indoor && field->season==3) {
+        a->result_step=a->result_count;return false; /* field_request_dispatch. */
+    }
+    const unsigned target=(unsigned)(r*cols+c);
+    if(target!=a->target) { a->target=target;a->strikes=0; }
+    /* Hammer/axe accumulate 1<<charge per swing, with owned rank as the
+     * material's minimum power guard, as player_tool_clear[_alt]. */
+    if(a->kind==2 || a->kind==3) a->strikes+=1u<<charge;
+    const uint16_t item=field->cells[target].value;
+    const bool changed=hmbtn_farm_field_tool(field,c,r,a->kind,h->inventory->equipped.modifier,a->strikes,h->inventory->supplies);
+    if(a->kind==1 && !changed && field->active[target]) a->result_step=a->result_count;
+    if(changed && !field->indoor && a->kind==1 && h->weather->today==HMBTN_WEATHER_RAIN)
+        hmbtn_farm_field_water(field,target);
+    if(changed && (a->kind==0 || a->kind==2 || a->kind==3)) {
+        a->broken_item=item;a->effect_column=c;a->effect_row=r;
+        if(item>=0x3b && item<=0x3d) { ++a->effect_column;++a->effect_row; }
+        else if(item>=0x16c && item<=0x174) {
+            const unsigned corner=(item-0x16c)%3+1;
+            if(corner==1) ++a->effect_row;
+            if(corner==3) ++a->effect_column;
+        }
+    }
+    return changed;
+}
+static void finish_tool(HmbtnFarmAction *a,HmbtnIntroActor *p,HmbtnHouseInteraction *h,bool changed)
+{
+    const unsigned exp=changed ? 150u : 40u;
+    a->experience[a->kind]=a->experience[a->kind]+exp>65535 ? 65535 : a->experience[a->kind]+exp;
+    a->release_sound=a->kind==4;
+    hmbtn_farm_action_cost(a,h,hmbtn_tool_stamina(a->kind,a->charge_frames/20));idle(a,p);
+}
+bool hmbtn_farm_action_mine_tick(HmbtnFarmAction *a,HmbtnIntroActor *p,HmbtnHouseInteraction *h,
+    HmbtnFarmField *field,const HmbtnModel *ground,uint32_t pressed,uint32_t held,HmbtnMine *mine,bool *flags)
 {
     a->sound=-1;a->finished_bank=a->changed=false;
     a->release_sound=false;a->broken_item=0;
@@ -55,7 +96,8 @@ bool hmbtn_farm_action_tick(HmbtnFarmAction *a,HmbtnIntroActor *p,HmbtnHouseInte
             p->sprite.frame=(uint16_t)(a->charge_frames/20);p->sprite.ticks=0;
         } else {
             a->phase=HMBTN_FARM_TOOL_SWING;
-            p->sprite.frame=(uint16_t)(a->charge_frames/20+1);p->sprite.ticks=0;
+            const unsigned charge=a->charge_frames/20;
+            p->sprite=(HmbtnAnimationPlayer){(uint16_t)(72+a->kind*20+p->facing*5+charge),(uint16_t)(charge+1),0};
             p->animation_done=false;a->sound=(int)(29+a->kind*5+a->charge_frames/20);
         }
         return true;
@@ -67,41 +109,36 @@ bool hmbtn_farm_action_tick(HmbtnFarmAction *a,HmbtnIntroActor *p,HmbtnHouseInte
         }
         return true;
     }
+    if(a->phase==HMBTN_FARM_TOOL_RESULT) {
+        if(a->result_step<a->result_count) {
+            const unsigned part=a->result_step++;
+            a->changed=apply_cell(a,p,h,field,part);a->result_changed|=a->changed;
+        } else finish_tool(a,p,h,a->result_changed);
+        return true;
+    }
     if(a->phase==HMBTN_FARM_TOOL_SWING) {
         if(!p->animation_done) return true;
-        int c=-100,r=-100; bool changed=false;
-        const int cols=(int)hmbtn_farm_field_columns(field),rows=(int)hmbtn_farm_field_rows(field);
-        hmbtn_farm_field_world_cell(field,p->position,&c,&r);
-        if(field && c>=-1 && c<=cols && r>=-1 && r<=rows) {
-            static const int step[4][2]={{0,1},{-1,0},{0,-1},{1,0}};
-            c+=step[p->facing][0];r+=step[p->facing][1];
-            const unsigned target=c>=0 && c<cols && r>=0 && r<rows ? (unsigned)(r*cols+c) : HMBTN_FIELD_CELLS;
-            if(target!=a->target) { a->target=target;a->strikes=0; }
-            ++a->strikes;
-            const uint16_t item=target<HMBTN_FIELD_CELLS ? field->cells[target].value : 0;
-            /* Initial tools affect one square. Upgraded area grids are a
-             * separate step and are not accepted by the input path below. */
-            changed=hmbtn_farm_field_tool(field,c,r,a->kind,tool->modifier,a->strikes,h->inventory->supplies);
-            if(changed && !field->indoor && a->kind==1 && h->weather->today==HMBTN_WEATHER_RAIN)
-                hmbtn_farm_field_water(field,(unsigned)(r*cols+c));
-            if(changed && (a->kind==0 || a->kind==2 || a->kind==3)) {
-                a->broken_item=item;a->effect_column=c;a->effect_row=r;
-                if(item>=0x3b && item<=0x3d) { ++a->effect_column;++a->effect_row; }
-                else if(item>=0x16c && item<=0x174) {
-                    const unsigned corner=(item-0x16c)%3+1;
-                    if(corner==1) ++a->effect_row;
-                    if(corner==3) ++a->effect_column;
-                }
-            }
-            if(a->kind==4 && tool->count) --tool->count;
+        if(mine && mine->kind && a->kind==1) {
+            mine->found=hmbtn_mine_dig(mine,p,flags,&a->changed);
+            finish_tool(a,p,h,mine->found!=0);return true; /* Mines always one cell. */
         }
-        const unsigned exp=changed ? 150u : 40u;
-        a->experience[a->kind]=a->experience[a->kind]+exp>65535 ? 65535 : a->experience[a->kind]+exp;
-        a->release_sound=a->kind==4;
-        a->changed=changed;hmbtn_farm_action_cost(a,h,1+a->charge_frames/20);idle(a,p);return true;
+        a->origin_column=a->origin_row=-100;
+        hmbtn_farm_field_world_cell(field,p->position,&a->origin_column,&a->origin_row);
+        a->result_step=0;a->result_count=field ? hmbtn_tool_targets(a->kind,a->charge_frames/20) : 0;a->result_changed=false;
+        if(a->kind==4 && field) {
+            /* Deduct the requested count, even on dry/ineligible targets;
+             * insufficient stock bounds the inclusive source result loop. */
+            if(h->inventory->equipped.count<a->result_count) a->result_count=h->inventory->equipped.count;
+            const unsigned requested=hmbtn_tool_targets(4,a->charge_frames/20);
+            h->inventory->equipped.count=h->inventory->equipped.count>requested ? h->inventory->equipped.count-requested : 0;
+        }
+        if(a->result_count>1) { a->phase=HMBTN_FARM_TOOL_RESULT;return true; }
+        a->changed=a->result_count && apply_cell(a,p,h,field,0);
+        finish_tool(a,p,h,a->changed);return true;
     }
     if(!(pressed&HMBTN_PAD_SQUARE) || !tool->id || tool->id>25 || a->fatigue>=100) return false;
-    if(tool->modifier || (tool->id-1)%5) { a->sound=2;return true; }
+    if(tool->modifier>4 || tool->modifier!=(tool->id-1)%5) { a->sound=2;return true; }
+    if(a->kind!=(unsigned)(tool->id-1)/5) { a->target=HMBTN_FIELD_CELLS;a->strikes=0; }
     a->kind=(tool->id-1)/5;a->overcharge_frames=0;a->charge_frames=1;
     if(a->kind==4) {
         static const int reach[4][2]={{0,-224},{-224,0},{0,224},{224,0}};
@@ -118,3 +155,7 @@ bool hmbtn_farm_action_tick(HmbtnFarmAction *a,HmbtnIntroActor *p,HmbtnHouseInte
     p->sprite=(HmbtnAnimationPlayer){(uint16_t)(72+a->kind*20+p->facing*5+(tool->id-1)%5),0,0};
     p->animation_done=false;return true;
 }
+
+bool hmbtn_farm_action_tick(HmbtnFarmAction *a,HmbtnIntroActor *p,HmbtnHouseInteraction *h,
+    HmbtnFarmField *field,const HmbtnModel *ground,uint32_t pressed,uint32_t held)
+{ return hmbtn_farm_action_mine_tick(a,p,h,field,ground,pressed,held,NULL,NULL); }

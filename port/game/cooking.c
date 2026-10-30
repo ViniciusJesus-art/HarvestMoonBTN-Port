@@ -17,6 +17,15 @@ const HmbtnStoredTool *hmbtn_cooking_source(const HmbtnInventory *h,unsigned pag
     return page ? &h->icebox[(page-1)*8+cell] : &h->items[cell];
 }
 unsigned hmbtn_cooking_option_item(unsigned bit) { return bit<12 ? cooking_option_items[bit] : 0; }
+bool hmbtn_cooking_item_stored(const HmbtnInventory *h,unsigned id)
+{
+    if(!id) return true;
+    for(unsigned page=0;page<9;++page) for(unsigned cell=0;cell<8;++cell) {
+        const HmbtnStoredTool *item=hmbtn_cooking_source(h,page,cell);
+        if(item && item->id==id && item->count) return true;
+    }
+    return false;
+}
 unsigned hmbtn_cooking_allowed_options(const HmbtnCooking *c)
 { return c ? (c->utensils&0x7f)|((c->utensils&0x80) ? 0xf80u : 0) : 0; }
 const uint16_t *hmbtn_cooking_dish_name(unsigned id)

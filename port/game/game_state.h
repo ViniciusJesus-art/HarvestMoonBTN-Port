@@ -16,6 +16,7 @@ typedef struct HmbtnInventory {
     HmbtnStoredTool held_item, items[8];
     HmbtnStoredTool icebox[64],cabinet[64]; /* Original content capacity; one owner, no UI copies. */
     unsigned rucksack_level;
+    unsigned rucksack_mornings_left; /* estate.rucksackTimer, second shop offer. */
     unsigned supplies[4]; /* Fodder, lumber, chicken feed, fish food. */
 } HmbtnInventory;
 
@@ -52,6 +53,15 @@ typedef struct HmbtnGameProgress { bool moondrop_seeds; } HmbtnGameProgress;
 enum { HMBTN_RECIPE_RECORDS=80 };
 typedef struct HmbtnRecipeRecord { uint16_t id,quality,options,values[8]; } HmbtnRecipeRecord;
 typedef struct HmbtnCooking { unsigned utensils;HmbtnRecipeRecord records[HMBTN_RECIPE_RECORDS]; } HmbtnCooking;
+/* messages.c stores the nine TV Shopping offers in FarmEnding. The date is
+ * deliberately a wrapping PS1 u16, independent of the native clock key. */
+typedef struct HmbtnTvShopping { uint16_t date;uint8_t offers[9]; } HmbtnTvShopping;
+/* FarmBasket plus estate record 18[0]; held basket refers to inventory.held_item. */
+typedef struct HmbtnBasket {
+    bool owned,placed;
+    unsigned area,count,value,shipments[25];
+    int32_t position[3];
+} HmbtnBasket;
 typedef struct HmbtnGameState {
     HmbtnInventory inventory;
     HmbtnEconomy economy;
@@ -61,6 +71,8 @@ typedef struct HmbtnGameState {
     HmbtnWeather weather;
     HmbtnGameProgress progress;
     HmbtnCooking cooking;
+    HmbtnTvShopping shopping;
+    HmbtnBasket basket;
 } HmbtnGameState;
 
 /* New game only. Reopening a UI or loading an area must not call this. */

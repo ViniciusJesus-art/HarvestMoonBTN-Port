@@ -10,6 +10,16 @@ static bool text_cursor(HmbtnNewGameUI *ui,uint8_t *pixels,int x,int y,char *err
      * layouts already supply the icon's horizontal anchor, including inset. */
     return hmbtn_ui_icon(ui,pixels,11,1,x,y+6,error,size);
 }
+static bool blacksmith_answer(const HmbtnFeedShop *s,HmbtnNewGameUI *ui,uint8_t *p,char *error,size_t size)
+{
+    if((s->phase!=HMBTN_SHOP_MAKER_CONFIRM && s->phase!=HMBTN_SHOP_MAKER_AGAIN)
+            || s->closing || s->message.phase!=HMBTN_MESSAGE_WAIT_END) return true;
+    const int x=s->phase==HMBTN_SHOP_MAKER_CONFIRM ? 200 : 224;
+    hmbtn_window_frame_draw(p,320,240,x,128,48,36);
+    return hmbtn_ui_text(ui,p,shop_yes,WORDS(shop_yes),x+16,132,0,3,error,size)
+        && hmbtn_ui_text(ui,p,shop_no,WORDS(shop_no),x+16,146,0,3,error,size)
+        && text_cursor(ui,p,x+8,132+(int)s->answer*14,error,size);
+}
 static bool number(HmbtnNewGameUI *ui,uint8_t *pixels,unsigned value,unsigned width,
     const uint16_t *suffix,int x,int y,char *error,size_t size)
 {
@@ -67,20 +77,30 @@ static bool sale_list(const HmbtnFeedShop *s,const HmbtnRegistration *g,HmbtnNew
 bool hmbtn_feed_shop_ui_draw(const HmbtnFeedShop *s,const HmbtnEconomy *economy,const HmbtnRegistration *registration,
     HmbtnNewGameUI *ui,uint8_t *p,unsigned tick,char *error,size_t size)
 {
-    if(s->phase==HMBTN_SHOP_OFF || s->phase==HMBTN_SHOP_NAME) return true;
-    if(s->blacksmith) {
+    if(s->phase==HMBTN_SHOP_OFF || s->phase==HMBTN_SHOP_NAME || s->phase==HMBTN_SHOP_MAKER_CUE
+            || s->phase==HMBTN_SHOP_RUCKSACK_CUE || s->phase==HMBTN_SHOP_RUCKSACK_UPGRADE) return true;
+    if(s->blacksmith || s->rucksack || s->basket) {
         hmbtn_window_frame_draw(p,320,240,227,16,79,34);
         if(!hmbtn_ui_text(ui,p,shop_money_title,WORDS(shop_money_title),231,20,0,3,error,size)
                 || !number(ui,p,economy->gold,8,shop_gold_unit,231,34,error,size)) return false;
+        if(s->rucksack || s->basket) return blacksmith_answer(s,ui,p,error,size);
         if(s->phase==HMBTN_SHOP_GREETING || s->phase==HMBTN_SHOP_LEAVE) return true;
+        if(s->upgrade) return blacksmith_answer(s,ui,p,error,size);
         const bool tools=s->phase==HMBTN_SHOP_TOOL_LIST
             || ((s->phase==HMBTN_SHOP_INFO || s->phase==HMBTN_SHOP_RESULT) && s->after_result==HMBTN_SHOP_TOOL_LIST);
-        const unsigned rows=tools ? hmbtn_blacksmith_tool_count(s) : 2u;
+        const unsigned rows=tools ? hmbtn_blacksmith_tool_count(s) : hmbtn_blacksmith_rows(s);
         hmbtn_window_frame_draw(p,320,240,16,16,208,8+rows*14);
         if(!tools) {
-            return hmbtn_ui_text(ui,p,shop_improve_tool,WORDS(shop_improve_tool),30,20,0,3,error,size)
-                && hmbtn_ui_text(ui,p,shop_buy_tool,WORDS(shop_buy_tool),30,34,0,3,error,size)
-                && text_cursor(ui,p,20,20+(int)s->selection*14,error,size);
+            unsigned selected=0;
+            for(unsigned i=0;i<rows;++i) {
+                const unsigned choice=hmbtn_blacksmith_row(s,i);
+                const uint16_t *labels[]={shop_improve_tool,shop_buy_tool,shop_mayonnaise_maker,shop_cheese_maker,shop_yarn_maker,shop_girls_present};
+                const unsigned words[]={WORDS(shop_improve_tool),WORDS(shop_buy_tool),WORDS(shop_mayonnaise_maker),WORDS(shop_cheese_maker),WORDS(shop_yarn_maker),WORDS(shop_girls_present)};
+                if(choice==s->selection) selected=i;
+                if(!hmbtn_ui_text(ui,p,labels[choice],words[choice],30,20+(int)i*14,0,3,error,size)) return false;
+            }
+            if(!text_cursor(ui,p,20,20+(int)selected*14,error,size)) return false;
+            return blacksmith_answer(s,ui,p,error,size);
         }
         for(unsigned i=0;i<rows;++i) {
             const HmbtnSeedShopEntry *entry=hmbtn_blacksmith_tool_entry(s,i);
@@ -179,22 +199,32 @@ bool hmbtn_feed_shop_ui_draw(const HmbtnFeedShop *s,const HmbtnEconomy *economy,
             || !text_cursor(ui,p,23,20+(int)selected*14,error,size)) return false;
     if(hens && !hmbtn_ui_text(ui,p,shop_buy_chicken,WORDS(shop_buy_chicken),34,34,0,3,error,size)) return false;
     if(hens && !hmbtn_ui_text(ui,p,shop_sell_chicken,WORDS(shop_sell_chicken),34,48,0,3,error,size)) return false;
-    if(livestock && (!hmbtn_ui_text(ui,p,shop_buy_cow,WORDS(shop_buy_cow),34,34,0,3,error,size)
-            || !hmbtn_ui_text(ui,p,shop_buy_sheep,WORDS(shop_buy_sheep),34,48,0,3,error,size)
-            || !hmbtn_ui_text(ui,p,shop_sell_cow,WORDS(shop_sell_cow),34,62,0,3,error,size)
-            || !hmbtn_ui_text(ui,p,shop_sell_sheep,WORDS(shop_sell_sheep),34,76,0,3,error,size))) return false;
-    if(s->medicine_available && !hmbtn_ui_text(ui,p,shop_animal_medicine,WORDS(shop_animal_medicine),34,
-            livestock ? 90 : hens ? 62 : 34,0,3,error,size)) return false;
+    if(livestock) for(unsigned row=1;row<rows;++row) {
+        const unsigned choice=hmbtn_barn_shop_row(s,row);const int y=20+(int)row*14;
+        const uint16_t *label=NULL;unsigned words=0,item=0;
+        switch(choice) {
+        case 8:label=shop_cm_potion;words=WORDS(shop_cm_potion);item=0x1f;break;
+        case 10:label=shop_bell;words=WORDS(shop_bell);item=0x1d;break;
+        case 9:label=shop_sm_potion;words=WORDS(shop_sm_potion);item=0x20;break;
+        case 4:label=shop_buy_cow;words=WORDS(shop_buy_cow);item=0x161;break;
+        case 5:label=shop_buy_sheep;words=WORDS(shop_buy_sheep);item=0x165;break;
+        case 6:label=shop_sell_cow;words=WORDS(shop_sell_cow);break;
+        case 7:label=shop_sell_sheep;words=WORDS(shop_sell_sheep);break;
+        case 3:label=shop_animal_medicine;words=WORDS(shop_animal_medicine);item=0x1e;break;
+        }
+        if(!label || !hmbtn_ui_text(ui,p,label,words,34,y,0,3,error,size)
+                || (item && !number(ui,p,(unsigned)hmbtn_farm_item(item)->buy_price,5,shop_gold_unit,172,y,error,size))) return false;
+    }
+    if(!livestock && s->medicine_available && !hmbtn_ui_text(ui,p,shop_animal_medicine,WORDS(shop_animal_medicine),34,
+            hens ? 62 : 34,0,3,error,size)) return false;
     /* shop_menu_draw prints each item's unit price beside its label. */
     const HmbtnFarmItem *feed=hmbtn_farm_item(s->merchant==15 ? 0x68 : 0x69);
     const HmbtnFarmItem *chicken=hmbtn_farm_item(0x109),*medicine=hmbtn_farm_item(0x1E);
     if(!feed || !chicken || !medicine
             || !number(ui,p,(unsigned)feed->buy_price,5,shop_gold_unit,172,20,error,size)) return false;
     if(hens && !number(ui,p,(unsigned)chicken->buy_price,5,shop_gold_unit,172,34,error,size)) return false;
-    if(s->medicine_available && !number(ui,p,(unsigned)medicine->buy_price,5,shop_gold_unit,
-            172,livestock ? 90 : hens ? 62 : 34,error,size)) return false;
-    if(livestock && (!number(ui,p,(unsigned)hmbtn_farm_item(0x161)->buy_price,5,shop_gold_unit,172,34,error,size)
-            || !number(ui,p,(unsigned)hmbtn_farm_item(0x165)->buy_price,5,shop_gold_unit,172,48,error,size))) return false;
+    if(!livestock && s->medicine_available && !number(ui,p,(unsigned)medicine->buy_price,5,shop_gold_unit,
+            172,hens ? 62 : 34,error,size)) return false;
     if(s->selection) return true;
     const bool quantity=s->phase==HMBTN_SHOP_COUNT || s->phase==HMBTN_SHOP_OFFER
         || (s->phase==HMBTN_SHOP_RESULT && s->after_result==HMBTN_SHOP_COUNT);

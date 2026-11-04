@@ -4,6 +4,7 @@
 #include "farm_shipping.h"
 #include "ground.h"
 #include "pond.h"
+enum { HMBTN_THROWN_WATER=3,HMBTN_THROWN_EGG_WATER,HMBTN_THROWN_EGG_READY };
 typedef struct HmbtnThrownItem {
     HmbtnStoredTool item;
     int32_t position[3], ground;
@@ -28,7 +29,7 @@ typedef struct HmbtnFarmCarry {
 bool hmbtn_farm_carry_tick(HmbtnFarmCarry *state,HmbtnHouseInteraction *inventory,
     HmbtnFarmField *field,HmbtnIntroActor *player,uint32_t pressed);
 void hmbtn_farm_carry_flight(HmbtnFarmCarry *state,HmbtnFarmField *field,
-    const HmbtnModel *ground,HmbtnEconomy *economy);
+    const HmbtnModel *ground,HmbtnEconomy *economy,const uint8_t *section,size_t section_size);
 bool hmbtn_farm_carry_splashes(HmbtnFarmCarry *,const HmbtnAnimation *,char *,size_t);
 void hmbtn_farm_carried_offset(unsigned facing,bool running,int *x,int *y);
 #endif

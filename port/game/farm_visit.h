@@ -8,6 +8,7 @@ enum { HMBTN_FARM_TRIGGER_BYTES=36,HMBTN_FARM_TRIGGER_LIMIT=100 };
 typedef struct HmbtnFarmTriggers {
     const uint8_t *data;unsigned count;
     const HmbtnFarmField *field; /* Read-only session loan for cultivation conditions. */
+    const struct HmbtnPond *pond; /* Original morning count, not today's deposits. */
 } HmbtnFarmTriggers;
 typedef struct HmbtnFarmVisit {
     unsigned event;bool active,free,talk;unsigned talk_target,start_area;

@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stdio.h>
 #include "psx_data.h"
+#include "economy.h"
 
 static HmbtnIntroActor *resident_event_actor(void *context,int32_t id)
 {
@@ -43,6 +44,27 @@ HmbtnSession *hmbtn_session_create(const uint16_t *layout,size_t count)
     /* Preserve zeroed poultry and the pre-handoff village. The village's
      * existing defaults are installed only when its schedules arrive. */
     return s;
+}
+void hmbtn_session_apply_debug_money(HmbtnSession *s)
+{
+    if(!s) return;
+    s->game.economy.gold=HMBTN_GOLD_DEFAULT_LIMIT;
+}
+void hmbtn_session_apply_debug_profile(HmbtnSession *s)
+{
+    if(!s) return;
+    hmbtn_session_apply_debug_money(s);
+    s->game.inventory.rucksack_level=2;
+    s->game.inventory.supplies[0]=999;
+    s->game.inventory.supplies[1]=999;
+    const uint16_t tools[5]={5,15,10,20,25};
+    for(unsigned i=0;i<5;++i) s->game.inventory.toolbox[i].id=tools[i];
+    s->game.cooking.utensils=0xff;
+    s->poultry.upgraded=true;
+    s->construction.house_level=2;
+    s->construction.barn_level=1;
+    s->construction.greenhouse=true;
+    s->makers.owned=7;
 }
 const HmbtnFarmField *hmbtn_session_field_const(const HmbtnSession *s)
 {

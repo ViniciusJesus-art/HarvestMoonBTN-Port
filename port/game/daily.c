@@ -31,6 +31,7 @@ void hmbtn_session_clock_events(void *context,const HmbtnFarmClock *clock,unsign
         hmbtn_poultry_new_day(&s->poultry,&s->feed,clock);
         hmbtn_livestock_new_day(&s->livestock,&s->feed,clock);
         hmbtn_pond_new_day(&s->pond);
+        s->apiary.collected=false; /* clock_events: clear ESTATE_FLAG_TAKE_ONCE. */
         hmbtn_poultry_carry_sync(&s->poultry,&s->house);
         hmbtn_farm_feed_new_day(&s->feed);hmbtn_farm_gather_new_day(&s->gather);
         hmbtn_weather_new_day(&s->game.weather,clock,&s->game.registration,NULL);
@@ -79,6 +80,7 @@ bool hmbtn_session_morning(HmbtnSession *s,bool slept)
     hmbtn_house_wake_position(s->construction.house_level,s->intro.player.position);
     memset(s->intro.player.velocity,0,sizeof(s->intro.player.velocity));
     s->control=(HmbtnHouseControl){0};s->control.enabled=true;
+    s->hot_spring=(HmbtnHotSpring){0};s->intro.action_active=false;
     s->farm_action.phase=HMBTN_FARM_ACTION_FREE;s->farm_action.bank=-1;
     const unsigned discarded=s->carry.discarded;
     memset(&s->carry,0,sizeof(s->carry));s->carry.discarded=discarded;

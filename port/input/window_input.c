@@ -10,7 +10,7 @@ HmbtnWindowAction hmbtn_window_action(const SDL_Event *event, SDL_WindowID windo
     }
     if (event->type == SDL_EVENT_KEY_DOWN && event->key.windowID == window && !event->key.repeat) {
         if (event->key.key == SDLK_ESCAPE) {
-            return HMBTN_WINDOW_QUIT;
+            return HMBTN_WINDOW_PAUSE;
         }
         if (event->key.key == SDLK_F11) {
             return HMBTN_WINDOW_TOGGLE_FULLSCREEN;

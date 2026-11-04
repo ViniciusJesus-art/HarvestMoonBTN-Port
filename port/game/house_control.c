@@ -49,6 +49,8 @@ bool hmbtn_world_door_at(const uint8_t *section,size_t size,
         unsigned logical,resource;
         const unsigned flags=hmbtn_read_le16(p);
         const unsigned target=hmbtn_read_le16(p+2);
+        /* Spring entry/exit events drive the player's bath, not model zero. */
+        if(target==0xfffe && (hmbtn_read_le16(p+10)==46 || hmbtn_read_le16(p+10)==47)) continue;
         const bool internal=flags==0x1000 && target==0xfffe && hmbtn_read_le16(p+10)!=99;
         if((flags!=0x9000 && flags!=0x1000) || (!internal && !hmbtn_world_area(target,0,&logical,&resource))
                 || hmbtn_read_le16(p+8)!=player->facing

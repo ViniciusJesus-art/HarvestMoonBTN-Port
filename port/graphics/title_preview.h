@@ -19,6 +19,7 @@ const HmbtnRegistration *hmbtn_title_preview_registration(const HmbtnTitlePrevie
 
 bool hmbtn_title_preview_continue(const HmbtnTitlePreview *);
 void hmbtn_title_preview_continue_failed(HmbtnTitlePreview *);
+bool hmbtn_title_preview_preferences(HmbtnTitlePreview *,bool paused,unsigned volume,bool smooth);
 
 /* Read-only inspection for hosts/tools; loans expire on destroy. */
 typedef struct HmbtnTitleInspection {

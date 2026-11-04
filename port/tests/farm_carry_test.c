@@ -26,7 +26,7 @@ int main(void)
         CHECK(hmbtn_farm_carry_tick(&s,&h,&f,&p,HMBTN_PAD_CROSS));CHECK(s.phase>=2);
         p.animation_done=true;CHECK(hmbtn_farm_carry_tick(&s,&h,&f,&p,0));
         CHECK(!h.inventory->held_item.id && s.thrown[0].item.id==ids[n]);
-        for(unsigned i=0;i<60;++i) hmbtn_farm_carry_flight(&s,&f,NULL,NULL);
+        for(unsigned i=0;i<60;++i) hmbtn_farm_carry_flight(&s,&f,NULL,NULL,NULL,0);
         CHECK(!s.thrown[0].item.id);
         unsigned restored=0;
         for(unsigned i=0;i<1125;++i) if(f.cells[i].value==ids[n]) { ++restored;f.cells[i].value=f.cells[i].ground; }
@@ -38,25 +38,25 @@ int main(void)
     CHECK(!hmbtn_farm_carry_tick(&s,&h,&f,&p,HMBTN_PAD_CROSS));CHECK(h.inventory->held_item.count==73);
     f.cells[0].value=0x3b;
     s.thrown[0]=(HmbtnThrownItem){.item={0x3a,0,1},.position={-4200,0,1400}};
-    hmbtn_farm_carry_flight(&s,&f,NULL,NULL);
+    hmbtn_farm_carry_flight(&s,&f,NULL,NULL,NULL,0);
     CHECK(f.cells[0].value==0x3b && s.discarded==2 && s.thrown[0].phase==1);
     const HmbtnThrownItem landed=s.thrown[0];
-    hmbtn_farm_carry_flight(&s,&f,NULL,NULL);
+    hmbtn_farm_carry_flight(&s,&f,NULL,NULL,NULL,0);
     CHECK(s.thrown[0].item.id==0x3a && s.thrown[0].phase==2 && s.thrown[0].timer==4);
     for(unsigned i=0;i<3;++i) {
-        hmbtn_farm_carry_flight(&s,&f,NULL,NULL);
+        hmbtn_farm_carry_flight(&s,&f,NULL,NULL,NULL,0);
         CHECK(s.thrown[0].item.id==0x3a && s.thrown[0].position[0]==landed.position[0]
             && s.thrown[0].position[1]==landed.position[1]);
     }
-    hmbtn_farm_carry_flight(&s,&f,NULL,NULL);CHECK(!s.thrown[0].item.id && s.discarded==2);
+    hmbtn_farm_carry_flight(&s,&f,NULL,NULL,NULL,0);CHECK(!s.thrown[0].item.id && s.discarded==2);
     s.area=112;h.inventory->held_item=(HmbtnStoredTool){0x122,0,1};
     CHECK(hmbtn_farm_carry_tick(&s,&h,NULL,&p,HMBTN_PAD_CROSS));
     p.animation_done=true;CHECK(hmbtn_farm_carry_tick(&s,&h,NULL,&p,0));
     CHECK(!h.inventory->held_item.id && s.thrown[0].area==112 && s.thrown[0].item.id==0x122);
     const int32_t x=s.thrown[0].position[0],y=s.thrown[0].position[1];
-    s.area=0;hmbtn_farm_carry_flight(&s,&f,NULL,NULL);
+    s.area=0;hmbtn_farm_carry_flight(&s,&f,NULL,NULL,NULL,0);
     CHECK(s.thrown[0].position[0]==x && s.thrown[0].position[1]==y);
-    s.area=112;for(unsigned i=0;i<60;++i) hmbtn_farm_carry_flight(&s,NULL,NULL,NULL);
+    s.area=112;for(unsigned i=0;i<60;++i) hmbtn_farm_carry_flight(&s,NULL,NULL,NULL,NULL,0);
     CHECK(!s.thrown[0].item.id && s.discarded==3);
     /* Restore catalog objects only on free active soil, in either layout.
      * Winter pictures normalize to the field's stable stone/branch ids. */
@@ -69,16 +69,16 @@ int main(void)
         flight.thrown[0]=(HmbtnThrownItem){.item={(uint16_t)ids[kind],0,1},.position={p.position[0],1,p.position[2]}};
         const unsigned index=2*hmbtn_farm_field_columns(&f)+2;
         f.cells[index].value=f.cells[index].ground=0x169;
-        hmbtn_farm_carry_flight(&flight,&f,NULL,NULL);
+        hmbtn_farm_carry_flight(&flight,&f,NULL,NULL,NULL,0);
         CHECK(flight.changed && !flight.discarded && !flight.thrown[0].item.id
             && f.cells[index].value==item && f.cells[index].ground==0x169);
         f.cells[index].value=0x23;f.cells[index].kind=2;
         flight.thrown[0]=(HmbtnThrownItem){.item={0x3a,0,1},.position={p.position[0],1,p.position[2]}};
-        hmbtn_farm_carry_flight(&flight,&f,NULL,NULL);
+        hmbtn_farm_carry_flight(&flight,&f,NULL,NULL,NULL,0);
         CHECK(!flight.changed && flight.discarded==1 && f.cells[index].value==0x23 && f.cells[index].kind==2);
         f.cells[index].value=0x167;f.active[index]=false;
         flight.thrown[0]=(HmbtnThrownItem){.item={0x3e,0,1},.position={p.position[0],1,p.position[2]}};
-        hmbtn_farm_carry_flight(&flight,&f,NULL,NULL);
+        hmbtn_farm_carry_flight(&flight,&f,NULL,NULL,NULL,0);
         CHECK(!flight.changed && flight.discarded==2 && f.cells[index].value==0x167);
     }
     /* All four boundaries, both layouts: feet outside, target just inside.

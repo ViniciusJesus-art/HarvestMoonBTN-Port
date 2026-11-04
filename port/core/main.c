@@ -11,10 +11,11 @@
 
 static void usage(const char *program)
 {
-    printf("Usage: %s --diagnostics | [--data DIR] [--window-test | --scene-preview | --intro-preview | --childhood-preview | --house-preview | --farm-preview | --area-preview ID] [--window-size WIDTHxHEIGHT] [--frames N] [--screenshot file.bmp]\n", program);
+    printf("Usage: %s --diagnostics | [--data DIR] [--window-test | --scene-preview | --intro-preview | --childhood-preview | --house-preview | --farm-preview | --area-preview ID | --debug-start | --debug-money] [--window-size WIDTHxHEIGHT] [--frames N] [--screenshot file.bmp]\n", program);
     puts("Default: title, registration and the first farm event. Enter=Start, arrows=select, Z=confirm.");
+    puts("Esc: pause/resume; menu includes farm save histories, settings and Exit. F11: fullscreen.");
     puts("Data: --data DIR, user resources, executable/project. First launch can import a .bin.");
-    puts("--save-file FILE: native save slot (default: user preferences/farm.hms). Sleep and save writes this slot; Continue/diary reads it.");
+    puts("--save-file FILE: latest native slot (default: user preferences/farm.hms); sleep/save also archives under saves/<farm-id>/ beside it.");
     puts("--load-save FILE: resume this native slot directly; cannot combine with preview/diagnostic modes.");
     puts("--setup: select a .bin and prepare user resources. First launch offers this automatically.");
     puts("--import-bin FILE [--data DIR]: import resources without Python; DIR must not exist.");
@@ -24,8 +25,10 @@ static void usage(const char *program)
     puts("--house-preview: house/farm; arrows walk, X runs, Z interacts, C uses tools, Enter opens farm status, V opens rucksack, E cycles tools, 2 cycles items. Native gameplay remains partial.");
     puts("--farm-preview: start outside the house, skipping Thomas's visit.");
     puts("--area-preview ID: start in region 0, 24..76 or 128..212 (steps of 4), 92, 96 or 112; fresh test session.");
-    puts("--preview-weather TODAY:TOMORROW: development weather override (0 sun, 1 rain, 2 snow, 3 storm, 4 blizzard). Requires an area preview.");
-    puts("--preview-date SEASON:DAY --preview-time HH:MM: set a region test session's date/time (season 0..3, day 1..30). Requires --area-preview or --farm-preview.");
+    puts("--debug-start: start at the farm with a test profile: maximum money, expanded buildings, greenhouse, kitchen utensils and upgraded tools.");
+    puts("--debug-money: start with maximum money only; optionally combine with --farm-preview or --area-preview ID. Other progress and items remain at new-game values.");
+    puts("--preview-weather TODAY:TOMORROW: development weather override (0 sun, 1 rain, 2 snow, 3 storm, 4 blizzard). Requires --area-preview, --farm-preview or a debug start.");
+    puts("--preview-date SEASON:DAY --preview-time HH:MM: set a test session's date/time (season 0..3, day 1..30). Requires --area-preview, --farm-preview or a debug start.");
 }
 static bool pair(const char *value,unsigned *first,unsigned *second)
 {
@@ -65,6 +68,10 @@ int main(int argc, char **argv)
             options.childhood_preview = true;
         } else if (strcmp(argv[i], "--house-preview") == 0) {
             options.house_preview = true;
+        } else if (strcmp(argv[i], "--debug-start") == 0) {
+            options.debug_start = true;
+        } else if (strcmp(argv[i], "--debug-money") == 0) {
+            options.debug_money = true;
         } else if (strcmp(argv[i], "--farm-preview") == 0) {
             options.area_preview=true;options.preview_area=0;
         } else if (strcmp(argv[i], "--area-preview") == 0 && i+1<argc) {
@@ -138,19 +145,25 @@ int main(int argc, char **argv)
             return 2;
         }
     }
-    if((options.preview_date_set || options.preview_time_set || options.preview_weather_set) && !options.area_preview) {
-        fputs("Preview date/time/weather requires --area-preview or --farm-preview.\n",stderr);return 2;
+    if((options.preview_date_set || options.preview_time_set || options.preview_weather_set)
+            && !options.area_preview && !options.debug_start && !options.debug_money) {
+        fputs("Preview date/time/weather requires --area-preview, --farm-preview, --debug-start or --debug-money.\n",stderr);return 2;
     }
-    if (diagnostics && (options.frame_limit || options.screenshot_path || data_requested || options.window_test || options.scene_preview || options.intro_preview || options.childhood_preview || options.house_preview || options.area_preview || options.window_width)) {
+    if (diagnostics && (options.frame_limit || options.screenshot_path || data_requested || options.window_test || options.scene_preview || options.intro_preview || options.childhood_preview || options.house_preview || options.area_preview || options.debug_money || options.window_width)) {
         fputs("--diagnostics cannot be combined with window options.\n", stderr);
         return 2;
     }
     const unsigned modes = (unsigned)options.window_test+(unsigned)options.scene_preview
-        +(unsigned)options.intro_preview+(unsigned)options.childhood_preview+(unsigned)options.house_preview+(unsigned)options.area_preview;
-    if((options.load_save && modes) || (options.save_path && (diagnostics || options.window_test || options.setup || import_image))) {
+        +(unsigned)options.intro_preview+(unsigned)options.childhood_preview+(unsigned)options.house_preview
+        +(unsigned)options.area_preview+(unsigned)options.debug_start;
+    if(options.debug_money && (options.debug_start || options.window_test || options.scene_preview
+            || options.intro_preview || options.childhood_preview || options.house_preview)) {
+        fputs("--debug-money can be combined only with --farm-preview or --area-preview, not another preview mode.\n",stderr);return 2;
+    }
+    if((options.load_save && (modes || options.debug_money)) || (options.save_path && (diagnostics || options.window_test || options.setup || import_image))) {
         fputs("Native saves cannot be combined with setup/diagnostics; --load-save also excludes preview modes.\n",stderr);return 2;
     }
-    if((import_image || options.setup) && (modes || diagnostics || options.frame_limit
+    if((import_image || options.setup) && (modes || options.debug_money || diagnostics || options.frame_limit
             || options.screenshot_path || options.window_width || (import_image && options.setup))) {
         fputs("Data setup cannot be combined with game/diagnostic options.\n",stderr);return 2;
     }
@@ -163,7 +176,7 @@ int main(int argc, char **argv)
         SDL_free(out);return ok ? 0 : 1;
     }
     if (modes > 1 || (options.window_test && data_requested)) {
-        fputs("Window diagnostic modes are exclusive; --window-test cannot load --data.\n", stderr);
+        fputs("Choose only one start/preview mode; --window-test cannot load --data.\n", stderr);
         return 2;
     }
     const uint8_t sample[] = {0x00, 0x00, 0x01, 0x80};

@@ -40,7 +40,8 @@ bool hmbtn_title_audio_open_song(HmbtnTitleAudio *a, const char *root, unsigned 
     if (a->initialized) {
         const SDL_AudioSpec spec = {SDL_AUDIO_S16, 2, HMBTN_AUDIO_RATE};
         a->stream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &spec, NULL, NULL);
-        if (a->stream && !SDL_ResumeAudioStreamDevice(a->stream)) {
+        if (a->stream && (!SDL_SetAudioStreamGain(a->stream,a->host_volume_plus_one ? (float)(a->host_volume_plus_one-1)/100.0f : 1.0f)
+                || (!a->paused && !SDL_ResumeAudioStreamDevice(a->stream)))) {
             SDL_DestroyAudioStream(a->stream);
             a->stream = NULL;
         }
@@ -54,10 +55,12 @@ bool hmbtn_title_audio_open_song(HmbtnTitleAudio *a, const char *root, unsigned 
 }
 void hmbtn_title_audio_close(HmbtnTitleAudio *a)
 {
+    const bool paused=a->paused;const unsigned volume=a->host_volume_plus_one;
     SDL_DestroyAudioStream(a->stream);
     hmbtn_sound_destroy(a->sound);
     if (a->initialized) SDL_QuitSubSystem(SDL_INIT_AUDIO);
     memset(a, 0, sizeof(*a));
+    a->paused=paused;a->host_volume_plus_one=volume;
 }
 void hmbtn_title_audio_tick(HmbtnTitleAudio *a, const HmbtnTitleFlow *f, HmbtnTitleStep previous)
 {
@@ -75,7 +78,7 @@ void hmbtn_title_audio_tick(HmbtnTitleAudio *a, const HmbtnTitleFlow *f, HmbtnTi
 }
 bool hmbtn_title_audio_pump(HmbtnTitleAudio *a, char *error, size_t error_size)
 {
-    if (!a->stream) return true;
+    if (!a->stream || a->paused) return true;
     /* At most 46 ms of PCM queued; no accumulating song-sized buffer or thread.
      * SDL does device conversion. Every allocation/voice count is bounded. */
     int queued = SDL_GetAudioStreamQueued(a->stream);
@@ -91,4 +94,14 @@ bool hmbtn_title_audio_pump(HmbtnTitleAudio *a, char *error, size_t error_size)
 failed:
     snprintf(error, error_size, "Cannot submit title audio: %s", SDL_GetError());
     return false;
+}
+bool hmbtn_title_audio_preferences(HmbtnTitleAudio *a,bool paused,unsigned volume)
+{
+    a->host_volume_plus_one=volume+1;
+    if(!a->stream) { a->paused=paused;return true; }
+    if(a->paused!=paused) {
+        if(!(paused ? SDL_PauseAudioStreamDevice(a->stream) : SDL_ResumeAudioStreamDevice(a->stream))) return false;
+        a->paused=paused;
+    }
+    return SDL_SetAudioStreamGain(a->stream,(float)volume/100.0f);
 }

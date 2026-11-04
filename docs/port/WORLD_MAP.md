@@ -75,6 +75,10 @@ Atalhos de sessão nova, sem cadastro, abertura ou visita de Thomas:
 ./build/native-debug/port/hmbtn_native --data data --area-preview 56
 # Cume da montanha
 ./build/native-debug/port/hmbtn_native --data data --area-preview 60
+# Fazenda com progresso para testes
+./build/native-debug/port/hmbtn_native --data data --debug-start
+# Somente dinheiro, sem desbloquear melhorias ou itens
+./build/native-debug/port/hmbtn_native --data data --debug-money
 ```
 
 `--area-preview` aceita 0, múltiplos de 4 entre 24 e 76 e os interiores
@@ -86,6 +90,16 @@ carregam saves nem concedem produtos e não alteram a abertura normal.
 Use `--preview-date ESTAÇÃO:DIA --preview-time HH:MM` para selecionar a data/hora
 do atalho (estação 0..3, dia 1..30). Por exemplo, `0:3` e `12:00` iniciam na
 terça-feira 3 da primavera, ao meio-dia. A variante sazonal acompanha a data.
+`--debug-start` é um perfil separado para testar sistemas integrados: começa na
+fazenda com 9.999.999 G, segunda expansão da casa, celeiro/galinheiro
+expandidos, estufa, máquinas, utensílios de cozinha, ferramentas melhoradas e
+mochila máxima. Pode ser combinado com a data/hora acima; iniciar não carrega
+nem grava saves e não muda o início normal. Para salvar o perfil sem substituir
+o slot padrão, use `--save-file CAMINHO`. Ele não implica que sistemas pendentes
+estejam completos.
+Para manter todo o resto no estado inicial e alterar somente a carteira, use
+`--debug-money`; combine com `--area-preview ID` para escolher a região, e com
+`--preview-date`/`--preview-time` para selecionar calendário e horário.
 Use `--help` para consultar os parâmetros. Não combine dois modos de prévia.
 
 Por preferência do usuário, esta etapa valida **somente Linux local**.

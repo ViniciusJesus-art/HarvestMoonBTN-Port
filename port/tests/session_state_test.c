@@ -74,6 +74,22 @@ int main(void)
     hmbtn_session_destroy(s);s=NULL;
     CHECK(replacement[0]==0 && first[0]==0xaa); /* Session did not free borrowed buffers. */
     s=hmbtn_session_create(NULL,0);CHECK(s && s->game.economy.gold==500 && !s->village_initialized);
+    hmbtn_session_apply_debug_money(s);
+    CHECK(s->game.economy.gold==9999999 && s->game.inventory.rucksack_level==0);
+    CHECK(s->game.inventory.supplies[0]==0 && s->game.inventory.supplies[1]==0);
+    CHECK(s->game.cooking.utensils==0 && !s->poultry.upgraded);
+    CHECK(s->construction.house_level==0 && s->construction.barn_level==0
+        && !s->construction.greenhouse && s->makers.owned==0);
+    CHECK(s->game.inventory.toolbox[0].id==1 && s->game.inventory.toolbox[1].id==11);
+    s->game.economy.gold=500;
+    hmbtn_session_apply_debug_profile(s);
+    CHECK(s->game.economy.gold==9999999 && s->game.inventory.rucksack_level==2);
+    CHECK(s->game.inventory.supplies[0]==999 && s->game.inventory.supplies[1]==999);
+    CHECK(s->game.cooking.utensils==0xff && s->poultry.upgraded);
+    CHECK(s->construction.house_level==2 && s->construction.barn_level==1
+        && s->construction.greenhouse && s->makers.owned==7
+        && hmbtn_makers_valid(&s->makers,&s->construction,&s->poultry));
+    CHECK(s->game.inventory.toolbox[0].id==5 && s->game.inventory.toolbox[4].id==25);
     hmbtn_session_destroy(s);hmbtn_session_destroy(NULL);hmbtn_session_unbind_resources(NULL);
     puts("Headless session lifecycle, independent worlds, UI recreation, owned layout values and schedule loans passed.");return 0;
 fail:

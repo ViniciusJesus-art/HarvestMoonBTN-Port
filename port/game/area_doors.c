@@ -14,6 +14,7 @@ HmbtnDoorPassage hmbtn_area_doors_request(HmbtnAreaDoors *d,const uint8_t *secti
     for(unsigned i=0;i<50;++i) {
         const uint8_t *zone=section+16+i*44;
         const unsigned flags=hmbtn_read_le16(zone),model=hmbtn_read_le16(zone+12);
+        if(hmbtn_read_le16(zone+2)==0xfffe && (event==46 || event==47)) continue;
         if(hmbtn_read_le16(zone+10)!=event || hmbtn_read_le16(zone+8)>3
                 || model>=HMBTN_SCENE_MODELS || (flags!=0x9000 && flags!=0x1000)) continue;
         /* ZONE id -2 is a swinging door within this map, not an area exit.

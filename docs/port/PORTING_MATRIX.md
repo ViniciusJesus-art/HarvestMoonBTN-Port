@@ -632,3 +632,129 @@ Release 4/4; Windows/Wine unidade/percurso/três retomadas aprovados.
 Sem alteração de fonte/recursos/fluxo PS1. Próximo: lago/ração de peixes.
 Eventos restantes de Kai, família/hospedagem/festivais e PF-06 continuam abertos.
 Bootstrap não executa o jogo; runtime parcial. Wine não substitui Windows físico.
+
+## Lago e ração de peixes — PF-06, 2026-11-04
+
+| Original | Adaptação | Estado e evidência |
+|---|---|---|
+| `field/pond.c`, primeira vaga/retirada/idades/reprodução | `game/pond.c`, proprietário `HmbtnSession.pond` | **A:** 99 vagas, maior primeiro, alimentação, idades 10/20/30 e ordem original dos filhotes; RNG nativo persistido. |
+| `animals.c: farm_end_of_day`, `pond_daily_update` | Observer diário existente | **A:** atualização única por data, sem envelhecer quando não alimentado; viagens/draw não repetem efeitos. |
+| `shop_fish_food_menu_setup`, `shop_buy_stock_step` | Modal `feed_shop`, economia e estoque existentes | **A:** chave 132, apresentação 108, 20 G, quantidade 1..999, mensagens/recusas, débito após aceite e estoque único. |
+| `player_act_zone_front`, zonas 10/45 | `farm_feed` e suas fases/ANIs | **A:** depósito, mão/face, retirada de peixe por tamanho e bloqueio no inverno. |
+| `thrown_item_settle`, `farm_status_kind`, estágio ANI 23 | Física `farm_carry`, empréstimo de animação/renderer existentes | **A:** peixe/ração entram uma vez no lago, lago cheio mostra 3:0x382, água tem respingo real; solo e reposição no campo preservados. |
+| `status_count_pond_fish`, ração | Resumo consulta o lago e `supplies[3]` | **A:** população e estoque reais, sem segunda coleção/contador autoritativo. |
+| Estado estável | Codec adaptado aos registros/idades/alimentação/RNG | **A:** checkpoints alimentado, crescido e após remessa; três retomadas em processos novos. |
+
+[Auditoria, percurso e validação](PF06_POND.md). O percurso obtém a vara com
+Greg, pesca peixe pequeno, compra 41 rações, passa 40 manhãs alimentadas,
+retira/remete o adulto e recebe o pagamento. Nenhum peixe/ração é concedido.
+Debug: 16 casos selecionados, com repetição aprovada do teste atualizado de
+pouso na água; Release 4/4. Windows/Wine duas unidades, percurso e três
+retomadas aprovados. 48 processos incluindo tentativa/lançadores/filhos,
+sem suíte inteira. [Detalhes de validação](PF06_POND.md).
+`runtime.c`, portas e alterações locais do usuário preservados. `src/`, recursos,
+SDK e fluxo PS1 intactos. Próximo: evento da vara melhorada de Greg aos 50 peixes.
+Concursos, demais eventos/festivais e PF-06 continuam abertos; bootstrap não
+executa o jogo e runtime parcial. Wine não substitui Windows físico.
+
+## Vara melhorada de Greg — PF-06, 2026-11-04
+
+| Origem | Adaptação | Estado e verificação |
+|---|---|---|
+| `farm_init.c`: condição 61; `field/pond.c`: `pond_daily_update` | `pond.morning_count`, empréstimo em `farm_visit` e codec v21 | Snapshot matinal distinto dos depósitos/retiradas do dia; fronteiras 49/50 e persistência. |
+| Tabela da fazenda, linha 57; evento 177 de `12_event_s.bin` | Mesmo gatilho, interpretador de visitas e carregador de ANI/banco/prop | Casa→fazenda 06:00..11:59, espaço, espera/saída, amizade e flags únicas. |
+| `event_item_store`, `player_show_tool`, dispatch 9 | Armazenamento comum; apresentação transitória em `event_item`; flag 102 na vila | Mãos ocupadas preservadas, ANI 71/som 7, caminhada independente, sem duplicação. |
+
+[Auditoria e percurso](PF06_GREG_POLE.md): compra 301 rações, continua a
+reprodução de um peixe realmente pescado e alcança 51 peixes após mais
+87 manhãs alimentadas. Confere mochila cheia, prazo/saída, entrega silenciosa
+e apresentada, pesca com a vara recebida e três retomadas em novos processos.
+Debug 12/12, Release 4/4; build Windows, unidade/produtor/percurso/três retomadas
+no Wine aprovados. 48 processos incluindo tentativas/lançadores/filhos, sem
+suíte inteira e dentro do teto de 50.
+Portas do usuário preservadas; `src/`, recursos, SDK e fluxo PS1 intactos.
+Próximo: colmeia e mel. PF-06 e runtime seguem parciais; bootstrap não executa
+o jogo. Wine não substitui hardware Windows físico.
+
+
+## Menu Esc e histórico de fazendas — adicional, 2026-11-04
+
+Interface exclusiva do host, solicitada antes de continuar PF-06.
+`core/app.c` suspende o consumo de ticks/input e pausa o dispositivo de áudio;
+`pause_menu` desenha/navega, `save_library` agrupa snapshots por identidade e
+reutiliza codec/escrita atômica, `preferences` aplica/persiste vídeo, idioma
+do menu, volume e teclas. Nenhuma simulação avança ao desenhar a pausa.
+O carregamento valida o candidato antes de trocar a cena atual.
+
+[Uso, arquivos, testes e limites](NATIVE_PAUSE_MENU.md). Linux Debug/Release,
+build Windows e percurso do aplicativo no Wine aprovados; contagem conservadora
+de 50 processos incluindo tentativas/lançadores/filhos, sem suíte inteira.
+Portas preservadas, código/recursos/fluxo PS1 intactos. A fila funcional mantém
+colmeia e mel como próximo recorte; runtime parcial e bootstrap sem jogo.
+
+## Colmeia e mel — PF-06, 2026-11-04
+
+| Origem | Adaptação | Estado e verificação |
+|---|---|---|
+| `farm_event_available(76)` / `field_find_free_tile` | `farm_visit`, mesmo campo da sessão | **A:** cinco flores maduras, campo externo, entrada/horário/clima, flag única; aquisição pelo roteiro 277 instalado. |
+| Scripts 277/171 e dispatch 15 | Interpretador, `farm_intro`/`runtime`, vínculos de atores e carregador existentes | **A:** abelha/colmeia, salto/glide/fade, slots/RNG, mensagens/saída de Louis, aquisição/bônus sem concessão pelo desenho. |
+| `estate_flag_take_once`, `player_act_zone_front(47)`, reset diário | `apiary`, sessão/daily e fase de coleta existente | **A:** mel 151/0/1, mãos vazias/direções, uma coleta por dia nas quatro estações, nenhuma retirada/arremesso indevido e retomada. |
+| `estate_items_restore` / `estate_code_lookup` | `scene_preview`, arte e posição originais | **A:** colmeia visível após colher, sprites sazonais 20/26/26/11 e figura do evento. |
+| Conversa de Louis / `item_sell_price` | Conversa/presentes, contador e remessas já existentes | **A:** presente inicia contador, visita no dia seguinte, consumo 2/-2, preços/pagamentos 50/60 G. |
+| Estado da aquisição/coleta | Codec v22 | Duas flags explícitas; contador/eventos/bônus já persistidos; quatro checkpoints retomados em processos novos. |
+
+[Auditoria e percurso](PF06_APIARY.md). Debug 11/11 mais remessas/Moondrop;
+Release 3/3; build Windows e unidade/percurso/quatro retomadas no Wine aprovados.
+47 processos contando tentativas/lançadores/filhos, sem suíte inteira.
+Portas e caminhos PS1 preservados. Próximo: maçãs da árvore da fazenda.
+PF-06/runtime parciais; bootstrap sem jogo. Wine não valida hardware Windows.
+
+## Maçãs da árvore da fazenda — PF-06, 2026-11-04
+
+| Origem | Adaptação | Estado e verificação |
+|---|---|---|
+| `estate_records` 1..3 / `estate_field_pickup` | `farm_gather`, inventário e apresentação existentes | **A:** três registros no outono, mãos/direção/altura, mochila cheia e coleta individual sem duplicação; sem outra coleção. |
+| `estate_record_table_enable(0x20)` | Reset das três entradas em `farm_gather_new_day`, callback diário existente | **A:** renovação matinal única, fim do outono e retorno no outono seguinte; carregar mapa/save não renova. |
+| `estate_code_lookup(APPLE)` / `estate_search_records` | `scene_preview`, sprite 18 do pack original | **A:** figura e projeção originais, indisponível após coleta ou fora da estação; mantém presença durante eventos da fazenda. |
+| ItemInfo/receitas, presente/remessa existentes | Consumo, cozinha, vila, geladeira e economia atuais | **A:** comer 2/-1, suco de qualidade 20 realmente preparado, presente a Lillia, armazenamento e duas remessas/pagamentos de 50 G. |
+| Bits de coleta já serializados | `gather.taken[1..3]` no codec vigente v22 | Nenhuma alteração no formato; quatro checkpoints reabertos em processos novos. |
+
+[Auditoria e percurso](PF06_APPLES.md). Debug 14/14, Release 4/4; build Windows
+mais unidade/percurso/quatro retomadas no Wine aprovados. Regressão completa
+da colmeia também aprovada. 46 processos contando tentativa/lançadores/filhos.
+Portas e caminhos PS1 preservados; `runtime.c`, `daily.c`, `save.c` inalterados.
+Próximo: ovos termais. PF-06/runtime parciais; bootstrap sem jogo.
+
+## Ovos termais — PF-06, 2026-11-04
+
+| Sistema | Recorte entregue |
+|---|---|
+| Arremesso na fonte | Cinco variantes de ovos, água/zona 38, primeira caixa ativa/limites e respingo ANI 23. |
+| Recebimento | Uma unidade de `0x87` após o respingo, apresentação original e mão atualizada no fim; mochila cheia aceita. |
+| Integração | Galinha/ração compradas, quatro manhãs e três ovos produzidos; duas conversões, consumo +4/-1 e remessa/pagamento de 80 G. |
+| Estado | Três checkpoints retomados; codec v22 sem alteração, transientes protegidos pelas guardas existentes. |
+
+[Auditoria C/BIN, builds, testes e limites](PF06_SPA_EGGS.md).
+Linux Debug 12/12 e Release 3/3; build Windows e unidade/percurso/três
+retomadas/regressões no Wine aprovados. 48 processos incluindo tentativas,
+CTest, wrappers, filhos e lançadores.
+`runtime.c`, `daily.c` e `save.c` inalterados; portas e caminhos PS1 preservados.
+A trajetória atual é reutilizada. Banho e ofertas à Deusa permanecem separados.
+Próximo: banho na fonte termal. PF-06/runtime parciais; bootstrap sem jogo.
+
+## Banho na fonte termal — PF-06, 2026-11-04
+
+| Sistema | Recorte entregue |
+|---|---|
+| Entrada | Passagem 46, mãos vazias/Cross, aproximação e salto/respingo pelos bancos 0/1. |
+| Banho | Duas poses/temporizadores, +2 stamina/−1 fadiga por minuto, limites e saída com Cross. |
+| Retorno | Banco 16/salto, passagem 47 automática, personagem fora da cabine com controle/banco normais. |
+| Clima/estado | Chuva/noite, neve/inverno, manhã às 6h e três checkpoints retomados; codec v22 sem novos campos. |
+
+[Auditoria C/BIN, validação e limites](PF06_HOT_SPRING.md).
+Linux Debug 13/13 e Release 3/3; build Windows, unidade/percurso/três
+retomadas e regressão de portas no Wine aprovados. 46 processos incluindo
+tentativas, CTest, wrappers, filhos e lançadores.
+Bloco de animação/transição das portas do usuário preservado; nenhuma alteração
+em `src/`, `sdk/`, `disc/`, `tools/` ou CMake PS1. Ofertas à Deusa são o próximo
+recorte. PF-06/runtime parciais; bootstrap sem jogo.

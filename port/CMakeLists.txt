@@ -65,7 +65,7 @@ foreach(label money_title gold_unit units fodder chicken_feed fish_food buy_chic
     string(APPEND shop_labels "${shop_label};\n")
 endforeach()
 file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/generated/feed_shop_labels.inc" "${shop_labels}")
-add_library(hmbtn_port_core STATIC game/pond.c game/basket.c game/tv_shopping.c game/tool_upgrade.c game/makers.c game/mine.c game/livestock.c game/game_state.c game/cooking.c game/construction.c game/weather.c game/weather_effects.c game/save.c game/update_clock.c game/runtime.c game/inventory.c game/economy.c game/services.c game/session.c game/daily.c game/exploration.c core/psx_data.c core/psx_random.c graphics/asset_decode.c graphics/window_frame.c
+add_library(hmbtn_port_core STATIC game/hot_spring.c game/apiary.c game/pond.c game/basket.c game/tv_shopping.c game/tool_upgrade.c game/makers.c game/mine.c game/livestock.c game/game_state.c game/cooking.c game/construction.c game/weather.c game/weather_effects.c game/save.c game/update_clock.c game/runtime.c game/inventory.c game/economy.c game/services.c game/session.c game/daily.c game/exploration.c core/psx_data.c core/psx_random.c graphics/asset_decode.c graphics/window_frame.c
     graphics/model_decode.c graphics/model_render.c graphics/scene_decode.c game/title_flow.c game/new_game.c
     game/event_script.c game/event_variables.c game/event_item.c game/farm_visit.c game/fishing.c game/item_reaction.c game/farm_intro.c game/ground.c game/house_control.c game/house_interaction.c
     game/house_sleep.c game/house_lumber.c game/farm_field.c game/farm_action.c game/field_effects.c game/farm_menu.c game/farm_carry.c game/farm_feed.c game/farm_gather.c game/poultry.c game/poultry_carry.c game/feed_shop.c game/event_days.c game/farm_clock.c game/farm_shipping.c game/world_map.c game/area_doors.c game/village.c game/village_talk.c audio/psx_audio.c audio/xa_decode.c)
@@ -127,7 +127,7 @@ set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
 execute_process(COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/packaging/make_icon.py"
     "${app_logo}" "${CMAKE_CURRENT_BINARY_DIR}/generated" COMMAND_ERROR_IS_FATAL ANY)
 include(cmake/import_table.cmake)
-add_library(hmbtn_host STATIC core/app.c platform/sdl_host.c platform/app_icon.c
+add_library(hmbtn_host STATIC core/app.c platform/sdl_host.c platform/app_icon.c platform/preferences.c graphics/pause_menu.c graphics/native_font.c filesystem/save_library.c
     installer/disc_import.c installer/sha256.c installer/setup.c
     graphics/diagnostic_screen.c graphics/title_preview.c input/window_input.c
     input/game_input.c filesystem/resource_file.c filesystem/service_resources.c filesystem/event_resources.c filesystem/action_resources.c filesystem/text_resources.c filesystem/data_directory.c filesystem/save_file.c audio/title_audio.c audio/service_audio.c audio/xa_stream.c
@@ -161,6 +161,12 @@ foreach(target hmbtn_port_core hmbtn_host hmbtn_native)
 endforeach()
 
 if(BUILD_TESTING)
+    add_executable(hmbtn_native_menu_test tests/native_menu_test.c)
+    target_link_libraries(hmbtn_native_menu_test PRIVATE hmbtn_host)
+    add_test(NAME native_pause_menu COMMAND hmbtn_native_menu_test "${CMAKE_CURRENT_BINARY_DIR}/menu-test")
+    set_tests_properties(native_pause_menu PROPERTIES ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_AUDIO_DRIVER=dummy;SDL_RENDER_DRIVER=software")
+    add_executable(hmbtn_pause_app_test tests/pause_app_test.c)
+    target_link_libraries(hmbtn_pause_app_test PRIVATE hmbtn_host)
     add_executable(hmbtn_save_app_test tests/save_app_test.c)
     target_link_libraries(hmbtn_save_app_test PRIVATE hmbtn_host)
     add_executable(hmbtn_save_playthrough tests/save_playthrough.c)
@@ -307,6 +313,28 @@ if(BUILD_TESTING)
     add_executable(hmbtn_tool_upgrade_test tests/tool_upgrade_test.c)
     target_link_libraries(hmbtn_tool_upgrade_test PRIVATE hmbtn_port_core)
     add_test(NAME native_tool_upgrade COMMAND hmbtn_tool_upgrade_test)
+    add_executable(hmbtn_hot_spring_test tests/hot_spring_test.c)
+    target_link_libraries(hmbtn_hot_spring_test PRIVATE hmbtn_port_core)
+    add_test(NAME native_hot_spring COMMAND hmbtn_hot_spring_test)
+    add_executable(hmbtn_hot_spring_playthrough tests/hot_spring_playthrough.c)
+    target_link_libraries(hmbtn_hot_spring_playthrough PRIVATE hmbtn_host)
+    add_executable(hmbtn_spa_egg_test tests/spa_egg_test.c)
+    target_link_libraries(hmbtn_spa_egg_test PRIVATE hmbtn_port_core)
+    add_test(NAME native_spa_egg COMMAND hmbtn_spa_egg_test)
+    add_executable(hmbtn_spa_egg_playthrough tests/spa_egg_playthrough.c)
+    target_link_libraries(hmbtn_spa_egg_playthrough PRIVATE hmbtn_host)
+    add_executable(hmbtn_apples_playthrough tests/apples_playthrough.c)
+    target_link_libraries(hmbtn_apples_playthrough PRIVATE hmbtn_host)
+    add_executable(hmbtn_apiary_playthrough tests/apiary_playthrough.c)
+    target_link_libraries(hmbtn_apiary_playthrough PRIVATE hmbtn_host)
+    add_executable(hmbtn_apiary_test tests/apiary_test.c)
+    target_link_libraries(hmbtn_apiary_test PRIVATE hmbtn_port_core)
+    add_test(NAME native_apiary COMMAND hmbtn_apiary_test)
+    add_executable(hmbtn_greg_pole_test tests/greg_pole_test.c)
+    target_link_libraries(hmbtn_greg_pole_test PRIVATE hmbtn_port_core)
+    add_test(NAME native_greg_pole COMMAND hmbtn_greg_pole_test)
+    add_executable(hmbtn_greg_pole_playthrough tests/greg_pole_playthrough.c)
+    target_link_libraries(hmbtn_greg_pole_playthrough PRIVATE hmbtn_host)
     add_executable(hmbtn_pond_test tests/pond_test.c)
     target_link_libraries(hmbtn_pond_test PRIVATE hmbtn_port_core)
     add_test(NAME native_pond COMMAND hmbtn_pond_test)
@@ -700,6 +728,35 @@ if(BUILD_TESTING)
             "$<TARGET_FILE:hmbtn_tv_shopping_playthrough>" "$<TARGET_FILE:hmbtn_cooking_playthrough>"
             "$<TARGET_FILE:hmbtn_native>" "${HMBTN_TEST_GAME_DATA}")
         set_tests_properties(native_cooking_playthrough PROPERTIES TIMEOUT 420
+            ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_RENDER_DRIVER=software;SDL_AUDIO_DRIVER=dummy")
+        add_test(NAME native_pause_app COMMAND hmbtn_pause_app_test "${HMBTN_TEST_GAME_DATA}" "${CMAKE_CURRENT_BINARY_DIR}/pause-app-test")
+        set_tests_properties(native_pause_app PROPERTIES TIMEOUT 60
+            ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_AUDIO_DRIVER=dummy;SDL_RENDER_DRIVER=software")
+        add_test(NAME native_hot_spring_playthrough COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/hot_spring_process.py"
+            "$<TARGET_FILE:hmbtn_hot_spring_playthrough>" "$<TARGET_FILE:hmbtn_native>" "${HMBTN_TEST_GAME_DATA}")
+        set_tests_properties(native_hot_spring_playthrough PROPERTIES TIMEOUT 420
+            ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_RENDER_DRIVER=software;SDL_AUDIO_DRIVER=dummy")
+        add_test(NAME native_spa_egg_playthrough COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/spa_egg_process.py"
+            "$<TARGET_FILE:hmbtn_spa_egg_playthrough>" "$<TARGET_FILE:hmbtn_native>" "${HMBTN_TEST_GAME_DATA}")
+        set_tests_properties(native_spa_egg_playthrough PROPERTIES TIMEOUT 600
+            ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_RENDER_DRIVER=software;SDL_AUDIO_DRIVER=dummy")
+        add_test(NAME native_apples_playthrough COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/apples_process.py"
+            "$<TARGET_FILE:hmbtn_apples_playthrough>" "$<TARGET_FILE:hmbtn_native>" "${HMBTN_TEST_GAME_DATA}")
+        set_tests_properties(native_apples_playthrough PROPERTIES TIMEOUT 600
+            ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_RENDER_DRIVER=software;SDL_AUDIO_DRIVER=dummy")
+        add_test(NAME native_apiary_playthrough COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/apiary_process.py"
+            "$<TARGET_FILE:hmbtn_apiary_playthrough>" "$<TARGET_FILE:hmbtn_native>" "${HMBTN_TEST_GAME_DATA}")
+        set_tests_properties(native_apiary_playthrough PROPERTIES TIMEOUT 600
+            ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_RENDER_DRIVER=software;SDL_AUDIO_DRIVER=dummy")
+        add_test(NAME native_greg_pole_playthrough COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/greg_pole_process.py"
+            "$<TARGET_FILE:hmbtn_pond_playthrough>" "$<TARGET_FILE:hmbtn_greg_pole_playthrough>"
+            "$<TARGET_FILE:hmbtn_native>" "${HMBTN_TEST_GAME_DATA}")
+        set_tests_properties(native_greg_pole_playthrough PROPERTIES TIMEOUT 900
             ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_RENDER_DRIVER=software;SDL_AUDIO_DRIVER=dummy")
         add_test(NAME native_pond_playthrough COMMAND "${Python3_EXECUTABLE}"
             "${CMAKE_CURRENT_SOURCE_DIR}/tests/pond_process.py"

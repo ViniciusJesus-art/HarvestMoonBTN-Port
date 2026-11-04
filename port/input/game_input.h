@@ -9,14 +9,19 @@ typedef struct HmbtnGameInput {
     SDL_Gamepad *gamepad;
     uint32_t pending_pressed;
     uint32_t previous_gamepad;
+    uint32_t blocked_gamepad;
     uint32_t keyboard_held;
     bool focused;
+    SDL_Scancode keys[14];
+    bool custom_keys;
 } HmbtnGameInput;
 
 void hmbtn_game_input_init(HmbtnGameInput *input);
 void hmbtn_game_input_close(HmbtnGameInput *input);
 void hmbtn_game_input_event(HmbtnGameInput *input, const SDL_Event *event, SDL_WindowID window);
 void hmbtn_game_input_poll(HmbtnGameInput *input);
+void hmbtn_game_input_bindings(HmbtnGameInput *,const SDL_Scancode keys[14]);
+void hmbtn_game_input_reset(HmbtnGameInput *);
 uint32_t hmbtn_game_input_take_pressed(HmbtnGameInput *input);
 
 uint32_t hmbtn_game_input_held(const HmbtnGameInput *input);

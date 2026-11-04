@@ -3,6 +3,23 @@
 #include "basket.h"
 #include "psx_data.h"
 #include <stdio.h>
+static int half(const uint8_t *p)
+{ unsigned n=hmbtn_read_le16(p);return n<32768 ? (int)n : (int)n-65536; }
+static bool egg_target(const uint8_t *section,size_t size,const int32_t point[3])
+{
+    if(!section || size<16+50*44) return false;
+    /* farm_zone_at_probe: the first active containing box wins, with strict
+     * X/Z edges and the original asymmetric Y slack. */
+    for(unsigned i=0;i<50;++i) {
+        const uint8_t *q=section+16+i*44;
+        if(!(hmbtn_read_le16(q)&0x4000u)
+                || point[0]<=half(q+14) || point[0]>=half(q+20)
+                || point[2]<=half(q+18) || point[2]>=half(q+24)
+                || point[1]<=half(q+16)-128 || point[1]>=half(q+22)+120) continue;
+        return hmbtn_read_le16(q+2)==38;
+    }
+    return false;
+}
 void hmbtn_farm_carried_offset(unsigned facing,bool running,int *x,int *y)
 {
     /* player.c: mark_screen_offsets, groups CARRY_ITEM and POSE_4. */
@@ -12,7 +29,7 @@ void hmbtn_farm_carried_offset(unsigned facing,bool running,int *x,int *y)
 }
 /* player_collect_target, farm_tile_occupant and thrown_item_update. */
 void hmbtn_farm_carry_flight(HmbtnFarmCarry *s,HmbtnFarmField *field,
-    const HmbtnModel *ground,HmbtnEconomy *economy)
+    const HmbtnModel *ground,HmbtnEconomy *economy,const uint8_t *section,size_t section_size)
 {
     static const int step[4][2]={{0,-44},{-44,0},{0,44},{44,0}};
     s->changed=s->small_fish_placed=false;s->sound=-1;s->request=0;
@@ -20,7 +37,7 @@ void hmbtn_farm_carry_flight(HmbtnFarmCarry *s,HmbtnFarmField *field,
         HmbtnThrownItem *t=&s->thrown[i];
         if(!t->item.id || t->area!=s->area) continue;
         if(t->phase) {
-            if(t->phase==3) continue; /* Tick the decoded splash ANI separately. */
+            if(t->phase>=HMBTN_THROWN_WATER) continue; /* Splash, then receipt. */
             if(t->timer && !--t->timer) {
                 if(t->phase==1) { t->phase=2;t->timer=4; }
                 else t->item=(HmbtnStoredTool){0};
@@ -48,14 +65,17 @@ void hmbtn_farm_carry_flight(HmbtnFarmCarry *s,HmbtnFarmField *field,
                     if(t->item.id>=161 && t->item.id<=163 && !hmbtn_pond_add(s->pond,t->item.id)) s->request=0x382;
                     if(t->item.id==132) s->pond->fed=true;
                 } else if(t->area==56 && t->item.id==163 && (hit.flags&2u) && !(hit.flags&0x40u)) s->small_fish_placed=true;
-                t->position[1]=t->ground;t->velocity=0;t->phase=3;t->splash=(HmbtnAnimationPlayer){23,0,0};s->sound=16;
+                const unsigned id=t->item.id;
+                const bool egg=(id>=0x122 && id<=0x124) || id==0xe8 || id==0x125;
+                t->position[1]=t->ground;t->velocity=0;
+                t->phase=egg && egg_target(section,section_size,landing) ? HMBTN_THROWN_EGG_WATER : HMBTN_THROWN_WATER;
+                t->splash=(HmbtnAnimationPlayer){23,0,0};s->sound=16;
                 continue;
             }
             if(hmbtn_basket_near(s->basket,s->area,landing) && hmbtn_farm_shipping_price(economy,t->item.id)) {
                 if(!hmbtn_basket_add(s->basket,economy,t->item.id)) s->request=0x383;
                 t->item=(HmbtnStoredTool){0};s->sound=9;continue;
             }
-            if(t->area==56 && t->item.id==0xA3 && surface && (hit.flags&2u) && !(hit.flags&0x44u)) s->small_fish_placed=true;
             if(surface && (hit.flags&0x80u) && hmbtn_farm_shipping_add(economy,t->item.id)) {
                 t->item=(HmbtnStoredTool){0};s->sound=0x13;continue;
             }
@@ -81,7 +101,8 @@ void hmbtn_farm_carry_flight(HmbtnFarmCarry *s,HmbtnFarmField *field,
 bool hmbtn_farm_carry_splashes(HmbtnFarmCarry *s,const HmbtnAnimation *a,char *error,size_t size)
 {
     for(unsigned i=0;i<3;++i) {
-        HmbtnThrownItem *t=&s->thrown[i];if(!t->item.id || t->area!=s->area || t->phase!=3) continue;
+        HmbtnThrownItem *t=&s->thrown[i];
+        if(!t->item.id || t->area!=s->area || (t->phase!=HMBTN_THROWN_WATER && t->phase!=HMBTN_THROWN_EGG_WATER)) continue;
         if(!a || !a->data || t->splash.animation>=a->count[3]) { snprintf(error,size,"Missing original water landing ANI");return false; }
         const uint8_t *range=a->data+a->section[3]+t->splash.animation*4;
         const unsigned count=hmbtn_read_le16(range);
@@ -89,7 +110,10 @@ bool hmbtn_farm_carry_splashes(HmbtnFarmCarry *s,const HmbtnAnimation *a,char *e
         const uint8_t *frame=a->data+a->section[4]+hmbtn_read_le16(range+2)+t->splash.frame*10;
         const bool ended=t->splash.ticks+1u>=((unsigned)frame[6]+1)/2 && (frame[7]!=0 || t->splash.frame+1u>=count);
         if(!hmbtn_animation_tick(a,&t->splash,error,size)) return false;
-        if(ended) t->item=(HmbtnStoredTool){0};
+        if(ended) {
+            if(t->phase==HMBTN_THROWN_EGG_WATER) t->phase=HMBTN_THROWN_EGG_READY;
+            else t->item=(HmbtnStoredTool){0};
+        }
     }
     return true;
 }

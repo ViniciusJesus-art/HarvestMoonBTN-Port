@@ -23,9 +23,11 @@
 #include "construction.h"
 #include "fishing.h"
 #include "pond.h"
+#include "apiary.h"
 #include "field_effects.h"
 #include "house_sleep.h"
 #include "house_lumber.h"
+#include "hot_spring.h"
 
 /* MA-04a ownership extraction from scene_preview.c, preserving current rules.
  * Reference: src/main/game/farm_state.h: FarmState; farm_init.c/farm_main.c in
@@ -35,6 +37,7 @@
  * Nonmovable: consumers borrow members of this heap-owned object. Never copy
  * or serialize the struct. Create/destroy through the lifecycle below. */
 typedef struct HmbtnSession {
+    uint32_t farm_id[4]; /* Native archive identity; assigned at first host save. */
     HmbtnServices services;
     struct HmbtnSessionFrame *active_frame; /* Scoped loan only during the public runtime tick. */
     struct { unsigned loaded_message,loaded_cell,house_music_ticks,ticks,audio_song; } runtime;
@@ -42,6 +45,7 @@ typedef struct HmbtnSession {
     bool morning_prepared,morning_save_requested,load_requested;
     HmbtnHouseControl control;
     HmbtnHouseSleep sleep;
+    HmbtnHotSpring hot_spring;
     HmbtnHouseLumber house_lumber;
     HmbtnDaylight daylight;
     HmbtnWeatherEffects weather_effects;
@@ -50,6 +54,7 @@ typedef struct HmbtnSession {
     HmbtnMine mine;
     HmbtnFishing fishing;
     HmbtnPond pond;
+    HmbtnApiary apiary;
     HmbtnFarmCarry carry;
     HmbtnBasketAction basket_action;
     HmbtnFarmFeed feed;
@@ -101,6 +106,9 @@ void hmbtn_session_morning_ready(HmbtnSession *session);
 /* The field initializer copies layout values; it does not retain the array.
  * NULL/0 retains its existing soil-only initialization for synthetic fixtures. */
 HmbtnSession *hmbtn_session_create(const uint16_t *layout,size_t count);
+/* Development-only populated state; does not execute daily progression. */
+void hmbtn_session_apply_debug_money(HmbtnSession *session);
+void hmbtn_session_apply_debug_profile(HmbtnSession *session);
 void hmbtn_session_destroy(HmbtnSession *session);
 /* Host owns schedule bytes. They must remain valid until rebind/unbind or
  * destruction. First binding initializes the village at the same handoff as

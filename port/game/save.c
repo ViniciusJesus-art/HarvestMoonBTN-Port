@@ -13,7 +13,7 @@
 #include <stdio.h>
 #include <limits.h>
 
-enum { HEADER=24,CHUNKS=7,CATALOG_BTN=1 };
+enum { HEADER=24,REQUIRED_CHUNKS=7,CHUNKS=8,CATALOG_BTN=1 };
 static const uint8_t magic[8]={'H','M','B','T','N','S','V',0};
 typedef struct Codec { uint8_t *out;const uint8_t *in;size_t pos,end;bool read,ok; } Codec;
 static uint32_t read32(Codec *c)
@@ -90,8 +90,9 @@ static void field(Codec *c,HmbtnSession *d,const HmbtnSession *s)
     COUNT(22);for(unsigned i=0;i<22;++i) B(feed.barn[i]);
     COUNT(10);for(unsigned i=0;i<10;++i) B(feed.coop[i]);
     COUNT(HMBTN_GATHER_RECORDS);for(unsigned i=0;i<HMBTN_GATHER_RECORDS;++i) B(gather.taken[i]);
-    U(pond.random);B(pond.fed);COUNT(HMBTN_POND_FISH);
+    U(pond.random);B(pond.fed);U(pond.morning_count);COUNT(HMBTN_POND_FISH);
     for(unsigned i=0;i<HMBTN_POND_FISH;++i) { W(pond.fish[i].item);W(pond.fish[i].days); }
+    B(apiary.owned);B(apiary.collected);
 }
 static void village(Codec *c,HmbtnSession *d,const HmbtnSession *s)
 {
@@ -191,9 +192,12 @@ static void auxiliary(Codec *c,HmbtnSession *d,const HmbtnSession *s)
 #undef Y
 #undef CHILD
 #undef COUNT
+static void identity(Codec *c,HmbtnSession *d,const HmbtnSession *s)
+{ for(unsigned i=0;i<4;++i) { if(c->read) d->farm_id[i]=read32(c);else write32(c,s->farm_id[i]); } }
 static const struct { uint32_t id;void (*visit)(Codec *,HmbtnSession *,const HmbtnSession *); } chunks[]={
     {0x454d4147,game},{0x444c4946,field},{0x4c4c4956,village},
-    {0x4c554f50,poultry},{0x4b54534c,livestock},{0x59414c50,player},{0x49585541,auxiliary}
+    {0x4c554f50,poultry},{0x4b54534c,livestock},{0x59414c50,player},{0x49585541,auxiliary},
+    {0x544e4449,identity}
 };
 static uint32_t checksum(const uint8_t *data,size_t bytes)
 {
@@ -217,7 +221,7 @@ bool hmbtn_save_available(const HmbtnSession *s,char *error,size_t size)
         || s->house.message.phase!=HMBTN_MESSAGE_CLOSED || s->dialogue.message.phase!=HMBTN_MESSAGE_CLOSED) why="A menu or message is open";
     else if(s->farm_action.phase!=HMBTN_FARM_ACTION_FREE || s->fishing.phase!=HMBTN_FISHING_FREE
         || s->carry.phase || s->feed.phase || s->poultry.carry_phase || s->house_lumber.phase || s->quick_ticks
-        || s->event_item.phase!=HMBTN_EVENT_ITEM_IDLE || s->basket_action.phase) why="An action is active";
+        || s->event_item.phase!=HMBTN_EVENT_ITEM_IDLE || s->basket_action.phase || s->hot_spring.phase) why="An action is active";
     if(!why) for(unsigned i=0;i<3;++i) if(s->carry.thrown[i].item.id) why="A thrown item is in flight";
     if(!why && hmbtn_poultry_held_slot(&s->poultry)<HMBTN_HENS) why="Put down the animal before saving";
     if(!why) for(unsigned i=0;i<HMBTN_VILLAGERS;++i) if(hmbtn_village_event_actor(&s->village,i)) why="An event actor is bound";
@@ -321,7 +325,8 @@ static bool valid(const HmbtnSession *s,char *error,size_t size)
     }
     ok=ok && hmbtn_makers_valid(&s->makers,&s->construction,&s->poultry);
     ok=ok && hmbtn_basket_valid(&s->game.basket,&s->game.inventory);
-    ok=ok && hmbtn_pond_valid(&s->pond) && s->game.inventory.supplies[3]<=999;
+    ok=ok && hmbtn_pond_valid(&s->pond) && s->game.inventory.supplies[3]<=999
+        && (!s->apiary.collected || s->apiary.owned);
     ok=ok && hmbtn_mine_valid(&s->mine,s->area);
     ok=ok && hmbtn_livestock_valid_births(&s->livestock);
     for(unsigned i=0;i<HMBTN_LIVESTOCK;++i) {
@@ -364,12 +369,13 @@ HmbtnSession *hmbtn_save_decode(const uint8_t *data,size_t bytes,char *error,siz
 {
     if(!data || bytes<HEADER || bytes>HMBTN_SAVE_MAX_BYTES || memcmp(data,magic,8)) { snprintf(error,size,"Invalid native save header");return NULL; }
     if(hmbtn_read_le32(data+8)!=HMBTN_SAVE_VERSION) { snprintf(error,size,"Unsupported native save version %u (expected %u); start a new game",hmbtn_read_le32(data+8),HMBTN_SAVE_VERSION);return NULL; }
-    if(hmbtn_read_le32(data+12)!=bytes-HEADER || hmbtn_read_le32(data+16)!=CHUNKS
+    const unsigned count=hmbtn_read_le32(data+16);
+    if(hmbtn_read_le32(data+12)!=bytes-HEADER || (count!=REQUIRED_CHUNKS && count!=CHUNKS)
         || hmbtn_read_le32(data+20)!=checksum(data+HEADER,bytes-HEADER)) { snprintf(error,size,"Save length or checksum mismatch");return NULL; }
     HmbtnSession *s=hmbtn_session_create(NULL,0);
     if(!s) { snprintf(error,size,"Cannot allocate loaded session");return NULL; }
     Codec c={.in=data,.pos=HEADER,.end=bytes,.read=true,.ok=true};unsigned seen=0;
-    for(unsigned i=0;i<CHUNKS && c.ok;++i) {
+    for(unsigned i=0;i<count && c.ok;++i) {
         uint32_t id=read32(&c),length=read32(&c);unsigned k=0;
         for(;k<CHUNKS && chunks[k].id!=id;++k) {}
         if(!c.ok || k==CHUNKS || (seen&(1u<<k)) || length>c.end-c.pos) { c.ok=false;break; }
@@ -377,7 +383,7 @@ HmbtnSession *hmbtn_save_decode(const uint8_t *data,size_t bytes,char *error,siz
         if(!part.ok || part.pos!=part.end) { c.ok=false;break; }
         c.pos=part.end;seen|=1u<<k;
     }
-    if(!c.ok || c.pos!=bytes || seen!=((1u<<CHUNKS)-1)) {
+    if(!c.ok || c.pos!=bytes || (seen&((1u<<REQUIRED_CHUNKS)-1))!=((1u<<REQUIRED_CHUNKS)-1)) {
         snprintf(error,size,"Invalid, missing or duplicate save section");hmbtn_session_destroy(s);return NULL;
     }
     if(!valid(s,error,size)) { hmbtn_session_destroy(s);return NULL; }
@@ -388,4 +394,23 @@ HmbtnSession *hmbtn_save_decode(const uint8_t *data,size_t bytes,char *error,siz
     s->house.tv_dirty=true;s->house.sound=-1;s->carry.sound=s->feed.sound=s->poultry.sound=-1;
     s->farm_action.bank=-1;s->runtime.loaded_cell=UINT32_MAX;s->runtime.audio_song=UINT32_MAX;
     return s;
+}
+bool hmbtn_save_with_identity(const uint8_t *data,size_t bytes,const uint32_t id[4],uint8_t **out,size_t *length,char *error,size_t size)
+{
+    *out=NULL;*length=0;
+    HmbtnSession *checked=hmbtn_save_decode(data,bytes,error,size);
+    if(!checked) return false;
+    hmbtn_session_destroy(checked);
+    size_t at=HEADER,identity_at=bytes;
+    while(at<bytes) {
+        if(hmbtn_read_le32(data+at)==0x544e4449) { identity_at=at;break; }
+        at+=8+hmbtn_read_le32(data+at+4);
+    }
+    size_t n=bytes+(identity_at==bytes ? 24 : 0);
+    if(n>HMBTN_SAVE_MAX_BYTES || !(*out=malloc(n))) { snprintf(error,size,"Cannot allocate archive identity");return false; }
+    memcpy(*out,data,bytes);
+    hmbtn_write_le32(*out+identity_at,0x544e4449);hmbtn_write_le32(*out+identity_at+4,16);
+    for(unsigned i=0;i<4;++i) hmbtn_write_le32(*out+identity_at+8+i*4,id[i]);
+    hmbtn_write_le32(*out+12,(uint32_t)(n-HEADER));hmbtn_write_le32(*out+16,CHUNKS);
+    hmbtn_write_le32(*out+20,checksum(*out+HEADER,n-HEADER));*length=n;return true;
 }

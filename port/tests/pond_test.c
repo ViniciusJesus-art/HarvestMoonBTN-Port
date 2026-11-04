@@ -10,8 +10,37 @@ static void zone(uint8_t *section,unsigned kind,unsigned facing)
     hmbtn_write_le16(z+14,(uint16_t)-200);hmbtn_write_le16(z+20,200);
     hmbtn_write_le16(z+18,(uint16_t)-400);hmbtn_write_le16(z+24,0);
 }
+static void water_landings(void)
+{
+    uint8_t b[88]={0};hmbtn_write_le32(b,0x42);hmbtn_write_le32(b+8,1);
+    hmbtn_write_le32(b+12,28);hmbtn_write_le32(b+16,4);hmbtn_write_le32(b+28,60);hmbtn_write_le32(b+32,1);
+    for(unsigned i=0;i<4;++i) {
+        hmbtn_write_le16(b+40+i*8,(uint16_t)(i&1 ? 2000 : -2000));
+        hmbtn_write_le16(b+44+i*8,(uint16_t)(i<2 ? -2000 : 2000));hmbtn_write_le16(b+80+i*2,(uint16_t)i);
+    }
+    hmbtn_write_le16(b+72,4);hmbtn_write_le16(b+74,0x2901);
+    HmbtnModel ground;char error[256];assert(hmbtn_model_open(&ground,b,sizeof(b),error,sizeof(error)));
+    HmbtnPond pond={0};HmbtnFarmCarry c={.pond=&pond};
+    c.thrown[0]=(HmbtnThrownItem){.item={163,0,1},.position={0,1,0}};
+    hmbtn_farm_carry_flight(&c,NULL,&ground,NULL,NULL,0);
+    assert(hmbtn_pond_count(&pond)==1 && !pond.fed && c.thrown[0].phase==3 && c.sound==16 && !c.discarded);
+    hmbtn_farm_carry_flight(&c,NULL,&ground,NULL,NULL,0);assert(hmbtn_pond_count(&pond)==1);
+    c.thrown[0]=(HmbtnThrownItem){.item={132,0,1},.position={0,1,0}};
+    hmbtn_farm_carry_flight(&c,NULL,&ground,NULL,NULL,0);assert(pond.fed && hmbtn_pond_count(&pond)==1);
+    while(hmbtn_pond_add(&pond,163)) {}
+    c.thrown[0]=(HmbtnThrownItem){.item={161,0,1},.position={0,1,0}};
+    hmbtn_farm_carry_flight(&c,NULL,&ground,NULL,NULL,0);assert(c.request==0x382 && c.thrown[0].phase==3 && hmbtn_pond_count(&pond)==99);
+    /* Another water kind produces the same original splash, without adding
+     * fish or feed to the farm. The squid prerequisite stays on the beach. */
+    hmbtn_write_le16(b+72,2);c.area=56;pond.fed=false;
+    c.thrown[0]=(HmbtnThrownItem){.item={163,0,1},.position={0,1,0},.area=56};
+    hmbtn_farm_carry_flight(&c,NULL,&ground,NULL,NULL,0);assert(c.small_fish_placed && !pond.fed && hmbtn_pond_count(&pond)==99);
+    c.thrown[0]=(HmbtnThrownItem){.item={132,0,1},.position={0,1,0},.area=56};
+    hmbtn_farm_carry_flight(&c,NULL,&ground,NULL,NULL,0);assert(!pond.fed && !c.small_fish_placed);
+}
 int main(void)
 {
+    water_landings();
     HmbtnPond p={.random=7};assert(!hmbtn_pond_add(&p,132) && !hmbtn_pond_take(&p));
     assert(hmbtn_pond_add(&p,163) && hmbtn_pond_add(&p,162) && hmbtn_pond_add(&p,161));
     assert(p.fish[0].days==0 && p.fish[1].days==10 && p.fish[2].days==20 && hmbtn_pond_count(&p)==3);

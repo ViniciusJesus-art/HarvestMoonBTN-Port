@@ -7,6 +7,10 @@
 #include "services.h"
 
 typedef struct HmbtnScenePreview HmbtnScenePreview;
+bool hmbtn_scene_preview_preferences(HmbtnScenePreview *,bool paused,unsigned volume,bool smooth);
+const struct HmbtnSession *hmbtn_scene_preview_state(const HmbtnScenePreview *);
+void hmbtn_scene_preview_adopt_history(HmbtnScenePreview *,const char *loaded_path);
+bool hmbtn_scene_preview_save_history(HmbtnScenePreview *,const char *root,const char *slot,char *error,size_t size);
 HmbtnScenePreview *hmbtn_scene_preview_create(SDL_Renderer *renderer,
     const char *data_root, char *error, size_t error_size);
 HmbtnScenePreview *hmbtn_scene_intro_create(SDL_Renderer *renderer,
@@ -18,6 +22,10 @@ HmbtnScenePreview *hmbtn_scene_house_create(SDL_Renderer *renderer,
 HmbtnScenePreview *hmbtn_scene_area_create(SDL_Renderer *renderer,
     const char *data_root,unsigned area,char *error,size_t error_size);
 HmbtnScenePreview *hmbtn_scene_area_create_at(SDL_Renderer *renderer,
+    const char *data_root,unsigned area,const HmbtnFarmClock *clock,char *error,size_t error_size);
+HmbtnScenePreview *hmbtn_scene_debug_create(SDL_Renderer *renderer,
+    const char *data_root,const HmbtnFarmClock *clock,char *error,size_t error_size);
+HmbtnScenePreview *hmbtn_scene_debug_money_create(SDL_Renderer *renderer,
     const char *data_root,unsigned area,const HmbtnFarmClock *clock,char *error,size_t error_size);
 /* Development fixture only; preserves the RNG and does not advance a day. */
 bool hmbtn_scene_preview_set_weather(HmbtnScenePreview *,unsigned today,unsigned tomorrow);

@@ -6,4 +6,5 @@
 char *hmbtn_save_default_path(void);
 bool hmbtn_save_file_write(const char *path,const HmbtnSession *,char *error,size_t error_size);
 HmbtnSession *hmbtn_save_file_read(const char *path,char *error,size_t error_size);
+bool hmbtn_save_file_archive(const char *source,const char *destination,const uint32_t id[4],char *error,size_t size);
 #endif

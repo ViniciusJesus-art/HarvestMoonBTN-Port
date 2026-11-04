@@ -11,6 +11,7 @@ typedef struct HmbtnAppOptions {
     const char *screenshot_path; /* Finite run: last frame. Otherwise: first frame. */
     const char *data_root;
     const char *save_path; /* Native slot, default in user preferences. */
+    const char *preferences_path; /* Optional host settings path. */
     bool load_save; /* Load the explicit slot before entering the main loop. */
     bool setup;
     bool window_test; /* M1 diagnostic; does not require game data. */
@@ -19,6 +20,8 @@ typedef struct HmbtnAppOptions {
     bool childhood_preview; /* Development entry at the childhood meeting. */
     bool house_preview; /* Initial house, with the implemented walking subset. */
     bool area_preview; /* Development entry with free control and consumed visit. */
+    bool debug_start; /* Free-play entry with a populated test profile. */
+    bool debug_money; /* Free-play entry with only the test purse. */
     unsigned preview_area;
     bool preview_date_set,preview_time_set;
     HmbtnFarmClock preview_clock;

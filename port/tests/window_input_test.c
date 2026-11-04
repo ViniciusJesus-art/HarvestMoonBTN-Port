@@ -18,7 +18,7 @@ int main(void)
     CHECK(hmbtn_window_action(&event, window) == HMBTN_WINDOW_NONE);
     event.key.repeat = false;
     event.key.key = SDLK_ESCAPE;
-    CHECK(hmbtn_window_action(&event, window) == HMBTN_WINDOW_QUIT);
+    CHECK(hmbtn_window_action(&event, window) == HMBTN_WINDOW_PAUSE);
     event.key.windowID = 2;
     CHECK(hmbtn_window_action(&event, window) == HMBTN_WINDOW_NONE);
     event.type = SDL_EVENT_WINDOW_CLOSE_REQUESTED;

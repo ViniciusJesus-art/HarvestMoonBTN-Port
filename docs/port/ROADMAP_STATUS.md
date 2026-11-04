@@ -1,12 +1,18 @@
 # Status do porte nativo
 
-**Atualizado em:** 2026-10-30
+**Atualizado em:** 2026-11-04
 **Escopo atual:** Linux e Windows; Android é futuro.  
 **Prioridade:** port funcional com reaproveitamento do C original, conforme a fila PF do [ROADMAP.md](ROADMAP.md).
 **Concluídas:** MA-01..06 e PF-01..05 — base central, regras compartilhadas, cultivo, evento, atualização independente do desenho e saves nativos estáveis.
 
 **PF-06 em andamento:** batata, grama/feno, culturas base de verão/outono, clima diário/chuva, sementes sazonais de Won, desbloqueios do supermercado, Pink Cat/Toy Flower, variantes de Magic Red e Moondrop/visitas de Karen, carpintaria, ampliação do galinheiro e primeira casa (depósitos/núcleo da cozinha) concluídos nos respectivos recortes; obra/mapas/cochos do celeiro também entregues; aquisição/capacidade/alimentação bovina/ovina, segunda casa/lareira, estufa, Orangecup, ferramentas animais e leite/lã integrados; demais sistemas originais ainda parciais/ausentes.
-**Próxima implementação:** PF-06 — lago da fazenda e ração de peixes.
+**Próxima implementação:** PF-06 — ofertas à Deusa.
+Banho na fonte termal entregue em [PF06_HOT_SPRING.md](PF06_HOT_SPRING.md).
+Ovos termais entregues em [PF06_SPA_EGGS.md](PF06_SPA_EGGS.md).
+Maçãs da fazenda entregues em [PF06_APPLES.md](PF06_APPLES.md).
+Colmeia e mel entregues em [PF06_APIARY.md](PF06_APIARY.md).
+Vara melhorada de Greg entregue em [PF06_GREG_POLE.md](PF06_GREG_POLE.md).
+Lago/ração entregues em [PF06_POND.md](PF06_POND.md).
 Restaurante de Kai entregue em [PF06_KAI_RESTAURANT.md](PF06_KAI_RESTAURANT.md).
 Refeições da hospedaria entregues em [PF06_INN_MEALS.md](PF06_INN_MEALS.md).
 Vinícola entregue em [PF06_WINERY.md](PF06_WINERY.md).
@@ -27,7 +33,142 @@ não é requisito nem proibição. PF-06 e cozinha completa seguem abertas.
 MA-07..25 foram substituídas como fila, não concluídas. Refatorações necessárias
 acompanham as entregas funcionais; PF-04 separou atualização/desenho nos fluxos atuais.
 
-## Entrega atual — restaurante de Kai
+## Atualização atual — banho na fonte termal
+
+Entrada com mãos vazias pela cabine, salto/respingo/bancos originais e duas
+poses de banho. Recuperação +2 stamina/−1 fadiga por minuto, limites, Cross e
+saída automática até o lado de fora. Chuva/noite, neve/inverno, três checkpoints
+e passagem das 6h à casa sem banco/ação pendente verificados.
+[Referência C/BIN, percurso e limites](PF06_HOT_SPRING.md).
+
+Linux Debug 13/13 e Release 3/3; build Windows, unidade/percurso/três retomadas
+e regressão de portas no Wine aprovados. 46 processos incluindo tentativas,
+CTest, wrappers, filhos e lançadores. Animações/transições de portas preservadas; as passagens
+da fonte deixam de ser tratadas como folhas do modelo zero. Codec inalterado.
+Próximo: ofertas à Deusa. PF-06/runtime parciais; bootstrap sem jogo.
+
+## Referência anterior — ovos termais
+
+Ovos produzidos pelas galinhas usam o arremesso existente na água da zona 38;
+respingo original e entrega na mão somente após a animação. Cinco variantes,
+mochila cheia, consumo +4 stamina/-1 fadiga, remessa/pagamento de 80 G e alvo
+seco verificados. Três checkpoints retomados em processos novos.
+[Referência C/BIN, percurso e limites](PF06_SPA_EGGS.md).
+
+Linux Debug 12/12 e Release 3/3; build Windows, unidade/percurso/três retomadas
+e regressões de arremesso/apresentação no Wine aprovados. Percurso final
+revalidado nas três configurações; 48 processos incluindo tentativas, CTest,
+wrappers/filhos/lançadores. Portas preservadas; `runtime.c`, `daily.c` e
+`save.c` inalterados. Próximo: banho na fonte termal. PF-06 e runtime
+continuam parciais; o bootstrap não executa o jogo.
+
+## Referência anterior — maçãs da árvore da fazenda
+
+Três maçãs nas posições originais, renovadas pela manhã somente no outono.
+Mesma coleta/mão/mochila, figura original, consumo, suco preparado com fruta
+colhida, presente a Lillia e geladeira; remessas/pagamentos de 50 G. Sem
+reaparecer ao carregar mapa/save; inverno sem coleta e estoque guardado
+preservado. Usa os bits já existentes em `gather.taken`, sem alterar o codec.
+[Referência C/BIN, percurso e limites](PF06_APPLES.md).
+
+Debug 14/14, Release 4/4; build Windows e unidade/percurso/quatro retomadas
+no Wine aprovados. O percurso de colmeia/mel também passou novamente.
+46 processos incluindo tentativa inicial, wrappers, filhos e Wine/targets,
+sem suíte inteira. Portas preservadas; `runtime.c`, `daily.c` e `save.c`
+ficaram idênticos à retomada. Próximo: ovos termais. PF-06 e runtime
+continuam parciais; o bootstrap não executa o jogo.
+
+## Referência anterior — colmeia e mel
+
+Flores maduras cultivadas no campo liberam o roteiro 277: abelha, câmera/fade
+e colmeia originais. Coleta de mel uma vez por dia, nas quatro estações,
+com mãos/direções, apresentação, mochila e consumo. Dar mel a Louis libera
+a visita 171 da manhã seguinte; o mesmo preço de remessa passa de 50 G para
+60 G, com pagamento efetivo e sem duplicação. Codec v22 guarda aquisição e
+coleta; contador/presentes/bônus usam os donos existentes.
+[Referência C/BIN, percurso e limites](PF06_APIARY.md).
+
+Debug 11/11 selecionados, mais remessas e Moondrop avulsos; Release 3/3;
+build Windows e unidade/percurso/quatro retomadas no Wine aprovados.
+47 processos incluindo falhas iniciais, wrappers, filhos e Wine/targets,
+sem suíte inteira. Portas preservadas. Próximo: maçãs da fazenda.
+PF-06 e runtime continuam parciais; o bootstrap não executa o jogo.
+
+## Entrega adicional anterior — visual do menu nativo
+
+Menu à esquerda, tema escuro com transparência crescente para a direita,
+texto branco proporcional e suavizado. Todos os submenus seguem o mesmo tema;
+descrições das opções, cartões coloridos e rodapé foram retirados. Controles
+em duas colunas, com teclas em cápsulas discretas e oito linhas com rolagem.
+A fonte fica incorporada e não depende de fontes do sistema.
+[Interface, origem da fonte e validação](NATIVE_PAUSE_MENU.md).
+
+Linux Debug 4/4, Release 2/2; build Windows e menu/aplicativo no Wine aprovados.
+14 processos incluindo avulsos/CTest/Wine, sem suíte inteira. Instalação da
+licença da fonte conferida. Portas e `runtime.c` preservados integralmente.
+A próxima entrega funcional continua sendo colmeia e mel; bootstrap não
+executa o jogo e runtime segue parcial.
+
+## Entrega adicional anterior — menu nativo de pausa
+
+Pedido do usuário antes de retomar a fila PF-06. Esc abre imediatamente e
+pausa o relógio, eventos, animações/física/chuva e áudio. Continuar ou Esc
+retoma sem acumular tempo nem reenviar comandos do menu ao personagem.
+Carregar abre fazendas separadas por identidade, com personagem/nome,
+dinheiro, Power Berries e data; cada fazenda possui seu histórico de snapshots.
+A gravação pelo diário/cama acrescenta entradas e mantém o slot recente.
+Configurações persistentes de vídeo, idioma do menu PT/EN, volume geral e
+remapeamento de teclado; navegação por mouse, teclado e gamepad. Sair encerra
+o aplicativo. Diálogos mantêm o idioma dos recursos instalados.
+[Uso, arquivos, arquitetura e validação](NATIVE_PAUSE_MENU.md).
+Configure/build Linux Debug e Release aprovados. Debug: 14 casos selecionados
+aprovados após corrigir/repetir os testes pertinentes; Release: quatro casos
+aprovados após repetir os dois testes de UI. Build Windows e percurso completo
+do aplicativo no Wine aprovados. Contagem conservadora: **50 processos**,
+incluindo filhos, lançadores, falhas e tentativa de depuração; sem suíte inteira.
+Wine não substitui teste em hardware Windows físico.
+
+Portas e alterações locais preservadas; código/recursos/fluxo PS1 intactos.
+Próximo na fila funcional continua sendo colmeia e mel. Runtime parcial;
+bootstrap de diagnóstico não executa o jogo.
+
+## Referência anterior — vara melhorada de Greg
+
+Evento 177 com o gatilho e o bytecode originais: 50 peixes no snapshot
+matinal, saída da casa entre 06:00 e 11:59 e vaga para ferramenta. Mochila
+cheia adia; mãos ocupadas recebem sem apresentação. Câmera/ANI/mensagens,
+amizade, prazo de três horas, saída e flags únicas seguem o roteiro instalado.
+O percurso alcança 51 peixes por reprodução após mais 87 manhãs alimentadas,
+verifica as alternativas e pesca com a vara recebida. Três checkpoints
+reabrem em processos novos. Codec v21 guarda somente o snapshot adicional
+necessário ao requisito. [Auditoria e validação](PF06_GREG_POLE.md).
+Debug **12/12**, Release **4/4** selecionados; build Windows e unidade,
+produtor, percurso e três retomadas no Wine aprovados. **48 processos**,
+incluindo tentativas/lançadores/filhos, dentro do teto de 50 e sem suíte inteira.
+Wine não substitui validação em hardware Windows físico.
+
+Portas e alterações locais do usuário preservadas. Próximo: colmeia e mel.
+PF-06 segue aberta; bootstrap não executa o jogo e runtime permanece parcial.
+
+## Referência anterior — lago da fazenda e ração de peixes
+
+Compra de ração no supermercado com apresentação/quantidade/mensagens originais,
+débito único após aceite e retirada no depósito. Lago com 99 vagas, idades e
+reprodução somente nas manhãs alimentadas; retirada prioriza o maior e fica
+bloqueada no inverno. Água usa o respingo ANI 23, mantendo as regras existentes
+para descarte em solo e pedras/galhos nas células. População no resumo e dados
+do save vêm do mesmo estado. Percurso obtém a vara com Greg, pesca peixe pequeno,
+compra 41 rações, passa 40 manhãs até crescer/reproduzir e retira/remete o adulto;
+três checkpoints reabrem em processos novos. [Auditoria e validação](PF06_POND.md).
+Debug: 16 casos selecionados aprovados após atualizar/repetir o teste antigo
+de pouso na água. Release 4/4; Windows/Wine duas unidades, percurso e três
+retomadas aprovados. 48 processos incluindo tentativa/lançadores/filhos,
+sem executar a suíte inteira.
+Portas e alterações locais do usuário preservadas. A vara melhorada de Greg
+foi entregue acima. PF-06 continua aberta; bootstrap não executa
+o jogo, runtime parcial.
+
+## Referência anterior — restaurante de Kai
 
 Conversa/dispatch e agendas originais de verão, cinco itens, preços/descrições,
 cancelamento e saldo insuficiente. Fluxo compartilhado com Doug: débito único,

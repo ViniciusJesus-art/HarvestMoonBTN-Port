@@ -84,7 +84,10 @@ class ScenePreviewTest(unittest.TestCase):
                      ["--childhood-preview", "--intro-preview"], ["--childhood-preview", "--window-test"],
                      ["--scene-preview", "--childhood-preview"], ["--house-preview", "--diagnostics"],
                      ["--house-preview", "--scene-preview"], ["--house-preview", "--intro-preview"],
-                     ["--house-preview", "--childhood-preview"], ["--house-preview", "--window-test"]]:
+                     ["--house-preview", "--childhood-preview"], ["--house-preview", "--window-test"],
+                     ["--debug-start", "--farm-preview"], ["--debug-start", "--house-preview"],
+                     ["--debug-start", "--area-preview", "0"],
+                     ["--debug-money", "--debug-start"], ["--debug-money", "--scene-preview"]]:
             completed = subprocess.run([EXECUTABLE, *args], capture_output=True, text=True, timeout=5)
             self.assertEqual(completed.returncode, 2)
 

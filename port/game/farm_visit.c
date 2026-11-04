@@ -3,6 +3,7 @@
 #include "psx_data.h"
 #include "event_item.h"
 #include "event_variables.h"
+#include "pond.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -44,12 +45,21 @@ static bool window_match(uint32_t packed,const HmbtnFarmClock *c)
     for(unsigned i=0;i<count;++i) if((w[4]+i)%24==c->hour) return true;
     return false;
 }
-bool hmbtn_farm_visit_supported(unsigned event) { return event==18 || event==19 || (event>=128 && event<=133) || (event>=288 && event<=298) || event==140; }
-static bool available(unsigned condition,const HmbtnVillage *v,const HmbtnFarmClock *c,const HmbtnInventory *inventory,const HmbtnFarmField *field)
+bool hmbtn_farm_visit_supported(unsigned event) { return event==18 || event==19 || (event>=128 && event<=133) || (event>=288 && event<=298) || event==140 || event==171 || event==177 || event==277; }
+static bool available(unsigned condition,const HmbtnVillage *v,const HmbtnFarmClock *c,const HmbtnInventory *inventory,const HmbtnFarmField *field,const HmbtnPond *pond)
 {
     if(condition==255) return true;
     if(condition>=84 && condition<=92) return hmbtn_village_flag(v,0x67+condition-84);
     if(condition==7) return hmbtn_farm_field_has_grown(field,0x31);
+    if(condition==76) {
+        /* farm_init: FLOWER_SEEDS_PLANTABLE searches the outdoor field only,
+         * matching value and mature kind, regardless of ground/season. */
+        static const unsigned flowers[]={0x31,0x32,0x178,0x179,0x34};
+        for(unsigned i=0;i<sizeof(flowers)/sizeof(*flowers);++i)
+            if(field && !field->indoor && hmbtn_farm_field_has_grown(field,flowers[i])) return true;
+        return false;
+    }
+    if(condition==61) return pond && pond->morning_count>=50;
     if(!inventory) return false;
     if(condition==39) return inventory->held_item.id==204;
     if(condition!=83) return false;
@@ -87,7 +97,7 @@ unsigned hmbtn_farm_event_trigger(const HmbtnFarmTriggers *t,const HmbtnVillage 
          * wildcard kind enabled for single; do not pretend other roles exist. */
         if((p[34]!=1 && p[34]!=mode) || (p[12]&7)!=7 || !(p[12]&0x40) || v->flags[251+id]) continue;
         if(p[34]==3 && p[35]!=target) continue;
-        if(!available(p[33],v,c,inventory,t->field)) continue;
+        if(!available(p[33],v,c,inventory,t->field,t->pond)) continue;
         if(!window_match(hmbtn_read_le32(p+8),c)) continue;
         const unsigned place=raw>>10;
         if(place!=63 && ((place==previous_place)==((flags&0x80000000u)!=0))) continue;
@@ -159,7 +169,7 @@ HmbtnEventResult hmbtn_farm_visit_command(HmbtnFarmVisit *visit,HmbtnFarmIntro *
         if((a!=-1 && (a<0 || a>=32)) || (b!=0 && b!=1) || (x!=0 && x!=1) || y) break;
         const bool talked=visit->talk;visit->talk=false;visit->free=s->player_free=!talked;
         if(talked) {
-            const unsigned target=visit->event==130 || visit->event==289 || visit->event==18 || visit->event==19 ? visit->talk_target : 17;
+            const unsigned target=visit->event==130 || visit->event==289 || visit->event==18 || visit->event==19 || visit->event==177 ? visit->talk_target : 17;
             if(target>=HMBTN_VILLAGERS || !target) break;
             if(a!=-1) s->slots[a]=(int32_t)target;
             HmbtnIntroActor *actor=hmbtn_farm_intro_actor(s,(int32_t)target);

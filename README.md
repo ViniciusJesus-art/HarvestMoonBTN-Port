@@ -171,9 +171,11 @@ The `check` target verifies the hashes of the 14 original binaries. **Once the p
 
 ![HMBTN — captura do projeto 1](./docs/prints/Screenshot_20261024_233235.png)
 
+![HMBTN — captura do projeto 2](./docs/prints/Screenshot_20261024_233706.png)
 
-![HMBTN — captura do projeto 1](./docs/prints/Screenshot_20261024_233706.png)
+![HMBTN — captura do projeto 3](./docs/prints/Screenshot_20261102_132527.png)
 
+![HMBTN — captura do projeto 4](./docs/prints/Screenshot_20261104_203709.png)
 
 
 ## Origins and Credits

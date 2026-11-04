@@ -164,6 +164,19 @@ static bool fishing_frame(HmbtnSession *s,const HmbtnExplorationFrame *f,HmbtnLo
     s->control.mode=0;s->control.carrying=s->house.inventory->held_item.id!=0;s->control.carrying_big=false;
     return true;
 }
+static bool spring_frame(HmbtnSession *s,const HmbtnExplorationFrame *f,uint32_t pressed,char *error,size_t size)
+{
+    hmbtn_hot_spring_tick(&s->hot_spring,&s->intro.player,f->ground,pressed);
+    if(s->hot_spring.bank>=0) {
+        if(!action_bank(f,(unsigned)s->hot_spring.bank,error,size)) return false;
+        s->intro.action_active=true;
+    } else if(s->hot_spring.bank==-2) s->intro.action_active=false;
+    if(s->hot_spring.sound>=0 && !emit(f,(HmbtnExplorationEffect){.kind=HMBTN_EXP_UI_SOUND,
+            .id=(unsigned)s->hot_spring.sound},error,size)) return false;
+    s->control.mode=0;
+    memcpy(s->intro.camera,s->intro.player.position,sizeof(s->intro.camera));
+    return true;
+}
 /* Mine modals reuse the message renderer, base player ANI and normal area
  * transition. No second inventory, clock or travel loop. */
 static bool mine_reward(HmbtnSession *s,const HmbtnExplorationFrame *f,char *error,size_t size)
@@ -254,7 +267,7 @@ bool hmbtn_session_exploration_controls(HmbtnSession *s,const HmbtnExplorationFr
             goto house_done;
         }
         if(!s->travel_tick && !s->door_tick && !s->quick_ticks && s->house.mode==HMBTN_HOUSE_FREE) {
-            const bool menu_opened=!s->basket_action.phase && !s->carry.phase && !s->feed.phase && !s->poultry.carry_phase && s->farm_action.phase==HMBTN_FARM_ACTION_FREE
+            const bool menu_opened=!s->hot_spring.phase && !s->basket_action.phase && !s->carry.phase && !s->feed.phase && !s->poultry.carry_phase && s->farm_action.phase==HMBTN_FARM_ACTION_FREE
                 && hmbtn_farm_menu_open(&s->menu,input.pressed);
             if(s->menu.mode!=HMBTN_MENU_NONE) {
                 if(menu_opened) { (void)emit(f,(HmbtnExplorationEffect){.kind=HMBTN_EXP_RELEASE_WATER},error,error_size); }
@@ -273,8 +286,12 @@ bool hmbtn_session_exploration_controls(HmbtnSession *s,const HmbtnExplorationFr
                 goto house_done;
             }
         }
+        if(s->hot_spring.phase) {
+            if(!spring_frame(s,f,input.pressed,error,error_size)) return false;
+            goto house_done;
+        }
         if(!s->travel_tick && !s->door_tick && !s->sleep.active && !s->morning_fade) {
-            hmbtn_farm_carry_flight(&s->carry,hmbtn_session_field(s),f->ground,hmbtn_game_economy(&s->game));
+            hmbtn_farm_carry_flight(&s->carry,hmbtn_session_field(s),f->ground,hmbtn_game_economy(&s->game),f->section,f->section_size);
             if(!hmbtn_farm_carry_splashes(&s->carry,f->animation ? f->animation(f->context,HMBTN_EXP_STAGE,0) : NULL,error,error_size)) return false;
             if(s->carry.request) {
                 s->house.mode=HMBTN_HOUSE_BOOK;s->house.message_bank=3;s->house.request=s->carry.request;
@@ -287,10 +304,35 @@ bool hmbtn_session_exploration_controls(HmbtnSession *s,const HmbtnExplorationFr
                 if(!key(f,2,fx->program,fx->tone,fx->note,fx->volume,false,error,error_size)) return false;
             }
             if(s->carry.changed && !emit(f,(HmbtnExplorationEffect){.kind=HMBTN_EXP_RETEXTURE},error,error_size)) return false;
+            /* Retain a finished egg in its flight slot until the current
+             * native action completes. Saves already reject occupied slots. */
+            if(!s->carry.phase && !s->feed.phase && !s->quick_ticks && !s->poultry.carry_phase
+                    && !s->basket_action.phase && !s->control.exit_pending
+                    && !s->control.jumping && s->house.mode==HMBTN_HOUSE_FREE
+                    && s->farm_action.phase==HMBTN_FARM_ACTION_FREE) {
+                for(unsigned i=0;i<3;++i) {
+                    HmbtnThrownItem *t=&s->carry.thrown[i];
+                    if(!t->item.id || t->area!=s->area || t->phase!=HMBTN_THROWN_EGG_READY) continue;
+                    if(!hmbtn_event_item_spa_egg(&s->event_item,&s->intro.player,s->house.inventory)) {
+                        snprintf(error,error_size,"Cannot present hot spring egg");return false;
+                    }
+                    t->item=(HmbtnStoredTool){0};s->control.mode=0;goto house_done;
+                }
+            }
         }
         s->menu.stats.discarded=s->carry.discarded;
         if(s->basket_action.bounce) --s->basket_action.bounce;
         if(s->basket_action.phase) goto basket_interaction;
+        bool in_flight=false;
+        for(unsigned i=0;i<3;++i) if(s->carry.thrown[i].item.id) in_flight=true;
+        if(!in_flight && !s->carry.phase && !s->feed.phase && !s->poultry.carry_phase && !s->quick_ticks
+                && !s->travel_tick && !s->door_tick && !s->control.jumping && !s->control.exit_pending
+                && s->house.mode==HMBTN_HOUSE_FREE && s->farm_action.phase==HMBTN_FARM_ACTION_FREE
+                && hmbtn_hot_spring_begin(&s->hot_spring,&s->intro.player,s->house.inventory->held_item.id!=0,
+                    f->section,f->section_size,input.pressed)) {
+            if(s->hot_spring.phase && !spring_frame(s,f,0,error,error_size)) return false;
+            goto house_done;
+        }
         /* Door input precedes pickup, gifts and throwing, including refusals.
          * Inventory remains owned by the session across the transition. */
         if(!s->carry.phase && !s->feed.phase && !s->poultry.carry_phase && !s->quick_ticks
@@ -340,7 +382,7 @@ bool hmbtn_session_exploration_controls(HmbtnSession *s,const HmbtnExplorationFr
             if(!id) id=hmbtn_village_target(&s->village,&s->intro.player);
             if(id) {
                 if(s->visit.active && (id==17 || s->visit.event==130 || s->visit.event==289
-                            || ((s->visit.event==18 || s->visit.event==19) && id==3))) {
+                            || ((s->visit.event==18 || s->visit.event==19) && id==3) || (s->visit.event==177 && id==32))) {
                     s->visit.talk=true;s->visit.talk_target=id;input.pressed&=~HMBTN_PAD_CROSS;
                     (void)emit(f,(HmbtnExplorationEffect){.kind=HMBTN_EXP_UI_SOUND,.id=3},error,error_size);goto house_done;
                 }
@@ -353,6 +395,14 @@ bool hmbtn_session_exploration_controls(HmbtnSession *s,const HmbtnExplorationFr
                 if(!boundary(s,f,HMBTN_EXP_START_TALK,id,(HmbtnLogicalInput){0},NULL,error,error_size)) return false;
                 (void)emit(f,(HmbtnExplorationEffect){.kind=HMBTN_EXP_UI_SOUND,.id=3},error,error_size);goto house_done;
             }
+        }
+        if(s->area==0 && !s->carry.phase && !s->feed.phase && !s->poultry.carry_phase && !s->quick_ticks
+                && !s->travel_tick && !s->door_tick && !s->control.jumping && !s->control.exit_pending
+                && s->house.mode==HMBTN_HOUSE_FREE && s->farm_action.phase==HMBTN_FARM_ACTION_FREE
+                && hmbtn_apiary_tick(&s->apiary,&s->feed,s->house.inventory,&s->intro.player,
+                    f->section,f->section_size,input.pressed)) {
+            if(s->feed.sound>=0) (void)emit(f,(HmbtnExplorationEffect){.kind=HMBTN_EXP_UI_SOUND,.id=(unsigned)s->feed.sound},error,error_size);
+            s->control.mode=0;goto house_done;
         }
         if(!s->carry.phase && !s->feed.phase && !s->house.inventory->held_item.id && !s->quick_ticks
                 && !s->travel_tick && !s->door_tick && !s->control.jumping && !s->control.exit_pending
@@ -370,7 +420,9 @@ bool hmbtn_session_exploration_controls(HmbtnSession *s,const HmbtnExplorationFr
                 && s->farm_action.phase==HMBTN_FARM_ACTION_FREE
                 && (input.pressed&HMBTN_PAD_CROSS)) {
             bool taken=(s->area==112 || s->area==0) ? hmbtn_poultry_take_egg(&s->poultry,s->area,&s->house,&s->carry,&s->intro.player)
-                : hmbtn_farm_gather_take(&s->gather,hmbtn_read_le16(f->section+2),s->game.clock.season,&s->house,&s->carry,&s->intro.player);
+                : false;
+            if(!taken) taken=hmbtn_farm_gather_take(&s->gather,hmbtn_read_le16(f->section+2),
+                s->game.clock.season,&s->house,&s->carry,&s->intro.player);
             if(taken) (void)emit(f,(HmbtnExplorationEffect){.kind=HMBTN_EXP_UI_SOUND,.id=7},error,error_size);
         }
         if(!s->carry.phase && !s->feed.phase && !s->poultry.carry_phase && !s->quick_ticks && !s->travel_tick && !s->door_tick
@@ -734,6 +786,7 @@ bool hmbtn_session_exploration_world(HmbtnSession *s,const HmbtnExplorationFrame
             if(s->farm_action.fatigue>100) s->farm_action.fatigue=100;
             if(s->game.clock.hour==6 && s->game.clock.minute==0 && s->farm_action.fatigue==100) s->farm_action.fatigue=99;
         }
+        if(changes&HMBTN_CLOCK_MINUTE) hmbtn_hot_spring_minute(&s->hot_spring,&s->farm_action);
         if(out_changes) *out_changes=changes;
         if(out_held) *out_held=held_clock;
         /* weather_fx_frame is independent of the clock/control lock: doors

@@ -31,7 +31,7 @@ pixels do jogo. O modo separado `--window-test` continua sendo um diagnóstico.
 Após confirmar New Game, a apresentação e os editores do cadastro abrem.
 Continue/demo registram o limite no terminal, sem simular gameplay; Start, Cross
 ou Circle retorna ao menu nessa fronteira. New Game segue pela chegada, infância, canção e retorno a Thomas até
-entrar na casa/área 80 e encerrar a abertura e liberar movimento com colisões estáticas na casa inicial. Escape fecha a janela.
+entrar na casa/área 80 e encerrar a abertura e liberar movimento com colisões estáticas na casa inicial. Escape abre/fecha o menu nativo de pausa.
 
 ## Animação e composição
 

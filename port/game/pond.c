@@ -36,10 +36,11 @@ void hmbtn_pond_new_day(HmbtnPond *p)
         }
     }
     p->fed=false;
+    p->morning_count=hmbtn_pond_count(p);
 }
 bool hmbtn_pond_valid(const HmbtnPond *p)
 {
-    if(!p) return false;
+    if(!p || p->morning_count>HMBTN_POND_FISH) return false;
     for(unsigned i=0;i<HMBTN_POND_FISH;++i) {
         const HmbtnPondFish *f=&p->fish[i];
         if(f->item && (f->days>=HMBTN_POND_SPAWN_DAYS || f->item!=(f->days<HMBTN_POND_MEDIUM_DAYS ? 163u : f->days<HMBTN_POND_LARGE_DAYS ? 162u : 161u))) return false;

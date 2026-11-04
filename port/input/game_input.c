@@ -1,8 +1,18 @@
 #include "game_input.h"
 #include <string.h>
 
-static uint32_t key_button(SDL_Scancode code)
+static uint32_t key_button(const HmbtnGameInput *input,SDL_Scancode code)
 {
+    if(input->custom_keys) {
+        static const uint32_t buttons[14]={HMBTN_PAD_START,HMBTN_PAD_SELECT,HMBTN_PAD_UP,HMBTN_PAD_DOWN,
+            HMBTN_PAD_LEFT,HMBTN_PAD_RIGHT,HMBTN_PAD_CROSS,HMBTN_PAD_CIRCLE,HMBTN_PAD_SQUARE,HMBTN_PAD_TRIANGLE,
+            HMBTN_PAD_L1,HMBTN_PAD_R1,HMBTN_PAD_L2,HMBTN_PAD_R2};
+        uint32_t found=0;
+        for(unsigned i=0;i<14;++i) if(input->keys[i]==code) found|=buttons[i];
+        if(!found && code==SDL_SCANCODE_KP_ENTER && input->keys[0]==SDL_SCANCODE_RETURN) found=HMBTN_PAD_START;
+        if(!found && code==SDL_SCANCODE_BACKSPACE && input->keys[7]==SDL_SCANCODE_X) found=HMBTN_PAD_CIRCLE;
+        return found;
+    }
     switch (code) {
     case SDL_SCANCODE_RETURN: case SDL_SCANCODE_KP_ENTER: return HMBTN_PAD_START;
     case SDL_SCANCODE_UP: return HMBTN_PAD_UP;
@@ -41,10 +51,10 @@ void hmbtn_game_input_close(HmbtnGameInput *input)
 void hmbtn_game_input_event(HmbtnGameInput *input, const SDL_Event *event, SDL_WindowID window)
 {
     if (event->type == SDL_EVENT_KEY_DOWN && event->key.windowID == window && !event->key.repeat && input->focused) {
-        input->pending_pressed |= key_button(event->key.scancode);
-        input->keyboard_held |= key_button(event->key.scancode);
+        input->pending_pressed |= key_button(input,event->key.scancode);
+        input->keyboard_held |= key_button(input,event->key.scancode);
     } else if (event->type == SDL_EVENT_KEY_UP && event->key.windowID == window) {
-        input->keyboard_held &= ~key_button(event->key.scancode);
+        input->keyboard_held &= ~key_button(input,event->key.scancode);
     } else if (event->type == SDL_EVENT_WINDOW_FOCUS_LOST && event->window.windowID == window) {
         input->pending_pressed = 0;
         input->keyboard_held = 0;
@@ -55,12 +65,17 @@ void hmbtn_game_input_event(HmbtnGameInput *input, const SDL_Event *event, SDL_W
         input->gamepad = SDL_OpenGamepad(event->gdevice.which);
     } else if (event->type == SDL_EVENT_GAMEPAD_REMOVED && input->gamepad
             && event->gdevice.which == SDL_GetGamepadID(input->gamepad)) {
-        const bool focused = input->focused;
-        hmbtn_game_input_close(input);
-        hmbtn_game_input_init(input);
-        input->focused = focused;
+        SDL_CloseGamepad(input->gamepad);input->gamepad=NULL;input->previous_gamepad=0;
+        int count=0;SDL_JoystickID *ids=SDL_GetGamepads(&count);
+        if(count) input->gamepad=SDL_OpenGamepad(ids[0]);
+        SDL_free(ids);
     }
 }
+
+void hmbtn_game_input_reset(HmbtnGameInput *input)
+{ input->keyboard_held=0;input->pending_pressed=0;input->blocked_gamepad=input->previous_gamepad;input->previous_gamepad=0; }
+void hmbtn_game_input_bindings(HmbtnGameInput *input,const SDL_Scancode keys[14])
+{ memcpy(input->keys,keys,sizeof(input->keys));input->custom_keys=true;hmbtn_game_input_reset(input); }
 
 void hmbtn_game_input_poll(HmbtnGameInput *input)
 {
@@ -86,6 +101,7 @@ void hmbtn_game_input_poll(HmbtnGameInput *input)
         if (SDL_GetGamepadAxis(input->gamepad, SDL_GAMEPAD_AXIS_LEFT_TRIGGER) > 16000) held |= HMBTN_PAD_L2;
         if (SDL_GetGamepadAxis(input->gamepad, SDL_GAMEPAD_AXIS_RIGHT_TRIGGER) > 16000) held |= HMBTN_PAD_R2;
     }
+    input->blocked_gamepad &= held;held &= ~input->blocked_gamepad;
     if (input->focused) input->pending_pressed |= held & ~input->previous_gamepad;
     input->previous_gamepad = held;
 }

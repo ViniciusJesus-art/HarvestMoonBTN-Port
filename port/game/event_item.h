@@ -3,8 +3,9 @@
 #include "farm_action.h"
 typedef enum HmbtnEventItemPhase { HMBTN_EVENT_ITEM_IDLE,HMBTN_EVENT_ITEM_SHOW,HMBTN_EVENT_ITEM_EAT,HMBTN_EVENT_ITEM_RUCKSACK,
     HMBTN_EVENT_ITEM_USE_FOOD,HMBTN_EVENT_ITEM_USE_DRINK,
-    HMBTN_EVENT_ITEM_SERVE_FOOD,HMBTN_EVENT_ITEM_SERVE_DRINK } HmbtnEventItemPhase;
+    HMBTN_EVENT_ITEM_SERVE_FOOD,HMBTN_EVENT_ITEM_SERVE_DRINK,HMBTN_EVENT_ITEM_TOOL } HmbtnEventItemPhase;
 typedef struct HmbtnEventItem { HmbtnEventItemPhase phase;unsigned shown;HmbtnStoredTool saved;int sound;
+    unsigned tool_ticks;
     const HmbtnFarmClock *clock; /* Live loan for direct-use completion, not serialized. */
 } HmbtnEventItem;
 /* player_use_held_item(1)/stored_item_kind, ordinary foods with status callbacks.
@@ -12,6 +13,8 @@ typedef struct HmbtnEventItem { HmbtnEventItemPhase phase;unsigned shown;HmbtnSt
 bool hmbtn_event_item_use(HmbtnEventItem *,HmbtnIntroActor *,HmbtnInventory *,const HmbtnFarmClock *);
 bool hmbtn_event_item_consuming(const HmbtnEventItem *);
 bool hmbtn_event_item_drinking(const HmbtnEventItem *);
+/* Hot spring conversion uses the original unconditional player_show_item. */
+bool hmbtn_event_item_spa_egg(HmbtnEventItem *,HmbtnIntroActor *,HmbtnInventory *);
 /* player_receive_item(2/3): category-3 meals restore the original hand after use.
  * Served drink uses action row 17 (mode 0x4c), not direct-use row 14. */
 bool hmbtn_event_item_receive(HmbtnEventItem *,HmbtnIntroActor *,HmbtnInventory *,
@@ -30,6 +33,8 @@ bool hmbtn_event_item_show(HmbtnEventItem *,HmbtnIntroActor *,HmbtnInventory *,u
 bool hmbtn_event_item_show_record(HmbtnEventItem *,HmbtnIntroActor *,HmbtnInventory *,HmbtnStoredTool);
 /* player_start_rucksack: base ANI 29..32 after the shop commits the purchase. */
 bool hmbtn_event_item_rucksack(HmbtnEventItem *,HmbtnIntroActor *,HmbtnInventory *);
+/* player_show_tool: present a committed tool, with no held-goods mutation. */
+bool hmbtn_event_item_tool(HmbtnEventItem *,HmbtnIntroActor *,unsigned id);
 void hmbtn_event_item_tick(HmbtnEventItem *item,HmbtnIntroActor *player,
     HmbtnInventory *inventory,HmbtnFarmAction *status);
 #endif

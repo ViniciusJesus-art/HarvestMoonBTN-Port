@@ -96,10 +96,17 @@ int main(void)
     CHECK(flags[0x56] && (f.catch_flags&0x10) && !h.inventory->items[0].id);
     HmbtnFarmCarry carry={0};HmbtnEconomy economy={0};carry.area=56;
     carry.thrown[0]=(HmbtnThrownItem){{163,0,1},{0,1,0},0,0,0,56};
-    hmbtn_farm_carry_flight(&carry,NULL,&ground,&economy);
-    CHECK(carry.small_fish_placed && carry.thrown[0].phase==1);
-    hmbtn_farm_carry_flight(&carry,NULL,&ground,&economy);CHECK(!carry.small_fish_placed);
-    for(unsigned i=0;i<4;++i) hmbtn_farm_carry_flight(&carry,NULL,&ground,&economy);
+    hmbtn_farm_carry_flight(&carry,NULL,&ground,&economy,NULL,0);
+    CHECK(carry.small_fish_placed && carry.thrown[0].phase==3 && carry.sound==16);
+    hmbtn_farm_carry_flight(&carry,NULL,&ground,&economy,NULL,0);CHECK(!carry.small_fish_placed);
+    /* Original stage range 23 has five frames of six PS1 ticks each, then
+     * ends. Water uses this ANI instead of the dry-item blink animation. */
+    uint8_t splash_bytes[146]={0};hmbtn_write_le16(splash_bytes+23*4,5);
+    for(unsigned i=0;i<5;++i) splash_bytes[96+i*10+6]=6;
+    splash_bytes[96+4*10+7]=0xff;
+    HmbtnAnimation splash={.data=splash_bytes,.size=sizeof(splash_bytes),.count={0,0,0,24,5},.section={0,0,0,0,96}};
+    for(unsigned i=0;i<14;++i) { CHECK(hmbtn_farm_carry_splashes(&carry,&splash,error,sizeof(error)));CHECK(carry.thrown[0].item.id==163); }
+    CHECK(hmbtn_farm_carry_splashes(&carry,&splash,error,sizeof(error)));
     CHECK(!carry.thrown[0].item.id);
     /* Dry ground, pond and invalid water all wind the cast up without a catch. */
     const unsigned invalid[]={0,4,0x40};

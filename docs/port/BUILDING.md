@@ -52,7 +52,7 @@ ctest --preset native-debug
 Para Release, substitua `native-debug` por `native-release` nos comandos e no caminho.
 
 Sem argumentos, o programa abre uma janela de 960 × 720 e apresenta uma área lógica
-de 320 × 240. Escape fecha e F11 alterna tela cheia. O título lê seus recursos em
+de 320 × 240. Escape abre/fecha o menu de pausa e F11 alterna tela cheia. O título lê seus recursos em
 `data/`, desenha a abertura e reproduz animações, música e sons dos botões.
 Enter/Start encerra a introdução; outro Enter abre o menu. Setas/D-pad alternam
 e Enter/Z confirma. O resumo do cadastro inicia a chegada à fazenda: jogador,

@@ -14,7 +14,7 @@ O atalho de desenvolvimento abre diretamente esse mesmo cenário:
 
 Setas/D-pad caminham. X/Circle corre para a frente, inclusive sem uma seta
 pressionada; soltar os botões retorna ao sprite parado na direção atual.
-Escape fecha; F11 alterna tela cheia. O tamanho da janela continua separado
+Escape abre/fecha o menu de pausa; F11 alterna tela cheia. O tamanho da janela continua separado
 da imagem lógica 320×240, com proporção 4:3 preservada.
 O atalho não executa o cadastro nem grava os estados da abertura ignorada.
 
@@ -59,7 +59,7 @@ A leitura das zonas usa os registros originais de 44 bytes, limites estritos
 em X/Z e filtragem de zonas inativas/de interação. A porta da casa inicial
 é a zona 0: aponta para a área 0, com entrada externa `(-4464,0,4032)`.
 Ao entrar nela, o controle pausa e o terminal registra `House exit boundary`.
-A casa permanece visível; Escape fecha a janela. Ainda não há transição de
+A casa permanece visível; Escape abre/fecha o menu nativo de pausa. Ainda não há transição de
 porta, animação de saída nem execução dos eventos externos.
 
 A etapa seguinte acrescentou música, passos, TV, calendário, baú e livro;

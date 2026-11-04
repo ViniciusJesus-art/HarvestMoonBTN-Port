@@ -173,9 +173,11 @@ A verificação `check` confere os hashes dos 14 binários originais. **Quando o
 
 ![HMBTN — captura do projeto 1](./docs/prints/Screenshot_20261024_233235.png)
 
+![HMBTN — captura do projeto 2](./docs/prints/Screenshot_20261024_233706.png)
 
-![HMBTN — captura do projeto 1](./docs/prints/Screenshot_20261024_233706.png)
+![HMBTN — captura do projeto 3](./docs/prints/Screenshot_20261102_132527.png)
 
+![HMBTN — captura do projeto 4](./docs/prints/Screenshot_20261104_203709.png)
 
 ## Origem e créditos
 

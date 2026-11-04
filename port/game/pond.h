@@ -9,6 +9,7 @@ typedef struct HmbtnPond {
     HmbtnPondFish fish[HMBTN_POND_FISH];
     bool fed;
     uint32_t random; /* Native persisted stream; never advanced by rendering. */
+    unsigned morning_count; /* animals.fishCount, updated by pond_daily_update. */
 } HmbtnPond;
 unsigned hmbtn_pond_count(const HmbtnPond *);
 bool hmbtn_pond_add(HmbtnPond *,unsigned item);

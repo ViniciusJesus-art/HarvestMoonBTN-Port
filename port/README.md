@@ -6,11 +6,16 @@ pasta do usuário; não exige Python instalado. Veja [INSTALLERS.md](../docs/por
 
 `core/main.c` fornece a entrada C11 e as opções do executável. Sem argumentos,
 `core/app.c` abre uma janela SDL3, processa eventos e apresenta o menu nativo parcial.
-Escape fecha; F11 alterna tela cheia. A área lógica é 320 × 240, com escala inteira
+Escape abre/fecha o menu de pausa; F11 alterna tela cheia. A área lógica é 320 × 240, com escala inteira
 e barras quando necessário. A cadência de apresentação é limitada a até 60 Hz,
 sem espera ocupada; o título avança a cerca de 29,97 ticks/s. O renderizador
 de software é o padrão deste recorte 2D, para reduzir a alocação inicial do driver.
 A variável SDL_RENDER_DRIVER pode selecionar outro renderizador.
+
+O menu Esc oferece Continuar, Carregar jogo por fazenda/histórico, Configurações
+e Sair do jogo. Gravações pelo diário/cama acrescentam snapshots ao histórico;
+preferências de vídeo, idioma do menu, volume e teclas ficam salvas entre sessões.
+[Uso e detalhes](../docs/port/NATIVE_PAUSE_MENU.md).
 
 `--scene-preview` abre a prévia de geometria da fazenda (M4 parcial), com modelo
 e texturas reais desenhados em C nativo. Setas/D-pad movem a câmera e Enter/Start
@@ -75,6 +80,18 @@ use `--area-preview ID` (por exemplo, 52 para a praça e 56 para a praia).
 Ambos iniciam uma sessão nova com controle livre e sem a visita de Thomas.
 Use `--preview-date 0:3 --preview-time 12:00` junto ao atalho de região
 para testar durante o expediente; estações 0..3, dias 1..30.
+Para testar com progresso preparado, use `--debug-start`: começa na fazenda com
+9.999.999 G, casa no segundo nível, celeiro e galinheiro expandidos, estufa,
+utensílios de cozinha, ferramentas melhoradas e mochila máxima. É um perfil
+temporário de desenvolvimento e também aceita
+`--preview-date` e `--preview-time`. Iniciar não carrega nem grava um save; para
+salvar sem substituir o slot padrão, escolha um caminho separado com
+`--save-file FILE`. O perfil libera sistemas implementados para teste, mas não
+completa partes do jogo ainda pendentes.
+Se quiser conceder apenas dinheiro, use `--debug-money`: começa igualmente na
+fazenda com 9.999.999 G, mas mantém os demais valores e itens do início normal.
+Você também pode combiná-lo com `--area-preview ID` para começar em outra área,
+por exemplo `--debug-money --area-preview 128`.
 Veja [FIRST_MORNING.md](../docs/port/FIRST_MORNING.md) e
 [FARM_CONTROL.md](../docs/port/FARM_CONTROL.md).
 A caixa de venda reconhece o terreno original, registra produtos vendáveis

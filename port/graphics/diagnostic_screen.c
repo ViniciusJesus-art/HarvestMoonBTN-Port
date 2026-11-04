@@ -23,5 +23,5 @@ bool hmbtn_draw_diagnostics(SDL_Renderer *renderer, Uint64 frames)
         && SDL_SetRenderDrawColor(renderer, 245, 199, 122, 255)
         && SDL_RenderDebugText(renderer, 16, 180, "Ainda sem a logica do jogo.")
         && SDL_SetRenderDrawColor(renderer, 185, 198, 205, 255)
-        && SDL_RenderDebugText(renderer, 16, 216, "ESC: sair  F11: tela cheia");
+        && SDL_RenderDebugText(renderer, 16, 216, "ESC: menu  F11: tela cheia");
 }

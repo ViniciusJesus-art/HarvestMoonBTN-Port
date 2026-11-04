@@ -240,6 +240,11 @@ bool hmbtn_title_preview_tick(HmbtnTitlePreview *p,HmbtnLogicalInput input,char 
     p->frame_ready=false;
     return hmbtn_title_audio_pump(&p->audio,error,error_size);
 }
+bool hmbtn_title_preview_preferences(HmbtnTitlePreview *p,bool paused,unsigned volume,bool smooth)
+{
+    return hmbtn_title_audio_preferences(&p->audio,paused,volume)
+        && SDL_SetTextureScaleMode(p->texture,smooth ? SDL_SCALEMODE_LINEAR : SDL_SCALEMODE_NEAREST);
+}
 bool hmbtn_title_preview_draw(HmbtnTitlePreview *p,SDL_Renderer *renderer,char *error,size_t error_size)
 {
     if(!p->frame_ready && !compose(p,error,error_size)) return false;

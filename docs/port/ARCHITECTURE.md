@@ -320,6 +320,22 @@ roteiros durante draw. Isso não amplia a cobertura para o jogo original inteiro
 Origem da propriedade, testes e arquivos em [SESSION_EVENTS.md](SESSION_EVENTS.md);
 contrato atual em [PF04_UPDATE_PRESENTATION.md](PF04_UPDATE_PRESENTATION.md).
 
+## Lago e ração — PF-06, 2026-11-04
+
+`HmbtnSession.pond` é o proprietário dos 99 registros, idades, alimentação
+diária e RNG persistido. `pond.c` adapta `field/pond.c`; não guarda cópias da
+população no menu. `carry.pond` e `menu.pond` são empréstimos reassociados pelo
+construtor, inclusive após decode. O observer de `daily.c` atualiza o lago
+uma vez por data, no mesmo ciclo dos animais. Draw não envelhece nem sorteia.
+
+O estoque continua em `game.inventory.supplies[3]`. O modal `feed_shop` adapta
+o fluxo de compra original (apresentação 108, quantidade, débito após mensagem),
+enquanto `farm_feed` adapta depósito/retirada de peixe com as fases existentes.
+`farm_carry` resolve água/lago na física e usa a ANI 23 emprestada da UI de
+estágio para concluir o respingo; esse cursor é transitório. O codec guarda
+vagas/idades/alimentação/RNG e mantém a gravação somente em estado estável.
+Detalhes, evidência e limites em [PF06_POND.md](PF06_POND.md).
+
 ## Contratos mínimos de serviços — MA-05
 
 `game/services.*` define `HmbtnLogicalInput` e o protocolo sem SDL possuído por
@@ -1227,3 +1243,124 @@ No original esse preparo usa preto/XA, sem ANI de personagem cozinhando.
 [Auditoria C/BIN, sete preparos, PCM, regressões e limites](PF06_COOKING_PRESENTATION.md).
 Próximo: acessórios de Saibara conforme o roadmap. PF-06 e o runtime permanecem
 parciais; o bootstrap de diagnóstico não executa o jogo.
+
+## PF-06 — Vara melhorada de Greg, 2026-11-04
+
+`HmbtnPond.morning_count` adapta `animals.fishCount`, atualizado no callback
+diário original, inclusive sem alimentação. A população viva permanece
+derivada das 99 vagas. O snapshot tem persistência própria no codec v21:
+recalculá-lo ao carregar alteraria o requisito dos depósitos/retiradas do dia.
+
+Os gatilhos emprestam o lago da sessão. A condição 61 habilita o evento 177
+pela tabela BIN existente, sem outra agenda ou requisito de posse de vara.
+O ator de visita 32 e a figura 0x0839 usam o carregador de eventos e liberam
+os vínculos no término. O bytecode instalado controla espera, conversa,
+amizade, câmera, figura da vara e percurso de saída.
+
+`runtime` adapta somente os operandos necessários à entrega: teste de mãos,
+armazenamento da ferramenta 57 na operação comum e dispatch da flag 102.
+`event_item` apresenta uma ferramenta já armazenada por 11 ticks, sem nova
+mutação do inventário. A ação protege controles enquanto o roteiro continua;
+a figura usa o offset fixo de direção zero do original. Mãos ocupadas recebem
+silenciosamente. A flag de evento 428 é consumida ao iniciar, mesmo quando
+o jogador sai ou deixa vencer o prazo de três horas.
+
+[C/BIN, percurso de reprodução/entrega/pesca e limites](PF06_GREG_POLE.md).
+Animações e transições de portas preservadas. Próximo: colmeia e mel;
+bootstrap não executa o jogo e runtime segue parcial.
+
+
+## Menu nativo Esc — 2026-11-04
+
+O host suspende o consumo de `HmbtnUpdateClock` ao abrir o menu e descarta
+entrada/tempo acumulados ao fechar. Eventos de foco/hotplug continuam ativos;
+a cena mantém seus recursos/estado e só é desenhada. O dispositivo de áudio
+é pausado sem consumir a fila; ganho/pausa persistem durante trocas de música.
+
+`pause_menu` mantém navegação/seleção/rolagem; o catálogo só é consultado ao
+escolher Carregar. `save_library` valida snapshots pelo codec e os agrupa por
+identidade nativa persistida na seção opcional IDNT. O arquivo histórico é
+publicado antes do slot recente, reutilizando a escrita atômica existente.
+A importação do slot anterior modifica somente identidade/header/checksum;
+não inventa empréstimos de recursos para regravar uma sessão desserializada.
+
+`preferences` persiste vídeo, idioma do menu, ganho geral e teclas. Mudanças
+de vídeo falhas são revertidas; carregamento de save só troca a cena após
+validar o candidato. As portas e os algoritmos de gameplay não foram alterados.
+[Uso, limites e validação](NATIVE_PAUSE_MENU.md). Bootstrap não executa o jogo.
+
+
+### Atualização visual do menu Esc, 2026-11-04
+
+`pause_menu` usa a saída real do renderer para uma área lógica proporcional
+com altura 720. Desenho e hitboxes compartilham esse layout; o modo lógico e
+a composição anteriores são restaurados. A fonte proporcional antialiased
+usa cobertura de 64 px e filtragem linear em textura própria, independente
+do filtro do jogo. O atlas OFL e as métricas são incorporados; só a regeneração
+opcional requer Pillow. A licença acompanha os instaladores. O menu mantém
+a textura entre aberturas e a libera antes de destruir o renderer.
+
+Gradiente escuro lateral, seleção discreta, controles em duas colunas,
+rolagem de oito entradas e dados de saves em cinco linhas. Não há avanço de
+simulação no desenho nem alteração do codec/estado ou das portas nesta revisão.
+[Origem dos assets e verificações](NATIVE_PAUSE_MENU.md).
+
+### Colmeia e mel — PF-06, 2026-11-04
+
+`apiary` guarda somente aquisição e coleta diária na sessão, com persistência
+explícita no codec v22. `farm_visit` consulta flores maduras no campo externo;
+os eventos instalados 277/171 usam o interpretador e vínculos temporários de
+atores 27/31 existentes. `farm_intro` adapta salto de câmera e leitura/escrita
+de posições por slots; dispatch/RNG pertencem ao runtime da sessão.
+
+A coleta da zona 47 precede o arremesso e usa a fase de apresentação já
+existente em `farm_feed`. `daily` limpa a coleta uma vez por data. O desenho
+consulta aquisição e resolve a arte original, sem conceder conteúdo. Presente
+a Louis, contador diário, consumo, remessa e bônus reutilizam seus donos.
+[Auditoria, testes e limites](PF06_APIARY.md). Portas preservadas; bootstrap
+sem jogo e runtime parcial. Próximo recorte: maçãs da fazenda.
+
+### Maçãs da árvore da fazenda — PF-06, 2026-11-04
+
+`farm_gather` aceita os registros originais 1..3, com estação, posição e bits
+de coleta já existentes. O reset da manhã acrescenta somente essas entradas.
+`exploration` tenta coleta após preservar a prioridade dos ovos; a zona da
+colmeia continua com sua prioridade original. `scene_preview` mostra as
+frutas disponíveis com o sprite do pack de outono, sem produzir itens no draw.
+
+Consumo, cozinha, geladeira, presentes, remessas e saves continuam nos mesmos
+donos. Não houve alteração de formato nem de `runtime.c`, `daily.c` ou
+`save.c`; portas preservadas. [Auditoria e validação](PF06_APPLES.md).
+Bootstrap sem jogo; runtime/PF-06 parciais. Próximo: ovos termais.
+
+### Ovos termais — PF-06, 2026-11-04
+
+`farm_carry` consulta água e primeira zona ativa no pouso de ovos elegíveis,
+lendo a seção limitada da área. O mesmo slot avança por respingo ANI 23 e
+entrega pronta; `exploration` inicia a apresentação e consome o slot uma vez.
+A operação específica em `event_item` reproduz `player_show_item`, inclusive
+substituição da mão no fim da ANI e ausência de requisito de vaga na mochila.
+As demais apresentações mantêm suas guardas. Desenho somente consulta fases.
+
+Sem estado persistente novo: slots ocupados/apresentação já bloqueiam saves,
+e o ovo termal estável usa o inventário/codec v22. Consumo e remessa usam o
+catálogo original. `runtime.c`, `daily.c` e `save.c` inalterados no recorte;
+portas preservadas. [Referência C/BIN e validação](PF06_SPA_EGGS.md).
+Bootstrap sem jogo; runtime/PF-06 parciais. Próximo: banho na fonte termal.
+
+### Banho na fonte termal — PF-06, 2026-11-04
+
+`hot_spring` adapta as passagens 46/47 e modos do jogador em estado transitório
+por sessão. `exploration` carrega os bancos originais 0/1/16, bloqueia ações
+concorrentes e entrega cada evento de minuto à recuperação +2/−1. O salto de
+entrada termina pelo temporizador, pois a máscara de salto ignora a água
+0x8040; a passagem 47 encerra a saída e atravessa a cabine automaticamente.
+Desenho/ANI/áudio/clima continuam nos provedores atuais.
+
+`house_control`/`area_doors` excluem só essas passagens sem folha de porta;
+o bloco de animação/transição das portas em `runtime.c` foi preservado byte
+a byte. A guarda de visitas não permite iniciar evento durante o banho.
+`daily` limpa fase/banco na manhã; `save_available` protege a ação transitória.
+Codec v22 sem alteração, atributos/itens persistidos pelos donos existentes.
+[Referência C/BIN, percurso e testes](PF06_HOT_SPRING.md).
+Bootstrap sem jogo; PF-06/runtime parciais. Próximo: ofertas à Deusa.

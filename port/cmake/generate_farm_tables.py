@@ -255,7 +255,7 @@ def main(root, output):
     animal_header = clean((src / "overlay/11_GF_FARM/animals/animals.h").read_text())
     farm_load = clean((src / "overlay/11_GF_FARM/farm_load.c").read_text())
     farm_data = clean((src / "overlay/11_GF_FARM/farm_data.c").read_text())
-    defines = re.findall(r"#define (LIVESTOCK_\w+)\s+(0x[0-9a-fA-F]+|[0-9]+)\b", livestock + "\n" + animal_header + "\n" + clean((src / "overlay/11_GF_FARM/animals/livestock.h").read_text()))
+    defines = re.findall(r"#define (LIVESTOCK_\w+)\s+(0x[0-9a-fA-F]+|[0-9]+)\b", livestock + "\n" + animal_header + "\n" + clean((src / "overlay/11_GF_FARM/animals/livestock.h").read_text(encoding="utf-8")))
     native = ["/* Original livestock.c constants/frame tables and animals.c placement. */"]
     native.extend(f"enum {{ {key}={value} }};" for key, value in defines)
     messages = re.findall(r"(LIVESTOCK_MSG_\w+)\s*=\s*(0x[0-9a-fA-F]+)", animal_header)

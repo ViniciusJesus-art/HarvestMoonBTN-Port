@@ -73,7 +73,7 @@ bool hmbtn_event_item_show(HmbtnEventItem *item,HmbtnIntroActor *p,HmbtnInventor
     if(id>=380) return false;
     return hmbtn_event_item_show_record(item,p,h,(HmbtnStoredTool){(uint16_t)id,0,1});
 }
-bool hmbtn_event_item_show_record(HmbtnEventItem *item,HmbtnIntroActor *p,HmbtnInventory *h,HmbtnStoredTool record)
+static bool show_record(HmbtnEventItem *item,HmbtnIntroActor *p,HmbtnInventory *h,HmbtnStoredTool record,bool replace_hand)
 {
     const unsigned id=record.id;
     const HmbtnFarmItem *info=hmbtn_farm_item(id);
@@ -82,9 +82,17 @@ bool hmbtn_event_item_show_record(HmbtnEventItem *item,HmbtnIntroActor *p,HmbtnI
      * loaded by picture_load_to_vram just like the ordinary carried goods. */
     const bool gift=id==164 && record.modifier && record.modifier!=164 && hmbtn_farm_item(record.modifier);
     if(!item || !p || !h || p->facing>3 || item->phase!=HMBTN_EVENT_ITEM_IDLE
-            || h->held_item.id || !id || !record.count || !info || (info->category!=0 && id!=0x63 && id!=0x66 && id!=0x67 && !stock_cue) || (info->picture<0 && id!=0x66 && id!=0x67 && id!=0x138 && !stock_cue && !gift)) return false;
+            || (h->held_item.id && !replace_hand) || !id || !record.count || !info || (info->category!=0 && id!=0x63 && id!=0x66 && id!=0x67 && !stock_cue) || (info->picture<0 && id!=0x66 && id!=0x67 && id!=0x138 && !stock_cue && !gift)) return false;
     item->saved=record;item->shown=id;item->sound=-1;item->phase=HMBTN_EVENT_ITEM_SHOW;
     p->pose=true;p->animation_done=false;p->sprite=(HmbtnAnimationPlayer){(uint16_t)(11+p->facing),0,0};return true;
+}
+bool hmbtn_event_item_show_record(HmbtnEventItem *item,HmbtnIntroActor *p,HmbtnInventory *h,HmbtnStoredTool record)
+{ return show_record(item,p,h,record,false); }
+bool hmbtn_event_item_spa_egg(HmbtnEventItem *item,HmbtnIntroActor *p,HmbtnInventory *h)
+{
+    /* thrown_item_update -> player_show_item: no free-hand/bag test. The
+     * normal show animation commits the new record to HELD_ITEM at its end. */
+    return show_record(item,p,h,(HmbtnStoredTool){0x87,0,1},true);
 }
 bool hmbtn_event_item_rucksack(HmbtnEventItem *item,HmbtnIntroActor *p,HmbtnInventory *h)
 {
@@ -94,8 +102,22 @@ bool hmbtn_event_item_rucksack(HmbtnEventItem *item,HmbtnIntroActor *p,HmbtnInve
     item->phase=HMBTN_EVENT_ITEM_RUCKSACK;item->shown=0;item->sound=8;
     p->pose=true;p->animation_done=false;p->sprite=(HmbtnAnimationPlayer){(uint16_t)(29+p->facing),0,0};return true;
 }
+bool hmbtn_event_item_tool(HmbtnEventItem *item,HmbtnIntroActor *p,unsigned id)
+{
+    const HmbtnFarmItem *row=hmbtn_farm_item(id);
+    if(!item || !p || p->facing>3 || item->phase!=HMBTN_EVENT_ITEM_IDLE || !row || row->category!=1) return false;
+    item->phase=HMBTN_EVENT_ITEM_TOOL;item->shown=id;item->tool_ticks=11;item->sound=7;
+    p->pose=true;p->animation_done=false;p->sprite=(HmbtnAnimationPlayer){71,(uint16_t)p->facing,0};return true;
+}
 void hmbtn_event_item_tick(HmbtnEventItem *item,HmbtnIntroActor *p,HmbtnInventory *h,HmbtnFarmAction *status)
 {
+    if(item->phase==HMBTN_EVENT_ITEM_TOOL) {
+        if(item->tool_ticks && !--item->tool_ticks) {
+            item->phase=HMBTN_EVENT_ITEM_IDLE;item->shown=0;p->pose=false;
+            p->sprite=(HmbtnAnimationPlayer){0,(uint16_t)p->facing,0};p->animation_done=false;
+        }
+        return;
+    }
     if(item->phase==HMBTN_EVENT_ITEM_IDLE || !p->animation_done) return;
     if(hmbtn_event_item_consuming(item)) {
         /* Input is blocked during this action; reject a stale hand if another

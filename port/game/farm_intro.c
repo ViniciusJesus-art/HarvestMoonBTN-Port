@@ -190,6 +190,21 @@ static HmbtnEventResult command(void *ctx, const HmbtnEventCommand *c,
         if (!actor || !slot(b) || !slot(x) || !slot(y)) break;
         s->slots[b] = actor->position[1]; s->slots[x] = actor->position[0]; s->slots[y] = actor->position[2];
         return HMBTN_EVENT_DONE;
+    case 0x3C: /* event_cmd_set_position_vars: the three script slots. */
+        if(!actor || !slot(b) || !slot(x) || !slot(y)) break;
+        actor->position[0]=s->slots[x];actor->position[1]=s->slots[b];actor->position[2]=s->slots[y];
+        actor->visible=true;return HMBTN_EVENT_DONE;
+    case 0x4A: { /* event_cmd_get_camera_centre, including consecutive slots. */
+        const int xs=a ? b+1 : x,zs=a ? b+2 : y;
+        if((a && b==-1) || (b!=-1 && !slot(b)) || (xs!=-1 && !slot(xs)) || (zs!=-1 && !slot(zs))) break;
+        if(b!=-1) s->slots[b]=s->camera[1];
+        if(xs!=-1) s->slots[xs]=s->camera[0];
+        if(zs!=-1) s->slots[zs]=s->camera[2];
+        return HMBTN_EVENT_DONE;
+    }
+    case 38:
+        if(visit && s->game_command) return s->game_command(s->game_context,c,error,error_size);
+        break;
     case 2:
         if ((a != 1 && !(visit && a>=0 && a<=4)) || b < 0 || (x != -1 && !(s->event==12 && x==0) && !(visit && slot(x))) || y) break;
         if (s->message_done && s->message == (unsigned)b) {
@@ -354,12 +369,16 @@ static HmbtnEventResult command(void *ctx, const HmbtnEventCommand *c,
         if(a || (b!=0 && b!=1) || x!=4 || y!=1) break;
         s->player_marker=b!=0;return HMBTN_EVENT_DONE;
     case 9: {
-        if(a<0 || a>3 || x<INT16_MIN || x>INT16_MAX || y<INT16_MIN || y>INT16_MAX) break;
+        if(a < -1 || a>3 || x<INT16_MIN || x>INT16_MAX || y<INT16_MIN || y>INT16_MAX) break;
         const int32_t target[3]={x,b,y};
+        if(a==-1) {
+            memcpy(s->camera,target,sizeof(target));s->camera_actor=0;s->camera_gliding=true;
+            return HMBTN_EVENT_DONE;
+        }
         return camera_glide(s,target,(unsigned)a);
     }
     case 0x59:
-        if (!actor || b < 0 || b > 2 || x || y) break;
+        if (!actor || b < 0 || b > 2 || x || (y && !(s->event==277 && y==1))) break;
         actor->marker = b == 0 ? 1u : b == 2 ? 2u : 0u; return HMBTN_EVENT_DONE;
     case 0x6D: { /* Original 177-step scalar camera pull-back. */
         if (!slot(a) || !slot(b) || x || y < 0 || y > 1) break;

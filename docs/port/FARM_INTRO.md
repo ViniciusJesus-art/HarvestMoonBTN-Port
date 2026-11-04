@@ -12,7 +12,7 @@ a Thomas e a entrada na casa/área 80 (`0x79`). Os scripts chamam funções C ho
 ./build/native-debug/port/hmbtn_native --childhood-preview
 ```
 
-Z/Cross ou X/Circle avança mensagens. Escape fecha; F11 alterna tela cheia.
+Z/Cross ou X/Circle avança mensagens. Escape abre/fecha o menu de pausa; F11 alterna tela cheia.
 `--scene-preview` continua sendo uma entrada de desenvolvimento separada:
 cenário com câmera livre, sem atores ou áudio. A imagem lógica permanece 320×240.
 

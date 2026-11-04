@@ -9,6 +9,7 @@
 #include "psx_data.h"
 #include "inventory.h"
 #include "event_variables.h"
+#include "psx_random.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -141,6 +142,30 @@ static HmbtnEventResult visit_command(void *context,const HmbtnEventCommand *c,c
     if(!s) { snprintf(error,size,"Event command outside session tick");return HMBTN_EVENT_ERROR; }
     if(c->type==81 && c->command==27)
         return hmbtn_event_progress_command(&owner->game.progress,c,error,size);
+    if((owner->visit.event==277 || owner->visit.event==171) && c->type==81 && c->command==15
+            && !c->x && !c->y && c->operand==(owner->visit.event==171 ? 1 : 0)) {
+        if(c->operand) owner->game.economy.shipping.honey_bonus=true;
+        else owner->apiary.owned=true;
+        return HMBTN_EVENT_DONE;
+    }
+    if(owner->visit.event==277 && c->type==38 && c->command==51 && c->operand==1 && c->x==5 && !c->y) {
+        owner->intro.slots[1]=(int32_t)hmbtn_psx_random_range(&owner->village.random,51);
+        return HMBTN_EVENT_DONE; /* Original comparison mode 5 always succeeds. */
+    }
+    if(owner->visit.event==177) {
+        if(c->type==29 && c->command==1 && !c->operand && !c->x && !c->y)
+            return !owner->game.inventory.held_item.id ? HMBTN_EVENT_DONE : HMBTN_EVENT_WAIT;
+        if(c->type==32 && c->command==57 && !c->operand && c->x==1 && (c->y==0 || c->y==1)) {
+            const bool stored=hmbtn_inventory_store_tool(&owner->game.inventory,(HmbtnStoredTool){57,0,1},false,NULL);
+            if(stored && c->y && !hmbtn_event_item_tool(&owner->event_item,&owner->intro.player,57)) {
+                snprintf(error,size,"Cannot present Greg's committed fishing pole");return HMBTN_EVENT_ERROR;
+            }
+            return stored ? HMBTN_EVENT_DONE : HMBTN_EVENT_WAIT;
+        }
+        if(c->type==81 && c->command==9 && !c->operand && !c->x && !c->y) {
+            hmbtn_village_flag_set(&owner->village,0x66,true);return HMBTN_EVENT_DONE;
+        }
+    }
     if(owner->visit.event>=290 && owner->visit.event<=298 && !c->x && !c->y) {
         if(c->type==81 && c->command==7 && c->operand==(int)owner->visit.event-290 && c->operand<8) {
             owner->game.cooking.utensils|=1u<<(unsigned)c->operand;
@@ -154,12 +179,12 @@ static HmbtnEventResult visit_command(void *context,const HmbtnEventCommand *c,c
     }
     if(owner->visit.event==298 && c->type==69 && c->command==1 && !c->operand && c->x==0x20000000 && !c->y)
         return owner->event_item.phase!=HMBTN_EVENT_ITEM_IDLE ? HMBTN_EVENT_DONE : HMBTN_EVENT_WAIT;
-    if(owner->visit.event==18) {
+    if(owner->visit.event==18 || owner->visit.event==177) {
         if(c->type==55 && !c->command && c->operand==5 && !c->x && !c->y) {
             owner->intro.slots[5]=(int32_t)owner->visit.prop.item;return HMBTN_EVENT_DONE;
         }
-        if(c->type==54 && !c->command && c->operand==3 && !c->x && c->y==1) {
-            const HmbtnIntroActor *actor=hmbtn_village_actor(&owner->village,3);
+        if(c->type==54 && !c->command && c->operand==(owner->visit.event==177 ? 32 : 3) && !c->x && c->y==1) {
+            const HmbtnIntroActor *actor=hmbtn_village_actor(&owner->village,(unsigned)c->operand);
             memcpy(owner->visit.prop.position,actor->position,sizeof(actor->position));
             const int dx=owner->intro.player.position[0]-actor->position[0],dz=owner->intro.player.position[2]-actor->position[2];
             const unsigned side=abs(dx)>abs(dz) ? (dx<0 ? 1u : 3u) : (dz<0 ? 0u : 2u);
@@ -231,7 +256,7 @@ static bool visit_begin(HmbtnSessionFrame *s,unsigned event,char *error,size_t s
     if(!load_event(s,event,error,size) || !hmbtn_farm_visit_begin(&s->session->visit,&s->session->triggers,event,&s->session->village)) return false;
     s->session->visit.start_area=s->session->area;
     s->session->intro.game_command=visit_command;s->session->intro.game_context=s->session;
-    if(event<290 && event!=18 && event!=19 && event!=129 && event!=130 && event!=140 && !hmbtn_session_bind_event_actor(s->session,17,
+    if(event<290 && event!=18 && event!=19 && event!=129 && event!=130 && event!=140 && event!=171 && event!=177 && event!=277 && !hmbtn_session_bind_event_actor(s->session,17,
             HMBTN_SESSION_ACTOR_PRIMARY,event==289)) {
         snprintf(error,size,"Conflicting visitor actor 17");return false;
     }
@@ -242,6 +267,18 @@ static bool visit_begin(HmbtnSessionFrame *s,unsigned event,char *error,size_t s
         HmbtnIntroActor *actor=hmbtn_session_bind_event_actor(s->session,21,HMBTN_SESSION_ACTOR_VISIT,true);
         if(!actor || !s->animation(s->context,21,false)) {
             snprintf(error,size,"Original Duke event actor/art unavailable");return false;
+        }
+    }
+    if(event==177) {
+        if(!hmbtn_session_bind_event_actor(s->session,32,HMBTN_SESSION_ACTOR_VISIT,false)
+                || !s->animation(s->context,32,false)) { snprintf(error,size,"Original Greg event actor/art unavailable");return false; }
+        s->session->visit.prop.item=57;
+    }
+    if(event==171 || event==277) {
+        const unsigned id=event==171 ? 31u : 27u;
+        if(!hmbtn_session_bind_event_actor(s->session,id,HMBTN_SESSION_ACTOR_VISIT,false)
+                || !s->animation(s->context,id,false)) {
+            snprintf(error,size,"Original apiary event actor/art %u unavailable",id);return false;
         }
     }
     if(event==18 || event==19) {
@@ -680,7 +717,7 @@ static bool opening_tick(HmbtnSessionFrame *s, uint32_t held, char *error, size_
             && !s->session->visit.active && !s->session->animal_event && !s->session->intro.message && !s->session->intro.fade_level
             && !s->session->travel_tick && !s->session->door_tick && !s->session->sleep.active && !s->session->control.exit_pending
             && s->session->house.mode==HMBTN_HOUSE_FREE && s->session->menu.mode==HMBTN_MENU_NONE
-            && !s->session->carry.phase && !s->session->feed.phase && !s->session->poultry.carry_phase && !s->session->quick_ticks
+            && !s->session->hot_spring.phase && !s->session->carry.phase && !s->session->feed.phase && !s->session->poultry.carry_phase && !s->session->quick_ticks
             && !s->session->talk.active && s->session->feed_shop.phase==HMBTN_SHOP_OFF
             && s->session->event_item.phase==HMBTN_EVENT_ITEM_IDLE && s->session->farm_action.phase==HMBTN_FARM_ACTION_FREE) {
         const unsigned event=hmbtn_farm_event_trigger(&s->session->triggers,&s->session->village,&s->session->game.clock,s->session->game.weather.today,

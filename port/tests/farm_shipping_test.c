@@ -80,18 +80,18 @@ int main(void)
     floor_model(bytes,0x80);CHECK(hmbtn_model_open(&model,bytes,sizeof(bytes),error,sizeof(error)));
     memset(&a,0,sizeof(a));HmbtnFarmCarry carry={0};
     carry.thrown[0]=(HmbtnThrownItem){{0x41,0,1},{0,-300,0},0,0,3};
-    for(unsigned i=0;i<6;++i) hmbtn_farm_carry_flight(&carry,NULL,&model,&a);
+    for(unsigned i=0;i<6;++i) hmbtn_farm_carry_flight(&carry,NULL,&model,&a,NULL,0);
     CHECK(carry.thrown[0].item.id==0x41 && !a.shipping.pending_value);
-    hmbtn_farm_carry_flight(&carry,NULL,&model,&a);
+    hmbtn_farm_carry_flight(&carry,NULL,&model,&a,NULL,0);
     CHECK(!carry.thrown[0].item.id && carry.thrown[0].ground==-120 && a.shipping.pending_value==60);
     CHECK(carry.sound==19 && !carry.discarded && a.shipments[0]==1);
-    for(unsigned i=0;i<30;++i) hmbtn_farm_carry_flight(&carry,NULL,&model,&a);
+    for(unsigned i=0;i<30;++i) hmbtn_farm_carry_flight(&carry,NULL,&model,&a,NULL,0);
     CHECK(a.shipping.pending_value==60 && carry.sound==-1);
     const unsigned flags[]={0,0x4000,0x80};
     for(unsigned i=0;i<3;++i) {
         floor_model(bytes,(uint16_t)flags[i]);
         carry.thrown[0]=(HmbtnThrownItem){{i==2 ? 0x40 : 0x41,0,1},{0,-300,0},0,0,3};
-        for(unsigned j=0;j<30;++j) hmbtn_farm_carry_flight(&carry,NULL,&model,&a);
+        for(unsigned j=0;j<30;++j) hmbtn_farm_carry_flight(&carry,NULL,&model,&a,NULL,0);
         CHECK(!carry.thrown[0].item.id && a.shipping.pending_value==60 && carry.discarded==i+1);
     }
     puts("Shipping surfaces, prices/bins, delayed settlement, special dates, sleep, ledger and limits passed.");return 0;

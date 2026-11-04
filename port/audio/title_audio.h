@@ -9,6 +9,8 @@ typedef struct HmbtnTitleAudio {
     HmbtnSound *sound;
     SDL_AudioStream *stream;
     bool initialized;
+    bool paused;
+    unsigned host_volume_plus_one;
     uint64_t service_wait_ticket; /* Host ownership of a claimed XA wait. */
     HmbtnXAStream *xa; /* Borrowed optional stream, owned by the farm scene. */
 } HmbtnTitleAudio;
@@ -16,6 +18,7 @@ bool hmbtn_title_audio_open(HmbtnTitleAudio *audio, const char *root, char *erro
 bool hmbtn_title_audio_open_song(HmbtnTitleAudio *audio, const char *root, unsigned song,
     char *error, size_t error_size);
 void hmbtn_title_audio_close(HmbtnTitleAudio *audio);
+bool hmbtn_title_audio_preferences(HmbtnTitleAudio *,bool paused,unsigned volume);
 bool hmbtn_title_audio_pump(HmbtnTitleAudio *audio, char *error, size_t error_size);
 void hmbtn_title_audio_tick(HmbtnTitleAudio *audio, const HmbtnTitleFlow *flow, HmbtnTitleStep previous);
 #endif

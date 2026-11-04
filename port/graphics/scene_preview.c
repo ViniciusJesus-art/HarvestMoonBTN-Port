@@ -4,6 +4,7 @@
 #include "economy.h"
 #include "scene_preview.h"
 #include "save_file.h"
+#include "save_library.h"
 #include "session.h"
 #include "runtime.h"
 #include "scene_inspection.h"
@@ -265,6 +266,7 @@ static bool load_area(HmbtnScenePreview *s, const char *root, unsigned area,
     s->fire_frame=s->fire_ticks=0;
     if(s->opening && !hmbtn_estate_art_update(&s->estate_art,root,hmbtn_read_le16(section+10),error,error_size)) return false;
     s->session->triggers.field=&s->session->field;
+    s->session->triggers.pond=&s->session->pond;
     if(s->opening && (area==0 || area==96) && !hmbtn_livestock_art_load(&s->livestock_art,root,error,error_size)) return false;
     bool hens_here=area==112 || hmbtn_poultry_held_slot(&s->session->poultry)<HMBTN_HENS;
     for(unsigned i=0;i<HMBTN_HENS;++i) hens_here|=s->session->poultry.hens[i].occupied && s->session->poultry.hens[i].area==area;
@@ -368,20 +370,20 @@ static bool load_event(HmbtnScenePreview *s, unsigned event, char *error, size_t
             actor_mask |= bit;
             HmbtnAnimation *animation = &s->actor_animation[id];
             if (!hmbtn_animation_open(animation,entry,size,error,error_size)) return false;
-        } else if(event==18 && flags==0x831) {
+        } else if((event==18 && flags==0x831) || (event==177 && flags==0x839) || (event==277 && flags==0x883)) {
             if(s->event_prop_animation.data || !hmbtn_animation_open(&s->event_prop_animation,entry,size,error,error_size)) return false;
         } else if(event==12 && flags==0x401) {
             if(!hmbtn_animation_open(&s->event_player_animation,entry,size,error,error_size)) return false;
         } else { snprintf(error,error_size,"Unsupported opening actor flags 0x%04x",flags); return false; }
     }
     const bool world_event=event==129 || event==130 || event==289;
-    const uint64_t expected = event>=290 && event<=298 ? UINT64_C(1)<<26 : event==18 || event==19 ? UINT64_C(1)<<3 : event==140 ? UINT64_C(1)<<21 : event==299 || world_event ? 0 : event==172 ? (UINT64_C(1)<<10)|(UINT64_C(1)<<15)|(UINT64_C(1)<<19)
+    const uint64_t expected = event==171 ? UINT64_C(1)<<31 : event==277 ? UINT64_C(1)<<27 : event==177 ? UINT64_C(1)<<32 : event>=290 && event<=298 ? UINT64_C(1)<<26 : event==18 || event==19 ? UINT64_C(1)<<3 : event==140 ? UINT64_C(1)<<21 : event==299 || world_event ? 0 : event==172 ? (UINT64_C(1)<<10)|(UINT64_C(1)<<15)|(UINT64_C(1)<<19)
         : event==12 ? (UINT64_C(1)<<17)|(UINT64_C(1)<<23)|(UINT64_C(1)<<26)
         : event == 116 || event == 121 || hmbtn_farm_visit_supported(event) ? UINT64_C(1)<<17
         : event == 117 ? 14u : event == 118 ? 2u : event == 120 ? 30u
         : (UINT64_C(1)<<27)|(UINT64_C(1)<<33);
     if (!script || actor_mask != expected || banks != (event==299 || world_event ? 0u : 1u)
-            || (event==18 && !s->event_prop_animation.data)) {
+            || ((event==18 || event==177 || event==277) && !s->event_prop_animation.data)) {
         snprintf(error,error_size,"Opening event is missing its expected actors, textures or script"); return false;
     }
     if(!hmbtn_session_open_event(s->session,event,script,script_size,error,error_size)) return false;
@@ -428,11 +430,26 @@ bool hmbtn_scene_preview_take_rumble(HmbtnScenePreview *s)
     s->session->house.options.rumble=false;
     return pending;
 }
+typedef enum HmbtnDebugProfile {
+    HMBTN_DEBUG_NONE,HMBTN_DEBUG_MONEY,HMBTN_DEBUG_FULL
+} HmbtnDebugProfile;
+static HmbtnScenePreview *scene_house_create(SDL_Renderer *renderer,
+    const char *root,HmbtnDebugProfile profile,char *error,size_t error_size);
+static HmbtnScenePreview *scene_area_create_at(SDL_Renderer *renderer,
+    const char *root,unsigned area,const HmbtnFarmClock *clock,HmbtnDebugProfile profile,char *error,size_t error_size);
+
 HmbtnScenePreview *hmbtn_scene_house_create(SDL_Renderer *renderer,
     const char *root, char *error, size_t error_size)
 {
+    return scene_house_create(renderer,root,HMBTN_DEBUG_NONE,error,error_size);
+}
+static HmbtnScenePreview *scene_house_create(SDL_Renderer *renderer,
+    const char *root,HmbtnDebugProfile profile,char *error,size_t error_size)
+{
     HmbtnScenePreview *s=hmbtn_scene_intro_create(renderer,root,error,error_size);
     if(!s) return NULL;
+    if(profile==HMBTN_DEBUG_FULL) hmbtn_session_apply_debug_profile(s->session);
+    else if(profile==HMBTN_DEBUG_MONEY) hmbtn_session_apply_debug_money(s->session);
     if(!load_area(s,root,80,error,error_size)) { hmbtn_scene_preview_destroy(s); return NULL; }
     /* Shortcut to the same handoff as the end of event 0x79; no saved state. */
     memset(&s->session->intro,0,sizeof(s->session->intro));
@@ -453,11 +470,16 @@ HmbtnScenePreview *hmbtn_scene_area_create(SDL_Renderer *renderer,
 HmbtnScenePreview *hmbtn_scene_area_create_at(SDL_Renderer *renderer,
     const char *root,unsigned area,const HmbtnFarmClock *clock,char *error,size_t error_size)
 {
+    return scene_area_create_at(renderer,root,area,clock,HMBTN_DEBUG_NONE,error,error_size);
+}
+static HmbtnScenePreview *scene_area_create_at(SDL_Renderer *renderer,
+    const char *root,unsigned area,const HmbtnFarmClock *clock,HmbtnDebugProfile profile,char *error,size_t error_size)
+{
     unsigned logical,resource;
     if(!hmbtn_world_area(area,0,&logical,&resource) || logical==80 || area!=logical) {
         snprintf(error,error_size,"Unsupported test region %u",area);return NULL;
     }
-    HmbtnScenePreview *s=hmbtn_scene_house_create(renderer,root,error,error_size);
+    HmbtnScenePreview *s=scene_house_create(renderer,root,profile,error,error_size);
     if(!s) return NULL;
     if(clock) {
         if(clock->season>3 || clock->day>29 || clock->weekday>6 || clock->hour>23 || clock->minute>59 || clock->frames>14) {
@@ -509,9 +531,21 @@ HmbtnScenePreview *hmbtn_scene_area_create_at(SDL_Renderer *renderer,
     s->centre_x=s->session->intro.camera[0];s->centre_z=s->session->intro.camera[2];
     printf("Region test entry: area %u; season %u, day %u at %02u:%02u; fresh session, Thomas visit skipped.\n",
         area,s->session->game.clock.season,s->session->game.clock.day+1,s->session->game.clock.hour,s->session->game.clock.minute);
+    if(profile==HMBTN_DEBUG_FULL) puts("Debug profile active: expanded farm, all kitchen utensils, upgraded tools and maximum starting money.");
+    else if(profile==HMBTN_DEBUG_MONEY) puts("Debug money active: maximum starting money; all other new-game values retained.");
     return s;
 fail:
     hmbtn_scene_preview_destroy(s);return NULL;
+}
+HmbtnScenePreview *hmbtn_scene_debug_create(SDL_Renderer *renderer,
+    const char *root,const HmbtnFarmClock *clock,char *error,size_t error_size)
+{
+    return scene_area_create_at(renderer,root,0,clock,HMBTN_DEBUG_FULL,error,error_size);
+}
+HmbtnScenePreview *hmbtn_scene_debug_money_create(SDL_Renderer *renderer,
+    const char *root,unsigned area,const HmbtnFarmClock *clock,char *error,size_t error_size)
+{
+    return scene_area_create_at(renderer,root,area,clock,HMBTN_DEBUG_MONEY,error,error_size);
 }
 HmbtnScenePreview *hmbtn_scene_childhood_create(SDL_Renderer *renderer,
     const char *root, char *error, size_t error_size)
@@ -790,6 +824,16 @@ static bool runtime_tick(HmbtnScenePreview *s,HmbtnLogicalInput input,char *erro
     s->centre_x=centre[0];s->centre_z=centre[2];s->dirty=true;
     return true;
 }
+bool hmbtn_scene_preview_preferences(HmbtnScenePreview *s,bool paused,unsigned volume,bool smooth)
+{
+    return hmbtn_title_audio_preferences(&s->audio,paused,volume)
+        && SDL_SetTextureScaleMode(s->texture,smooth ? SDL_SCALEMODE_LINEAR : SDL_SCALEMODE_NEAREST);
+}
+const HmbtnSession *hmbtn_scene_preview_state(const HmbtnScenePreview *s) { return s->session; }
+void hmbtn_scene_preview_adopt_history(HmbtnScenePreview *s,const char *path)
+{ hmbtn_save_library_adopt(s->session,path); }
+bool hmbtn_scene_preview_save_history(HmbtnScenePreview *s,const char *root,const char *slot,char *error,size_t size)
+{ return hmbtn_save_library_write(root,slot,s->session,error,size); }
 bool hmbtn_scene_preview_tick(HmbtnScenePreview *s,HmbtnLogicalInput input,char *error,size_t error_size)
 {
     if(!s) { snprintf(error,error_size,"Missing native scene");return false; }
@@ -828,6 +872,17 @@ bool hmbtn_scene_preview_draw(HmbtnScenePreview *s,SDL_Renderer *renderer,char *
         const int32_t centre[3]={s->centre_x,s->opening ? s->session->intro.camera[1] : 0,s->centre_z};
         const HmbtnCamera camera=scene_camera(s,centre);
         HmbtnWorldSprite actors[512]; unsigned count = 0;
+        if(s->session->area==0 && s->session->apiary.owned) {
+            /* estate_items_restore / estate_code_lookup(ITEM_BEEHIVE).
+             * The hive remains visible after today's honey was collected. */
+            static const unsigned sprites[4]={0x14,0x1a,0x1a,0x0b};
+            const bool event=s->session->visit.active && s->session->visit.event==277;
+            const HmbtnAnimation *ani=event ? &s->event_prop_animation
+                : hmbtn_estate_art_sprite(&s->estate_art,sprites[s->session->game.clock.season]);
+            if(!ani || !ani->data) { snprintf(error,error_size,"Original beehive art unavailable");return false; }
+            actors[count]=(HmbtnWorldSprite){ani,event ? s->mayor_atlas : s->estate_art.atlas,{0},{0},0,0};
+            memcpy(actors[count++].position,hmbtn_farm_gather_record(0)->position,3*sizeof(int32_t));
+        }
         if(s->session->area==80 && s->session->construction.house_level) for(unsigned i=0;i<8;++i) {
             if(!(s->session->game.cooking.utensils&(1u<<i))) continue;
             const HmbtnAnimation *ani=hmbtn_estate_art_sprite(&s->estate_art,4+i);
@@ -836,7 +891,10 @@ bool hmbtn_scene_preview_draw(HmbtnScenePreview *s,SDL_Renderer *renderer,char *
             if(!hmbtn_estate_utensil_position(s->session->construction.house_level,i,actors[count].position)) return false;
             ++count;
         }
-        if(s->session->control.enabled) for(unsigned i=125;i<=172;++i) {
+        for(unsigned i=0;i<HMBTN_GATHER_RECORDS;++i) {
+            /* Apples remain part of the farm during scripted visits too.
+             * Keep the established forage visibility in other areas. */
+            if(!s->session->control.enabled && !(s->session->completion_reported && i>=1 && i<=3)) continue;
             const unsigned item=hmbtn_farm_gather_item(&s->session->gather,i,hmbtn_read_le16(s->section+2),s->session->game.clock.season);
             const int art=hmbtn_estate_item_art(item);
             const HmbtnAnimation *ani=art>=0 ? hmbtn_estate_art_sprite(&s->estate_art,(unsigned)art) : NULL;
@@ -1048,7 +1106,10 @@ bool hmbtn_scene_preview_draw(HmbtnScenePreview *s,SDL_Renderer *renderer,char *
                 static const int offset[4][2]={{-8,-10},{-6,-18},{6,-18},{8,-10}};
                 offset_x=offset[s->session->intro.player.facing&3][0];offset_y=offset[s->session->intro.player.facing&3][1];
             }
-            else if(s->session->fishing.shown || s->session->event_item.shown) {
+            /* player_draw_carried_item fixes the tool-presentation direction
+             * to zero, independent of the player's facing. */
+            else if((s->session->fishing.shown || s->session->event_item.shown)
+                    && s->session->event_item.phase!=HMBTN_EVENT_ITEM_TOOL) {
                 static const int offsets[4][2]={{-8,-10},{-6,-18},{6,-18},{8,-10}};
                 offset_x=offsets[s->session->intro.player.facing&3][0];offset_y=offsets[s->session->intro.player.facing&3][1];
             }
@@ -1092,10 +1153,11 @@ bool hmbtn_scene_preview_draw(HmbtnScenePreview *s,SDL_Renderer *renderer,char *
         }
         for(unsigned i=0;i<3;++i) if(s->session->carry.thrown[i].item.id && s->session->carry.thrown[i].area==s->session->area) {
             const HmbtnThrownItem *t=&s->session->carry.thrown[i];int x,y;
+            if(t->phase==HMBTN_THROWN_EGG_READY) continue;
             if(t->phase==2 && t->timer==3) continue; /* Original blink cadence. */
             const int32_t point[3]={t->position[0]+150,t->position[1]-100,t->position[2]-150};
             if(hmbtn_model_project_point(&camera,point,&x,&y)) {
-                if(t->phase==3) {
+                if(t->phase==HMBTN_THROWN_WATER || t->phase==HMBTN_THROWN_EGG_WATER) {
                     if(!hmbtn_ui_icon(s->ui,s->pixels,t->splash.animation,t->splash.frame,x,y,error,error_size)) return false;
                     continue;
                 }

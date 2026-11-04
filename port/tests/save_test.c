@@ -43,6 +43,13 @@ int main(void)
         memcpy(old,data,n);hmbtn_write_le32(old+8,version);reject(old,n);
     }
     free(old);
+    /* The archive identity is optional native metadata. Existing current
+     * gameplay snapshots without that final section still load unchanged. */
+    old=malloc(n-24);assert(old);memcpy(old,data,n-24);
+    hmbtn_write_le32(old+12,(uint32_t)(n-48));hmbtn_write_le32(old+16,7);crc(old,n-24);
+    HmbtnSession *without_id=hmbtn_save_decode(old,n-24,error,sizeof(error));
+    assert(without_id && !without_id->farm_id[0] && without_id->game.economy.gold==s->game.economy.gold);
+    hmbtn_session_destroy(without_id);free(old);
     /* Ledger and growth must not be replayed on read or repeated notifications. */
     const unsigned gold=loaded->game.economy.gold;
     hmbtn_session_clock_events(loaded,&loaded->game.clock,HMBTN_CLOCK_DAY);

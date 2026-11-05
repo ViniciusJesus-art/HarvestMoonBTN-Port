@@ -136,7 +136,7 @@ bool hmbtn_farm_action_mine_tick(HmbtnFarmAction *a,HmbtnIntroActor *p,HmbtnHous
              * insufficient stock bounds the inclusive source result loop. */
             if(h->inventory->equipped.count<a->result_count) a->result_count=h->inventory->equipped.count;
             const unsigned requested=hmbtn_tool_targets(4,a->charge_frames/20);
-            h->inventory->equipped.count=h->inventory->equipped.count>requested ? h->inventory->equipped.count-requested : 0;
+            h->inventory->equipped.count=(uint16_t)(h->inventory->equipped.count>requested ? h->inventory->equipped.count-requested : 0);
         }
         if(a->result_count>1) { a->phase=HMBTN_FARM_TOOL_RESULT;return true; }
         a->changed=a->result_count && apply_cell(a,p,h,field,0);

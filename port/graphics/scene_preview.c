@@ -1009,7 +1009,8 @@ bool hmbtn_scene_preview_draw(HmbtnScenePreview *s,SDL_Renderer *renderer,char *
             actors[count]=(HmbtnWorldSprite){ani,atlas,{0},{0},0,0};
             memcpy(actors[count++].position,dog->ball.position,sizeof(dog->ball.position));
         }
-        if(!dog->held && dog->area==s->session->area) {
+        /* The geometry preview does not load gameplay actors or pet art. */
+        if(s->opening && !dog->held && dog->area==s->session->area) {
             if(!s->dog_art.animation[dog->adult].data) { snprintf(error,error_size,"Original puppy sprite unavailable");return false; }
             actors[count]=(HmbtnWorldSprite){&s->dog_art.animation[dog->adult],s->dog_art.atlas[dog->adult],dog->actor.sprite,{0},0,0};
             memcpy(actors[count++].position,dog->actor.position,sizeof(dog->actor.position));

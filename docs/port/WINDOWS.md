@@ -161,3 +161,44 @@ Atualização PF-06 de ferramentas animais: a seleção automática agora inclui
 Build MinGW Release, unidade, percurso completo e retomada v11 no aplicativo
 Windows foram validados via Wine. Não substitui MSVC/Windows real.
 Detalhes: [PF06_ANIMAL_TOOLS.md](PF06_ANIMAL_TOOLS.md).
+
+## Correção dos instaladores de 2026-11-05
+
+A [execução 42111793822](https://github.com/ViniciusJesus-art/HarvestMoonBTN-Port/actions/runs/42111793822)
+parou antes de gerar os pacotes nas duas plataformas:
+
+- Windows/MSVC: C4310 em `port/game/mine.c`, ao converter a constante
+  `~0x1000u` para 16 bits. A máscara agora é aplicada às flags antes da conversão,
+  como no decodificador de cenas.
+- Windows/MSVC: C4244 em `port/game/farm_action.c`, ao atualizar a água do
+  regador. A conversão explícita para `uint16_t` acontece depois da subtração
+  limitada a zero; o resultado nunca ultrapassa o estoque anterior.
+- Linux: `native_scene_preview` falhava porque o arquivo sintético deixava
+  os oito slots de imagem zerados, indicando retângulos ativos sem dimensões.
+  A fixture agora usa o identificador vazio `0xFFFF`. A prévia geométrica
+  também passa a respeitar `opening` ao desenhar o cachorro, pois esse modo
+  não carrega os recursos de personagens do gameplay.
+
+`native_mine`, `native_tool_upgrade`, `native_scene_slots` e
+`native_scene_preview` entram na seleção automática de regressões em Linux e
+Windows, Debug e Release. Os avisos continuam tratados
+como erros e a validação dos recursos permanece ativa. O bootstrap nativo não
+executa o jogo; essas correções tratam a compilação e a prévia.
+
+Validação local: configuração e build aprovados em Debug e Release; os 108
+testes sem dados de disco passaram nas duas configurações. Após o ajuste final
+da conversão, os testes de minas e ferramentas também passaram em Release.
+A instalação em `build/native-actions-runtime` passou na auditoria do payload
+e em `--diagnostics`.
+
+A suíte Debug ampliada pelo cache local `HMBTN_TEST_GAME_DATA` teve 189 aprovações
+e 16 falhas em percursos opcionais (cultivos, Won, TV/cozinha, vara, eventos,
+torta, loja de ração e mapa). Esses testes não estão habilitados no workflow de
+instaladores. As falhas não foram corrigidas nesta alteração; o log completo
+está em `/tmp/hmbtn-actions-debug-tests.log`. A conferência dos 108 testes sem
+disco em Debug está em `/tmp/hmbtn-actions-debug-ci-tests.log` e a de Release
+em `/tmp/hmbtn-actions-release-tests.log`.
+
+O workflow de instaladores deve ser iniciado sobre o commit corrigido.
+Reexecutar o run antigo usa os fontes antigos. A confirmação com MSVC e Windows
+real depende da nova execução no GitHub Actions.

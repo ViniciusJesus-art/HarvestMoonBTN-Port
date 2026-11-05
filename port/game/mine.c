@@ -36,7 +36,7 @@ bool hmbtn_mine_bind(HmbtnMine *m,HmbtnSceneData *scene)
     }
     if(m->layer && m->exit_cell[m->layer-1]<100) {
         const unsigned cell=m->exit_cell[m->layer-1];
-        scene->flags[0]&=(uint16_t)~0x1000u;
+        scene->flags[0]=(uint16_t)(scene->flags[0]&~0x1000u);
         scene->position[0][0]=(int32_t)(cell%10)*400-2000;scene->position[0][1]=0;
         scene->position[0][2]=1800-(int32_t)(cell/10)*400;
     }

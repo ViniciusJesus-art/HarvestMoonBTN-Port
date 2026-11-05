@@ -26,6 +26,11 @@ class ScenePreviewTest(unittest.TestCase):
             bank = struct.pack("<HHI4H", 0x0D, 1, 0x04000002, 0, 0, 1, 1) + bytes(4)
             with archive.open("wb") as output:
                 output.truncate(0x386A800)
+                # Scene image slots use 0xFFFF for an unused entry; zero means
+                # an active rectangle and requires nonzero dimensions.
+                for i in range(8):
+                    output.seek(0x83800 + 0x8A8 + i * 18)
+                    output.write(struct.pack("<H", 0xFFFF))
                 for i in range(15):
                     output.seek(0x83800 + 0x948 + i * 44)
                     output.write(struct.pack("<I", 0x8000))

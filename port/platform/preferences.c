@@ -37,13 +37,13 @@ bool hmbtn_preferences_load(HmbtnPreferences *p,const char *path,char *error,siz
     if(file) SDL_CloseIO(file);
     text[n]=0;HmbtnPreferences loaded=*p;unsigned v,f,vs,in,sm;
     int consumed=0;
-    bool ok=n>0 && info.size<sizeof(text) && sscanf(text,"HMBTN_SETTINGS %u %u %u %u %u %u %u %u%n",
+    bool ok=n>0 && info.size<sizeof(text) && SDL_sscanf(text,"HMBTN_SETTINGS %u %u %u %u %u %u %u %u%n",
         &v,&f,&vs,&in,&sm,&loaded.window_scale,&loaded.volume,&loaded.language,&consumed)==8
         && v==1 && f<=1 && vs<=1 && in<=1 && sm<=1 && loaded.window_scale>=2 && loaded.window_scale<=5
         && loaded.volume<=100 && loaded.language<=1;
     for(unsigned i=0;i<HMBTN_BINDINGS && ok;++i) {
         unsigned key;int used=0;
-        ok=sscanf(text+consumed," %u%n",&key,&used)==1 && key>0 && key<SDL_SCANCODE_COUNT
+        ok=SDL_sscanf(text+consumed," %u%n",&key,&used)==1 && key>0 && key<SDL_SCANCODE_COUNT
             && key!=SDL_SCANCODE_ESCAPE && key!=SDL_SCANCODE_F11;
         if(ok) { loaded.keys[i]=(SDL_Scancode)key;consumed+=used; }
         for(unsigned j=0;j<i && ok;++j) if(loaded.keys[j]==loaded.keys[i]) ok=false;

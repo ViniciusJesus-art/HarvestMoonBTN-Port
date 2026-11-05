@@ -202,3 +202,29 @@ em `/tmp/hmbtn-actions-release-tests.log`.
 O workflow de instaladores deve ser iniciado sobre o commit corrigido.
 Reexecutar o run antigo usa os fontes antigos. A confirmação com MSVC e Windows
 real depende da nova execução no GitHub Actions.
+
+### Continuação: avisos na interface Windows
+
+No [job 127547340689](https://github.com/ViniciusJesus-art/HarvestMoonBTN-Port/actions/runs/42113603198/job/127547340689),
+o MSVC avançou até `hmbtn_host` e revelou outros avisos tratados como erros:
+
+- C4996 em `preferences.c`: a leitura de configurações usa `SDL_sscanf` no
+  lugar de `sscanf`, preservando os formatos numéricos e `%n` para avançar
+  entre os atalhos. Nenhum aviso do compilador foi desativado.
+- C4244 em `pause_menu.c`: os resultados condicionais da altura das linhas
+  e do tamanho da fonte agora são literais `float`; os valores permanecem
+  iguais aos anteriores.
+- C4389 em `feed_shop_ui.c`: o limite da lista de animais é armazenado como
+  `unsigned`, o mesmo tipo do índice retornado pelas funções de venda.
+
+`native_pause_menu` também entra na seleção automática da CI. O teste existente
+verifica gravação/leitura das configurações, atalhos, rejeição de arquivo
+danificado e desenho do menu em várias resoluções. A validação com MSVC deve
+usar um novo commit contendo estes ajustes.
+
+Configuração/build e os 108 testes sem disco passaram localmente em Debug e
+Release, incluindo `native_pause_menu`. O cache Debug com dados locais foi
+preservado; os percursos opcionais foram excluídos dessa conferência. Logs:
+`/tmp/hmbtn-actions-windows-ui-debug-tests.log` e
+`/tmp/hmbtn-actions-windows-ui-release-tests.log`. YAML e `git diff --check`
+também passaram. MSVC/Windows real continuam pendentes da nova execução.

@@ -51,10 +51,11 @@ static bool sale_list(const HmbtnFeedShop *s,const HmbtnRegistration *g,HmbtnNew
         : hmbtn_poultry_sale_slot(s->poultry,s->sale_top+4)<HMBTN_HENS;
     if(more
             && !hmbtn_ui_icon(ui,p,40,(tick/15)%2,288,128,error,size)) return false;
+    const unsigned capacity=barn ? HMBTN_LIVESTOCK : HMBTN_HENS;
     for(unsigned row=0;row<4;++row) {
         unsigned slot=barn ? hmbtn_livestock_sale_slot(s->livestock,sheep,s->sale_top+row)
             : hmbtn_poultry_sale_slot(s->poultry,s->sale_top+row);
-        if(slot==(barn ? HMBTN_LIVESTOCK : HMBTN_HENS)) break;
+        if(slot==capacity) break;
         const HmbtnFarmAnimal *a=barn ? &s->livestock->animals[slot] : NULL;
         const HmbtnHen *h=barn ? NULL : &s->poultry->hens[slot];const int y=48+(int)row*24;
         const unsigned day=barn ? a->day : h->day,age=barn ? a->age : h->age,

@@ -13,7 +13,7 @@ static MenuLayout layout(const HmbtnPauseMenu *m,SDL_Renderer *r)
     int width=960,height=720;SDL_GetRenderOutputSize(r,&width,&height);
     const int logical_width=height>0 ? (int)((int64_t)width*MENU_HEIGHT/height) : 960;
     const float left=64,right=SDL_min((float)logical_width-48,left+(m->page==HMBTN_PAUSE_HOME ? 360 : records(m) ? 600 : 520));
-    return (MenuLayout){logical_width,(int)visible_rows(m),left,right,218,records(m) ? 86 : m->page==HMBTN_PAUSE_HOME ? 64 : m->page==HMBTN_PAUSE_SOUND ? 84 : 54};
+    return (MenuLayout){logical_width,(int)visible_rows(m),left,right,218,records(m) ? 86.0f : m->page==HMBTN_PAUSE_HOME ? 64.0f : m->page==HMBTN_PAUSE_SOUND ? 84.0f : 54.0f};
 }
 static size_t row_count(const HmbtnPauseMenu *m)
 {
@@ -303,7 +303,7 @@ bool hmbtn_pause_menu_draw(HmbtnPauseMenu *m,const HmbtnPreferences *p,const Hmb
     const size_t count=row_count(m);
     for(size_t i=m->top;i<count && i<m->top+(size_t)l.visible && ok;++i) {
         const float y=l.row_y+(float)(i-m->top)*l.row_h;char name[128],value[128],detail[192];labels(m,p,i,name,value,detail);
-        const bool selected=i==m->selected;const float size=m->page==HMBTN_PAUSE_HOME ? 29 : records(m) ? 25 : 23;
+        const bool selected=i==m->selected;const float size=m->page==HMBTN_PAUSE_HOME ? 29.0f : records(m) ? 25.0f : 23.0f;
         float value_width=hmbtn_native_font_width(value,20);value_width=SDL_min(value_width,(l.right-l.left)*0.48f);
         const bool binding=m->page==HMBTN_PAUSE_CONTROLS && value[0];
         const float cap_width=SDL_max(value_width+24,48);

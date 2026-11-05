@@ -3,7 +3,9 @@
 #include "sdl_host.h"
 #define REQUIRE(x) do { if(!(x)) { fprintf(stderr,"World navigation line %d: %s; %s (area %u, position %d,%d,%d)\n",__LINE__,#x,error,hmbtn_scene_preview_session(s)->area,hmbtn_scene_preview_session(s)->intro.player.position[0],hmbtn_scene_preview_session(s)->intro.player.position[1],hmbtn_scene_preview_session(s)->intro.player.position[2]);return false; } } while(0)
 typedef struct Passage { HmbtnHouseExit exit;int32_t min[3],max[3];unsigned facing; } Passage;
-typedef struct Route { bool visited[84],covered[84][50];unsigned passages,signs,boundaries; } Route;
+/* Mine entrances use logical areas 234/245, beyond the outdoor area range. */
+enum { ROUTE_AREAS=255 };
+typedef struct Route { bool visited[ROUTE_AREAS],covered[ROUTE_AREAS][50];unsigned passages,signs,boundaries; } Route;
 static int32_t half(const uint8_t *p)
 {
     const unsigned value=hmbtn_read_le16(p);return value<32768 ? (int32_t)value : (int32_t)value-65536;
@@ -12,7 +14,7 @@ static bool step(HmbtnScenePreview *s,uint32_t pressed,uint32_t held,char *error
 {
     return hmbtn_scene_preview_tick(s,(HmbtnLogicalInput){pressed,held},error,size);
 }
-static unsigned passages(const HmbtnScenePreview *s,Passage out[50])
+static unsigned passages(HmbtnScenePreview *s,Passage out[50])
 {
     unsigned count=0;
     for(unsigned i=0;i<50;++i) {
@@ -104,8 +106,8 @@ static bool inspect(HmbtnScenePreview *s,HmbtnHost *host,Route *route,const char
         REQUIRE(hmbtn_scene_preview_session(s)->house.mode==HMBTN_HOUSE_FREE && !hmbtn_scene_preview_session(s)->control.exit_pending);
         hmbtn_scene_preview_session(s)->house.inventory->held_item=held;++route->signs;
     }
-    /* Mine entrances need their own digging/layer systems. Reaching one must
-     * leave the player able to move back rather than latch exit_pending. */
+    /* Any unintegrated target must leave movement available. Mine entrances
+     * are integrated and are now exercised by the reciprocal route traversal. */
     for(unsigned i=0;i<50;++i) {
         const uint8_t *p=hmbtn_scene_preview_resources(s).section+16+i*44;unsigned logical,resource;
         const unsigned flags=hmbtn_read_le16(p),target=hmbtn_read_le16(p+2);
@@ -121,7 +123,8 @@ static bool inspect(HmbtnScenePreview *s,HmbtnHost *host,Route *route,const char
 }
 static bool explore(HmbtnScenePreview *s,HmbtnHost *host,Route *route,const char *captures,char *error,size_t size)
 {
-    const unsigned from=hmbtn_scene_preview_session(s)->area;route->visited[from]=true;
+    const unsigned from=hmbtn_scene_preview_session(s)->area;
+    REQUIRE(from<ROUTE_AREAS);route->visited[from]=true;
     REQUIRE(inspect(s,host,route,captures,error,size));
     Passage links[50];const unsigned count=passages(s,links);
     for(unsigned i=0;i<count;++i) {
@@ -162,8 +165,8 @@ int main(int argc,char **argv)
         Route route={0};
         if(!explore(s,&host,&route,argc==3 ? argv[2] : NULL,error,sizeof(error))) goto done;
         for(unsigned area=24;area<80;area+=4) if(!route.visited[area]) goto done;
-        printf("World season %u: 15 regions, %u directed passages, %u signs.\n",season,route.passages,route.signs);
-        if(route.passages!=34 || route.signs!=(season==1 ? 17u : 18u) || route.boundaries!=2
+        printf("World season %u: 15 outdoor regions and 2 mines, %u directed passages, %u signs.\n",season,route.passages,route.signs);
+        if(!route.visited[234] || !route.visited[245] || route.passages!=38 || route.signs!=(season==1 ? 17u : 18u) || route.boundaries!=0
                 || hmbtn_scene_preview_session(s)->first_visit_active || !hmbtn_scene_preview_session(s)->first_visit_started
                 || hmbtn_scene_preview_session(s)->house.inventory->bag[0].id!=21 || hmbtn_scene_preview_session(s)->house.inventory->bag[0].count!=73 || hmbtn_scene_preview_session(s)->house.inventory->held_item.id!=0x3a
                 || hmbtn_scene_preview_session(s)->game.economy.shipping.pending_value!=60 || hmbtn_scene_preview_session(s)->game.economy.shipments[0]!=1

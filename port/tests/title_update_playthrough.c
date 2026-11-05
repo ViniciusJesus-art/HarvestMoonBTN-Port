@@ -8,7 +8,7 @@
 int main(int argc,char **argv)
 {
     if(argc!=2) return 2;
-    HmbtnHost host={0};HmbtnTitlePreview *p[3]={0};char error[512]={0};unsigned tick=0;
+    HmbtnHost host={0};HmbtnTitlePreview *p[3]={0};HmbtnScenePreview *scene=NULL;char error[512]={0};unsigned tick=0;
     CHECK(hmbtn_host_open(&host));
     for(unsigned i=0;i<3;++i) { p[i]=hmbtn_title_preview_create(host.renderer,argv[1],error,sizeof(error));CHECK(p[i]); }
     bool named=false,birthday=false;
@@ -58,13 +58,42 @@ int main(int argc,char **argv)
             && !r->birthday_day && !r->birthday_season);
         hmbtn_title_preview_destroy(p[i]);p[i]=NULL;
     }
-    HmbtnScenePreview *scene=hmbtn_scene_intro_create(host.renderer,argv[1],error,sizeof(error));
+    scene=hmbtn_scene_intro_create(host.renderer,argv[1],error,sizeof(error));
     CHECK(scene);hmbtn_scene_intro_registration(scene,&accepted);
-    const bool transferred=registration_equal(&accepted,&hmbtn_scene_preview_session(scene)->game.registration)
-        && hmbtn_scene_preview_tick(scene,(HmbtnLogicalInput){0},error,sizeof(error));
-    hmbtn_scene_preview_destroy(scene);CHECK(transferred);
-    hmbtn_host_close(&host);puts("Title, original registration, RNG, animation and scroll match at 0/30/60 presentations; draw mutates no logical state.");return 0;
+    CHECK(registration_equal(&accepted,&hmbtn_scene_preview_session(scene)->game.registration));
+    /* app.c draws the transferred scene before its first tick. In particular,
+     * the farm's resident dog must already have its real animation and atlas. */
+    CHECK(hmbtn_scene_preview_draw(scene,host.renderer,error,sizeof(error)));
+    unsigned events=0,areas=0,images=0,previous_event=UINT32_MAX,previous_area=UINT32_MAX,previous_message=UINT32_MAX;
+    for(tick=0;tick<30000;++tick) {
+        const HmbtnSession *s=hmbtn_scene_preview_session(scene);
+        const unsigned event=s->intro.event,area=s->area,message=s->intro.message;
+        CHECK(!s->intro.script.boundary);
+        if(event>=116 && event<=121) events|=1u<<(event-116);
+        if(area==0) areas|=1u;
+        if(area==80) areas|=2u;
+        if(area>=230 && area<=232) areas|=4u<<(area-230);
+        if(s->intro.cell_actor && s->runtime.loaded_cell<10) images|=1u<<s->runtime.loaded_cell;
+        if(event!=previous_event || area!=previous_area || message!=previous_message || tick%30==0) {
+            CHECK(hmbtn_scene_preview_draw(scene,host.renderer,error,sizeof(error)));
+            CHECK(SDL_RenderPresent(host.renderer));
+        }
+        previous_event=event;previous_area=area;previous_message=message;
+        if(s->control.enabled && s->completion_reported) break;
+        CHECK(hmbtn_scene_preview_tick(scene,(HmbtnLogicalInput){message ? HMBTN_PAD_CROSS : 0,HMBTN_PAD_CROSS},error,sizeof(error)));
+    }
+    CHECK(tick<30000 && events==0x3f && areas==0x1f && images==0x3ff);
+    CHECK(hmbtn_scene_preview_session(scene)->area==80);
+    CHECK(registration_equal(&accepted,&hmbtn_scene_preview_session(scene)->game.registration));
+    const int32_t start_x=hmbtn_scene_preview_session(scene)->intro.player.position[0];
+    for(unsigned i=0;i<10;++i)
+        CHECK(hmbtn_scene_preview_tick(scene,(HmbtnLogicalInput){0,HMBTN_PAD_RIGHT},error,sizeof(error)));
+    CHECK(hmbtn_scene_preview_session(scene)->intro.player.position[0]>start_x);
+    CHECK(hmbtn_scene_preview_draw(scene,host.renderer,error,sizeof(error)));
+    hmbtn_scene_preview_destroy(scene);scene=NULL;
+    hmbtn_host_close(&host);puts("Title/registration at 0/30/60 presentations, immediate handoff frame, all six opening events, ten memory images and farmhouse control passed.");return 0;
 fail:
+    hmbtn_scene_preview_destroy(scene);
     for(unsigned i=0;i<3;++i) hmbtn_title_preview_destroy(p[i]);
     hmbtn_host_close(&host);return 1;
 }

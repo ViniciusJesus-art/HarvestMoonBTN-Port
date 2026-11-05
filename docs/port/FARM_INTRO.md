@@ -21,10 +21,58 @@ posiciona o personagem junto à porta em `(-90,0,541)`, clareia a tela por dez
 ticks e emite o pedido original `FARM_REQUEST_FINISH`. O roteiro encerra,
 a casa permanece visível e o terminal registra a conclusão. A partir daí há
 caminhada/corrida com colisões estáticas, descrita em [HOUSE_CONTROL.md](HOUSE_CONTROL.md).
-Saída para a fazenda, colisões com atores, progressão e saves permanecem pendentes. O bootstrap e este recorte nativo ainda
+Os recortes posteriores de saída para a fazenda e saves estão descritos em
+[FIRST_MORNING.md](FIRST_MORNING.md) e [PF05_NATIVE_SAVES.md](PF05_NATIVE_SAVES.md).
+O bootstrap e este recorte nativo ainda
 não executam o jogo completo nem comprovam paridade 1:1 com PS1.
 `--childhood-preview` começa diretamente na área 231/evento `0x77`, como atalho
 de desenvolvimento; o fluxo normal continua passando pela chegada e imagens.
+
+## Correção do fechamento após o cadastro (2026-11-05)
+
+O primeiro frame da chegada é desenhado imediatamente depois de aceitar o
+cadastro, antes do primeiro tick da cena. `scene_create_with_session` ativava
+`opening` na carga inicial apenas para saves restaurados. Em New Game, essa
+carga pulava os recursos de gameplay; o construtor ativava o modo mais tarde,
+e o primeiro desenho encerrava o aplicativo com
+`Original puppy sprite unavailable`.
+
+O construtor agora respeita o modo solicitado desde a primeira carga da área,
+preparando os recursos usados pela abertura antes de retornar a cena. A falha
+foi reproduzida também com `--intro-preview --frames 1` e corrigida no caminho
+compartilhado por Linux e Windows.
+
+`native_title_update_playthrough` agora verifica o primeiro desenho sem ticks,
+o cadastro preservado, os seis eventos `0x74..0x79`, as dez imagens das lembranças,
+as áreas 0/230/231/232/80 e a caminhada real ao liberar o controle na casa.
+Esse teste usa os dados extraídos locais configurados por `HMBTN_TEST_GAME_DATA`.
+
+A conferência de rotas também atualizou `world_map_playthrough`: as entradas das
+minas usam IDs 234/245, que excediam o vetor antigo do próprio teste. O vetor
+agora cobre os IDs válidos, e a verificação percorre 15 regiões externas e duas
+minas, com 38 passagens direcionais nas quatro estações.
+
+Validação desta correção:
+
+- Linux: configuração/build em Debug e Release; 108 testes sem disco aprovados
+  nas duas configurações. A abertura completa, incluindo caminhada ao final,
+  passou em Debug e Release.
+- Dados locais em Debug: seis percursos aprovados — abertura/cadastro, primeira
+  manhã com visita aceita/recusada, interiores, relógio, rotas nas quatro estações
+  e dormir/salvar/carregar. Menu, controles, interações e apresentação também
+  foram conferidos pelos testes existentes.
+- Windows x64: build MinGW Release e execução via Wine da abertura completa,
+  caminhada, primeira manhã nas duas escolhas, rotas, salvamento e retomada do
+  save no aplicativo em um processo novo. `--intro-preview --frames 3` também
+  apresentou os três frames. Essa verificação usa Wine; Windows real/MSVC
+  permanecem validações distintas.
+
+Logs locais: `/tmp/hmbtn-new-game-final-next-steps.log`,
+`/tmp/hmbtn-new-game-base-tests.log`, `/tmp/hmbtn-new-game-release-tests.log`,
+`/tmp/hmbtn-new-game-final-release-opening.log` e
+`/tmp/hmbtn-new-game-windows-*.log`. Os dados extraídos usados nesses testes
+permanecem fora do Git. O porte continua parcial, conforme o recorte documentado;
+essa conferência cobre o início e os percursos listados acima.
 
 ## Entrada na casa e término da abertura
 
@@ -36,8 +84,10 @@ do original. O fade de dez ticks é concluído antes de `event_cmd_enter_mode(0,
 Esse último comando registra o pedido de término e fecha a apresentação;
 o terminador do script encerra a VM, preservando a cena clara na janela.
 Esse pedido agora libera o controle na casa: setas/D-pad caminham; X/Circle
-corre para a frente. O chão e os bloqueios vêm da geometria original. Faltam
-saída para a fazenda, relógio, inventário e interação com os móveis.
+corre para a frente. O chão e os bloqueios vêm da geometria original. A saída
+para a fazenda, relógio, inventário e interações foram integrados nos recortes
+posteriores; veja [FIRST_MORNING.md](FIRST_MORNING.md) e
+[HOUSE_INTERACTIONS.md](HOUSE_INTERACTIONS.md).
 
 Os modelos dos móveis têm identificador `0x41`; o modelo principal usa `0x42`.
 O original trata ambos pelo mesmo layout de tabela relativa e pacotes prelit.

@@ -315,7 +315,9 @@ static HmbtnScenePreview *scene_create_with_session(SDL_Renderer *renderer,
 {
     HmbtnScenePreview *s = calloc(1,sizeof(*s));
     if (!s) { hmbtn_session_destroy(saved);goto allocation; }
-    s->restoring=saved!=NULL;s->opening=s->restoring && opening;
+    /* The first frame is drawn immediately after registration, before any
+     * simulation tick. Load gameplay art during the initial area load too. */
+    s->restoring=saved!=NULL;s->opening=opening;
     s->session=saved ? saved : hmbtn_session_create(title_layout0_cells,1125);
     s->data_root=SDL_strdup(root);
     if(!s->session || !s->data_root) goto allocation;

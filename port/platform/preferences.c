@@ -35,8 +35,12 @@ bool hmbtn_preferences_load(HmbtnPreferences *p,const char *path,char *error,siz
     char text[1024];SDL_IOStream *file=SDL_IOFromFile(path,"rb");
     size_t n=file ? SDL_ReadIO(file,text,sizeof(text)-1) : 0;
     if(file) SDL_CloseIO(file);
-    text[n]=0;HmbtnPreferences loaded=*p;unsigned v,f,vs,in,sm;
+
+    text[n]=0;
+    HmbtnPreferences loaded=*p;
+    unsigned v=0, f=0, vs=0, in=0, sm=0;
     int consumed=0;
+
     bool ok=n>0 && info.size<sizeof(text) && SDL_sscanf(text,"HMBTN_SETTINGS %u %u %u %u %u %u %u %u%n",
         &v,&f,&vs,&in,&sm,&loaded.window_scale,&loaded.volume,&loaded.language,&consumed)==8
         && v==1 && f<=1 && vs<=1 && in<=1 && sm<=1 && loaded.window_scale>=2 && loaded.window_scale<=5

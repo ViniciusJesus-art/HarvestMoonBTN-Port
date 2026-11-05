@@ -758,3 +758,98 @@ tentativas, CTest, wrappers, filhos e lançadores.
 Bloco de animação/transição das portas do usuário preservado; nenhuma alteração
 em `src/`, `sdk/`, `disc/`, `tools/` ou CMake PS1. Ofertas à Deusa são o próximo
 recorte. PF-06/runtime parciais; bootstrap sem jogo.
+
+## Correção da fonte e animação das águas — 2026-11-04
+
+Porta dupla original 0/1 com colisão, sons reais e retorno próximo à cabine.
+As tabelas de VRAM dos mapas passam a mover riachos, mar/espuma, rios, lagos
+e fonte/cachoeira, conservando cadência, rolagem e pausa. Verificação em cinco
+mapas instalados e percurso do banho com folhas/colisão/áudio/saída sazonais.
+[Detalhes e testes](PF06_WORLD_ANIMATIONS.md). `runtime.c` e as animações de
+portas do usuário preservados; codec v22 sem mudança. PF-06/runtime parciais;
+bootstrap sem jogo. Ofertas à Deusa continuam como próximo recorte.
+
+
+## Ofertas à Deusa — 2026-11-04
+
+| Origem | Adaptação | Comportamento |
+|---|---|---|
+| `player.c:thrown_item_settle` e zona 44 | `game/farm_carry.c` e `exploration.c` | Oferta consumida pelo arremesso; reação, clima e modo 4. |
+| `event_commands.c:pick_bride`, nudge, cues, portas, despacho | `game/goddess.c`, `farm_intro.c`, `runtime.c` | Roteiros BIN 182/185/187/189/191/193, marcos e cinco encontros. |
+| `FarmDayCounters`, estado do jogador/estate | donos existentes + `game.progress.goddess_berry` | Contador, energia, ficha, afinidade, dinheiro/RNG e save atual. |
+
+[Auditoria, percurso e limites](PF06_GODDESS.md). Bloco de portas do usuário
+preservado; fontes/SDK/disco/toolchain PS1 intactos. PF-06/runtime parciais;
+bootstrap sem jogo. Próximo: Kappa.
+
+
+## Kappa/Mystic Berry — 2026-11-05
+
+| Fonte original | Adaptação nativa | Entrega |
+|---|---|---|
+| `event_cmd_check_gift`, `wait_time`, `event_cue_issue` | `game/kappa.c`, `farm_visit`, `exploration` | Roteiro BIN 197, presentes pendentes, três pepinos, cancelamentos e recompensa. |
+| `farm_nudge_axis`, câmera por variáveis | `game/farm_intro.c` | Subida/mergulho e câmera compartilhados; ator 27 com arte própria. |
+| `player_entry_refresh`, `player_fatigue_cost` | `event_item.c`, `farm_action.c`, pesca/medicina | Meia fadiga real, sem aumentar energia máxima; estado do jogador persistido. |
+| `event_actors_load_sprites`, `item_art_address` | `graphics/scene_preview.c` | ANI 0x926/banco do roteiro preservam a Berry azul. |
+
+[Auditoria e validação](PF06_KAPPA.md). Próximo: cachorro inicial. PF-06/runtime
+parciais; bootstrap sem jogo. Bloco de portas do usuário e fluxo PS1 preservados.
+## Cachorro inicial — 2026-11-05
+
+| Fonte original | Adaptação nativa | Entrega |
+|---|---|---|
+| `animals.c:farm_reset_tables`, `dog_request_start` | `game/dog.c`, construtor de sessão | Filhote único na posição original, afeto 10, nome do cadastro. |
+| `dog_pick_idle_phase`, cues/lookup, `farm_walker_move/pick_heading/pick_turn` | `game/dog.c`, `dog_turns.inc`, exploração | Poses/caminhada reais, noite, sondas e pesos originais. |
+| `player_collect_target`, `farm_place_held`, `player_latch_place` | ações do cachorro, inventário, handoff de área/sono | Pegar/soltar, recusas, mão reservada e transporte pelas portas existentes. |
+| `player.c` L1, `dog_try_action`, `dog_tick`, `dog_set_bit2_cue` | ticks/cuidado diário, bancos reais de som | Assobio/resposta/seguimento, +2/+2 por dia, penalidades e limites. |
+| `farm_load_span(1)`, `dog_sprite_load` | `graphics/dog_art.c`, scene preview | ANI de 48 ranges e banco em +0x1420 do recurso instalado, sem assets no Git. |
+| registro de animal e consumidores de status/vila | `session.dog`, vistas emprestadas, codec v25 | Afeto/posição/flags/RNG persistentes; pausa e retomada interna/externa. |
+
+[Auditoria, percurso e limites](PF06_DOG.md). Crescimento/adulto e bola são o
+próximo recorte; concursos e rotas autônomas entre mapas ainda pendentes.
+Portas do usuário e fluxo PS1 preservados. PF-06/runtime parciais; bootstrap
+de diagnóstico sem jogo.
+## Cachorro adulto e bola — 2026-11-05
+
+| Origem | Adaptação nativa | Entrega |
+|---|---|---|
+| `dog_tick`, `dog_sprite_load`, `farm_load_span(0)` | `dog.c`, diário e `dog_art` | Outono do primeiro ano, forma adulta/67 ranges, mesmo registro/afeto/nome/mão. |
+| Condição 81 e evento BIN 286, ator 35, item staging 0x865 | `farm_visit`, despacho de visita e scene preview | Gatilhos originais, ambas as respostas, 100 G, ANI e entrega; sem loja paralela. |
+| `thrown_item_spawn/land`, `estate_trigger_disarm` | `farm_carry` e marcador único `dog.ball` | Voo próprio da bola, chão/água, pickup e reposição por contador 16. |
+| `dog_accept_request`, `dog_script_approach_player`, `dog_snapshot_submit` | fases do mesmo `dog.c` | Busca/bola na boca/retorno/soltura, limites e retomada durante o retorno. |
+| `TRAINED_TODAY` / `dog_tick` | coordenador diário e codec v26 | Ganho 1/2/3 uma vez por data, limites, persistência e treino sem duplicação. |
+
+[Auditoria, teste e limites](PF06_DOG_BALL.md). Próximo: cavalo inicial;
+concursos/defesa/condução e saltos/rotas autônomos do cachorro continuam
+pendentes. Portas do usuário, fontes/SDK/disco e fluxo PS1 preservados.
+Runtime/PF-06 parciais; bootstrap de diagnóstico sem jogo.
+
+
+## Potro inicial — 2026-11-05
+
+| Original | Adaptação | Comportamento entregue |
+|---|---|---|
+| `farm_event_available`, tabelas e eventos 1/73 | `farm_visit`, runtime/intérprete | Gatilhos originais, oferta/recusa, nova conversa no rancho e nome obrigatório. |
+| `horse_spawn`, `horse_frame_table`, `horse_pick_state` | `game/horse.c`, sessão, caminhador compartilhado | Registro opcional único, posição/afeto original, poses e movimento com sondas. |
+| `player.c` L2, `horse_roll_visit`, `horse_set_bit2_cue` | exploração, ferramenta animal existente | Assobio/resposta, aproximação, escovação e cue, sem ganho duplicado. |
+| `farm_load_anim8(1)`, `horse_load_sprite` | `graphics/horse_art.c` | ANI/banco originais do recurso instalado, sem assets no Git. |
+| `farm_request_track`, `cd_audio_tracks` | serviço de áudio e `xa_stream` | CD-XA 13/14, canais 6/7 de `02.XA`, streaming real. |
+| `horse_update_bond`, `status_pages.c` | diário, resumo e codec v27 | Afeto/clima/treino, nome/corações, pausa e retomadas com empréstimos reconstruídos. |
+
+[Auditoria, validação e limites](PF06_HORSE.md). Adulto/montaria e inspeção
+entregues no recorte seguinte; saltos avançados, remessas e corrida pendentes.
+
+
+## Cavalo adulto e montaria — 2026-11-05
+
+| Original | Adaptação | Comportamento entregue |
+|---|---|---|
+| `horse_update_bond`, `farm_load_anim8(0)` | `horse_morning`, diário e `horse_art` | Aniversário por ano/estação/dia, adulto no mesmo registro, ANI/banco originais. |
+| Condições 1/2, vínculo 50, eventos BIN 2/3 | `farm_visit`, `farm_intro`, runtime | Limiar 180/181, entrada/saída da cocheira, falas/gesto/amizade e retirada ou restauração. |
+| `player_confirm_action`, `player_run_action`, `player_calc_first_valid` | `horse.c`, controle/exploração compartilhados | ANI de subir/descer, som 6, velocidades, terreno/colisão e posição livre ao desmontar. |
+| `player_update` (zonas), `player_morning_reset` | portas existentes, sincronização no tick e diário | Entrada montada automática na cocheira, retorno à fazenda, demais portas bloqueadas, cavalo preservado ao amanhecer. |
+| Treino diário, jogador/animal montados | diário, status e codec v28 | Ganho único por data, pausa e retomadas montadas interna/externa. |
+
+[Auditoria, teste e limites](PF06_HORSE_RIDING.md). Próximo: remessas pelo cavalo;
+corrida, saltos avançados/autônomos e retorno após retirada ainda pendentes.
+Portas personalizadas e fluxo PS1 preservados; bootstrap de diagnóstico sem jogo.

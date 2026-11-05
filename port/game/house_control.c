@@ -84,26 +84,26 @@ bool hmbtn_world_gate_at(const uint8_t *section,size_t size,const int32_t positi
     }
     return false;
 }
-static void jump_tick(HmbtnHouseControl *s,HmbtnIntroActor *p,const HmbtnModel *ground)
+static void jump_tick(HmbtnHouseControl *s,HmbtnIntroActor *p,const HmbtnModel *ground,bool riding)
 {
     static const int step[4][2]={{0,-51},{-51,0},{0,51},{51,0}};
     int32_t pos[3]={p->position[0]+step[p->facing][0],p->position[1]+s->jump_velocity,
         p->position[2]+step[p->facing][1]};
     if(hmbtn_farm_settle(NULL,ground,pos,0xc000,50)) {
         s->jump_velocity=0;s->jumping=false;s->landed=true;s->mode=0;
-        p->sprite=(HmbtnAnimationPlayer){0,(uint16_t)p->facing,0};
+        p->sprite=(HmbtnAnimationPlayer){(uint16_t)(riding ? 54 : 0),(uint16_t)p->facing,0};
     } else {
         s->jump_velocity+=16;
         if(s->jump_velocity>128) s->jump_velocity=128;
     }
     memcpy(p->position,pos,sizeof(pos));
 }
-void hmbtn_farm_control_tick(HmbtnHouseControl *s,HmbtnIntroActor *p,
-    const HmbtnModel *ground,const HmbtnFarmField *field,uint32_t held)
+static void control_tick(HmbtnHouseControl *s,HmbtnIntroActor *p,
+    const HmbtnModel *ground,const HmbtnFarmField *field,uint32_t held,bool riding)
 {
     s->jump_started=s->landed=false;
     if (!s->enabled || s->exit_pending) return;
-    if(s->jumping) { jump_tick(s,p,ground);return; }
+    if(s->jumping) { jump_tick(s,p,ground,riding);return; }
     const unsigned old_facing=p->facing, old_mode=s->mode;
     const uint32_t arrows=held&0xF000u;
     switch (arrows) {
@@ -115,15 +115,15 @@ void hmbtn_farm_control_tick(HmbtnHouseControl *s,HmbtnIntroActor *p,
     }
     const bool run=(held&HMBTN_PAD_CIRCLE)!=0;
     /* Original chooses velocity from the previous mode, before changing it. */
-    const int32_t speed=old_mode==4 ? 73 : old_mode==2 ? 41 : 0;
+    const int32_t speed=riding ? (old_mode==2 ? 73 : 112) : old_mode==4 ? 73 : old_mode==2 ? 41 : 0;
     s->mode=run ? 4u : arrows ? 2u : 0u;
-    const unsigned animation=s->carrying_big ? (s->mode==4 ? p->facing+19 : s->mode==2 ? p->facing+42 : 41)
+    const unsigned animation=riding ? (s->mode ? 59+p->facing : 54) : s->carrying_big ? (s->mode==4 ? p->facing+19 : s->mode==2 ? p->facing+42 : 41)
         : s->carrying ? (s->mode==4 ? p->facing+19 : s->mode==2 ? p->facing+15 : 27)
         : s->mode==4 ? p->facing+6 : s->mode==2 ? p->facing+1 : 0;
     if (old_facing!=p->facing || old_mode!=s->mode || p->sprite.animation!=animation) {
         p->sprite=(HmbtnAnimationPlayer){(uint16_t)animation,0,0}; p->animation_done=false;
     }
-    if (!s->mode) p->sprite=(HmbtnAnimationPlayer){(uint16_t)(s->carrying_big ? 41 : s->carrying ? 27 : 0),(uint16_t)p->facing,0};
+    if (!s->mode) p->sprite=(HmbtnAnimationPlayer){(uint16_t)(riding ? 54 : s->carrying_big ? 41 : s->carrying ? 27 : 0),(uint16_t)p->facing,0};
     int32_t dx=0,dz=0;
     if (s->mode) {
         if (p->facing&1u) dx=p->facing==1 ? -speed : speed;
@@ -135,8 +135,8 @@ void hmbtn_farm_control_tick(HmbtnHouseControl *s,HmbtnIntroActor *p,
     const unsigned occupant=s->mode ? hmbtn_farm_field_probe(field,ahead) : 0;
     if(occupant && !s->carrying_big && run && speed && hmbtn_farm_field_can_hop(field,p->position,p->facing)) {
         s->jumping=s->jump_started=true;s->jump_velocity=-80;
-        p->sprite=(HmbtnAnimationPlayer){10,(uint16_t)p->facing,0};p->animation_done=false;
-        jump_tick(s,p,ground);return;
+        p->sprite=(HmbtnAnimationPlayer){(uint16_t)(riding ? 63+p->facing : 10),(uint16_t)(riding ? 0 : p->facing),0};p->animation_done=false;
+        jump_tick(s,p,ground,riding);return;
     }
     if (s->mode && (!hmbtn_farm_settle(field,ground,ahead,0xE080,200)
             || (s->object_blocked && s->object_blocked(s->collision_context,p->position,ahead))
@@ -167,3 +167,8 @@ void hmbtn_farm_control_tick(HmbtnHouseControl *s,HmbtnIntroActor *p,
     }
     p->pose=false;
 }
+
+void hmbtn_farm_control_tick(HmbtnHouseControl *s,HmbtnIntroActor *p,const HmbtnModel *g,const HmbtnFarmField *f,uint32_t held)
+{ control_tick(s,p,g,f,held,false); }
+void hmbtn_farm_riding_control_tick(HmbtnHouseControl *s,HmbtnIntroActor *p,const HmbtnModel *g,const HmbtnFarmField *f,uint32_t held)
+{ control_tick(s,p,g,f,held,true); }

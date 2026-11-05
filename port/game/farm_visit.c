@@ -4,6 +4,10 @@
 #include "event_item.h"
 #include "event_variables.h"
 #include "pond.h"
+#include "goddess.h"
+#include "item_reaction.h"
+#include "dog.h"
+#include "horse.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -45,10 +49,21 @@ static bool window_match(uint32_t packed,const HmbtnFarmClock *c)
     for(unsigned i=0;i<count;++i) if((w[4]+i)%24==c->hour) return true;
     return false;
 }
-bool hmbtn_farm_visit_supported(unsigned event) { return event==18 || event==19 || (event>=128 && event<=133) || (event>=288 && event<=298) || event==140 || event==171 || event==177 || event==277; }
-static bool available(unsigned condition,const HmbtnVillage *v,const HmbtnFarmClock *c,const HmbtnInventory *inventory,const HmbtnFarmField *field,const HmbtnPond *pond)
+bool hmbtn_farm_visit_supported(unsigned event) { return event==1 || event==2 || event==3 || event==73 || event==286 || event==197 || hmbtn_goddess_event(event) || event==18 || event==19 || (event>=128 && event<=133) || (event>=288 && event<=298) || event==140 || event==171 || event==177 || event==277; }
+static bool available(unsigned condition,const HmbtnVillage *v,const HmbtnFarmClock *c,const HmbtnInventory *inventory,const HmbtnFarmField *field,const HmbtnPond *pond,const HmbtnEconomy *economy,unsigned previous_place,const HmbtnFarmField *greenhouse)
 {
     if(condition==255) return true;
+    if(condition==1 || condition==2) return v->horse && v->horse->owned && v->horse->adult;
+    if(condition==0) return v->horse && !v->horse->owned && (previous_place==0x2a || previous_place==0x30);
+    if(condition==31) {
+        if(!v->horse || v->horse->owned || !field) return false;
+        unsigned count=0;
+        for(unsigned i=0;i<hmbtn_farm_field_cells(field);++i) count+=field->cells[i].value==0x36 && field->cells[i].kind!=0;
+        if(greenhouse) for(unsigned i=0;i<hmbtn_farm_field_cells(greenhouse);++i) count+=greenhouse->cells[i].value==0x36 && greenhouse->cells[i].kind!=0;
+        return count>=200;
+    }
+    if(condition==34 || condition==95) return v->dog && v->dog->adult;
+    if(condition==81) return v->dog && v->dog->adult && !v->dog->ball.armed && economy && economy->gold>=100;
     if(condition>=84 && condition<=92) return hmbtn_village_flag(v,0x67+condition-84);
     if(condition==7) return hmbtn_farm_field_has_grown(field,0x31);
     if(condition==76) {
@@ -97,7 +112,8 @@ unsigned hmbtn_farm_event_trigger(const HmbtnFarmTriggers *t,const HmbtnVillage 
          * wildcard kind enabled for single; do not pretend other roles exist. */
         if((p[34]!=1 && p[34]!=mode) || (p[12]&7)!=7 || !(p[12]&0x40) || v->flags[251+id]) continue;
         if(p[34]==3 && p[35]!=target) continue;
-        if(!available(p[33],v,c,inventory,t->field,t->pond)) continue;
+        if(p[34]==4 && (target==0x186 || hmbtn_item_villager_reaction(target,p[35])!=0)) continue;
+        if(!available(p[33],v,c,inventory,t->field,t->pond,t->economy,previous_place,t->greenhouse)) continue;
         if(!window_match(hmbtn_read_le32(p+8),c)) continue;
         const unsigned place=raw>>10;
         if(place!=63 && ((place==previous_place)==((flags&0x80000000u)!=0))) continue;
@@ -110,10 +126,12 @@ unsigned hmbtn_farm_event_trigger(const HmbtnFarmTriggers *t,const HmbtnVillage 
         if(flags&0x400u) range=!range;
         if(!range) continue;
         if(p[13]!=255) {
-            if(p[13]>=HMBTN_VILLAGERS) continue;
             const unsigned who=p[13];
+            if(who>=HMBTN_VILLAGERS && who!=50 && who!=51) continue;
+            if((who==50 && !v->horse) || (who==51 && !v->dog)) continue;
             const bool bride=who==3 || who==7 || who==9 || who==14 || who==20;
-            const unsigned bond=bride ? v->people[who].affection : v->people[who].friendship,amount=hmbtn_read_le16(p+14);
+            const unsigned bond=who==50 ? v->horse->affection : who==51 ? v->dog->affection
+                : bride ? v->people[who].affection : v->people[who].friendship,amount=hmbtn_read_le16(p+14);
             if((flags&0x4000u) ? bond>amount : bond<amount) continue;
         }
         if(!flags_match(v,hmbtn_read_le32(p+16),251,true,3)
@@ -169,7 +187,7 @@ HmbtnEventResult hmbtn_farm_visit_command(HmbtnFarmVisit *visit,HmbtnFarmIntro *
         if((a!=-1 && (a<0 || a>=32)) || (b!=0 && b!=1) || (x!=0 && x!=1) || y) break;
         const bool talked=visit->talk;visit->talk=false;visit->free=s->player_free=!talked;
         if(talked) {
-            const unsigned target=visit->event==130 || visit->event==289 || visit->event==18 || visit->event==19 || visit->event==177 ? visit->talk_target : 17;
+            const unsigned target=visit->event==1 || visit->event==130 || visit->event==289 || visit->event==18 || visit->event==19 || visit->event==177 ? visit->talk_target : 17;
             if(target>=HMBTN_VILLAGERS || !target) break;
             if(a!=-1) s->slots[a]=(int32_t)target;
             HmbtnIntroActor *actor=hmbtn_farm_intro_actor(s,(int32_t)target);

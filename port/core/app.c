@@ -72,7 +72,8 @@ int hmbtn_app_run(const HmbtnAppOptions *options)
     HmbtnGameInput input = {0};
     HmbtnUpdateClock clock={0};
     char error[512] = {0};
-    /* Presentation cadence for this diagnostic, not the original PS1 game timer. */
+    /* Fallback presentation cadence; VSync, when available, paces itself.
+     * Simulation continues to use its independent original-rate clock. */
     const Uint64 frame_ns = SDL_NS_PER_SECOND / 60;
 
     if (!hmbtn_host_open(&host)) {
@@ -221,6 +222,7 @@ int hmbtn_app_run(const HmbtnAppOptions *options)
                 if(!hmbtn_preferences_apply(&preferences,host.window,host.renderer,error,sizeof(error))) {
                     preferences.fullscreen=!preferences.fullscreen;SDL_Log("%s",error);
                 } else if(!hmbtn_preferences_save(&preferences,preferences_path,error,sizeof(error))) SDL_Log("%s",error);
+                reset_time=true;
             }
             /* Native menu keys never reach the simulation. Keep device/focus
              * notifications alive while paused, and clear held keys on return. */
@@ -273,6 +275,10 @@ int hmbtn_app_run(const HmbtnAppOptions *options)
             }
             previous=SDL_GetTicksNS();
         }
+        /* Refill before rendering and after presenting, even on frames with
+         * no game tick. Window size/VSync must not determine audio service. */
+        if(drawn && scene) drawn=hmbtn_scene_preview_pump_audio(scene,error,sizeof(error));
+        if(drawn && preview) drawn=hmbtn_title_preview_pump_audio(preview,error,sizeof(error));
         if(drawn) {
             if(scene) drawn=hmbtn_scene_preview_draw(scene,host.renderer,error,sizeof(error));
             else if(preview) drawn=hmbtn_title_preview_draw(preview,host.renderer,error,sizeof(error));
@@ -307,12 +313,18 @@ int hmbtn_app_run(const HmbtnAppOptions *options)
             result = 1;
             break;
         }
+        if((scene && !hmbtn_scene_preview_pump_audio(scene,error,sizeof(error)))
+                || (preview && !hmbtn_title_preview_pump_audio(preview,error,sizeof(error)))) {
+            fprintf(stderr,"Cannot refill native audio: %s\n",error);result=1;break;
+        }
         frames++;
         if (options->frame_limit && frames >= options->frame_limit) {
             break;
         }
         const Uint64 elapsed = SDL_GetTicksNS() - started;
-        if (elapsed < frame_ns) {
+        int vsync=0;
+        if(!SDL_GetRenderVSync(host.renderer,&vsync)) vsync=0;
+        if (!vsync && elapsed < frame_ns) {
             SDL_DelayNS(frame_ns - elapsed);
         }
     }

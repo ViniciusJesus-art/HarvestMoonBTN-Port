@@ -106,10 +106,12 @@ Nesta máquina, a recompilação incremental serial mediu pico RSS de cerca de
 46 MiB, a janela real com renderizador de software 75 MiB (X11) / 108 MiB
 (Wayland) e o teste sem display
 16 MiB. São medições desse recorte, não limites gerais para qualquer driver/build.
-O áudio mantém no máximo aproximadamente 46 ms na fila e limita a memória de
-samples decodificados a 4 MiB por banco. Não lê discos/arquivos de recursos inteiros.
-Os presets usam uma tarefa de build e um teste por vez. A apresentação de software
-é o padrão deste recorte 2D; `SDL_RENDER_DRIVER` continua podendo sobrescrever isso.
+A memória de samples decodificados é limitada a 4 MiB por banco; não são lidos
+discos/arquivos de recursos inteiros. Os presets usam uma tarefa de build e um
+teste por vez. A revisão de 2026-11-05 passou a escolher apresentação acelerada
+quando disponível, respeitando `SDL_RENDER_DRIVER` e a alternativa de software.
+O alvo da fila de áudio passou a cerca de 70 ms, com reabastecimento entre ticks.
+[Correção de escala, cadência e áudio](DISPLAY_AUDIO.md).
 
 A comparação lado a lado com uma execução PS1 de referência, incluindo gravação
 de áudio e entradas repetíveis, continua obrigatória antes de declarar fidelidade

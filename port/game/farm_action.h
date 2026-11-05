@@ -9,6 +9,7 @@ typedef struct HmbtnFarmAction {
     HmbtnFarmActionPhase phase;
     unsigned kind, charge_frames, overcharge_frames, strikes, target;
     unsigned stamina, max_stamina, fatigue, experience[5];
+    bool half_fatigue; /* player.stateFlags HALF_FATIGUE, earned by consuming Mystic Berry. */
     unsigned happiness; /* Player status, also changed by original food callbacks. */
     int sound, bank;
     bool bank_pending, finished_bank, changed;
@@ -20,6 +21,7 @@ typedef struct HmbtnFarmAction {
     int effect_column,effect_row;
 } HmbtnFarmAction;
 void hmbtn_farm_action_init(HmbtnFarmAction *action);
+unsigned hmbtn_farm_fatigue_cost(const HmbtnFarmAction *,const HmbtnHouseInteraction *,unsigned adjustment);
 void hmbtn_farm_action_cost(HmbtnFarmAction *,const HmbtnHouseInteraction *,unsigned amount);
 /* Returns true while an action consumes movement input. */
 struct HmbtnMine;

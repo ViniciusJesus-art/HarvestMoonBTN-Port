@@ -70,8 +70,7 @@ bool hmbtn_animal_medicine_tick(HmbtnPoultry *p,HmbtnLivestock *livestock,unsign
             a->changed=hmbtn_livestock_cure(livestock,a->target-HMBTN_HENS);
         /* stored_item_release runs even when the target is absent or healthy. */
         if(h->inventory->equipped.id==(potion ? a->kind : 0x1eu) && h->inventory->equipped.count && !--h->inventory->equipped.count) h->inventory->equipped=(HmbtnStoredTool){0};
-        const unsigned fatigue=(h->weather->today!=0)+(h->clock->hour>=22 ? 1u : h->clock->hour<6 ? 2u : 0u)+(a->stamina==0 ? 2u : 0u);
-        a->fatigue=a->fatigue+fatigue>100 ? 100 : a->fatigue+fatigue;
+        hmbtn_farm_action_cost(a,h,0);
         a->sound=17;a->finished_bank=true;a->bank=-1;a->phase=HMBTN_FARM_ACTION_FREE;
         player->sprite=(HmbtnAnimationPlayer){0,(uint16_t)player->facing,0};player->animation_done=false;
         return true;

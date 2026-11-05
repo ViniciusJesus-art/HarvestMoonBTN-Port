@@ -24,6 +24,7 @@ HmbtnSession *hmbtn_session_create(const uint16_t *layout,size_t count)
     HmbtnSession *s=calloc(1,sizeof(*s));
     if(!s) return NULL;
     hmbtn_game_state_init(&s->game);bind_actor_resolver(s);
+    hmbtn_dog_init(&s->dog);s->horse.name[0]=0xffff;
     s->daily_date=hmbtn_session_date(&s->game.clock);
     hmbtn_farm_field_init(&s->field,layout,count);
     hmbtn_farm_field_init_greenhouse(&s->greenhouse);
@@ -35,10 +36,11 @@ HmbtnSession *hmbtn_session_create(const uint16_t *layout,size_t count)
     s->village.makers=&s->makers;s->village.poultry=&s->poultry;s->village.construction=&s->construction;s->village.cooking=&s->game.cooking;
     hmbtn_farm_action_init(&s->farm_action);hmbtn_mine_enter(&s->mine,0);
     hmbtn_farm_menu_init(&s->menu,hmbtn_game_economy_const(&s->game));
-    s->livestock.construction=&s->construction;s->feed_shop.livestock=&s->livestock;s->menu.livestock=&s->livestock;
+    s->menu.dog=&s->dog;s->village.dog=&s->dog;s->menu.horse=&s->horse;s->village.horse=&s->horse;
+    s->livestock.construction=&s->construction;s->livestock.horse=&s->horse;s->feed_shop.livestock=&s->livestock;s->menu.livestock=&s->livestock;
     s->menu.poultry=&s->poultry;s->feed_shop.poultry=&s->poultry;s->feed_shop.economy=&s->game.economy;
     s->feed_shop.random=&s->village.random;
-    s->pond.random=1;s->carry.pond=&s->pond;s->menu.pond=&s->pond;
+    s->pond.random=1;s->carry.pond=&s->pond;s->menu.pond=&s->pond;s->carry.dog=&s->dog;
     s->carry.basket=&s->game.basket;s->feed_shop.basket_state=&s->game.basket;
     s->feed_shop.action=&s->farm_action;s->feed_shop.makers=&s->makers;s->feed_shop.progress=&s->game.progress;s->feed_shop.construction=&s->construction;s->menu.construction=&s->construction;s->menu.cooking=&s->game.cooking;
     /* Preserve zeroed poultry and the pre-handoff village. The village's
@@ -79,6 +81,7 @@ bool hmbtn_session_bind_schedules(HmbtnSession *s,const uint8_t *data,size_t siz
     if(!s || !data || !size) return false;
     if(!s->village_initialized) {
         hmbtn_village_init(&s->village,data,size);s->village_initialized=true;
+        s->village.dog=&s->dog;s->village.horse=&s->horse;
         s->village.player=&s->intro.player;s->village.weather=&s->game.weather;s->village.doors=&s->area_doors;
         s->village.makers=&s->makers;s->village.poultry=&s->poultry;s->village.construction=&s->construction;s->village.cooking=&s->game.cooking;
         hmbtn_village_refresh_weather(&s->village);
@@ -234,7 +237,7 @@ static bool event_requests(HmbtnSession *s,char *error,size_t size)
     HmbtnFarmIntro *in=&s->intro;
     if(in->message && !in->message_done && s->services.channels[HMBTN_SERVICE_MESSAGE].status==HMBTN_SERVICE_IDLE
             && !hmbtn_service_begin(&s->services,HMBTN_SERVICE_MESSAGE,(HmbtnServiceRequest){HMBTN_SERVICE_SHOW_MESSAGE,in->message,in->message_bank,0,in->script.pc})) goto exhausted;
-    if(!in->script.finished && !in->script.boundary && in->action_active && !in->action_finished && s->services.channels[HMBTN_SERVICE_ACTION].status==HMBTN_SERVICE_IDLE
+    if(!in->script.finished && !in->script.boundary && !s->hot_spring.phase && in->action_active && !in->action_finished && s->services.channels[HMBTN_SERVICE_ACTION].status==HMBTN_SERVICE_IDLE
             && !hmbtn_service_begin(&s->services,HMBTN_SERVICE_ACTION,(HmbtnServiceRequest){HMBTN_SERVICE_WAIT_ACTION,in->player.sprite.animation,0,41,in->script.pc})) goto exhausted;
     if(in->script.data && in->script.pc<in->script.count && !in->script.finished && !in->script.boundary) {
         const uint8_t *p=in->script.data+in->script.pc*16;
@@ -280,6 +283,7 @@ bool hmbtn_session_talk_tick(HmbtnSession *s,char *error,size_t size)
 void hmbtn_session_finish_visit(HmbtnSession *s)
 {
     if(!s || !s->visit.active) return;
+    s->goddess=(HmbtnGoddess){0};
     const bool ellen=s->visit.event==130;
     const bool shopping=s->visit.event>=290 && s->visit.event<=298;
     hmbtn_session_release_event_actors(s);

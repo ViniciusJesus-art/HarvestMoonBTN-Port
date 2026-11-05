@@ -6,7 +6,7 @@ typedef enum HmbtnFarmMenuMode { HMBTN_MENU_NONE,HMBTN_MENU_STATUS,HMBTN_MENU_RU
 typedef struct HmbtnStorageSpot { int x,y;uint8_t next[24]; } HmbtnStorageSpot;
 typedef struct HmbtnFarmStatistics {
     unsigned animals[1],fish,discarded,power_berries;
-    unsigned dog_affection,helper_affection[7];
+    unsigned helper_affection[7];
 } HmbtnFarmStatistics;
 typedef struct HmbtnFarmMenu {
     HmbtnFarmMenuMode mode;
@@ -24,6 +24,8 @@ typedef struct HmbtnFarmMenu {
     const struct HmbtnLivestock *livestock;
     const struct HmbtnPoultry *poultry; /* Borrow the session records; never a serialized address. */
     const struct HmbtnPond *pond;
+    const struct HmbtnDog *dog;
+    const struct HmbtnHorse *horse;
 } HmbtnFarmMenu;
 /* Bind the game's live economy; does not initialize or reset financial data. */
 void hmbtn_farm_menu_init(HmbtnFarmMenu *menu,const HmbtnEconomy *economy);

@@ -98,7 +98,7 @@ static void village(Codec *c,HmbtnSession *d,const HmbtnSession *s)
 {
     U(village.random);U(village.date_key);U(village.minute);
     U(village.ann_birthday_season);U(village.ann_birthday_day);
-    B(village.invitation_available);B(village.dog_held);B(village.player_running);
+    B(village.invitation_available);B(village.player_running);
     COUNT(HMBTN_VILLAGE_FLAGS);for(unsigned i=0;i<HMBTN_VILLAGE_FLAGS;++i) B(village.flags[i]);
     COUNT(128);for(unsigned i=0;i<128;++i) { Y(village.days.count0[i]);Y(village.days.values[i]); }
     COUNT(8);for(unsigned i=0;i<8;++i) Y(village.days.count1[i]);
@@ -139,8 +139,25 @@ static void animal(Codec *c,HmbtnFarmAnimal *d,const HmbtnFarmAnimal *s)
     for(unsigned i=0;i<=HMBTN_NAME_CHARS;++i) W(name[i]);
     CHILD(actor,actor);
 }
+static void dog(Codec *c,HmbtnDog *d,const HmbtnDog *s)
+{
+    U(area);U(affection);U(phase);U(step);U(timer);U(interrupt);U(walk_timer);U(walker_ticks);
+    U(random);U(praise);U(call_ticks);B(handled_today);B(called_today);B(approaching);
+    B(adult);B(trained_today);U(training);U(fetch);U(fetch_time);U(fetch_step);
+    B(ball.armed);B(ball.placed);U(ball.area);for(unsigned i=0;i<3;++i) S(ball.position[i]);
+    CHILD(actor,actor);
+}
+static void horse(Codec *c,HmbtnHorse *d,const HmbtnHorse *s)
+{
+    B(owned);B(adult);B(riding);U(area);U(affection);U(training);U(year);U(season);U(day);
+    U(phase);U(step);U(timer);U(interrupt);U(walk_timer);U(walker_ticks);U(call_ticks);U(praise);U(random);
+    B(called_today);B(brushed_today);B(trained_today);B(approaching);
+    for(unsigned i=0;i<=HMBTN_NAME_CHARS;++i) W(name[i]);
+    CHILD(actor,actor);
+}
 static void livestock(Codec *c,HmbtnSession *d,const HmbtnSession *s)
 {
+    CHILD(dog,dog);CHILD(horse,horse);
     for(unsigned i=0;i<2;++i) {
         B(livestock.births[i].active);B(livestock.births[i].ready);U(livestock.births[i].mother);U(livestock.births[i].child);
     }
@@ -155,13 +172,12 @@ static void player(Codec *c,HmbtnSession *d,const HmbtnSession *s)
     S(intro.camera_height);S(intro.camera_distance);
     U(control.mode);U(control.blocked_frames);B(control.carrying);B(control.carrying_big);
     U(farm_action.stamina);U(farm_action.max_stamina);U(farm_action.fatigue);U(farm_action.strikes);U(farm_action.target);
-    U(farm_action.happiness);
+    U(farm_action.happiness);B(farm_action.half_fatigue);
     for(unsigned i=0;i<5;++i) U(farm_action.experience[i]);
     U(carry.discarded);B(carry.small_fish_placed);
     U(fishing.random);U(fishing.streak);U(fishing.catch_flags);B(fishing.berry_eaten);
     U(menu.stats.animals[0]);
     U(menu.stats.fish);U(menu.stats.discarded);U(menu.stats.power_berries);
-    U(menu.stats.dog_affection);
     for(unsigned i=0;i<7;++i) U(menu.stats.helper_affection[i]);
     U(quick_id);B(quick_tool);
 }
@@ -175,7 +191,7 @@ static void auxiliary(Codec *c,HmbtnSession *d,const HmbtnSession *s)
     U(runtime.house_music_ticks);U(runtime.ticks);
     for(unsigned i=0;i<3;++i) { S(daylight.rgb[i]);S(daylight.step[i]); }
     U(daylight.period);U(daylight.taken);U(daylight.total);
-    U(game.weather.random);B(game.progress.moondrop_seeds);
+    U(game.weather.random);B(game.progress.moondrop_seeds);B(game.progress.goddess_berry);
     U(construction.mornings_left);U(construction.house_level);U(construction.barn_level);U(construction.pending);
     B(construction.greenhouse);U(construction.damage_random);
     U(makers.owned);U(makers.pending);U(makers.mornings_left);
@@ -220,10 +236,11 @@ bool hmbtn_save_available(const HmbtnSession *s,char *error,size_t size)
     else if(s->house.mode!=HMBTN_HOUSE_FREE || s->menu.mode!=HMBTN_MENU_NONE || s->feed_shop.phase!=HMBTN_SHOP_OFF || s->feed_shop.departure
         || s->house.message.phase!=HMBTN_MESSAGE_CLOSED || s->dialogue.message.phase!=HMBTN_MESSAGE_CLOSED) why="A menu or message is open";
     else if(s->farm_action.phase!=HMBTN_FARM_ACTION_FREE || s->fishing.phase!=HMBTN_FISHING_FREE
-        || s->carry.phase || s->feed.phase || s->poultry.carry_phase || s->house_lumber.phase || s->quick_ticks
+        || s->carry.phase || s->carry.offering || s->carry.ball_landed || s->carry.ball_lost || s->feed.phase || s->poultry.carry_phase || s->dog.carry_phase || s->dog.whistling || s->horse.whistling || s->horse.ride_phase || s->house_lumber.phase || s->quick_ticks
         || s->event_item.phase!=HMBTN_EVENT_ITEM_IDLE || s->basket_action.phase || s->hot_spring.phase) why="An action is active";
     if(!why) for(unsigned i=0;i<3;++i) if(s->carry.thrown[i].item.id) why="A thrown item is in flight";
     if(!why && hmbtn_poultry_held_slot(&s->poultry)<HMBTN_HENS) why="Put down the animal before saving";
+    if(!why && s->dog.held) why="Put down the animal before saving";
     if(!why) for(unsigned i=0;i<HMBTN_VILLAGERS;++i) if(hmbtn_village_event_actor(&s->village,i)) why="An event actor is bound";
     if(!why) for(unsigned i=0;i<HMBTN_SERVICE_CHANNELS;++i) {
         HmbtnServiceStatus status=s->services.channels[i].status;
@@ -282,7 +299,25 @@ static bool valid(const HmbtnSession *s,char *error,size_t size)
             || (s->construction.pending==HMBTN_BUILD_HOUSE2 && s->construction.house_level==1 && s->construction.barn_level==1)
             || (s->construction.pending==HMBTN_BUILD_GREENHOUSE && s->construction.house_level==2 && !s->construction.greenhouse)
             : s->construction.pending==HMBTN_BUILD_NONE)
-        && s->game.inventory.held_item.id!=0x109 && s->game.inventory.held_item.id!=0x10A;
+        && s->game.inventory.held_item.id!=0x109 && s->game.inventory.held_item.id!=0x10A
+        && s->game.inventory.held_item.id!=HMBTN_YOUNG_DOG && s->game.inventory.held_item.id!=HMBTN_ADULT_DOG;
+    const HmbtnDog *pet=&s->dog;unsigned pet_area,pet_resource;
+    ok=ok && pet->affection<=255 && pet->phase<19 && pet->phase!=3 && pet->phase!=4
+        && pet->phase!=5 && pet->phase!=6 && (pet->phase!=7 || pet->fetch) && (pet->phase!=11 || pet->adult)
+        && pet->step<4 && pet->timer<1000000 && pet->interrupt<=300 && pet->walk_timer<1000000
+        && pet->walker_ticks<300 && pet->call_ticks<300 && pet->praise<=45 && valid_actor(&pet->actor)
+        && hmbtn_world_area(pet->area,t->season,&pet_area,&pet_resource) && pet_area==pet->area;
+    ok=ok && pet->training<=255 && pet->fetch<=4 && pet->fetch_time<1000000 && pet->fetch_step<=2
+        && (!pet->fetch || (pet->adult && pet->ball.armed && !pet->held))
+        && (pet->fetch<2 || !pet->ball.placed)
+        && (!pet->ball.placed || (pet->ball.armed && hmbtn_world_area(pet->ball.area,t->season,&pet_area,&pet_resource) && pet_area==pet->ball.area));
+    const HmbtnHorse *pony=&s->horse;
+    ok=ok && (!pony->owned || ((pony->area==0 || pony->area==92) && pony->affection<=255 && pony->training<=255
+        && pony->year<=65535 && pony->season<4 && pony->day<30 && valid_name(pony->name) && valid_actor(&pony->actor)
+        && (pony->phase<=2 || pony->phase==17 || pony->phase==18) && pony->step<2 && pony->timer<1000000
+        && pony->interrupt<=300 && pony->walk_timer<1000000 && pony->walker_ticks<300 && pony->call_ticks<300 && pony->praise<=45));
+    ok=ok && !pony->in_event && (!pony->riding || (pony->owned && pony->adult && pony->area==s->area
+        && !s->game.inventory.held_item.id && !memcmp(pony->actor.position,s->intro.player.position,sizeof(pony->actor.position))));
     ok=ok && s->game.cooking.utensils<=255;
     ok=ok && hmbtn_tv_shopping_valid(&s->game.shopping);
     for(unsigned i=0;i<64;++i) {

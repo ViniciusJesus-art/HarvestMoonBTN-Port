@@ -10,6 +10,45 @@ static HmbtnPauseAction key(HmbtnPauseMenu *m,HmbtnPreferences *p,SDL_Renderer *
     SDL_Event e={0};e.type=SDL_EVENT_KEY_DOWN;e.key.windowID=id;e.key.scancode=scan;e.key.repeat=false;
     return hmbtn_pause_menu_event(m,p,r,id,&e);
 }
+static void gradient_sizes(HmbtnHost *host,HmbtnPauseMenu *menu,const HmbtnPreferences *p)
+{
+    const int sizes[][2]={{640,480},{1280,720},{1920,1080},{2560,1440},{3440,1440}};
+    const HmbtnPausePage pages[]={HMBTN_PAUSE_HOME,HMBTN_PAUSE_CONTROLS};
+    for(unsigned page=0;page<SDL_arraysize(pages);++page) for(unsigned i=0;i<SDL_arraysize(sizes);++i) {
+        menu->page=pages[page];menu->selected=menu->top=0;
+        int target_w=sizes[i][0],target_h=sizes[i][1];
+        if(strcmp(SDL_GetCurrentVideoDriver(),"dummy")) {
+            SDL_Rect usable;assert(SDL_GetDisplayUsableBounds(SDL_GetDisplayForWindow(host->window),&usable));
+            /* A desktop WM may reject windows larger than its monitor; the
+             * dummy backend still verifies every exact large resolution. */
+            target_w=SDL_min(target_w,usable.w-32);target_h=SDL_min(target_h,usable.h-128);
+        }
+        assert(SDL_SetWindowSize(host->window,target_w,target_h) && SDL_SyncWindow(host->window));SDL_PumpEvents();
+        /* A real GL drawable may resize its backbuffer at the first swap,
+         * after the window manager has already acknowledged the window size. */
+        assert(SDL_SetRenderDrawColor(host->renderer,200,180,160,255)
+            && SDL_RenderClear(host->renderer) && SDL_RenderPresent(host->renderer));
+        assert(SDL_RenderClear(host->renderer));
+        assert(hmbtn_pause_menu_draw(menu,p,NULL,host->renderer));
+        int w,h;SDL_RendererLogicalPresentation mode;
+        assert(SDL_GetRenderLogicalPresentation(host->renderer,&w,&h,&mode));
+        assert(w==320 && h==240); /* Every overlay must restore gameplay coordinates. */
+        assert(SDL_SetRenderLogicalPresentation(host->renderer,0,0,SDL_LOGICAL_PRESENTATION_DISABLED));
+        SDL_Surface *raw=SDL_RenderReadPixels(host->renderer,NULL);assert(raw);
+        SDL_Surface *rgba=SDL_ConvertSurface(raw,SDL_PIXELFORMAT_RGBA32);assert(rgba);unsigned value[3]={0};
+        for(unsigned band=0;band<3;++band) {
+            const int x=rgba->w*(1+4*(int)band)/10,y=rgba->h/30;
+            for(int dx=-4;dx<4;++dx) value[band]+=((const Uint8 *)rgba->pixels)[y*rgba->pitch+(x+dx)*4];
+            value[band]/=8;
+        }
+        printf("Menu gradient %dx%d page %u: red %u/%u/%u\n",rgba->w,rgba->h,pages[page],value[0],value[1],value[2]);fflush(stdout);
+        assert(value[0]<35 && value[1]>85 && value[1]<135 && value[2]>185);
+        SDL_DestroySurface(rgba);SDL_DestroySurface(raw);
+        assert(SDL_SetRenderLogicalPresentation(host->renderer,w,h,mode));
+    }
+    menu->page=HMBTN_PAUSE_HOME;
+    assert(SDL_SetWindowSize(host->window,640,480) && SDL_SyncWindow(host->window));SDL_PumpEvents();
+}
 int main(int argc,char **argv)
 {
     if(argc!=2 && argc!=3) return 2;
@@ -55,6 +94,7 @@ int main(int argc,char **argv)
     assert(hmbtn_preferences_save(&p,settings,error,sizeof(error)) && hmbtn_preferences_load(&loaded,settings,error,sizeof(error)));
     assert(!memcmp(&p,&loaded,sizeof(p)));
     assert(hmbtn_preferences_apply(&p,host.window,host.renderer,error,sizeof(error)));
+    assert(SDL_SyncWindow(host.window));SDL_PumpEvents();
     int w,h;SDL_GetWindowSize(host.window,&w,&h);assert(w==640 && h==480);
     HmbtnGameInput input;hmbtn_game_input_init(&input);hmbtn_game_input_bindings(&input,p.keys);
     SDL_Event e={0};e.type=SDL_EVENT_KEY_DOWN;e.key.windowID=SDL_GetWindowID(host.window);e.key.scancode=SDL_SCANCODE_C;e.key.repeat=false;
@@ -77,6 +117,7 @@ int main(int argc,char **argv)
     char *shot=NULL;SDL_asprintf(&shot,"%s/history.bmp",base);assert(hmbtn_host_save_frame(&host,shot));SDL_free(shot);
     assert(key(&menu,&p,host.renderer,id,SDL_SCANCODE_ESCAPE)==HMBTN_PAUSE_RESUME && !menu.open);
     hmbtn_pause_menu_open(&menu,root,slot);p.language=0;
+    gradient_sizes(&host,&menu,&p);
     assert(SDL_SetRenderDrawColor(host.renderer,70,92,100,255) && SDL_RenderClear(host.renderer));
     assert(hmbtn_pause_menu_draw(&menu,&p,a,host.renderer));
     SDL_asprintf(&shot,"%s/pause.bmp",base);assert(hmbtn_host_save_frame(&host,shot));SDL_free(shot);p.language=1;

@@ -49,7 +49,7 @@ typedef struct HmbtnRegistration {
 /* HmbtnSession owns gameplay state since MA-04a. The title owns a provisional
  * instance until its one-time registration handoff to a new session. */
 /* estate.statusFlags bit 23, independently of event done flags. */
-typedef struct HmbtnGameProgress { bool moondrop_seeds; } HmbtnGameProgress;
+typedef struct HmbtnGameProgress { bool moondrop_seeds,goddess_berry; } HmbtnGameProgress;
 enum { HMBTN_RECIPE_RECORDS=80 };
 typedef struct HmbtnRecipeRecord { uint16_t id,quality,options,values[8]; } HmbtnRecipeRecord;
 typedef struct HmbtnCooking { unsigned utensils;HmbtnRecipeRecord records[HMBTN_RECIPE_RECORDS]; } HmbtnCooking;

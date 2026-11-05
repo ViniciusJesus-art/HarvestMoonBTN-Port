@@ -45,5 +45,7 @@ void hmbtn_scene_preview_destroy(HmbtnScenePreview *scene);
 bool hmbtn_scene_preview_tick(HmbtnScenePreview *scene,HmbtnLogicalInput input,char *error,size_t error_size);
 /* Presentation/cache only; never consumes input or advances gameplay. */
 bool hmbtn_scene_preview_draw(HmbtnScenePreview *scene,SDL_Renderer *renderer,char *error,size_t error_size);
+/* Host audio service, independent of simulation/presentation frequency. */
+bool hmbtn_scene_preview_pump_audio(HmbtnScenePreview *,char *,size_t);
 
 #endif

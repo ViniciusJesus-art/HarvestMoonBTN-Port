@@ -7,11 +7,13 @@ enum { HMBTN_FARM_TRIGGER_BYTES=36,HMBTN_FARM_TRIGGER_LIMIT=100 };
 /* Borrowed, bounded BIN table. Only events with complete native handlers are eligible. */
 typedef struct HmbtnFarmTriggers {
     const uint8_t *data;unsigned count;
+    const HmbtnFarmField *greenhouse;
     const HmbtnFarmField *field; /* Read-only session loan for cultivation conditions. */
     const struct HmbtnPond *pond; /* Original morning count, not today's deposits. */
+    const HmbtnEconomy *economy;
 } HmbtnFarmTriggers;
 typedef struct HmbtnFarmVisit {
-    unsigned event;bool active,free,talk;unsigned talk_target,start_area;
+    unsigned event;bool active,free,talk;unsigned talk_target,start_area,gift,blocked_door,blocked_message; /* Transient currentAction for in-event gift checks. */
     HmbtnIntroActor actors[HMBTN_VILLAGERS]; /* Current-area event copies, never route records. */
     struct { unsigned item;int32_t position[3];bool visible; } prop; /* Staged gift art, not inventory. */
 } HmbtnFarmVisit;

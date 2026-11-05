@@ -30,6 +30,8 @@ void hmbtn_session_clock_events(void *context,const HmbtnFarmClock *clock,unsign
         if(s->construction.greenhouse) hmbtn_farm_field_new_day(&s->greenhouse,clock->season);
         hmbtn_poultry_new_day(&s->poultry,&s->feed,clock);
         hmbtn_livestock_new_day(&s->livestock,&s->feed,clock);
+        hmbtn_horse_morning(&s->horse,s->game.weather.today,clock);
+        hmbtn_dog_morning(&s->dog,s->game.weather.today,clock,&s->game.inventory);
         hmbtn_pond_new_day(&s->pond);
         s->apiary.collected=false; /* clock_events: clear ESTATE_FLAG_TAKE_ONCE. */
         hmbtn_poultry_carry_sync(&s->poultry,&s->house);
@@ -69,6 +71,9 @@ bool hmbtn_session_morning(HmbtnSession *s,bool slept)
         s->farm_action.fatigue+=10;
         if(s->farm_action.fatigue>99) s->farm_action.fatigue=99;
     }
+    /* player_morning_reset clears RIDING before moving the player home.
+     * Keep the horse in its last actual place, rather than carrying it inside. */
+    hmbtn_horse_stop_riding(&s->horse);
     s->morning_prepared=true;s->morning_save_requested=s->house.save_requested;
     s->house_lumber=(HmbtnHouseLumber){0};
     memset(&s->sleep,0,sizeof(s->sleep));s->house.mode=HMBTN_HOUSE_FREE;s->house.save_requested=false;
@@ -84,7 +89,7 @@ bool hmbtn_session_morning(HmbtnSession *s,bool slept)
     s->farm_action.phase=HMBTN_FARM_ACTION_FREE;s->farm_action.bank=-1;
     const unsigned discarded=s->carry.discarded;
     memset(&s->carry,0,sizeof(s->carry));s->carry.discarded=discarded;
-    s->carry.basket=&s->game.basket;s->carry.pond=&s->pond;
+    s->carry.basket=&s->game.basket;s->carry.pond=&s->pond;s->carry.dog=&s->dog;
     memset(s->field_effects,0,sizeof(s->field_effects));
     s->travel_tick=s->door_tick=s->overnight_tick=0;s->morning_fade=45;
     s->intro.area=80;s->intro.camera_actor=0;s->intro.camera_gliding=false;

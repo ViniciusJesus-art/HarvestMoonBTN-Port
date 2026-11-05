@@ -7,6 +7,7 @@
 #include "cooking.h"
 #include "poultry.h"
 #include "makers.h"
+#include "dog.h"
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -372,7 +373,7 @@ static int condition(HmbtnVillage *v,unsigned id,const HmbtnFarmClock *c)
     case 5:return c->weekday==0;
     case 6:return flag(v,EVENT_FLAG_MARRIED_POPURI);
     case 7:return c->season==2 && c->day==4;
-    case 8:return flag(v,EVENT_FLAG_DOG_PLACED)&&v->dog_held;
+    case 8:return flag(v,EVENT_FLAG_DOG_PLACED)&&v->dog&&v->dog->held;
     case 9:case 10:case 11:case 12:case 13:
         return c->season==3 && c->day==23 && flag(v,EVENT_FLAG_SINGLE) && !flag(v,EVENT_FLAG_KAREN_RICK_MARRIED+id-9);
     case 14:return c->season==2 && c->day==2;

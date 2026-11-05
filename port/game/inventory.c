@@ -142,7 +142,7 @@ bool hmbtn_inventory_hold(HmbtnInventory *h,HmbtnStoredTool item)
 static bool allowed(const HmbtnStoredTool *item,unsigned dest)
 {
     if(!item->id) return true;
-    if(item->id==100 || item->id==0x109 || item->id==0x10A) return false; /* A live carried animal keeps its reserved record. */
+    if(item->id==100 || item->id==0x106 || item->id==0x107 || item->id==0x109 || item->id==0x10A) return false; /* A live carried animal keeps its reserved record. */
     const HmbtnFarmItem *info=hmbtn_farm_item(item->id);
     return info && (dest==0 || dest==9 || (info->class_flags&0x80000000u));
 }

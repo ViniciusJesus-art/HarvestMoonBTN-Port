@@ -1,6 +1,12 @@
 # PF-06 — Banho na fonte termal
 
-Entrega de 2026-11-04. Entrada pela cabine, salto, duas poses de banho,
+Entrega de 2026-11-04. **Revisão posterior:** a porta dupla da cabine, a
+colisão, os sons e a distância de saída foram corrigidos em
+[PF06_WORLD_ANIMATIONS.md](PF06_WORLD_ANIMATIONS.md), junto às animações de água.
+As contagens de testes desta página registram a entrega inicial; a revisão
+acrescenta verificações das folhas, colisão, áudio e distância do retorno.
+
+Entrega inicial de 2026-11-04. Entrada pela cabine, salto, duas poses de banho,
 recuperação pelo relógio e saída automática voltam ao controle comum.
 Reutiliza terreno, bancos de ação, ANI, áudio, clima e atributos existentes.
 Runtime/PF-06 continuam parciais; o bootstrap `--diagnostics` não executa o jogo.
@@ -81,8 +87,8 @@ ocorre depois da atualização do relógio, com limites de stamina/fadiga.
 Menus, transições e pausas existentes mantêm suas regras; Esc continua
 suspendendo a simulação pelo host. Clima/partículas continuam atualizando.
 
-`house_control` e `area_doors` excluem especificamente essas duas passagens
-sem folha de porta. Elas não abrem o modelo zero do cenário. O bloco completo
+`house_control` reserva essas passagens ao banho; `area_doors` aciona a porta
+dupla real nos modelos 0/1 e a colisão acompanha seu estado. O bloco completo
 de animação/transição de portas do usuário em `runtime.c` ficou byte a byte
 igual ao início deste recorte. A única alteração nesse arquivo impede iniciar
 uma visita durante o banho. Nenhuma curva, velocidade, recuo ou ângulo de
@@ -106,7 +112,7 @@ o temporizador e save bloqueado/estável. Usa asserts também em Release.
 1. Colhe um bambu original na montanha, tenta entrar segurando-o, confirma
    a recusa sem descarte e guarda o bambu na mochila pelo controle comum.
 2. Salva/retoma, entra pela zona original e confere salto, respingo, pose
-   submersa e ausência de animação em qualquer modelo de porta.
+   submersa; a revisão posterior verifica as folhas e seus giros espelhados.
 3. Observa três minutos: stamina **30→36**, fadiga **20→17**. Espera a segunda
    pose, retorna com Cross, confirma que manter a tecla pressionada não sai,
    verifica os limites e sai com um novo Cross.
@@ -152,3 +158,10 @@ do jogador original. O movimento reaproveita a consulta nativa de terreno;
 entrada e saída conservam as ações, velocidades e temporizadores auditados.
 Próximo recorte: ofertas à Deusa, auditando zona 44, itens realmente obtidos,
 roteiros/condições, consumo da oferta e recompensas no estado atual.
+
+
+A regressão de acesso natural passou a iniciar 600 unidades antes da zona
+46, caminhando/correndo até a porta antes de interagir. A colisão não soma
+novamente as 48 unidades já usadas pela sondagem do controle; também
+bloqueia o contato exato com o plano, para que a corrida não o atravesse.
+Ver detalhes de renderização do oceano em `PF06_WORLD_ANIMATIONS.md`.

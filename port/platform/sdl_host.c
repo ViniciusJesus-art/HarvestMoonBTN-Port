@@ -15,11 +15,10 @@ bool hmbtn_host_open(HmbtnHost *host)
             HMBTN_SCREEN_WIDTH, HMBTN_SCREEN_HEIGHT)) {
         return false;
     }
-    /* This slice uploads a single CPU-composed 320x240 image. Prefer software
-     * presentation to avoid a GPU driver's startup allocation for the title.
-     * An explicit SDL_RENDER_DRIVER environment hint keeps its higher priority. */
+    /* SDL selects an accelerated presenter when available and falls back to
+     * software. Keep game composition at 320x240; window scaling belongs to
+     * the renderer. Explicit SDL_RENDER_DRIVER choices remain respected. */
     hmbtn_app_icon(host->window);
-    SDL_SetHintWithPriority(SDL_HINT_RENDER_DRIVER, "software", SDL_HINT_DEFAULT);
     host->renderer = SDL_CreateRenderer(host->window, NULL);
     if (!host->renderer || !SDL_SetRenderLogicalPresentation(host->renderer,
             HMBTN_SCREEN_WIDTH, HMBTN_SCREEN_HEIGHT,

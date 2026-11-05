@@ -3,6 +3,7 @@
  * pick_state/_b, walk cue, frame lookup and talk/cure. Host ground checks replace
  * PS1 actor callbacks. Full species cue sequencing remains partial. */
 #include "livestock.h"
+#include "horse.h"
 #include "psx_random.h"
 #include "psx_data.h"
 #include <stdlib.h>
@@ -295,7 +296,7 @@ bool hmbtn_livestock_tool_tick(HmbtnLivestock *p,unsigned area,HmbtnFarmAction *
         unsigned product=0;
         if(!h->inventory->held_item.id && shown->phase==HMBTN_EVENT_ITEM_IDLE) {
             if(a->kind==0x1d) { hmbtn_livestock_bell(p,area,player);a->changed=true; }
-            else if(a->kind==0x1c) a->changed=hmbtn_livestock_brush(p,a->target);
+            else if(a->kind==0x1c) a->changed=a->target==HMBTN_LIVESTOCK+1 ? hmbtn_horse_brush(p->horse) : hmbtn_livestock_brush(p,a->target);
             else { product=hmbtn_livestock_harvest(p,a->target,a->kind==0x1b);a->changed=product!=0; }
         }
         hmbtn_farm_action_cost(a,h,a->kind==0x1d ? 0 : 1);
@@ -308,6 +309,7 @@ bool hmbtn_livestock_tool_tick(HmbtnLivestock *p,unsigned area,HmbtnFarmAction *
     if(a->phase!=HMBTN_FARM_ACTION_FREE || !(pressed&HMBTN_PAD_SQUARE) || id<0x1a || id>0x1d
             || player->facing>3 || h->inventory->held_item.id || shown->phase!=HMBTN_EVENT_ITEM_IDLE || a->fatigue>=100) return false;
     a->target=hmbtn_livestock_target(p,area,player,128);a->kind=id;
+    if(id==0x1c && a->target==HMBTN_LIVESTOCK && p->horse && hmbtn_horse_target(p->horse,area,player,128)) a->target=HMBTN_LIVESTOCK+1;
     a->phase=HMBTN_FARM_ANIMAL_TOOL;a->bank=(int)(18+id-0x1a);a->bank_pending=true;a->sound=(int)(10+id-0x1a);
     player->sprite=(HmbtnAnimationPlayer){(uint16_t)player->facing,0,0};player->animation_done=false;return true;
 }

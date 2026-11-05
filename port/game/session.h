@@ -9,6 +9,8 @@
 #include "farm_field.h"
 #include "village.h"
 #include "poultry.h"
+#include "dog.h"
+#include "horse.h"
 #include "livestock.h"
 #include "farm_visit.h"
 #include "village_talk.h"
@@ -28,6 +30,7 @@
 #include "house_sleep.h"
 #include "house_lumber.h"
 #include "hot_spring.h"
+#include "goddess.h"
 
 /* MA-04a ownership extraction from scene_preview.c, preserving current rules.
  * Reference: src/main/game/farm_state.h: FarmState; farm_init.c/farm_main.c in
@@ -46,6 +49,7 @@ typedef struct HmbtnSession {
     HmbtnHouseControl control;
     HmbtnHouseSleep sleep;
     HmbtnHotSpring hot_spring;
+    HmbtnGoddess goddess; /* Script presentation only; counters/flags retain their owners. */
     HmbtnHouseLumber house_lumber;
     HmbtnDaylight daylight;
     HmbtnWeatherEffects weather_effects;
@@ -73,6 +77,8 @@ typedef struct HmbtnSession {
     HmbtnFarmField greenhouse;
     HmbtnVillage village;
     HmbtnPoultry poultry;
+    HmbtnDog dog;
+    HmbtnHorse horse;
     HmbtnConstruction construction;
     HmbtnMakers makers;
     HmbtnLivestock livestock;

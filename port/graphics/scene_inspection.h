@@ -21,6 +21,7 @@ typedef struct HmbtnSceneResources {
     const HmbtnVillageArt *village_art;
     HmbtnTitleAudio *audio;
     HmbtnXAStream *xa;
+    const HmbtnImageAtlas *atlas;
 } HmbtnSceneResources;
 HmbtnSession *hmbtn_scene_preview_session(HmbtnScenePreview *scene);
 HmbtnSceneResources hmbtn_scene_preview_resources(HmbtnScenePreview *scene);

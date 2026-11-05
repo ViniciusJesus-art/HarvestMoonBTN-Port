@@ -65,7 +65,7 @@ foreach(label money_title gold_unit units fodder chicken_feed fish_food buy_chic
     string(APPEND shop_labels "${shop_label};\n")
 endforeach()
 file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/generated/feed_shop_labels.inc" "${shop_labels}")
-add_library(hmbtn_port_core STATIC game/hot_spring.c game/apiary.c game/pond.c game/basket.c game/tv_shopping.c game/tool_upgrade.c game/makers.c game/mine.c game/livestock.c game/game_state.c game/cooking.c game/construction.c game/weather.c game/weather_effects.c game/save.c game/update_clock.c game/runtime.c game/inventory.c game/economy.c game/services.c game/session.c game/daily.c game/exploration.c core/psx_data.c core/psx_random.c graphics/asset_decode.c graphics/window_frame.c
+add_library(hmbtn_port_core STATIC game/horse.c game/dog.c game/kappa.c game/goddess.c game/hot_spring.c game/apiary.c game/pond.c game/basket.c game/tv_shopping.c game/tool_upgrade.c game/makers.c game/mine.c game/livestock.c game/game_state.c game/cooking.c game/construction.c game/weather.c game/weather_effects.c game/save.c game/update_clock.c game/runtime.c game/inventory.c game/economy.c game/services.c game/session.c game/daily.c game/exploration.c core/psx_data.c core/psx_random.c graphics/asset_decode.c graphics/scene_slots.c graphics/window_frame.c
     graphics/model_decode.c graphics/model_render.c graphics/scene_decode.c game/title_flow.c game/new_game.c
     game/event_script.c game/event_variables.c game/event_item.c game/farm_visit.c game/fishing.c game/item_reaction.c game/farm_intro.c game/ground.c game/house_control.c game/house_interaction.c
     game/house_sleep.c game/house_lumber.c game/farm_field.c game/farm_action.c game/field_effects.c game/farm_menu.c game/farm_carry.c game/farm_feed.c game/farm_gather.c game/poultry.c game/poultry_carry.c game/feed_shop.c game/event_days.c game/farm_clock.c game/farm_shipping.c game/world_map.c game/area_doors.c game/village.c game/village_talk.c audio/psx_audio.c audio/xa_decode.c)
@@ -131,7 +131,7 @@ add_library(hmbtn_host STATIC core/app.c platform/sdl_host.c platform/app_icon.c
     installer/disc_import.c installer/sha256.c installer/setup.c
     graphics/diagnostic_screen.c graphics/title_preview.c input/window_input.c
     input/game_input.c filesystem/resource_file.c filesystem/service_resources.c filesystem/event_resources.c filesystem/action_resources.c filesystem/text_resources.c filesystem/data_directory.c filesystem/save_file.c audio/title_audio.c audio/service_audio.c audio/xa_stream.c
-    graphics/new_game_ui.c graphics/house_ui.c graphics/farm_menu_ui.c graphics/feed_shop_ui.c graphics/mine_ui.c graphics/village_art.c graphics/estate_art.c graphics/poultry_art.c graphics/livestock_art.c graphics/scene_preview.c)
+    graphics/new_game_ui.c graphics/house_ui.c graphics/farm_menu_ui.c graphics/feed_shop_ui.c graphics/mine_ui.c graphics/village_art.c graphics/estate_art.c graphics/poultry_art.c graphics/horse_art.c graphics/dog_art.c graphics/livestock_art.c graphics/scene_preview.c)
 target_include_directories(hmbtn_host PUBLIC core platform graphics input filesystem game installer)
 target_include_directories(hmbtn_host PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated")
 target_link_libraries(hmbtn_host PUBLIC hmbtn_port_core SDL3::SDL3)
@@ -167,6 +167,8 @@ if(BUILD_TESTING)
     set_tests_properties(native_pause_menu PROPERTIES ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_AUDIO_DRIVER=dummy;SDL_RENDER_DRIVER=software")
     add_executable(hmbtn_pause_app_test tests/pause_app_test.c)
     target_link_libraries(hmbtn_pause_app_test PRIVATE hmbtn_host)
+    add_executable(hmbtn_display_playthrough tests/display_playthrough.c)
+    target_link_libraries(hmbtn_display_playthrough PRIVATE hmbtn_host)
     add_executable(hmbtn_save_app_test tests/save_app_test.c)
     target_link_libraries(hmbtn_save_app_test PRIVATE hmbtn_host)
     add_executable(hmbtn_save_playthrough tests/save_playthrough.c)
@@ -313,6 +315,38 @@ if(BUILD_TESTING)
     add_executable(hmbtn_tool_upgrade_test tests/tool_upgrade_test.c)
     target_link_libraries(hmbtn_tool_upgrade_test PRIVATE hmbtn_port_core)
     add_test(NAME native_tool_upgrade COMMAND hmbtn_tool_upgrade_test)
+    add_executable(hmbtn_scene_slots_test tests/scene_slots_test.c)
+    target_link_libraries(hmbtn_scene_slots_test PRIVATE hmbtn_port_core)
+    add_test(NAME native_scene_slots COMMAND hmbtn_scene_slots_test)
+    add_executable(hmbtn_kappa_test tests/kappa_test.c)
+    add_executable(hmbtn_horse_test tests/horse_test.c)
+    target_link_libraries(hmbtn_horse_test PRIVATE hmbtn_port_core)
+    add_test(NAME native_horse COMMAND hmbtn_horse_test)
+    add_executable(hmbtn_horse_riding_playthrough tests/horse_riding_playthrough.c)
+    target_link_libraries(hmbtn_horse_riding_playthrough PRIVATE hmbtn_host)
+    add_executable(hmbtn_horse_playthrough tests/horse_playthrough.c)
+    target_link_libraries(hmbtn_horse_playthrough PRIVATE hmbtn_host)
+    add_executable(hmbtn_dog_ball_test tests/dog_ball_test.c)
+    target_link_libraries(hmbtn_dog_ball_test PRIVATE hmbtn_port_core)
+    add_test(NAME native_dog_ball COMMAND hmbtn_dog_ball_test)
+    add_executable(hmbtn_dog_ball_playthrough tests/dog_ball_playthrough.c)
+    target_link_libraries(hmbtn_dog_ball_playthrough PRIVATE hmbtn_host)
+    add_executable(hmbtn_dog_test tests/dog_test.c)
+    target_link_libraries(hmbtn_dog_test PRIVATE hmbtn_port_core)
+    add_test(NAME native_dog COMMAND hmbtn_dog_test)
+    add_executable(hmbtn_dog_playthrough tests/dog_playthrough.c)
+    target_link_libraries(hmbtn_dog_playthrough PRIVATE hmbtn_host)
+    target_link_libraries(hmbtn_kappa_test PRIVATE hmbtn_port_core)
+    add_test(NAME native_kappa COMMAND hmbtn_kappa_test)
+    add_executable(hmbtn_kappa_playthrough tests/kappa_playthrough.c)
+    target_link_libraries(hmbtn_kappa_playthrough PRIVATE hmbtn_host)
+    add_executable(hmbtn_goddess_test tests/goddess_test.c)
+    target_link_libraries(hmbtn_goddess_test PRIVATE hmbtn_port_core)
+    add_test(NAME native_goddess COMMAND hmbtn_goddess_test)
+    add_executable(hmbtn_goddess_playthrough tests/goddess_playthrough.c)
+    target_link_libraries(hmbtn_goddess_playthrough PRIVATE hmbtn_host)
+    add_executable(hmbtn_water_playthrough tests/water_playthrough.c)
+    target_link_libraries(hmbtn_water_playthrough PRIVATE hmbtn_host)
     add_executable(hmbtn_hot_spring_test tests/hot_spring_test.c)
     target_link_libraries(hmbtn_hot_spring_test PRIVATE hmbtn_port_core)
     add_test(NAME native_hot_spring COMMAND hmbtn_hot_spring_test)
@@ -732,6 +766,35 @@ if(BUILD_TESTING)
         add_test(NAME native_pause_app COMMAND hmbtn_pause_app_test "${HMBTN_TEST_GAME_DATA}" "${CMAKE_CURRENT_BINARY_DIR}/pause-app-test")
         set_tests_properties(native_pause_app PROPERTIES TIMEOUT 60
             ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_AUDIO_DRIVER=dummy;SDL_RENDER_DRIVER=software")
+        add_test(NAME native_display_playthrough COMMAND hmbtn_display_playthrough "${HMBTN_TEST_GAME_DATA}")
+        set_tests_properties(native_display_playthrough PROPERTIES TIMEOUT 60
+            ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_AUDIO_DRIVER=dummy;SDL_RENDER_DRIVER=software")
+        add_test(NAME native_kappa_playthrough COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/kappa_process.py"
+            "$<TARGET_FILE:hmbtn_kappa_playthrough>" "$<TARGET_FILE:hmbtn_native>" "${HMBTN_TEST_GAME_DATA}")
+        set_tests_properties(native_kappa_playthrough PROPERTIES TIMEOUT 240 ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_RENDER_DRIVER=software;SDL_AUDIO_DRIVER=dummy")
+        add_test(NAME native_horse_riding_playthrough COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/horse_riding_process.py"
+            "$<TARGET_FILE:hmbtn_horse_riding_playthrough>" "$<TARGET_FILE:hmbtn_native>" "${HMBTN_TEST_GAME_DATA}")
+        set_tests_properties(native_horse_riding_playthrough PROPERTIES TIMEOUT 240 ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_RENDER_DRIVER=software;SDL_AUDIO_DRIVER=dummy")
+        add_test(NAME native_horse_playthrough COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/horse_process.py"
+            "$<TARGET_FILE:hmbtn_horse_playthrough>" "$<TARGET_FILE:hmbtn_native>" "${HMBTN_TEST_GAME_DATA}")
+        set_tests_properties(native_horse_playthrough PROPERTIES TIMEOUT 240 ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_RENDER_DRIVER=software;SDL_AUDIO_DRIVER=dummy")
+        add_test(NAME native_dog_ball_playthrough COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/dog_ball_process.py"
+            "$<TARGET_FILE:hmbtn_dog_ball_playthrough>" "$<TARGET_FILE:hmbtn_native>" "${HMBTN_TEST_GAME_DATA}")
+        set_tests_properties(native_dog_ball_playthrough PROPERTIES TIMEOUT 240 ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_RENDER_DRIVER=software;SDL_AUDIO_DRIVER=dummy")
+        add_test(NAME native_dog_playthrough COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/dog_process.py"
+            "$<TARGET_FILE:hmbtn_dog_playthrough>" "$<TARGET_FILE:hmbtn_native>" "${HMBTN_TEST_GAME_DATA}")
+        set_tests_properties(native_dog_playthrough PROPERTIES TIMEOUT 240 ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_RENDER_DRIVER=software;SDL_AUDIO_DRIVER=dummy")
+        add_test(NAME native_goddess_playthrough COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/goddess_process.py"
+            "$<TARGET_FILE:hmbtn_goddess_playthrough>" "$<TARGET_FILE:hmbtn_native>" "${HMBTN_TEST_GAME_DATA}")
+        set_tests_properties(native_goddess_playthrough PROPERTIES TIMEOUT 240 ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_RENDER_DRIVER=software;SDL_AUDIO_DRIVER=dummy")
+        add_test(NAME native_water_playthrough COMMAND hmbtn_water_playthrough "${HMBTN_TEST_GAME_DATA}")
+        set_tests_properties(native_water_playthrough PROPERTIES TIMEOUT 180 ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_RENDER_DRIVER=software;SDL_AUDIO_DRIVER=dummy")
         add_test(NAME native_hot_spring_playthrough COMMAND "${Python3_EXECUTABLE}"
             "${CMAKE_CURRENT_SOURCE_DIR}/tests/hot_spring_process.py"
             "$<TARGET_FILE:hmbtn_hot_spring_playthrough>" "$<TARGET_FILE:hmbtn_native>" "${HMBTN_TEST_GAME_DATA}")

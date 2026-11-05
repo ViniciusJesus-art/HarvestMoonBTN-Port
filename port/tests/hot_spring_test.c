@@ -19,6 +19,16 @@ int main(void)
     p.facing=0;assert(!hmbtn_hot_spring_begin(&bath,&p,false,section,sizeof(section),HMBTN_PAD_CROSS));p=before;
     p.position[0]=-9208;assert(!hmbtn_hot_spring_begin(&bath,&p,false,section,sizeof(section),HMBTN_PAD_CROSS));p=before;
     hmbtn_write_le16(section+2,1);assert(!hmbtn_hot_spring_begin(&bath,&p,false,section,sizeof(section),HMBTN_PAD_CROSS));entry(section);
+    /* Movement supplies a 48-unit forward probe; do not add it twice. */
+    hmbtn_write_le16(section+0x948+24,4400);
+    HmbtnHotSpring barrier={0};HmbtnAreaDoors doors={0};hmbtn_hot_spring_bind(&barrier,section,sizeof(section));
+    int32_t from[3]={-8838,0,4274},to[3]={-8838,0,4363};
+    assert(!hmbtn_hot_spring_blocked(&barrier,&doors,from,to));
+    from[2]=4315;to[2]=4404;assert(hmbtn_hot_spring_blocked(&barrier,&doors,from,to));
+    from[2]=4450;to[2]=4390;assert(hmbtn_hot_spring_blocked(&barrier,&doors,from,to));
+    from[2]=4396;to[2]=4400;assert(hmbtn_hot_spring_blocked(&barrier,&doors,from,to));
+    doors.bound=true;doors.models[0].phase=HMBTN_DOOR_HELD;
+    assert(!hmbtn_hot_spring_blocked(&barrier,&doors,from,to));
     HmbtnHouseExit exit;unsigned model;assert(!hmbtn_world_door_at(section,sizeof(section),&p,&exit,&model));
     hmbtn_write_le16(section+26,47);p.facing=0;hmbtn_write_le16(section+24,0);
     assert(!hmbtn_world_door_at(section,sizeof(section),&p,&exit,&model));entry(section);p=before;

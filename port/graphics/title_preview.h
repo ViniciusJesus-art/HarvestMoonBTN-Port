@@ -13,6 +13,8 @@ HmbtnTitlePreview *hmbtn_title_preview_create(SDL_Renderer *renderer, const char
     char *error, size_t error_size);
 bool hmbtn_title_preview_tick(HmbtnTitlePreview *preview,HmbtnLogicalInput input,char *error,size_t error_size);
 bool hmbtn_title_preview_draw(HmbtnTitlePreview *preview,SDL_Renderer *renderer,char *error,size_t error_size);
+/* Host audio service; does not advance title flow, animations or input. */
+bool hmbtn_title_preview_pump_audio(HmbtnTitlePreview *,char *,size_t);
 void hmbtn_title_preview_destroy(HmbtnTitlePreview *preview);
 /* Borrowed until destroy; NULL until the original registration fade completes. */
 const HmbtnRegistration *hmbtn_title_preview_registration(const HmbtnTitlePreview *preview);

@@ -99,6 +99,21 @@ int main(void)
     p.position[0]=450; p.position[2]=-300; control.mode=4;
     for(unsigned i=0;i<100;++i) hmbtn_house_control_tick(&control,&p,&model,HMBTN_PAD_RIGHT|HMBTN_PAD_CIRCLE);
     CHECK(p.position[0]<=500 && p.position[2]>=-500 && p.position[1]==0);
+    /* Same ground/collision path, with the original rider speed and poses. */
+    control=(HmbtnHouseControl){.enabled=true};p=(HmbtnIntroActor){0};p.position[2]=-300;
+    hmbtn_farm_riding_control_tick(&control,&p,&model,NULL,HMBTN_PAD_RIGHT);
+    CHECK(p.position[0]==112 && p.sprite.animation==62);
+    hmbtn_farm_riding_control_tick(&control,&p,&model,NULL,HMBTN_PAD_RIGHT);
+    CHECK(p.position[0]==185);
+    hmbtn_farm_riding_control_tick(&control,&p,&model,NULL,HMBTN_PAD_LEFT|HMBTN_PAD_CIRCLE);
+    CHECK(p.position[0]==112 && p.sprite.animation==60);
+    hmbtn_farm_riding_control_tick(&control,&p,&model,NULL,HMBTN_PAD_LEFT|HMBTN_PAD_CIRCLE);
+    CHECK(p.position[0]==0);
+    hmbtn_farm_riding_control_tick(&control,&p,&model,NULL,0);
+    CHECK(p.sprite.animation==54 && p.sprite.frame==1);
+    p.position[2]=-50;control.mode=2;
+    hmbtn_farm_riding_control_tick(&control,&p,&model,NULL,HMBTN_PAD_UP);
+    CHECK(p.position[2]==-50 && control.blocked_frames==1);
     /* Strict zone edges and flag filtering; destination coordinates stay integers. */
     uint8_t section[16+50*44]={0}; HmbtnHouseExit exit;
     CHECK(hmbtn_farm_music_volume(section,sizeof(section))==100);

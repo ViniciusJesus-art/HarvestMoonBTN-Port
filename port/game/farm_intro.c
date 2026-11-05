@@ -4,6 +4,7 @@
 #include "ground.h"
 #include "event_variables.h"
 #include "farm_visit.h"
+#include "goddess.h"
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
@@ -57,7 +58,22 @@ static HmbtnEventResult command(void *ctx, const HmbtnEventCommand *c,
     const int32_t a = c->command, b = c->operand, x = c->x, y = c->y;
     const bool visit=hmbtn_farm_visit_supported(s->event);
     HmbtnIntroActor *actor = hmbtn_farm_intro_actor(s,a);
+    if(visit && hmbtn_goddess_event(s->event) && (c->type==24 || c->type==25 || c->type==50) && s->game_command)
+        return s->game_command(s->game_context,c,error,error_size);
     switch (c->type) {
+    case 0: { /* farm_nudge_axis: shared vertical rise/descent, amount*2. */
+        if(!actor || (b!=-1 && b!=-2) || x<INT16_MIN || x>INT16_MAX || y<0 || y>255) break;
+        if(b==-1 ? x>=actor->position[1] : x<=actor->position[1]) {
+            actor->position[1]=x;actor->velocity[1]=0;return HMBTN_EVENT_DONE;
+        }
+        actor->velocity[1]=b==-1 ? -y*2 : y*2;return HMBTN_EVENT_WAIT;
+    }
+    case 72: { /* event_cmd_camera_glide_vars: same glide, three script slots. */
+        if(a<0 || a>3 || !slot(b) || !slot(x) || !slot(y)) break;
+        const int32_t target[3]={s->slots[x],s->slots[b],s->slots[y]};
+        for(unsigned axis=0;axis<3;++axis) if(target[axis]<INT16_MIN || target[axis]>INT16_MAX) goto unsupported;
+        return camera_glide(s,target,(unsigned)a);
+    }
     case 0x23: {
         if(visit && a==42 && b==0 && x==0 && y==0 && s->resolve_actor) {
             /* event_cmd_actor_reset(CHARACTER_ALL_VILLAGERS): operate on bound
@@ -215,10 +231,10 @@ static HmbtnEventResult command(void *ctx, const HmbtnEventCommand *c,
         /* Queued records are (player mode, animation, action-bank flag), not
          * (animation, frame). Mode 0x47 loads sector row 12 for the nod. */
         if (a) break;
-        if (b == 71 && x >= 0 && x <= 3 && y == 11) {
+        if (b == 71 && x >= -1 && x <= 3 && y == 11) {
             if (!s->action_ready) { s->action_pending = true; return HMBTN_EVENT_PENDING; }
             s->action_active = true; s->action_finished = false;
-            s->player.sprite = (HmbtnAnimationPlayer){(uint16_t)x,0,0};
+            s->player.sprite = (HmbtnAnimationPlayer){(uint16_t)(x==-1 ? s->player.facing : (unsigned)x),0,0};
         } else if (b == 5 && x == 10 && y == 10) {
             s->action_active = false;
             s->player.sprite = (HmbtnAnimationPlayer){10,(uint16_t)s->player.facing,0};
@@ -245,6 +261,9 @@ static HmbtnEventResult command(void *ctx, const HmbtnEventCommand *c,
         }
         return s->music_time >= s->music_length ? HMBTN_EVENT_DONE : HMBTN_EVENT_WAIT;
     case 0x33: { /* event_cmd_load_record: follow an actor, optionally glide first. */
+        if(visit && a==-1 && !b && !x && !y) {
+            s->camera_actor=0;s->camera_gliding=true;return HMBTN_EVENT_DONE;
+        }
         if (a == -2 && !b && x>=0 && x<=1 && y>=0 && y<=3) {
             if(x && camera_glide(s,s->player.position,(unsigned)y)!=HMBTN_EVENT_DONE) return HMBTN_EVENT_WAIT;
             s->camera_actor = 0; s->camera_gliding = false;
@@ -261,6 +280,11 @@ static HmbtnEventResult command(void *ctx, const HmbtnEventCommand *c,
         return HMBTN_EVENT_WAIT;
     }
     case 8:
+        if((s->event==2 || s->event==3) && !b && !x && !y && (a==92 || a==-1)) {
+            const unsigned target=a==-1 ? 0u : 92u;
+            if(s->area==target) return HMBTN_EVENT_DONE;
+            s->target_area=target;s->area_pending=true;return HMBTN_EVENT_PENDING;
+        }
         if((s->event==172 || s->event==299) && !b && ((a==44 && !x && y==1)
                 || (a==-2 && x==1 && !y) || ((a==-3 || a==-4) && !x && !y))) {
             const unsigned target=a==44 ? 44 : a==-3 ? 96 : a==-4 ? 112 : 80;
@@ -281,7 +305,7 @@ static HmbtnEventResult command(void *ctx, const HmbtnEventCommand *c,
             s->target_area,a == -2 ? "farmhouse interior" : "next scene");
         return HMBTN_EVENT_BOUNDARY;
     case 0x25: /* event_cmd_enter_mode(0,0,0,0): finish the opening event. */
-        if(visit && !a && !b && !x && !s->area_pending && (y==0 || y==1 || y==2)) {
+        if(visit && !a && !b && !x && !s->area_pending && (y==0 || y==1 || y==2 || ((s->event==197 || s->event==1) && y==3))) {
             s->event_active=false;s->finish_requested=true;return HMBTN_EVENT_DONE;
         }
         if((s->event==172 || s->event==299) && s->area==80 && !s->area_pending && !x && !y
@@ -313,7 +337,8 @@ static HmbtnEventResult command(void *ctx, const HmbtnEventCommand *c,
         if (a || b || x || y || (s->music_mode!=34 && !(s->event==172 && s->music_mode==10))) break;
         s->start_music = true; return HMBTN_EVENT_DONE;
     case 0x17: /* CD-XA start/poll: resources must be opened by the host. */
-        if ((a != 4 && a != 5) || b || y || (x != 0 && x != 1)) break;
+        if ((a != 4 && a != 5 && !(s->event==73 && a==14) && !(s->event==3 && a==13))
+                || (b && !(s->event==3 && a==13 && b==1)) || y || (x != 0 && x != 1)) break;
         if (x) {
             if (s->xa_started && s->xa_track == (unsigned)a) {
                 s->xa_started = false; return HMBTN_EVENT_WAIT;
@@ -484,7 +509,7 @@ bool hmbtn_farm_intro_tick(HmbtnFarmIntro *s, char *error, size_t error_size)
                 actor->position[axis] = (int32_t)value;
             }
             HmbtnGroundHit hit;
-            if((actor->velocity[0] || actor->velocity[1] || actor->velocity[2])
+            if(!((hmbtn_goddess_event(s->event) && id==33) || (s->event==197 && id==27)) && (actor->velocity[0] || actor->velocity[1] || actor->velocity[2])
                     && hmbtn_ground_find(s->ground,actor->position,0xC000,200,&hit)) actor->position[1]=hit.height;
         }
         bool moving = false;

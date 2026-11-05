@@ -13,6 +13,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include "kappa.h"
 #define HMBTN_TEXT_RECORD_BYTES 8192
 static bool effect(HmbtnSessionFrame *s,HmbtnRuntimeEffect e)
 { return !s->effect || s->effect(s,&e,s->error,s->error_size); }
@@ -140,6 +141,56 @@ static HmbtnEventResult visit_command(void *context,const HmbtnEventCommand *c,c
     HmbtnSession *owner=context;
     HmbtnSessionFrame *s=owner->active_frame;
     if(!s) { snprintf(error,size,"Event command outside session tick");return HMBTN_EVENT_ERROR; }
+    if(owner->visit.event==2 || owner->visit.event==3) {
+        if(c->type==92 && !c->command && !c->operand && (c->x==0 || c->x==1) && !c->y) {
+            owner->horse.in_event=c->x!=0;return HMBTN_EVENT_DONE;
+        }
+        if(owner->visit.event==2 && c->type==49 && c->command==1 && !c->operand && !c->x && !c->y) {
+            hmbtn_horse_clear(&owner->horse);return HMBTN_EVENT_DONE;
+        }
+        if(owner->visit.event==3 && c->type==69 && c->command==1 && !c->operand && c->x==0x20000000 && !c->y)
+            return owner->intro.action_active ? HMBTN_EVENT_DONE : HMBTN_EVENT_WAIT;
+    }
+    if(owner->visit.event==1 || owner->visit.event==73) {
+        if(c->type==49 && !c->command && !c->operand && !c->x && !c->y) {
+            (void)hmbtn_horse_spawn(&owner->horse,&owner->game.clock);return HMBTN_EVENT_DONE;
+        }
+        if(c->type==33 && !c->command && c->operand==1 && (c->x==0 || c->x==-1) && !c->y) {
+            if(!owner->horse.owned) { snprintf(error,size,"Horse naming without original acquisition");return HMBTN_EVENT_ERROR; }
+            if(!owner->animal_name_active) {
+                hmbtn_name_editor_begin(&owner->animal_name);owner->animal_name.no_cancel=true;owner->animal_name_active=true;return HMBTN_EVENT_WAIT;
+            }
+            if(!owner->animal_name.finished || owner->animal_name.message.phase!=HMBTN_MESSAGE_CLOSED) return HMBTN_EVENT_WAIT;
+            memcpy(owner->horse.name,owner->animal_name.name,sizeof(owner->horse.name));owner->animal_name_active=false;
+            if(c->x!=-1) owner->intro.slots[c->x]=0;
+            return HMBTN_EVENT_DONE;
+        }
+        if(owner->visit.event==1 && c->type==100 && c->command==8 && c->operand==461 && !c->x && !c->y) {
+            owner->visit.blocked_door=8;owner->visit.blocked_message=461;return HMBTN_EVENT_DONE;
+        }
+        if(c->type==36 && c->command==-1 && !c->operand && !c->x && !c->y)
+            return owner->game.clock.hour==6 && !owner->game.clock.minute && (owner->overnight_tick || owner->intro.fade_level) ? HMBTN_EVENT_DONE : HMBTN_EVENT_WAIT;
+    }
+    if(owner->visit.event==197) {
+        HmbtnEventResult result=hmbtn_kappa_command(owner,c,error,size);
+        if(result!=HMBTN_EVENT_BOUNDARY) return result;
+    }
+    if(owner->visit.event==286) {
+        if(c->type==81 && c->command==23 && !c->operand && !c->x && !c->y) {
+            owner->dog.ball.armed=true;return HMBTN_EVENT_DONE;
+        }
+        if(c->type==44 && c->command==1 && c->operand==-1 && c->x==-100 && !c->y) {
+            hmbtn_economy_gold_change(&owner->game.economy,-100,false);return HMBTN_EVENT_DONE;
+        }
+        if(c->type==31 && c->command==HMBTN_DOG_BALL && !c->operand && !c->x && !c->y)
+            return hmbtn_event_item_show(&owner->event_item,&owner->intro.player,&owner->game.inventory,HMBTN_DOG_BALL) ? HMBTN_EVENT_DONE : HMBTN_EVENT_WAIT;
+        if(c->type==69 && c->command==1 && !c->operand && c->x==0x20000000 && !c->y)
+            return owner->event_item.phase!=HMBTN_EVENT_ITEM_IDLE ? HMBTN_EVENT_DONE : HMBTN_EVENT_WAIT;
+    }
+    if(hmbtn_goddess_event(owner->visit.event)) {
+        HmbtnEventResult result=hmbtn_goddess_command(owner,c,error,size);
+        if(result!=HMBTN_EVENT_BOUNDARY) return result;
+    }
     if(c->type==81 && c->command==27)
         return hmbtn_event_progress_command(&owner->game.progress,c,error,size);
     if((owner->visit.event==277 || owner->visit.event==171) && c->type==81 && c->command==15
@@ -255,13 +306,22 @@ static bool visit_begin(HmbtnSessionFrame *s,unsigned event,char *error,size_t s
 {
     if(!load_event(s,event,error,size) || !hmbtn_farm_visit_begin(&s->session->visit,&s->session->triggers,event,&s->session->village)) return false;
     s->session->visit.start_area=s->session->area;
+    if(!hmbtn_goddess_bind(s->session,event,error,size) || !hmbtn_kappa_bind(s->session,event,error,size)) return false;
     s->session->intro.game_command=visit_command;s->session->intro.game_context=s->session;
-    if(event<290 && event!=18 && event!=19 && event!=129 && event!=130 && event!=140 && event!=171 && event!=177 && event!=277 && !hmbtn_session_bind_event_actor(s->session,17,
+    if(event<290 && event!=1 && event!=2 && event!=3 && event!=73 && event!=18 && event!=19 && event!=129 && event!=130 && event!=140 && event!=171 && event!=177 && event!=277 && event!=197 && event!=286 && !hmbtn_goddess_event(event) && !hmbtn_session_bind_event_actor(s->session,17,
             HMBTN_SESSION_ACTOR_PRIMARY,event==289)) {
         snprintf(error,size,"Conflicting visitor actor 17");return false;
     }
     if(event>=290 && event<=298 && !hmbtn_session_bind_event_actor(s->session,26,HMBTN_SESSION_ACTOR_INTRO,false)) {
         snprintf(error,size,"Conflicting TV Shopping delivery actor Zack");return false;
+    }
+    if(event==1 || event==2 || event==3 || event==73) {
+        const unsigned ids[]={15,16,27};
+        for(unsigned i=0;i<3;++i) {
+            if(event!=1 && ids[i]==16) continue;
+            if(!hmbtn_session_bind_event_actor(s->session,ids[i],HMBTN_SESSION_ACTOR_VISIT,false)
+                    || !s->animation(s->context,ids[i],false)) { snprintf(error,size,"Original horse-event actor/art %u unavailable",ids[i]);return false; }
+        }
     }
     if(event==140) {
         HmbtnIntroActor *actor=hmbtn_session_bind_event_actor(s->session,21,HMBTN_SESSION_ACTOR_VISIT,true);
@@ -274,6 +334,8 @@ static bool visit_begin(HmbtnSessionFrame *s,unsigned event,char *error,size_t s
                 || !s->animation(s->context,32,false)) { snprintf(error,size,"Original Greg event actor/art unavailable");return false; }
         s->session->visit.prop.item=57;
     }
+    if(event==286 && (!hmbtn_session_bind_event_actor(s->session,35,HMBTN_SESSION_ACTOR_VISIT,false)
+            || !s->animation(s->context,35,false))) { snprintf(error,size,"Original Won event actor/art unavailable");return false; }
     if(event==171 || event==277) {
         const unsigned id=event==171 ? 31u : 27u;
         if(!hmbtn_session_bind_event_actor(s->session,id,HMBTN_SESSION_ACTOR_VISIT,false)
@@ -650,6 +712,7 @@ static bool exploration_boundary(void *context,HmbtnSession *session,HmbtnExplor
         if(s->session->house.mode==HMBTN_HOUSE_SLEEP) {
             if(!s->session->sleep.active) {
                 hmbtn_poultry_release(&s->session->poultry,&s->session->house,&s->session->intro.player,s->session->area,&s->scene->terrain);
+                hmbtn_dog_release(&s->session->dog,s->session->house.inventory,&s->session->intro.player,s->session->area,&s->scene->terrain);
                 if(!load_action_bank(s,15,error,error_size)) return false;
                 hmbtn_house_sleep_start(&s->session->sleep,&s->session->intro.player,s->session->construction.house_level); s->session->intro.action_active=true;
             }
@@ -699,6 +762,12 @@ static bool opening_tick(HmbtnSessionFrame *s, uint32_t held, char *error, size_
         goto opening_done;
     }
     if(s->session->overnight_tick) {
+        /* Kappa's wait_time(-1) ends the waiting script as dawn's fade begins. */
+        if(s->session->visit.active && s->session->visit.event==197) {
+            if(!hmbtn_session_event_tick(s->session,error,error_size)) return false;
+            if(s->session->intro.script.finished && s->session->intro.finish_requested)
+                hmbtn_session_finish_visit(s->session);
+        }
         if(++s->session->overnight_tick>=45 && !morning(s,false,error,error_size)) return false;
         goto opening_done;
     }
@@ -717,7 +786,8 @@ static bool opening_tick(HmbtnSessionFrame *s, uint32_t held, char *error, size_
             && !s->session->visit.active && !s->session->animal_event && !s->session->intro.message && !s->session->intro.fade_level
             && !s->session->travel_tick && !s->session->door_tick && !s->session->sleep.active && !s->session->control.exit_pending
             && s->session->house.mode==HMBTN_HOUSE_FREE && s->session->menu.mode==HMBTN_MENU_NONE
-            && !s->session->hot_spring.phase && !s->session->carry.phase && !s->session->feed.phase && !s->session->poultry.carry_phase && !s->session->quick_ticks
+            && !s->session->hot_spring.phase && !s->session->carry.phase && !s->session->feed.phase && !s->session->poultry.carry_phase
+            && !s->session->dog.carry_phase && !s->session->dog.whistling && !s->session->horse.whistling && !s->session->quick_ticks
             && !s->session->talk.active && s->session->feed_shop.phase==HMBTN_SHOP_OFF
             && s->session->event_item.phase==HMBTN_EVENT_ITEM_IDLE && s->session->farm_action.phase==HMBTN_FARM_ACTION_FREE) {
         const unsigned event=hmbtn_farm_event_trigger(&s->session->triggers,&s->session->village,&s->session->game.clock,s->session->game.weather.today,
@@ -771,7 +841,24 @@ static bool opening_tick(HmbtnSessionFrame *s, uint32_t held, char *error, size_
     if(s->session->services.channels[HMBTN_SERVICE_AUDIO].request.kind==HMBTN_SERVICE_WAIT_XA)
         (void)effect(s,(HmbtnRuntimeEffect){.kind=HMBTN_RUNTIME_AUDIO_POLL});
     if(!kitchen_audio(s,error,error_size)) return false;
-    const bool shopping_berry=s->session->visit.active && s->session->visit.event==298
+    const HmbtnServiceResult *pet_audio=hmbtn_service_poll(&s->session->services,HMBTN_SERVICE_AUDIO);
+    if(s->session->horse.track && s->session->house.mode==HMBTN_HOUSE_FREE && !s->session->visit.active
+            && (pet_audio->status==HMBTN_SERVICE_IDLE || (pet_audio->request.kind==HMBTN_SERVICE_START_XA
+                && (pet_audio->request.id==13 || pet_audio->request.id==14)))) {
+        const unsigned track=pet_audio->status==HMBTN_SERVICE_IDLE ? s->session->horse.track : pet_audio->request.id;
+        const HmbtnServiceResult *r=service_audio(s,HMBTN_SERVICE_START_XA,track,error,error_size);
+        if(!r) return false;
+        if(r->status==HMBTN_SERVICE_DONE) {
+            hmbtn_service_ack(&s->session->services,r->ticket);
+            if(s->session->horse.track==track) s->session->horse.track=0;
+        }
+    }
+    if(s->session->visit.active && (hmbtn_goddess_event(s->session->visit.event) || s->session->visit.event==197) && !s->session->control.enabled
+            && s->session->menu.mode==HMBTN_MENU_NONE) {
+        const HmbtnAnimation *stage=s->exploration.animation(s->exploration.context,HMBTN_EXP_STAGE,0);
+        if(!hmbtn_farm_carry_splashes(&s->session->carry,stage,error,error_size)) return false;
+    }
+    const bool shopping_berry=s->session->visit.active && (s->session->visit.event==298 || s->session->visit.event==182)
         && s->session->event_item.phase==HMBTN_EVENT_ITEM_EAT && s->session->event_item.shown==0x67;
     const bool drinking=hmbtn_event_item_drinking(&s->session->event_item);
     hmbtn_event_item_tick(&s->session->event_item,&s->session->intro.player,s->session->house.inventory,&s->session->farm_action);
@@ -786,6 +873,7 @@ static bool opening_tick(HmbtnSessionFrame *s, uint32_t held, char *error, size_
     const unsigned previous = s->session->intro.script.pc;
     const bool visit_paused=s->session->visit.active && (s->session->menu.mode!=HMBTN_MENU_NONE || s->session->talk.active
         || s->session->house.mode!=HMBTN_HOUSE_FREE || s->session->feed_shop.phase!=HMBTN_SHOP_OFF || s->session->travel_tick || s->session->door_tick);
+    if(!visit_paused && s->session->goddess.cue_ticks) s->session->goddess.cue_ticks=s->session->goddess.cue_ticks>2 ? s->session->goddess.cue_ticks-2 : 0;
     if (!visit_paused && !hmbtn_session_event_tick(s->session,error,error_size)) return false;
     if(s->session->visit.active) {
         const bool enabled=s->session->visit.free && !s->session->intro.message;
@@ -849,7 +937,8 @@ static bool opening_tick(HmbtnSessionFrame *s, uint32_t held, char *error, size_
         const HmbtnServiceResult *r=service_resource(s,HMBTN_SERVICE_EVENT_DATA,s->session->intro.queued_event,0,error,error_size);
         if(!r) return false;
         if(r->status==HMBTN_SERVICE_PENDING) goto opening_done;
-        if(!load_event(s,s->session->intro.queued_event,error,error_size)) return false;
+        const unsigned queued=s->session->intro.queued_event;
+        if(!load_event(s,queued,error,error_size) || !hmbtn_goddess_bind(s->session,queued,error,error_size)) return false;
     }
     if (s->session->intro.script.boundary) {
         printf("Opening boundary: %s. Escape closes the window.\n",error); fflush(stdout);
@@ -869,7 +958,12 @@ static bool opening_tick(HmbtnSessionFrame *s, uint32_t held, char *error, size_
         s->session->intro.stop_music=false;s->session->intro.music_volume=world_music_volume(s);s->session->runtime.house_music_ticks=100;
     }
     if(s->session->visit.active && s->session->intro.script.finished && s->session->intro.finish_requested) {
+        const bool goddess=hmbtn_goddess_event(s->session->visit.event);
         hmbtn_session_finish_visit(s->session);
+        if(goddess) {
+            if(!farm_song(s,hmbtn_world_song_weather(s->section,16,s->session->game.clock.season,s->session->game.clock.hour,s->session->game.weather.today),error,error_size)) return false;
+            s->session->intro.stop_music=false;s->session->intro.music_volume=world_music_volume(s);
+        }
         s->session->control.enabled=true;
         s->session->control.carrying=s->session->house.inventory->held_item.id!=0;
     }
@@ -927,7 +1021,7 @@ static bool opening_tick(HmbtnSessionFrame *s, uint32_t held, char *error, size_
             }
             for(unsigned i=0;i<1024 && count<1024;++i) {
                 uint16_t c=hmbtn_read_le16(record+0x1800+i*2);
-                const uint16_t *name=c==0x400a ? s->session->game.registration.player_name : c==0x400c ? s->session->game.registration.dog_name : c==0x400d ? s->session->game.registration.farm_name : NULL;
+                const uint16_t *name=c==0x400a ? s->session->game.registration.player_name : c==0x400b ? s->session->horse.name : c==0x400c ? s->session->game.registration.dog_name : c==0x400d ? s->session->game.registration.farm_name : NULL;
                 /* text_insert_source 0x16/0x17: maternity-slot mothers. */
                 if(s->session->animal_event==299 && (c==0x4016 || c==0x4017)) {
                     const HmbtnLivestockBirth *birth=&s->session->livestock.births[c-0x4016];
@@ -955,7 +1049,7 @@ static bool opening_tick(HmbtnSessionFrame *s, uint32_t held, char *error, size_
         s->session->runtime.loaded_message = 0;
         exploration=exploration_frame(s);
         if(!hmbtn_session_exploration_animate(s->session,&exploration,error,error_size)) return false;
-        if(s->session->menu.mode==HMBTN_MENU_NONE) for (unsigned id = 1; id < 35; ++id) {
+        if(s->session->menu.mode==HMBTN_MENU_NONE) for (unsigned id = 1; id < HMBTN_VILLAGERS; ++id) {
             if(s->session->visit.event==289 && s->session->village.event_actors[id]) continue;
             HmbtnIntroActor *actor = hmbtn_farm_intro_actor(&s->session->intro,(int32_t)id);
             const HmbtnAnimation *animation=s->animation(s->context,id,false);
@@ -975,6 +1069,7 @@ static bool opening_tick(HmbtnSessionFrame *s, uint32_t held, char *error, size_
         }
     }
 opening_done:
+    hmbtn_horse_rider_sync(&s->session->horse,&s->session->intro.player,&s->session->control,s->session->area);
     service_animations(s);
     if(s->session->control.enabled && !s->session->sleep.active)
         hmbtn_world_camera(s->section,s->scene->terrain.size+0x2000,s->session->intro.camera);
@@ -1036,6 +1131,10 @@ void hmbtn_session_area_ready(HmbtnSession *s,unsigned area,const HmbtnSceneData
     hmbtn_mine_enter(&s->mine,area);
     s->area_doors=(HmbtnAreaDoors){0};
     s->area=s->carry.area=area;s->intro.ground=&scene->terrain;s->refused_zone=-1;
+    hmbtn_dog_latch_place(&s->dog,area);
+    if(s->dog.ball.placed && s->dog.ball.area!=0 && s->dog.ball.area!=80 && s->dog.ball.area!=92
+            && s->dog.ball.area!=96 && s->dog.ball.area!=112 && s->dog.ball.area!=124
+            && hmbtn_dog_ball_disarm(&s->dog)) s->village.days.count0[16]=0;
     if(s->village_ready) hmbtn_village_enter(&s->village);
     s->village.flags[0x5E]=false;s->fishing.streak=0;
     hmbtn_daylight_weather_select(&s->daylight,&s->game.clock,s->game.weather.today);

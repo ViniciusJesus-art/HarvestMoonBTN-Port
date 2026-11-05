@@ -118,9 +118,7 @@ bool hmbtn_fishing_tick(HmbtnFishing *f,HmbtnIntroActor *p,HmbtnHouseInteraction
         if(f->in_flight && flight(f,ground)) { f->in_flight=false;if(f->water) f->sound=16; }
         if(f->in_flight || !p->animation_done) return true;
         f->kind=location==44 ? 0 : location==13 ? 1 : location==12 ? 2 : location==66 ? 3 : 4;
-        status->fatigue+=(h->weather->today!=0)+(h->clock->hour>=22 ? 1u : h->clock->hour<6 ? 2u : 0u)+(status->stamina==0 ? 2u : 0u);
-        if(status->fatigue>100) status->fatigue=100;
-        if(status->stamina) --status->stamina;
+        hmbtn_farm_action_cost(status,h,1);
         f->wait=hmbtn_fishing_wait(f,c->hour*60+c->minute);
         f->phase=f->water ? HMBTN_FISHING_WAIT : HMBTN_FISHING_REEL;
         if(f->water) pose(p,8,p->facing);else { pose(p,p->facing+4,0);f->marker_visible=false;f->sound=15; }

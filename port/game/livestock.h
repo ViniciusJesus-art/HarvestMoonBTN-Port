@@ -25,6 +25,7 @@ typedef struct HmbtnLivestock {
     HmbtnLivestockBirth births[2];
     HmbtnFarmAnimal animals[HMBTN_LIVESTOCK];
     uint32_t random;
+    struct HmbtnHorse *horse; /* Borrowed target for the shared brush tool. */
     const HmbtnConstruction *construction; /* Borrowed, no duplicate barn level. */
     unsigned push_slot,push_frames,push_facing,push_area; /* Transient continuous contact. */
     unsigned talk_slot; /* Transient message source, never another animal record. */

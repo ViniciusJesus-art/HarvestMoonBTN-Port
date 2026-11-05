@@ -79,12 +79,13 @@ void hmbtn_title_audio_tick(HmbtnTitleAudio *a, const HmbtnTitleFlow *f, HmbtnTi
 bool hmbtn_title_audio_pump(HmbtnTitleAudio *a, char *error, size_t error_size)
 {
     if (!a->stream || a->paused) return true;
-    /* At most 46 ms of PCM queued; no accumulating song-sized buffer or thread.
-     * SDL does device conversion. Every allocation/voice count is bounded. */
+    /* About 70 ms of PCM absorbs a slow presentation without a song-sized
+     * buffer. The host also services this between simulation ticks; no mixer
+     * thread races with gameplay voice/bank changes. SDL converts the device. */
     int queued = SDL_GetAudioStreamQueued(a->stream);
     if (queued < 0) goto failed;
     int16_t pcm[512 * 2];
-    for (unsigned i = 0; queued < 2048 * 4 && i < 4; ++i) {
+    for (unsigned i = 0; queued < 3072 * 4 && i < 6; ++i) {
         hmbtn_sound_render(a->sound, pcm, 512);
         if (a->xa && !hmbtn_xa_stream_mix(a->xa,pcm,512,error,error_size)) return false;
         if (!SDL_PutAudioStreamData(a->stream, pcm, sizeof(pcm))) goto failed;

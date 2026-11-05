@@ -38,7 +38,7 @@ static bool next_frame(HmbtnXAStream *s, int16_t frame[2], char *error, size_t e
 bool hmbtn_xa_stream_start(HmbtnXAStream *s, const char *root, unsigned track,
     char *error, size_t error_size)
 {
-    if (!s || !root || !*root || (track != 4 && track != 5 && track != 0x16)) {
+    if (!s || !root || !*root || (track != 4 && track != 5 && track != 13 && track != 14 && track != 0x16)) {
         snprintf(error,error_size,"Unsupported native XA track"); return false;
     }
     hmbtn_xa_stream_close(s);

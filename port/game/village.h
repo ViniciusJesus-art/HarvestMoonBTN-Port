@@ -26,7 +26,9 @@ typedef struct HmbtnVillage {
     /* Original generator, local to villager updates until global RNG is ported. */
     uint32_t random;
     unsigned date_key,minute,ann_birthday_season,ann_birthday_day;
-    bool invitation_available,dog_held,player_running;
+    bool invitation_available,player_running;
+    const struct HmbtnDog *dog;
+    const struct HmbtnHorse *horse;
     const struct HmbtnPoultry *poultry;
     const struct HmbtnConstruction *construction;
     const struct HmbtnMakers *makers;

@@ -42,13 +42,15 @@ static size_t entry_index(const HmbtnPauseMenu *m,size_t row)
 void hmbtn_pause_menu_close(HmbtnPauseMenu *m)
 {
     hmbtn_native_font_destroy(m->font);
+    SDL_DestroyTexture(m->gradient);
     hmbtn_save_library_close(&m->library);SDL_free(m->load_path);SDL_free(m->groups);
     SDL_free(m->root);SDL_free(m->slot);*m=(HmbtnPauseMenu){.binding=-1};
 }
 void hmbtn_pause_menu_open(HmbtnPauseMenu *m,const char *root,const char *slot)
 {
-    HmbtnNativeFont *font=m->font;m->font=NULL;
-    hmbtn_pause_menu_close(m);m->font=font;m->open=true;
+    HmbtnNativeFont *font=m->font;SDL_Texture *gradient=m->gradient;
+    m->font=NULL;m->gradient=NULL;
+    hmbtn_pause_menu_close(m);m->font=font;m->gradient=gradient;m->open=true;
     m->root=root ? SDL_strdup(root) : NULL;m->slot=slot ? SDL_strdup(slot) : NULL;
 }
 static void refresh(HmbtnPauseMenu *m)
@@ -266,22 +268,36 @@ static void labels(const HmbtnPauseMenu *m,const HmbtnPreferences *p,size_t row,
         }
     }
 }
+static bool prepare_gradient(HmbtnPauseMenu *m,SDL_Renderer *r)
+{
+    if(m->gradient) return true;
+    enum { COLUMNS=1024 };Uint8 pixels[COLUMNS*4];
+    for(unsigned x=0;x<COLUMNS;++x) {
+        const float t=SDL_min((float)x/((COLUMNS-1)*0.96f),1.0f);
+        pixels[x*4]=5;pixels[x*4+1]=7;pixels[x*4+2]=11;
+        pixels[x*4+3]=(Uint8)(246*(1-t*t*(3-2*t)));
+    }
+    SDL_Texture *texture=SDL_CreateTexture(r,SDL_PIXELFORMAT_RGBA32,SDL_TEXTUREACCESS_STATIC,COLUMNS,1);
+    if(!texture || !SDL_UpdateTexture(texture,NULL,pixels,sizeof(pixels))
+            || !SDL_SetTextureBlendMode(texture,SDL_BLENDMODE_BLEND)
+            /* Alpha already has 1024 smooth samples. Nearest avoids a costly
+             * full-window bilinear pass on the software fallback. */
+            || !SDL_SetTextureScaleMode(texture,SDL_SCALEMODE_NEAREST)) { SDL_DestroyTexture(texture);return false; }
+    m->gradient=texture;return true;
+}
 bool hmbtn_pause_menu_draw(HmbtnPauseMenu *m,const HmbtnPreferences *p,const HmbtnSession *s,SDL_Renderer *r)
 {
     (void)s;
     if(!m->font) m->font=hmbtn_native_font_create(r);
-    if(!m->font) return false;
+    if(!m->font || !prepare_gradient(m,r)) return false;
     const MenuLayout l=layout(m,r);int width,height;SDL_RendererLogicalPresentation mode;SDL_BlendMode blend;
     if(!SDL_GetRenderLogicalPresentation(r,&width,&height,&mode) || !SDL_GetRenderDrawBlendMode(r,&blend)
         || !SDL_SetRenderLogicalPresentation(r,l.width,MENU_HEIGHT,SDL_LOGICAL_PRESENTATION_STRETCH)) return false;
-    bool ok=SDL_SetRenderDrawBlendMode(r,SDL_BLENDMODE_BLEND);
-    /* Full-window gradient: near-black at the left, unobstructed game at the
-     * right. Coordinates follow output aspect ratio rather than PS1 pixels. */
-    for(int x=0;x<l.width && ok;++x) {
-        float t=SDL_min((float)x/(l.width*0.96f),1.0f);
-        float fade=1-t*t*(3-2*t);
-        ok=SDL_SetRenderDrawColor(r,5,7,11,(Uint8)(246*fade)) && SDL_RenderFillRect(r,&(SDL_FRect){(float)x,0,1,MENU_HEIGHT});
-    }
+    /* One continuous image avoids truncated/gapped one-unit rectangles when
+     * the software renderer rounds fractional window scales to whole pixels. */
+    const SDL_FRect backdrop={0,0,(float)l.width,MENU_HEIGHT};
+    bool ok=SDL_SetRenderDrawBlendMode(r,SDL_BLENDMODE_BLEND)
+        && SDL_RenderTexture(r,m->gradient,NULL,&backdrop);
     if(m->page!=HMBTN_PAUSE_HOME) ok=ok && text(m,r,l.left,81,21,120,TEXT("←  Voltar","←  Back"),175);
     ok=ok && text(m,r,l.left,137,40,l.right-l.left,heading(m,p),255);
     const size_t count=row_count(m);

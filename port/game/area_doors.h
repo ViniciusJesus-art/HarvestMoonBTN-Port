@@ -8,7 +8,7 @@ typedef enum HmbtnDoorPhase { HMBTN_DOOR_CLOSED,HMBTN_DOOR_OPENING,HMBTN_DOOR_HE
 typedef struct HmbtnAreaDoor {
     HmbtnDoorPhase phase;
     int turn,speed,twin;
-    unsigned facing,hold;
+    unsigned facing,hold,event; /* Last original event requesting this shared model. */
     bool opening_sound,closing_sound;
 } HmbtnAreaDoor;
 typedef struct HmbtnAreaDoors {

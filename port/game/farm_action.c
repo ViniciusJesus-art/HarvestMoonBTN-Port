@@ -13,9 +13,15 @@ static void idle(HmbtnFarmAction *a,HmbtnIntroActor *p)
     a->finished_bank=a->bank>=0;a->bank=-1;a->phase=HMBTN_FARM_ACTION_FREE;
     p->sprite=(HmbtnAnimationPlayer){0,(uint16_t)p->facing,0};p->animation_done=false;
 }
+/* people/player.c:player_fatigue_cost. Division precedes status clamping. */
+unsigned hmbtn_farm_fatigue_cost(const HmbtnFarmAction *a,const HmbtnHouseInteraction *h,unsigned adjustment)
+{
+    unsigned fatigue=adjustment+(h->weather->today!=0)+(h->clock->hour>=22 ? 1u : h->clock->hour<6 ? 2u : 0u)+(a->stamina==0 ? 2u : 0u);
+    return a->half_fatigue ? fatigue/2 : fatigue;
+}
 void hmbtn_farm_action_cost(HmbtnFarmAction *a,const HmbtnHouseInteraction *h,unsigned amount)
 {
-    unsigned fatigue=(h->weather->today!=0)+(h->clock->hour>=22 ? 1u : h->clock->hour<6 ? 2u : 0u)+(a->stamina==0 ? 2u : 0u);
+    const unsigned fatigue=hmbtn_farm_fatigue_cost(a,h,0);
     a->stamina=a->stamina>amount ? a->stamina-amount : 0;
     a->fatigue=a->fatigue+fatigue>100 ? 100 : a->fatigue+fatigue;
 }

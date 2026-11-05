@@ -32,6 +32,7 @@ unsigned hmbtn_farm_music_volume(const uint8_t *section,size_t size);
  * Livestock, villagers and carrying states remain separate systems. */
 void hmbtn_house_control_tick(HmbtnHouseControl *control, HmbtnIntroActor *player,
     const HmbtnModel *ground, uint32_t held);
+void hmbtn_farm_riding_control_tick(HmbtnHouseControl *,HmbtnIntroActor *,const HmbtnModel *,const HmbtnFarmField *,uint32_t held);
 void hmbtn_farm_control_tick(HmbtnHouseControl *control, HmbtnIntroActor *player,
     const HmbtnModel *ground, const HmbtnFarmField *field, uint32_t held);
 #endif

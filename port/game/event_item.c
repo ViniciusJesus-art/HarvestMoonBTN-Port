@@ -61,7 +61,7 @@ bool hmbtn_event_item_begin(HmbtnEventItem *item,HmbtnIntroActor *p,HmbtnInvento
 {
     if(!eat) return id==204 && hmbtn_event_item_show(item,p,h,id);
     if(!item || !p || !h || p->facing>3 || item->phase!=HMBTN_EVENT_ITEM_IDLE
-            || (id!=225 && id!=0x67)) return false;
+            || (id!=225 && id!=0x67 && id!=294)) return false;
     item->saved=h->held_item;item->shown=id;item->sound=74;
     item->phase=HMBTN_EVENT_ITEM_EAT;
     h->held_item=(HmbtnStoredTool){(uint16_t)id,0,1};
@@ -77,7 +77,7 @@ static bool show_record(HmbtnEventItem *item,HmbtnIntroActor *p,HmbtnInventory *
 {
     const unsigned id=record.id;
     const HmbtnFarmItem *info=hmbtn_farm_item(id);
-    const bool stock_cue=id==0x6d || id==0x6e || id==100 || id==108;
+    const bool stock_cue=id==0x6d || id==0x6e || id==100 || id==101 || id==108;
     /* Gift has picture=-1 in item_info, but a real per-id ANI/BANK block,
      * loaded by picture_load_to_vram just like the ordinary carried goods. */
     const bool gift=id==164 && record.modifier && record.modifier!=164 && hmbtn_farm_item(record.modifier);
@@ -136,6 +136,7 @@ void hmbtn_event_item_tick(HmbtnEventItem *item,HmbtnIntroActor *p,HmbtnInventor
             status->max_stamina=status->max_stamina+10>255 ? 255 : status->max_stamina+10;
             status->stamina=status->max_stamina; /* farm_adjust_stamina_fatigue refills. */
         }
+        if(item->shown==294) status->half_fatigue=true; /* player_entry_refresh. */
         int stamina=(int)status->stamina+row->stamina,fatigue=(int)status->fatigue+row->fatigue;
         status->stamina=stamina<0 ? 0 : (unsigned)stamina>status->max_stamina ? status->max_stamina : (unsigned)stamina;
         status->fatigue=(unsigned)(fatigue<0 ? 0 : fatigue>100 ? 100 : fatigue);

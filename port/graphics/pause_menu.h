@@ -10,6 +10,7 @@ typedef enum HmbtnPauseAction { HMBTN_PAUSE_NONE,HMBTN_PAUSE_RESUME,HMBTN_PAUSE_
 typedef struct HmbtnPauseMenu {
     bool open;
     HmbtnNativeFont *font;
+    SDL_Texture *gradient;
     HmbtnPausePage page;
     size_t selected,top,farm;
     int binding;

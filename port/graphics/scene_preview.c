@@ -8,6 +8,7 @@
 #include "session.h"
 #include "runtime.h"
 #include "scene_inspection.h"
+#include "scene_slots.h"
 #include "exploration.h"
 #include "model_render.h"
 #include "scene_decode.h"
@@ -35,6 +36,8 @@
 #include "farm_gather.h"
 #include "estate_art.h"
 #include "poultry_art.h"
+#include "dog_art.h"
+#include "horse_art.h"
 #include "livestock_art.h"
 #include "feed_shop_ui.h"
 #include "mine_ui.h"
@@ -57,6 +60,7 @@ struct HmbtnScenePreview {
     HmbtnSession *session;
     uint8_t *section, *pixels;
     HmbtnImageAtlas *atlas;
+    HmbtnSceneSlots image_slots;
     HmbtnSceneData scene;
     HmbtnModelRenderer *geometry;
     SDL_Texture *texture;
@@ -66,7 +70,7 @@ struct HmbtnScenePreview {
     char *data_root;
     uint8_t *player_block, *event_block;
     HmbtnImageAtlas *player_atlas, *mayor_atlas;
-    HmbtnAnimation player_animation, actor_animation[35];
+    HmbtnAnimation player_animation, actor_animation[HMBTN_VILLAGERS];
     HmbtnAnimation event_player_animation;
     HmbtnAnimation event_prop_animation;
     HmbtnHouseUI *house_ui;
@@ -83,6 +87,8 @@ struct HmbtnScenePreview {
     uint64_t watering_voice;
     HmbtnEstateArt estate_art;
     HmbtnPoultryArt poultry_art;
+    HmbtnDogArt dog_art;
+    HmbtnHorseArt horse_art;
     HmbtnLivestockArt livestock_art;
     uint8_t *feed_block;
     HmbtnImageAtlas *feed_atlas;
@@ -149,7 +155,7 @@ void hmbtn_scene_preview_destroy(HmbtnScenePreview *s)
 {
     if (!s) return;
     hmbtn_session_destroy(s->session);
-    hmbtn_estate_art_close(&s->estate_art);hmbtn_poultry_art_close(&s->poultry_art);hmbtn_livestock_art_close(&s->livestock_art);
+    hmbtn_estate_art_close(&s->estate_art);hmbtn_poultry_art_close(&s->poultry_art);hmbtn_dog_art_close(&s->dog_art);hmbtn_horse_art_close(&s->horse_art);hmbtn_livestock_art_close(&s->livestock_art);
     hmbtn_village_art_close(&s->village_art);free(s->schedule_block);
     free(s->feed_block);free(s->feed_atlas);
     SDL_DestroyTexture(s->texture);
@@ -246,12 +252,14 @@ static bool load_area(HmbtnScenePreview *s, const char *root, unsigned area,
         && hmbtn_resource_read(root,"A_FILE/00_gf.bin",texture,bank,bank_size,error,error_size)
         && hmbtn_scene_data_open(&scene,section,size,error,error_size)
         && hmbtn_bank_apply(bank,bank_size,s->atlas,error,error_size);
+    HmbtnSceneSlots slots={0};
+    if(ok) ok=hmbtn_scene_slots_open(&slots,section,size,s->session->game.weather.today,error,error_size);
     free(bank);
     if (!ok) { free(section); return false; }
     HmbtnModelRenderer *geometry = hmbtn_model_renderer_create(scene.primitive_capacity+(hmbtn_mine_kind(area) ? scene.models[0].primitive_count : 0u));
     if (!geometry) { free(section); snprintf(error,error_size,"Cannot allocate bounded scene ordering"); return false; }
     if(!s->restoring) hmbtn_session_area_begin(s->session,area,s->section ? hmbtn_read_le16(s->section+2) : 0,s->section!=NULL);
-    if(s->opening && (area==0 || area==172 || area==176 || area==204)) {
+    if(s->opening && (area==0 || area==68 || area==72 || area==172 || area==176 || area==204 || area==28)) {
         HmbtnEventResourceRange range;
         if(!hmbtn_event_resource_locate(HMBTN_EVENT_RESOURCE_TRIGGERS,resource_area,&range)
                 || range.bytes>sizeof(s->session->trigger_data)
@@ -262,15 +270,19 @@ static bool load_area(HmbtnScenePreview *s, const char *root, unsigned area,
         }
     }
     hmbtn_model_renderer_destroy(s->geometry); free(s->section);
-    s->section = section; s->scene = scene; s->geometry = geometry; s->session->area = area;s->dirty=true;
+    s->section = section; s->scene = scene;s->image_slots=slots; s->geometry = geometry; s->session->area = area;s->dirty=true;
     s->fire_frame=s->fire_ticks=0;
     if(s->opening && !hmbtn_estate_art_update(&s->estate_art,root,hmbtn_read_le16(section+10),error,error_size)) return false;
-    s->session->triggers.field=&s->session->field;
+    s->session->triggers.field=&s->session->field;s->session->triggers.greenhouse=&s->session->greenhouse;
     s->session->triggers.pond=&s->session->pond;
+    s->session->triggers.economy=&s->session->game.economy;
     if(s->opening && (area==0 || area==96) && !hmbtn_livestock_art_load(&s->livestock_art,root,error,error_size)) return false;
+    if(s->opening && (area==0 || area==92) && !hmbtn_horse_art_load(&s->horse_art,root,error,error_size)) return false;
     bool hens_here=area==112 || hmbtn_poultry_held_slot(&s->session->poultry)<HMBTN_HENS;
     for(unsigned i=0;i<HMBTN_HENS;++i) hens_here|=s->session->poultry.hens[i].occupied && s->session->poultry.hens[i].area==area;
     if(s->opening && hens_here && !hmbtn_poultry_art_load(&s->poultry_art,root,error,error_size)) return false;
+    if(s->opening && (s->session->dog.area==area || s->session->dog.held)
+            && !hmbtn_dog_art_load(&s->dog_art,root,error,error_size)) return false;
     if(!s->restoring) hmbtn_session_area_ready(s->session,area,&s->scene);
     else s->session->intro.ground=&s->scene.terrain;
     if(hmbtn_mine_kind(area) && (!hmbtn_mine_bind(&s->session->mine,&s->scene)
@@ -362,7 +374,7 @@ static bool load_event(HmbtnScenePreview *s, unsigned event, char *error, size_t
         else if (flags == 0x8000) {
             ++banks;
             if (!hmbtn_bank_apply(entry,size,s->mayor_atlas,error,error_size)) return false;
-        } else if ((flags&0xFF00u) == 0x2000u && (hmbtn_farm_intro_actor(&s->session->intro,flags&255u)
+        } else if ((flags&0xFF00u) == 0x2000u && (flags&255u)<HMBTN_VILLAGERS && (hmbtn_farm_intro_actor(&s->session->intro,flags&255u)
                 || (hmbtn_farm_visit_supported(event) && (flags&255u)>0 && (flags&255u)<HMBTN_VILLAGERS))) {
             const unsigned id = flags&255u;
             const uint64_t bit = UINT64_C(1) << id;
@@ -370,20 +382,26 @@ static bool load_event(HmbtnScenePreview *s, unsigned event, char *error, size_t
             actor_mask |= bit;
             HmbtnAnimation *animation = &s->actor_animation[id];
             if (!hmbtn_animation_open(animation,entry,size,error,error_size)) return false;
-        } else if((event==18 && flags==0x831) || (event==177 && flags==0x839) || (event==277 && flags==0x883)) {
+        } else if((event==18 && flags==0x831) || (event==177 && flags==0x839) || (event==277 && flags==0x883) || (event==197 && flags==0x926) || (event==286 && flags==0x865)) {
             if(s->event_prop_animation.data || !hmbtn_animation_open(&s->event_prop_animation,entry,size,error,error_size)) return false;
+        } else if(event==182 && (flags==0x944 || flags==0x867)) {
+            /* Staged item ANI in the original block; ordinary item receipt
+             * uses the shared picture loader, not a second inventory path. */
+            HmbtnAnimation staged;
+            if(!hmbtn_animation_open(&staged,entry,size,error,error_size)) return false;
         } else if(event==12 && flags==0x401) {
             if(!hmbtn_animation_open(&s->event_player_animation,entry,size,error,error_size)) return false;
         } else { snprintf(error,error_size,"Unsupported opening actor flags 0x%04x",flags); return false; }
     }
     const bool world_event=event==129 || event==130 || event==289;
-    const uint64_t expected = event==171 ? UINT64_C(1)<<31 : event==277 ? UINT64_C(1)<<27 : event==177 ? UINT64_C(1)<<32 : event>=290 && event<=298 ? UINT64_C(1)<<26 : event==18 || event==19 ? UINT64_C(1)<<3 : event==140 ? UINT64_C(1)<<21 : event==299 || world_event ? 0 : event==172 ? (UINT64_C(1)<<10)|(UINT64_C(1)<<15)|(UINT64_C(1)<<19)
+    const uint64_t expected = event==1 ? (UINT64_C(1)<<27)|(UINT64_C(1)<<15)|(UINT64_C(1)<<16) : event==73 || event==2 || event==3 ? (UINT64_C(1)<<27)|(UINT64_C(1)<<15) : event==286 ? UINT64_C(1)<<35 : event==197 ? UINT64_C(1)<<27 : event==182 ? (UINT64_C(1)<<24)|(UINT64_C(1)<<33)
+        : hmbtn_goddess_event(event) ? (UINT64_C(1)<<27)|(UINT64_C(1)<<(event==185 ? 20 : event==187 ? 7 : event==189 ? 9 : event==191 ? 3 : 14)) : event==171 ? UINT64_C(1)<<31 : event==277 ? UINT64_C(1)<<27 : event==177 ? UINT64_C(1)<<32 : event>=290 && event<=298 ? UINT64_C(1)<<26 : event==18 || event==19 ? UINT64_C(1)<<3 : event==140 ? UINT64_C(1)<<21 : event==299 || world_event ? 0 : event==172 ? (UINT64_C(1)<<10)|(UINT64_C(1)<<15)|(UINT64_C(1)<<19)
         : event==12 ? (UINT64_C(1)<<17)|(UINT64_C(1)<<23)|(UINT64_C(1)<<26)
         : event == 116 || event == 121 || hmbtn_farm_visit_supported(event) ? UINT64_C(1)<<17
         : event == 117 ? 14u : event == 118 ? 2u : event == 120 ? 30u
         : (UINT64_C(1)<<27)|(UINT64_C(1)<<33);
     if (!script || actor_mask != expected || banks != (event==299 || world_event ? 0u : 1u)
-            || ((event==18 || event==177 || event==277) && !s->event_prop_animation.data)) {
+            || ((event==18 || event==177 || event==277 || event==197 || event==286) && !s->event_prop_animation.data)) {
         snprintf(error,error_size,"Opening event is missing its expected actors, textures or script"); return false;
     }
     if(!hmbtn_session_open_event(s->session,event,script,script_size,error,error_size)) return false;
@@ -641,6 +659,8 @@ static const HmbtnAnimation *exploration_animation(void *context,HmbtnExploratio
     case HMBTN_EXP_EVENT_PLAYER:return &s->event_player_animation;
     case HMBTN_EXP_VILLAGER:return hmbtn_village_art_actor(&s->village_art,id,&atlas);
     case HMBTN_EXP_CHICK:return &s->poultry_art.chick;
+    case HMBTN_EXP_HORSE:return id<2 ? &s->horse_art.animation[id] : NULL;
+    case HMBTN_EXP_DOG:return id<2 ? &s->dog_art.animation[id] : NULL;
     case HMBTN_EXP_HEN:return &s->poultry_art.adult;
     case HMBTN_EXP_LIVESTOCK:return id<10 ? &s->livestock_art.animation[id] : NULL;
     case HMBTN_EXP_STAGE:return hmbtn_new_game_ui_animation(s->ui);
@@ -721,7 +741,7 @@ static bool runtime_song(void *context,unsigned id,bool effects,char *error,size
 static const HmbtnAnimation *runtime_animation(void *context,unsigned id,bool resident)
 {
     HmbtnScenePreview *s=context;const HmbtnImageAtlas *atlas;
-    if(!resident && id<35 && s->actor_animation[id].data) return &s->actor_animation[id];
+    if(!resident && id<HMBTN_VILLAGERS && s->actor_animation[id].data) return &s->actor_animation[id];
     if(resident || (s->session->visit.active && (s->session->visit.event==130 || s->session->visit.event==289 || s->session->visit.event==140)))
         return hmbtn_village_art_actor(&s->village_art,id,&atlas);
     return NULL;
@@ -829,6 +849,8 @@ bool hmbtn_scene_preview_preferences(HmbtnScenePreview *s,bool paused,unsigned v
     return hmbtn_title_audio_preferences(&s->audio,paused,volume)
         && SDL_SetTextureScaleMode(s->texture,smooth ? SDL_SCALEMODE_LINEAR : SDL_SCALEMODE_NEAREST);
 }
+bool hmbtn_scene_preview_pump_audio(HmbtnScenePreview *s,char *error,size_t size)
+{ return hmbtn_title_audio_pump(&s->audio,error,size); }
 const HmbtnSession *hmbtn_scene_preview_state(const HmbtnScenePreview *s) { return s->session; }
 void hmbtn_scene_preview_adopt_history(HmbtnScenePreview *s,const char *path)
 { hmbtn_save_library_adopt(s->session,path); }
@@ -838,6 +860,8 @@ bool hmbtn_scene_preview_tick(HmbtnScenePreview *s,HmbtnLogicalInput input,char 
 {
     if(!s) { snprintf(error,error_size,"Missing native scene");return false; }
     const uint32_t pressed=input.pressed,held=input.held;
+    hmbtn_scene_slots_tick(&s->image_slots,s->atlas,s->session->menu.mode!=HMBTN_MENU_NONE
+        || (s->opening && s->session->intro.script.boundary),s->session->village.flags[0x45]);
     if(!s->opening && (pressed&HMBTN_PAD_START)) reset_camera(s);
     if (s->session->menu.mode==HMBTN_MENU_NONE && (!s->opening || (!s->session->intro.message && !s->session->intro.script.boundary)))
         hmbtn_scene_data_tick(&s->scene);
@@ -866,7 +890,7 @@ bool hmbtn_scene_preview_draw(HmbtnScenePreview *s,SDL_Renderer *renderer,char *
     if(s->opening) { s->centre_x=s->session->intro.camera[0];s->centre_z=s->session->intro.camera[2]; }
     if (s->dirty) {
         for (size_t i = 0; i < FRAME_BYTES; i += 4) {
-            memset(s->pixels+i,0,3); s->pixels[i+3] = 255;
+            memcpy(s->pixels+i,s->image_slots.background,3); s->pixels[i+3] = 255;
         }
         if (!s->opening || !s->session->intro.cell_actor) {
         const int32_t centre[3]={s->centre_x,s->opening ? s->session->intro.camera[1] : 0,s->centre_z};
@@ -971,6 +995,26 @@ bool hmbtn_scene_preview_draw(HmbtnScenePreview *s,SDL_Renderer *renderer,char *
             actors[count]=(HmbtnWorldSprite){ani,atlas,{0},{0},s->session->basket_action.bounce ? -3 : 0,0};
             memcpy(actors[count++].position,basket->position,sizeof(basket->position));
         }
+        const HmbtnHorse *pony=&s->session->horse;
+        if(pony->owned && !pony->in_event && pony->area==s->session->area) {
+            if(!s->horse_art.animation[pony->adult].data) { snprintf(error,error_size,"Original pony sprite unavailable");return false; }
+            actors[count]=(HmbtnWorldSprite){&s->horse_art.animation[pony->adult],s->horse_art.atlas[pony->adult],pony->actor.sprite,{0},0,0};
+            memcpy(actors[count++].position,pony->actor.position,sizeof(pony->actor.position));
+            if(pony->praise && hmbtn_new_game_ui_cue(s->ui,&actors[count],pony->actor.position,37,pony->praise,-30)) ++count;
+        }
+        const HmbtnDog *dog=&s->session->dog;
+        if(dog->ball.placed && dog->ball.area==s->session->area) {
+            const HmbtnAnimation *ani;const HmbtnImageAtlas *atlas;
+            if(!hmbtn_house_ui_picture_art(s->house_ui,s->data_root,HMBTN_DOG_BALL,&ani,&atlas,error,error_size)) return false;
+            actors[count]=(HmbtnWorldSprite){ani,atlas,{0},{0},0,0};
+            memcpy(actors[count++].position,dog->ball.position,sizeof(dog->ball.position));
+        }
+        if(!dog->held && dog->area==s->session->area) {
+            if(!s->dog_art.animation[dog->adult].data) { snprintf(error,error_size,"Original puppy sprite unavailable");return false; }
+            actors[count]=(HmbtnWorldSprite){&s->dog_art.animation[dog->adult],s->dog_art.atlas[dog->adult],dog->actor.sprite,{0},0,0};
+            memcpy(actors[count++].position,dog->actor.position,sizeof(dog->actor.position));
+            if(dog->praise && hmbtn_new_game_ui_cue(s->ui,&actors[count],dog->actor.position,37,dog->praise,-20)) ++count;
+        }
         for(unsigned i=0;i<HMBTN_HENS;++i) {
             const HmbtnHen *hen=&s->session->poultry.hens[i];
             if(hen->occupied && !hen->dead && !hen->held && hen->area==s->session->area && hen->stage!=HMBTN_HEN_EGG) {
@@ -1028,9 +1072,9 @@ bool hmbtn_scene_preview_draw(HmbtnScenePreview *s,SDL_Renderer *renderer,char *
             actors[count] = (HmbtnWorldSprite){s->session->intro.action_active ? &s->action_animation : s->session->first_visit_active ? &s->event_player_animation : &s->player_animation,
                 s->session->intro.action_active ? s->action_atlas : s->session->first_visit_active ? s->mayor_atlas : s->player_atlas,s->session->intro.player.sprite,{0},0,0};
             memcpy(actors[count++].position,s->session->intro.player.position,sizeof(actors[0].position));
-            hmbtn_new_game_ui_cursor(s->ui,&actors[count++],s->session->intro.player.position,0);
+            if(!s->session->horse.riding) hmbtn_new_game_ui_cursor(s->ui,&actors[count++],s->session->intro.player.position,0);
         }
-        if (s->opening) for (unsigned id = 1; id < 35; ++id) {
+        if (s->opening) for (unsigned id = 1; id < HMBTN_VILLAGERS; ++id) {
             if(s->session->visit.event==289 && s->session->village.event_actors[id]) continue;
             const HmbtnIntroActor *actor = hmbtn_farm_intro_actor(&s->session->intro,(int32_t)id);
             const HmbtnImageAtlas *atlas=s->mayor_atlas;
@@ -1127,10 +1171,18 @@ bool hmbtn_scene_preview_draw(HmbtnScenePreview *s,SDL_Renderer *renderer,char *
                 if(s->estate_art.row!=8 || !attachment.animation) {
                     snprintf(error,error_size,"Original carried rucksack sprite unavailable");return false;
                 }
+            } else if(s->session->visit.active && ((s->session->visit.event==197 && attached_item==294) || (s->session->visit.event==286 && attached_item==101))) {
+                /* item_art_address prefers the event's staged item ANI
+                 * (0x926 Berry / 0x865 ball), with the event bank/palette. */
+                attachment.animation=&s->event_prop_animation;attachment.atlas=s->mayor_atlas;
+                if(!attachment.animation->data) { snprintf(error,error_size,"Original staged event item unavailable");return false; }
             } else if(!hmbtn_house_ui_picture_art(s->house_ui,s->data_root,attached_item,
                         &attachment.animation,&attachment.atlas,error,error_size)) return false;
             attached=1;
         }
+        if(s->session->goddess.cue_active && s->session->goddess.cue_ticks && count<512
+                && hmbtn_new_game_ui_cue(s->ui,&actors[count],s->session->intro.player.position,
+                    s->session->goddess.cue,s->session->goddess.cue_ticks,-20)) ++count;
         const unsigned model_count = hmbtn_scene_data_instances(&s->scene,instances);
         if (!hmbtn_model_render_instances_attached(s->geometry,instances,model_count,s->atlas,&camera,actors,count,
                 &attachment,attached,s->pixels,FRAME_BYTES,NULL,error,error_size)) return false;
@@ -1226,7 +1278,7 @@ HmbtnSession *hmbtn_scene_preview_session(HmbtnScenePreview *s) { return s ? s->
 HmbtnSceneResources hmbtn_scene_preview_resources(HmbtnScenePreview *s)
 {
     return (HmbtnSceneResources){s->section,s->schedule_block,&s->scene,s->data_root,s->ui,s->house_ui,s->menu_ui,
-        &s->estate_art,&s->village_art,&s->audio,&s->xa};
+        &s->estate_art,&s->village_art,&s->audio,&s->xa,s->atlas};
 }
 bool hmbtn_scene_preview_load_area(HmbtnScenePreview *s,unsigned area,char *error,size_t size)
 { return load_area(s,s->data_root,area,error,size); }

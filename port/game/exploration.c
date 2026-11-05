@@ -137,12 +137,34 @@ static bool feed_shop_message(HmbtnSession *s,const HmbtnExplorationFrame *f,cha
 static bool world_blocked(const void *context,const int32_t from[3],const int32_t to[3])
 {
     const HmbtnSession *s=context;
-    return hmbtn_village_blocked(&s->village,from,to) || hmbtn_livestock_blocked(&s->livestock,s->area,from,to)
+    return hmbtn_village_blocked(&s->village,from,to) || hmbtn_horse_blocked(&s->horse,s->area,from,to) || hmbtn_livestock_blocked(&s->livestock,s->area,from,to)
         || hmbtn_basket_blocked(&s->game.basket,s->area,from,to);
+}
+static bool dog_blocked(const void *context,const int32_t from[3],const int32_t to[3])
+{
+    const HmbtnSession *s=context;
+    return hmbtn_village_blocked(&s->village,from,to) || hmbtn_horse_blocked(&s->horse,s->area,from,to) || hmbtn_livestock_blocked(&s->livestock,s->area,from,to)
+        || hmbtn_poultry_occupies(&s->poultry,s->area,to) || hmbtn_basket_blocked(&s->game.basket,s->area,from,to);
+}
+static bool pony_blocked(const void *context,const int32_t from[3],const int32_t to[3])
+{
+    const HmbtnSession *s=context;
+    return hmbtn_village_blocked(&s->village,from,to) || hmbtn_livestock_blocked(&s->livestock,s->area,from,to)
+        || hmbtn_poultry_occupies(&s->poultry,s->area,to) || hmbtn_basket_blocked(&s->game.basket,s->area,from,to)
+        || hmbtn_hot_spring_blocked(&s->hot_spring,&s->area_doors,from,to);
+}
+static HmbtnDogWorld dog_world(HmbtnSession *s,const HmbtnExplorationFrame *f)
+{ return (HmbtnDogWorld){s->area,f->ground,hmbtn_session_field(s),&s->intro.player,s,dog_blocked}; }
+static bool dog_sound(const HmbtnExplorationFrame *f,unsigned id,char *error,size_t size)
+{
+    const HmbtnFarmSound *fx=hmbtn_farm_sound(id);
+    if(!fx) { snprintf(error,size,"Original pet sound %u unavailable",id);return false; }
+    return key(f,fx->bank==1 ? 2u : 0u,fx->program,fx->tone,fx->note,fx->volume,false,error,size);
 }
 static bool basket_blocked(const void *context,const int32_t from[3],const int32_t to[3])
 {
-    const HmbtnSession *s=context;return hmbtn_basket_blocked(&s->game.basket,s->area,from,to);
+    const HmbtnSession *s=context;return hmbtn_basket_blocked(&s->game.basket,s->area,from,to)
+        || hmbtn_horse_blocked(&s->horse,s->area,from,to) || hmbtn_hot_spring_blocked(&s->hot_spring,&s->area_doors,from,to);
 }
 static bool fishing_frame(HmbtnSession *s,const HmbtnExplorationFrame *f,HmbtnLogicalInput input,char *error,size_t size)
 {
@@ -166,13 +188,30 @@ static bool fishing_frame(HmbtnSession *s,const HmbtnExplorationFrame *f,HmbtnLo
 }
 static bool spring_frame(HmbtnSession *s,const HmbtnExplorationFrame *f,uint32_t pressed,char *error,size_t size)
 {
+    HmbtnHotSpring *spring=&s->hot_spring;
+    if(spring->door_known && (spring->phase==HMBTN_SPRING_APPROACH || spring->phase==HMBTN_SPRING_WALK || spring->exit_pending)) {
+        hmbtn_area_doors_bind(&s->area_doors,f->scene);
+        const unsigned event=spring->phase==HMBTN_SPRING_APPROACH ? 46 : 47;
+        HmbtnDoorPassage passage=hmbtn_area_doors_request(&s->area_doors,f->section,f->section_size,event,event==46 ? 2 : 0);
+        if((spring->phase==HMBTN_SPRING_APPROACH || spring->phase==HMBTN_SPRING_WALK) && passage==HMBTN_DOOR_WAIT) return true;
+    }
+    const bool walking=spring->phase==HMBTN_SPRING_APPROACH || spring->phase==HMBTN_SPRING_WALK;
+    const int32_t old_z=s->intro.player.position[2];
     hmbtn_hot_spring_tick(&s->hot_spring,&s->intro.player,f->ground,pressed);
+    if(walking && old_z!=s->intro.player.position[2]) {
+        if(s->house.steps>12) {
+            if(!key(f,2,8,0,68,20,false,error,size)) return false;
+            s->house.steps=0;
+        } else ++s->house.steps;
+    }
     if(s->hot_spring.bank>=0) {
         if(!action_bank(f,(unsigned)s->hot_spring.bank,error,size)) return false;
         s->intro.action_active=true;
     } else if(s->hot_spring.bank==-2) s->intro.action_active=false;
-    if(s->hot_spring.sound>=0 && !emit(f,(HmbtnExplorationEffect){.kind=HMBTN_EXP_UI_SOUND,
-            .id=(unsigned)s->hot_spring.sound},error,size)) return false;
+    if(s->hot_spring.sound>=0) {
+        const HmbtnFarmSound *fx=hmbtn_farm_sound((unsigned)s->hot_spring.sound);
+        if(!fx || !key(f,fx->bank==1 ? 2u : 0u,fx->program,fx->tone,fx->note,fx->volume,false,error,size)) return false;
+    }
     s->control.mode=0;
     memcpy(s->intro.camera,s->intro.player.position,sizeof(s->intro.camera));
     return true;
@@ -229,7 +268,10 @@ bool hmbtn_session_exploration_controls(HmbtnSession *s,const HmbtnExplorationFr
     HmbtnLogicalInput input,char *error,size_t error_size)
 {
     if(!valid(s,f,error,error_size)) return false;
+    hmbtn_hot_spring_bind(&s->hot_spring,f->section,f->section_size);
     const uint32_t held=input.held;
+    if(s->hot_spring.phase && s->visit.active && !s->control.enabled)
+        return spring_frame(s,f,0,error,error_size);
     if(s->control.enabled) {
         bool opened=false;
         if(s->house_lumber.phase) {
@@ -267,7 +309,7 @@ bool hmbtn_session_exploration_controls(HmbtnSession *s,const HmbtnExplorationFr
             goto house_done;
         }
         if(!s->travel_tick && !s->door_tick && !s->quick_ticks && s->house.mode==HMBTN_HOUSE_FREE) {
-            const bool menu_opened=!s->hot_spring.phase && !s->basket_action.phase && !s->carry.phase && !s->feed.phase && !s->poultry.carry_phase && s->farm_action.phase==HMBTN_FARM_ACTION_FREE
+            const bool menu_opened=!s->hot_spring.phase && !s->basket_action.phase && !s->carry.phase && !s->feed.phase && !s->poultry.carry_phase && !s->dog.carry_phase && !s->dog.whistling && !s->horse.whistling && !s->horse.ride_phase && s->farm_action.phase==HMBTN_FARM_ACTION_FREE
                 && hmbtn_farm_menu_open(&s->menu,input.pressed);
             if(s->menu.mode!=HMBTN_MENU_NONE) {
                 if(menu_opened) { (void)emit(f,(HmbtnExplorationEffect){.kind=HMBTN_EXP_RELEASE_WATER},error,error_size); }
@@ -290,8 +332,36 @@ bool hmbtn_session_exploration_controls(HmbtnSession *s,const HmbtnExplorationFr
             if(!spring_frame(s,f,input.pressed,error,error_size)) return false;
             goto house_done;
         }
+        if(s->horse.riding) {
+            if(s->travel_tick || s->door_tick) {
+                if(!boundary(s,f,HMBTN_EXP_TRANSITION,0,input,NULL,error,error_size)) return false;
+                goto house_done;
+            }
+            HmbtnDogWorld world=dog_world(s,f);world.blocked=pony_blocked;int sound;
+            if(hmbtn_horse_ride_action(&s->horse,&s->intro.player,&s->control,&world,input.pressed,&sound)) {
+                if(sound>=0 && !dog_sound(f,(unsigned)sound,error,error_size)) return false;
+                goto house_done;
+            }
+            /* Mounted zone mode 2 permits the stable (event 3) without Cross.
+             * Other buildings stay unavailable until the rider dismounts. */
+            HmbtnHouseExit door;unsigned model;
+            if(!s->travel_tick && !s->door_tick && !s->control.exit_pending && !s->control.jumping
+                    && hmbtn_world_door_at(f->section,f->section_size,&s->intro.player,&door,&model)
+                    && hmbtn_read_le16(f->section+16+door.zone*44+10)==3) {
+                HmbtnExplorationBoundaryResult result={0};
+                s->travel_exit=door;s->door_model=model;
+                if(!boundary(s,f,HMBTN_EXP_DOOR,0,input,&result,error,error_size)) return false;
+                if(result.consumed) goto house_done;
+            }
+            goto house_interaction;
+        }
         if(!s->travel_tick && !s->door_tick && !s->sleep.active && !s->morning_fade) {
             hmbtn_farm_carry_flight(&s->carry,hmbtn_session_field(s),f->ground,hmbtn_game_economy(&s->game),f->section,f->section_size);
+            if(s->carry.ball_lost) { s->village.days.count0[16]=0;s->carry.ball_lost=false; }
+            if(s->carry.ball_landed) {
+                s->carry.ball_landed=false;
+                if(hmbtn_dog_fetch(&s->dog,s->area,s->game.clock.hour) && !dog_sound(f,25,error,error_size)) return false;
+            }
             if(!hmbtn_farm_carry_splashes(&s->carry,f->animation ? f->animation(f->context,HMBTN_EXP_STAGE,0) : NULL,error,error_size)) return false;
             if(s->carry.request) {
                 s->house.mode=HMBTN_HOUSE_BOOK;s->house.message_bank=3;s->house.request=s->carry.request;
@@ -304,9 +374,16 @@ bool hmbtn_session_exploration_controls(HmbtnSession *s,const HmbtnExplorationFr
                 if(!key(f,2,fx->program,fx->tone,fx->note,fx->volume,false,error,error_size)) return false;
             }
             if(s->carry.changed && !emit(f,(HmbtnExplorationEffect){.kind=HMBTN_EXP_RETEXTURE},error,error_size)) return false;
+            if(s->carry.offering) {
+                const unsigned item=s->carry.offering;s->carry.offering=0;
+                if(s->visit.active && s->visit.event==197) s->visit.gift=item;
+                const unsigned event=s->visit.active ? 0 : hmbtn_farm_event_trigger(&s->triggers,&s->village,&s->game.clock,
+                    s->game.weather.today,s->previous_place,4,item,s->house.inventory);
+                if(event) { if(!boundary(s,f,HMBTN_EXP_START_VISIT,event,input,NULL,error,error_size)) return false;goto house_done; }
+            }
             /* Retain a finished egg in its flight slot until the current
              * native action completes. Saves already reject occupied slots. */
-            if(!s->carry.phase && !s->feed.phase && !s->quick_ticks && !s->poultry.carry_phase
+            if(!s->carry.phase && !s->feed.phase && !s->quick_ticks && !s->poultry.carry_phase && !s->dog.carry_phase && !s->dog.whistling && !s->horse.whistling
                     && !s->basket_action.phase && !s->control.exit_pending
                     && !s->control.jumping && s->house.mode==HMBTN_HOUSE_FREE
                     && s->farm_action.phase==HMBTN_FARM_ACTION_FREE) {
@@ -325,7 +402,7 @@ bool hmbtn_session_exploration_controls(HmbtnSession *s,const HmbtnExplorationFr
         if(s->basket_action.phase) goto basket_interaction;
         bool in_flight=false;
         for(unsigned i=0;i<3;++i) if(s->carry.thrown[i].item.id) in_flight=true;
-        if(!in_flight && !s->carry.phase && !s->feed.phase && !s->poultry.carry_phase && !s->quick_ticks
+        if(!in_flight && !s->carry.phase && !s->feed.phase && !s->poultry.carry_phase && !s->dog.carry_phase && !s->dog.whistling && !s->horse.whistling && !s->quick_ticks
                 && !s->travel_tick && !s->door_tick && !s->control.jumping && !s->control.exit_pending
                 && s->house.mode==HMBTN_HOUSE_FREE && s->farm_action.phase==HMBTN_FARM_ACTION_FREE
                 && hmbtn_hot_spring_begin(&s->hot_spring,&s->intro.player,s->house.inventory->held_item.id!=0,
@@ -335,11 +412,16 @@ bool hmbtn_session_exploration_controls(HmbtnSession *s,const HmbtnExplorationFr
         }
         /* Door input precedes pickup, gifts and throwing, including refusals.
          * Inventory remains owned by the session across the transition. */
-        if(!s->carry.phase && !s->feed.phase && !s->poultry.carry_phase && !s->quick_ticks
+        if(!s->carry.phase && !s->feed.phase && !s->poultry.carry_phase && !s->dog.carry_phase && !s->dog.whistling && !s->horse.whistling && !s->quick_ticks
                 && !s->travel_tick && !s->door_tick && !s->control.jumping && !s->control.exit_pending
                 && s->house.mode==HMBTN_HOUSE_FREE && s->farm_action.phase==HMBTN_FARM_ACTION_FREE
                 && (input.pressed&HMBTN_PAD_CROSS)
                 && hmbtn_world_door_at(f->section,f->section_size,&s->intro.player,&s->travel_exit,&s->door_model)) {
+            const unsigned door_event=hmbtn_read_le16(f->section+16+s->travel_exit.zone*44+10);
+            if(s->visit.active && s->visit.blocked_message && door_event==s->visit.blocked_door) {
+                s->house.mode=HMBTN_HOUSE_BOOK;s->house.message_bank=2;s->house.request=s->visit.blocked_message;
+                s->house.loaded=0;s->house.closing=s->house.detail=false;s->house.sound=3;opened=true;goto house_interaction;
+            }
             const HmbtnFarmItem *item=hmbtn_farm_item(s->house.inventory->held_item.id);
             s->control.carrying=s->house.inventory->held_item.id!=0;
             s->control.carrying_big=s->control.carrying && item && (item->flags&0x180u);
@@ -351,7 +433,7 @@ bool hmbtn_session_exploration_controls(HmbtnSession *s,const HmbtnExplorationFr
         }
         /* A targeted resident handles the held gift before pickup/throw.
          * Merchants retain the original empty-handed shop priority. */
-        if(!s->carry.phase && !s->feed.phase && !s->poultry.carry_phase && !s->quick_ticks
+        if(!s->carry.phase && !s->feed.phase && !s->poultry.carry_phase && !s->dog.carry_phase && !s->dog.whistling && !s->horse.whistling && !s->quick_ticks
                 && !s->travel_tick && !s->door_tick && !s->control.jumping && !s->control.exit_pending
                 && s->house.mode==HMBTN_HOUSE_FREE && s->farm_action.phase==HMBTN_FARM_ACTION_FREE
                 && (input.pressed&HMBTN_PAD_CROSS)) {
@@ -381,7 +463,7 @@ bool hmbtn_session_exploration_controls(HmbtnSession *s,const HmbtnExplorationFr
             unsigned id=hmbtn_village_zone_target(&s->village,f->section,f->section_size,&s->intro.player);
             if(!id) id=hmbtn_village_target(&s->village,&s->intro.player);
             if(id) {
-                if(s->visit.active && (id==17 || s->visit.event==130 || s->visit.event==289
+                if(s->visit.active && (id==17 || s->visit.event==130 || s->visit.event==289 || (s->visit.event==1 && (id==15 || id==16))
                             || ((s->visit.event==18 || s->visit.event==19) && id==3) || (s->visit.event==177 && id==32))) {
                     s->visit.talk=true;s->visit.talk_target=id;input.pressed&=~HMBTN_PAD_CROSS;
                     (void)emit(f,(HmbtnExplorationEffect){.kind=HMBTN_EXP_UI_SOUND,.id=3},error,error_size);goto house_done;
@@ -396,7 +478,7 @@ bool hmbtn_session_exploration_controls(HmbtnSession *s,const HmbtnExplorationFr
                 (void)emit(f,(HmbtnExplorationEffect){.kind=HMBTN_EXP_UI_SOUND,.id=3},error,error_size);goto house_done;
             }
         }
-        if(s->area==0 && !s->carry.phase && !s->feed.phase && !s->poultry.carry_phase && !s->quick_ticks
+        if(s->area==0 && !s->carry.phase && !s->feed.phase && !s->poultry.carry_phase && !s->dog.carry_phase && !s->dog.whistling && !s->horse.whistling && !s->quick_ticks
                 && !s->travel_tick && !s->door_tick && !s->control.jumping && !s->control.exit_pending
                 && s->house.mode==HMBTN_HOUSE_FREE && s->farm_action.phase==HMBTN_FARM_ACTION_FREE
                 && hmbtn_apiary_tick(&s->apiary,&s->feed,s->house.inventory,&s->intro.player,
@@ -408,6 +490,17 @@ bool hmbtn_session_exploration_controls(HmbtnSession *s,const HmbtnExplorationFr
                 && !s->travel_tick && !s->door_tick && !s->control.jumping && !s->control.exit_pending
                 && s->house.mode==HMBTN_HOUSE_FREE && s->farm_action.phase==HMBTN_FARM_ACTION_FREE
                 && (input.pressed&HMBTN_PAD_CROSS)) {
+            if(hmbtn_horse_target(&s->horse,s->area,&s->intro.player,224)) {
+                if(s->horse.adult) {
+                    HmbtnDogWorld world=dog_world(s,f);world.blocked=pony_blocked;int sound;
+                    (void)hmbtn_horse_ride_action(&s->horse,&s->intro.player,&s->control,&world,input.pressed,&sound);
+                    if(sound>=0 && !dog_sound(f,(unsigned)sound,error,error_size)) return false;
+                    goto house_done;
+                }
+                s->house.mode=HMBTN_HOUSE_BOOK;s->house.message_bank=0;
+                s->house.request=hmbtn_horse_talk(&s->horse);s->house.loaded=0;
+                s->house.closing=s->house.detail=false;s->house.sound=3;opened=true;goto house_interaction;
+            }
             const unsigned target=hmbtn_livestock_target(&s->livestock,s->area,&s->intro.player,224);
             if(target<HMBTN_LIVESTOCK) {
                 s->house.mode=HMBTN_HOUSE_BOOK;s->house.message_bank=0;
@@ -425,7 +518,7 @@ bool hmbtn_session_exploration_controls(HmbtnSession *s,const HmbtnExplorationFr
                 s->game.clock.season,&s->house,&s->carry,&s->intro.player);
             if(taken) (void)emit(f,(HmbtnExplorationEffect){.kind=HMBTN_EXP_UI_SOUND,.id=7},error,error_size);
         }
-        if(!s->carry.phase && !s->feed.phase && !s->poultry.carry_phase && !s->quick_ticks && !s->travel_tick && !s->door_tick
+        if(!s->carry.phase && !s->feed.phase && !s->poultry.carry_phase && !s->dog.carry_phase && !s->dog.whistling && !s->horse.whistling && !s->quick_ticks && !s->travel_tick && !s->door_tick
                 && !s->control.jumping && !s->control.exit_pending && s->house.mode==HMBTN_HOUSE_FREE
                 && s->farm_action.phase==HMBTN_FARM_ACTION_FREE) {
             int sound;
@@ -436,7 +529,7 @@ bool hmbtn_session_exploration_controls(HmbtnSession *s,const HmbtnExplorationFr
             }
         }
 basket_interaction:
-        if(s->basket_action.phase || (!s->carry.phase && !s->feed.phase && !s->poultry.carry_phase && !s->quick_ticks
+        if(s->basket_action.phase || (!s->carry.phase && !s->feed.phase && !s->poultry.carry_phase && !s->dog.carry_phase && !s->dog.whistling && !s->horse.whistling && !s->quick_ticks
                 && !s->travel_tick && !s->door_tick && !s->control.jumping && !s->control.exit_pending
                 && s->house.mode==HMBTN_HOUSE_FREE && s->farm_action.phase==HMBTN_FARM_ACTION_FREE)) {
             if(hmbtn_basket_tick(&s->game.basket,&s->basket_action,s->house.inventory,&s->game.economy,&s->intro.player,
@@ -450,21 +543,57 @@ basket_interaction:
                 s->control.mode=0;goto house_done;
             }
         }
+        if(s->dog.carry_phase || (!s->poultry.carry_phase && !s->carry.phase && !s->feed.phase && !s->quick_ticks && !s->travel_tick && !s->door_tick
+                && !s->control.jumping && !s->control.exit_pending && s->house.mode==HMBTN_HOUSE_FREE
+                && s->farm_action.phase==HMBTN_FARM_ACTION_FREE && (input.pressed&HMBTN_PAD_CROSS))) {
+            HmbtnHouseExit door;unsigned model;const HmbtnDogWorld world=dog_world(s,f);
+            const bool at_door=!s->dog.carry_phase && hmbtn_world_door_at(f->section,f->section_size,&s->intro.player,&door,&model);
+            int sound;
+            if(!at_door && hmbtn_dog_carry_tick(&s->dog,s->house.inventory,&s->intro.player,&world,input.pressed,&sound)) {
+                if(sound>=0 && !dog_sound(f,(unsigned)sound,error,error_size)) return false;
+                s->control.carrying=s->house.inventory->held_item.id!=0;s->control.carrying_big=s->dog.held;
+                s->control.mode=0;memcpy(s->intro.camera,s->intro.player.position,sizeof(s->intro.camera));goto house_done;
+            }
+        }
+        if(s->dog.whistling || (!s->dog.held && !s->house.inventory->held_item.id && !s->poultry.carry_phase
+                && !s->carry.phase && !s->feed.phase && !s->quick_ticks && !s->travel_tick && !s->door_tick
+                && !s->control.jumping && !s->control.exit_pending && s->house.mode==HMBTN_HOUSE_FREE
+                && s->farm_action.phase==HMBTN_FARM_ACTION_FREE && (input.pressed&HMBTN_PAD_L1))) {
+            int sound;
+            if(hmbtn_dog_call_tick(&s->dog,&s->intro.player,s->area,input.pressed,&sound)) {
+                /* Whistle 18 always plays; a successful response adds dog cue 25. */
+                if((input.pressed&HMBTN_PAD_L1) && !dog_sound(f,18,error,error_size)) return false;
+                if(sound==25 && !dog_sound(f,25,error,error_size)) return false;
+                s->control.mode=0;memcpy(s->intro.camera,s->intro.player.position,sizeof(s->intro.camera));goto house_done;
+            }
+        }
+        if(s->horse.whistling || (!s->dog.held && !s->dog.whistling && !s->house.inventory->held_item.id
+                && !s->poultry.carry_phase && !s->carry.phase && !s->feed.phase && !s->quick_ticks
+                && !s->travel_tick && !s->door_tick && !s->control.jumping && !s->control.exit_pending
+                && s->house.mode==HMBTN_HOUSE_FREE && s->farm_action.phase==HMBTN_FARM_ACTION_FREE && (input.pressed&HMBTN_PAD_L2))) {
+            if(hmbtn_horse_call_tick(&s->horse,&s->intro.player,s->area,input.pressed)) {
+                if((input.pressed&HMBTN_PAD_L2) && !dog_sound(f,18,error,error_size)) return false;
+                s->control.mode=0;memcpy(s->intro.camera,s->intro.player.position,sizeof(s->intro.camera));goto house_done;
+            }
+        }
         if(s->poultry.carry_phase || (!s->carry.phase && !s->feed.phase && !s->quick_ticks && !s->travel_tick && !s->door_tick
                 && !s->control.jumping && !s->control.exit_pending && s->house.mode==HMBTN_HOUSE_FREE
                 && s->farm_action.phase==HMBTN_FARM_ACTION_FREE && (input.pressed&HMBTN_PAD_CROSS))) {
             HmbtnHouseExit door;unsigned model;
-            const bool at_door=!s->poultry.carry_phase && hmbtn_world_door_at(f->section,0x2000,&s->intro.player,&door,&model);
+            const bool at_door=!s->poultry.carry_phase && !s->dog.carry_phase && !s->dog.whistling && !s->horse.whistling && hmbtn_world_door_at(f->section,0x2000,&s->intro.player,&door,&model);
             if(!at_door && hmbtn_poultry_carry_tick(&s->poultry,&s->house,&s->intro.player,s->area,
                     f->ground,hmbtn_session_field(s),input.pressed)) {
                 if(s->poultry.sound>=0) (void)emit(f,(HmbtnExplorationEffect){.kind=HMBTN_EXP_UI_SOUND,.id=(unsigned)s->poultry.sound},error,error_size);
                 s->control.carrying=s->house.inventory->held_item.id!=0;
-                s->control.carrying_big=hmbtn_poultry_held_slot(&s->poultry)<HMBTN_HENS;
+                s->control.carrying_big=s->dog.held || hmbtn_poultry_held_slot(&s->poultry)<HMBTN_HENS;
                 s->control.mode=0;memcpy(s->intro.camera,s->intro.player.position,sizeof(s->intro.camera));
                 goto house_done;
             }
         }
-        if(s->carry.phase || ((hmbtn_session_field(s) || (s->area==56 && s->house.inventory->held_item.id)) && !s->quick_ticks && !s->travel_tick && !s->door_tick
+        HmbtnHouseExit ball_door;unsigned ball_model;
+        const bool ball_at_door=s->house.inventory->held_item.id==HMBTN_DOG_BALL
+            && hmbtn_world_door_at(f->section,f->section_size,&s->intro.player,&ball_door,&ball_model);
+        if(s->carry.phase || (!ball_at_door && (hmbtn_session_field(s) || s->house.inventory->held_item.id==HMBTN_DOG_BALL || (s->area==56 && s->house.inventory->held_item.id)) && !s->quick_ticks && !s->travel_tick && !s->door_tick
                 && !s->control.jumping && s->house.mode==HMBTN_HOUSE_FREE
                 && s->farm_action.phase==HMBTN_FARM_ACTION_FREE && (input.pressed&HMBTN_PAD_CROSS))) {
             if(hmbtn_farm_carry_tick(&s->carry,&s->house,hmbtn_session_field(s),
@@ -485,7 +614,7 @@ basket_interaction:
             }
             goto house_done;
         }
-        if(hmbtn_poultry_held_slot(&s->poultry)==HMBTN_HENS && !s->control.jumping && !s->control.exit_pending && s->house.mode==HMBTN_HOUSE_FREE
+        if(!s->dog.held && hmbtn_poultry_held_slot(&s->poultry)==HMBTN_HENS && !s->control.jumping && !s->control.exit_pending && s->house.mode==HMBTN_HOUSE_FREE
                 && s->farm_action.phase==HMBTN_FARM_ACTION_FREE) {
             const bool tool=(input.pressed&HMBTN_PAD_R1)!=0 || ((held&HMBTN_PAD_R1) && (input.pressed&(HMBTN_PAD_LEFT|HMBTN_PAD_RIGHT))),
                 item=(input.pressed&HMBTN_PAD_R2)!=0 || ((held&HMBTN_PAD_R2) && (input.pressed&(HMBTN_PAD_LEFT|HMBTN_PAD_RIGHT)));
@@ -606,7 +735,7 @@ basket_interaction:
             s->control.mode=0;goto house_done;
         }
 house_interaction:
-        if(!opened && !s->control.exit_pending && !s->control.jumping
+        if(!s->horse.riding && !opened && !s->control.exit_pending && !s->control.jumping
                 && s->house.mode==HMBTN_HOUSE_FREE && (input.pressed&HMBTN_PAD_CROSS))
             opened=hmbtn_house_interact(&s->house,f->section,f->section_size,&s->intro.player);
         if(s->house.mode!=HMBTN_HOUSE_FREE) {
@@ -639,9 +768,13 @@ house_interaction:
         } else if(!opened) {
             s->control.npc_blocked=world_blocked;s->control.object_blocked=basket_blocked;s->control.collision_context=s;
             s->control.carrying=s->house.inventory->held_item.id!=0;
-            s->control.carrying_big=hmbtn_poultry_held_slot(&s->poultry)<HMBTN_HENS;
-            hmbtn_farm_control_tick(&s->control,&s->intro.player,f->ground,hmbtn_session_field(s),
+            s->control.carrying_big=s->dog.held || hmbtn_poultry_held_slot(&s->poultry)<HMBTN_HENS;
+            if(s->horse.riding)
+                hmbtn_farm_riding_control_tick(&s->control,&s->intro.player,f->ground,hmbtn_session_field(s),
+                    hmbtn_house_world_buttons(&s->house.options,held));
+            else hmbtn_farm_control_tick(&s->control,&s->intro.player,f->ground,hmbtn_session_field(s),
                 hmbtn_house_world_buttons(&s->house.options,held));
+            hmbtn_horse_rider_sync(&s->horse,&s->intro.player,&s->control,s->area);
             if(s->control.jump_started && !key(f,2,0,0,60,127,false,error,error_size)) {
                 snprintf(error,error_size,"Original jump tone unavailable"); return false;
             }
@@ -683,7 +816,8 @@ house_interaction:
         }
         HmbtnHouseExit exit;
         if(!sleeping && s->house.mode==HMBTN_HOUSE_FREE && !s->control.exit_pending && s->village_ready) {
-            if(hmbtn_world_gate_at(f->section,f->section_size,s->intro.player.position,&exit)) {
+            if(hmbtn_world_gate_at(f->section,f->section_size,s->intro.player.position,&exit)
+                    && (!s->horse.riding || exit.target==0)) {
                 const unsigned event=hmbtn_read_le16(f->section+16+exit.zone*44+10);
                 const int refusal=hmbtn_village_door(&s->village,event,&s->game.clock);
                 if(refusal<0) {
@@ -698,7 +832,7 @@ house_interaction:
             } else s->refused_zone=-1;
         }
         if(!sleeping && s->house.mode==HMBTN_HOUSE_FREE && !s->control.exit_pending && hmbtn_house_exit_at(f->section,
-                f->section_size,s->intro.player.position,&exit)) {
+                f->section_size,s->intro.player.position,&exit) && (!s->horse.riding || exit.target==0)) {
             unsigned logical,resource;
             if(hmbtn_world_area(exit.target,s->game.clock.season,&logical,&resource)) {
                 s->control.exit_pending=true;s->control.exit_zone=exit.zone;
@@ -709,6 +843,7 @@ house_interaction:
         memcpy(s->intro.camera,s->sleep.active ? s->sleep.camera : s->intro.player.position,sizeof(s->intro.camera));
     }
 house_done:
+    if(s->horse.riding) memcpy(s->intro.camera,s->intro.player.position,sizeof(s->intro.camera));
     return true;
 }
 bool hmbtn_session_exploration_world(HmbtnSession *s,const HmbtnExplorationFrame *f,
@@ -728,6 +863,21 @@ bool hmbtn_session_exploration_world(HmbtnSession *s,const HmbtnExplorationFrame
         hmbtn_session_clock_events(s,&s->game.clock,changes);
         s->menu.stats.animals[0]=hmbtn_poultry_count(&s->poultry);
         if(!held_clock) {
+            const HmbtnDogWorld world=dog_world(s,f);
+            HmbtnDogWorld pony_world=world;
+            /* Exclude the pony itself from the moving actor's occupancy query. */
+            pony_world.blocked=pony_blocked;
+            hmbtn_horse_tick(&s->horse,&pony_world,s->game.clock.hour);
+            if(s->horse.owned && !s->horse.in_event && s->horse.area==s->area) {
+                const HmbtnAnimation *ani=f->animation ? f->animation(f->context,HMBTN_EXP_HORSE,s->horse.adult) : NULL;
+                if(!hmbtn_actor_animation_tick(ani,&s->horse.actor,error,error_size)) return false;
+            }
+            hmbtn_dog_tick(&s->dog,&world,s->game.clock.hour);
+            if(s->dog.sound>=0 && !dog_sound(f,(unsigned)s->dog.sound,error,error_size)) return false;
+            if(!s->dog.held && s->dog.area==s->area) {
+                const HmbtnAnimation *ani=f->animation ? f->animation(f->context,HMBTN_EXP_DOG,s->dog.adult) : NULL;
+                if(!hmbtn_actor_animation_tick(ani,&s->dog.actor,error,error_size)) return false;
+            }
             hmbtn_livestock_push(&s->livestock,s->area,&s->intro.player,
                 s->control.mode==2 && !s->control.carrying && !s->control.jumping
                 && s->farm_action.phase==HMBTN_FARM_ACTION_FREE);
@@ -748,7 +898,9 @@ bool hmbtn_session_exploration_world(HmbtnSession *s,const HmbtnExplorationFrame
         if(s->village_ready) {
             const bool internal_walk=s->door_tick && s->travel_exit.target==0xfffe;
             hmbtn_area_doors_bind(&s->area_doors,f->scene);
-            hmbtn_area_doors_tick(&s->area_doors,held_clock && !internal_walk);
+            const bool scripted_doors=s->visit.active && hmbtn_goddess_event(s->visit.event)
+                && s->menu.mode==HMBTN_MENU_NONE && s->house.mode==HMBTN_HOUSE_FREE;
+            hmbtn_area_doors_tick(&s->area_doors,held_clock && !internal_walk && !scripted_doors);
             if(!hmbtn_village_sync(&s->village,&s->game.clock,error,error_size)) return false;
             if(f->village_assets && !f->village_assets(f->context,hmbtn_read_le16(f->section+12),&s->game.clock,error,error_size)) return false;
             hmbtn_village_tick(&s->village,f->section,f->section_size,f->ground,held_clock);

@@ -23,7 +23,9 @@ typedef struct HmbtnFarmCarry {
     bool small_fish_placed; /* Original beach throw prerequisite for squid. */
     HmbtnBasket *basket; /* Borrowed game.basket, never another container. */
     HmbtnPond *pond;
-    unsigned request;
+    struct HmbtnDog *dog; /* Borrow the original ball stamp's sole owner. */
+    bool ball_landed,ball_lost; /* Transient requests consumed by exploration. */
+    unsigned request,offering; /* Pending original mode-4 gift, consumed by the runtime. */
 } HmbtnFarmCarry;
 /* Loose field items and mature crops share the same forward world probe. */
 bool hmbtn_farm_carry_tick(HmbtnFarmCarry *state,HmbtnHouseInteraction *inventory,

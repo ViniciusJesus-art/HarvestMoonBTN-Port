@@ -1,5 +1,7 @@
 /* Native status_pages.c and storage_swap.c presentation using original packs. */
 #include "farm_menu_ui.h"
+#include "dog.h"
+#include "horse.h"
 #include "cooking.h"
 #include "resource_file.h"
 #include "window_frame.h"
@@ -71,7 +73,12 @@ static bool summary(HmbtnFarmMenuUI *u,HmbtnNewGameUI *shared,const HmbtnFarmMen
     if(g->dog_name[0]!=0xffff) {
         if(!sprite(u,1,0,0,24,168,p,error,size)
             || !hmbtn_ui_text(shared,p,g->dog_name,HMBTN_NAME_CHARS+1,48,170,0,3,error,size)) return false;
-        for(unsigned i=0;i<s->dog_affection/25 && i<10;++i) if(!sprite(u,3,4,0,120-(int)i*8,184,p,error,size)) return false;
+        for(unsigned i=0;i<(m->dog ? m->dog->affection : 0u)/25 && i<10;++i) if(!sprite(u,3,4,0,120-(int)i*8,184,p,error,size)) return false;
+    }
+    if(m->horse && m->horse->owned) {
+        if(!sprite(u,1,1,0,24,192,p,error,size)
+            || !hmbtn_ui_text(shared,p,m->horse->name,HMBTN_NAME_CHARS+1,48,194,0,3,error,size)) return false;
+        for(unsigned i=0;i<m->horse->affection/25 && i<10;++i) if(!sprite(u,3,4,0,120-(int)i*8,208,p,error,size)) return false;
     }
     const unsigned list_art[5]={1,1,1,1,3},list_anim[5]={4,2,3,5,22};
     const unsigned list_count[5]={hmbtn_farm_menu_animal_count(m,0),hmbtn_farm_menu_animal_count(m,1),hmbtn_farm_menu_animal_count(m,2),hmbtn_pond_count(m->pond),s->discarded};
@@ -81,7 +88,7 @@ static bool summary(HmbtnFarmMenuUI *u,HmbtnNewGameUI *shared,const HmbtnFarmMen
     const int feed_y[4]={72,96,144,168};
     for(unsigned i=0;i<4;++i) if(!sprite(u,3,feed_anim[i],0,212,feed_y[i],p,error,size)
         || !number(shared,p,stock[i]>999 ? 999 : stock[i],3,-1,236,feed_y[i]+4,error,size)) return false;
-    const unsigned score=hmbtn_farm_menu_building_score(m)/10+hmbtn_cooking_record_count(m->cooking)/8+s->dog_affection/25+hmbtn_farm_menu_animal_count(m,0)+hmbtn_farm_menu_animal_count(m,1)+hmbtn_farm_menu_animal_count(m,2);
+    const unsigned score=hmbtn_farm_menu_building_score(m)/10+hmbtn_cooking_record_count(m->cooking)/8+(m->dog ? m->dog->affection : 0u)/25+(m->horse && m->horse->owned ? m->horse->affection/25 : 0u)+hmbtn_farm_menu_animal_count(m,0)+hmbtn_farm_menu_animal_count(m,1)+hmbtn_farm_menu_animal_count(m,2);
     return number(shared,p,score,3,farm_glyph_8f[0],186,26,error,size);
 }
 static bool chickens(HmbtnFarmMenuUI *u,HmbtnNewGameUI *shared,const HmbtnFarmMenu *m,

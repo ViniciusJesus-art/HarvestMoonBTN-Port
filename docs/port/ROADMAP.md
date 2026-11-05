@@ -1,6 +1,6 @@
 # Roadmap do porte nativo — Linux e Windows
 
-Atualizado em 2026-11-04. Android é futuro. **Este arquivo é a fonte principal
+Atualizado em 2026-11-05. Android é futuro. **Este arquivo é a fonte principal
 para selecionar, ordenar e concluir as próximas tarefas.** O produto continua
 parcial; o bootstrap `--diagnostics` não executa o jogo e o runtime ainda não
 executa o jogo completo.
@@ -1155,7 +1155,8 @@ MIPS confirma X −8838, saltos −140/−250, passos 73/51 e cura +2/−1.
 - [x] Duas poses, limites e recuperação +2 stamina/−1 fadiga por minuto;
   Cross na pose de descanso retorna à primeira, novo Cross inicia a saída.
 - [x] Zona 47 automática encerra o salto e atravessa a cabine para fora;
-  banco normal/controle devolvidos e nenhum modelo de porta acionado.
+  banco normal/controle devolvidos. Porta dupla, colisão e distância da saída
+  corrigidas na revisão PF06_WORLD_ANIMATIONS.md abaixo.
 - [x] Bambu realmente colhido e guardado, três checkpoints, chuva/noite,
   neve/inverno e passagem das 6h à casa sem estado de banho pendente.
 - [x] Linux Debug 13/13 e Release 3/3; build Windows, unidade/percurso/três
@@ -1168,16 +1169,150 @@ animação/transição das portas do usuário preservado byte a byte. Somente as
 duas passagens da fonte foram excluídas da seleção de folhas de porta.
 PF-06/runtime parciais; bootstrap sem jogo.
 
-### Próxima implementação recomendada — PF-06, ofertas à Deusa
+### Correção solicitada — porta/sons da fonte e água, 2026-11-04
 
-1. Auditar zona 44, `thrown_item_settle`, evento de oferta/modo 4 e roteiros
-   instalados: itens aceitos, condições/contagens, mensagens e recompensas.
-2. Reutilizar arremesso, itens obtidos no jogo, interpretador e donos atuais
-   de flags/atributos/inventário. Adaptar o necessário sem criar aquisição
-   gratuita ou conceder uma recompensa cujo uso ainda não exista.
-3. Aceite: oferta realmente obtida, arremesso no local correto, consumo único,
-   recusas/diálogo/recompensa e retomada em processo novo. Preservar banho,
-   ovos termais, portas e chuva; Linux/Windows e até 50 processos de teste.
+- [x] Modelos originais 0/1 da porta dupla: colisão inclusive correndo,
+  giro espelhado, abertura/fechamento e passagem pelo mecanismo existente.
+- [x] Saída próxima à cabine, sem repetir toda a caminhada depois do salto;
+  considera diferenças sazonais da caixa de saída. Sons 6/16/22/76 e passos
+  pelos bancos de áudio reais, com verificação dos comandos completos.
+- [x] Tabelas originais de oito slots: rolagem por fatias, quadros, espuma
+  repetida do mar, pausa/clima/lareira e reset de apresentação ao trocar mapa.
+- [x] Recursos instalados da fazenda, praia, lago, rio e fonte/cachoeira
+  mudam suas texturas durante os ticks, sem mutação no desenho.
+- [x] Debug 13/13 e Release 4/4; build Windows, unidades, percursos de água e
+  fonte e três retomadas no Wine aprovados. 47 processos com tentativas,
+  CTest, wrappers/filhos/lançadores. [Relatório](PF06_WORLD_ANIMATIONS.md).
+
+`runtime.c`, curvas/velocidades/transições de portas do usuário e codec v22
+preservados. Esta correção substitui a interpretação inicial de que a fonte
+não possuía folhas de porta. PF-06/runtime parciais; bootstrap sem jogo.
+
+### PF-06 — Ofertas à Deusa: concluída no recorte
+
+- [x] Zona 44 e modo 4 do evento 182, reação original, chuva/erros de alvo,
+  consumo único, embrulhos e respingo/som pelo arremesso existente.
+- [x] Roteiro instalado com contagem real, Power Berry, escolha e cinco
+  encontros por afinidade, prazo/banho/recusa e pagamento de 1.000 G de Gotz.
+- [x] Atores/ANI/falas/música/cues originais; portas 46/47 distintas sobre o
+  mesmo modelo, sem modificar as animações de travessia do usuário.
+- [x] Sementes compradas, cultivo/colheita e 22 ofertas no percurso; contador,
+  atributos/RNG/finanças e bit de progresso retomados por save/aplicativo.
+
+[Auditoria, implementação e validação](PF06_GODDESS.md). Família/casamento
+continuam fora deste recorte; estado familiar nativo permanece solteiro.
+PF-06/runtime parciais; bootstrap de diagnóstico sem jogo.
+
+### PF-06 — Kappa e Mystic Berry: concluída no recorte
+
+- [x] Evento instalado 197, área 68, destinatário 39 e reação/janela/clima
+  originais; três ofertas na mesma visita pelo interpretador existente.
+- [x] Pepinos comprados/cultivados, arremesso, recusas, câmera, falas/ANI,
+  arte de staging azul, saída de área/amanhecer e recompensa única.
+- [x] Consumo ativa meia fadiga, com arredondamento original, para ferramentas,
+  pesca, medicina e cuidados animais. Energia máxima não aumenta.
+- [x] Flag e atributo persistem; percurso anterior/posterior à recompensa
+  retomado pelo aplicativo em processos novos. Portas do usuário preservadas.
+- [x] Linux Debug 17/17 e Release 3/3; build Windows, unidade/percurso Kappa,
+  regressão de pesca e duas retomadas pelo aplicativo no Wine aprovados.
+  49 processos incluindo CTest, wrappers/filhos/lançadores; sem suíte inteira.
+
+[Auditoria C/BIN, implementação e validação](PF06_KAPPA.md). O runtime e
+PF-06 continuam parciais; bootstrap de diagnóstico sem jogo.
+
+### PF-06 — Cachorro inicial: concluída no recorte
+
+- [x] Filhote criado pelo jogo novo, posição/afeto originais, ANI/banco reais,
+  poses diurnas/noturnas e caminhada com sondas/pesos do original.
+- [x] Pegar/transportar/soltar conserva um registro; água/ocupantes/campo
+  recusam soltura, mochila/trocas recusam o animal, portas preservam a posse.
+- [x] Assobio L1/pose/som, resposta probabilística/seguimento e cuidado diário
+  sem acumular por repetição; perda externa no mau tempo e limites reais.
+- [x] Nome do cadastro, afeto/status e condição da vila apontam para os donos
+  existentes; pausa, sono com animal na mão e checkpoints internos/externos.
+- [x] Debug 14/14, Release 3/3 e unidade/percurso/duas retomadas Windows/Wine
+  aprovados. Ajuste final da ANI de passeio revalidado por percurso completo
+  em Linux Release/Wine. 50 processos incluindo tentativas e filhos.
+
+[Auditoria, percurso e validação](PF06_DOG.md). Crescimento/adulto, bola/treino,
+concursos e rotas autônomas entre mapas permanecem fora deste recorte.
+PF-06/runtime parciais; bootstrap de diagnóstico sem jogo.
+
+### PF-06 — Cachorro adulto e bola: concluída no recorte
+
+- [x] Promoção no outono do primeiro ano, ANI/banco adulto e id correto ao
+  carregar, mantendo nome/afeto/posição e o registro único do cachorro.
+- [x] Visita instalada 286 de Won, gatilhos originais, duas falas de resposta,
+  cobrança de 100 G/entrega e reposição paga após perda/contador de três dias.
+- [x] Arremesso/gravidade/respingo existentes, marcador real, busca/retorno,
+  ANI com bola na boca, pickup e devolução; horário, raio e lugar originais.
+- [x] Treino 1/2/3 uma vez por dia, inventário/portas, pausa e checkpoints do
+  adulto antes da compra, retorno com bola e reposição concluída.
+- [x] Debug 12/12 e Release 3/3; build Windows, unidade/percurso e três
+  retomadas pelo aplicativo no Wine aprovados. 46 processos incluindo
+  tentativas, CTest, wrappers/filhos e lançadores; sem suíte inteira.
+
+[Auditoria C/BIN, percurso e validação](PF06_DOG_BALL.md). Concursos, defesa,
+condução de animais e saltos/rotas autônomos continuam pendentes.
+PF-06/runtime parciais; bootstrap de diagnóstico sem jogo.
+
+### PF-06 — Potro inicial: concluída no recorte
+
+- [x] Eventos instalados 1/73 de Barley, gatilhos C/BIN, recusa, nova conversa
+  durante o encontro no rancho e nomeação obrigatória, sem aquisição gratuita.
+- [x] Registro único, ANI/banco original, caminhada, aproximação por L2,
+  mensagens, escovação compartilhada e CD-XA 13/14.
+- [x] Afeto/clima diário sem duplicação, status, ocupação, pausa, portas,
+  manhã, save v27 e retomadas interna/externa.
+- [x] Debug: 12 verificações selecionadas aprovadas após reexecução dirigida;
+  Release 3/3; build Windows/unidade/percurso/retomada Wine aprovados.
+  **49 processos de teste**, incluindo tentativas, wrappers/filhos/lançadores.
+
+[Auditoria C/BIN, percurso, validação e limites](PF06_HORSE.md). Crescimento,
+montaria e inspeção/devolução entregues no item 38; saltos avançados, remessas
+e corrida ainda pendentes.
+PF-06/runtime parciais; bootstrap de diagnóstico sem jogo.
+
+### PF-06 — Cavalo adulto e montaria: concluída no recorte
+
+- [x] Promoção pelo calendário original, ANI/banco adulto e mesmo animal/nome.
+- [x] Eventos instalados 2/3: afeto 180/181, cocheira, mensagens, gesto,
+  amizades, retirada/restauração e ausência de cavalo duplicado no encontro.
+- [x] Montar/mover/desmontar, velocidades/poses/som, treino diário, colisão,
+  entrada automática na cocheira e restrições originais a portas/saídas.
+- [x] Pausa/status, saves montados na cocheira/fazenda, sono e amanhecer forçado
+  conservando o cavalo em seu lugar; codec v28 adaptado ao estado necessário.
+- [x] Debug: oito verificações dirigidas aprovadas, seleção final 6/6;
+  Release: unidades 2/2 e percurso; MinGW/Wine: unidade/percurso/retomada.
+  **47 processos de teste**, incluindo tentativas, wrappers e lançadores.
+
+[Auditoria, integração, validação e limites](PF06_HORSE_RIDING.md).
+Próximo: remessas pelo cavalo. Corrida, saltos avançados/autônomos e aquisição
+posterior à retirada continuam pendentes. Portas personalizadas preservadas;
+PF-06/runtime parciais e bootstrap de diagnóstico sem jogo.
+
+### Correção de apresentação — menus e janela grande
+
+- [x] Degradê contínuo em escalas fracionárias, principal/submenus, GPU e
+  alternativa de software; cobertura de 640×480 até 3440×1440 nos testes.
+- [x] Seleção acelerada de apresentação, limitador sem segunda espera após
+  VSync e alimentação do áudio entre ticks com fila limitada.
+- [x] Pausa, redimensionamento, tela cheia/retorno e regressões Linux
+  Debug/Release e Windows/Wine. [Relatório](DISPLAY_AUDIO.md).
+
+### Próxima implementação recomendada — PF-06, remessas pelo cavalo
+
+1. Auditar `player_ship_thrown_item`, alvo/callback **0x200**, critérios de
+   adulto/localização e descarte do objeto arremessado. Reaproveitar o cavalo,
+   os slots de voo e a economia/remessa existentes.
+2. Integrar arremesso real no cavalo adulto, colisão/alcance e som original,
+   sem segundo depósito ou pagamento. Preservar terreno/água e o comportamento
+   do potro, cesta e caixas de remessa. Adaptar save apenas se necessário.
+3. Aceite: produto obtido pelo fluxo real, arremesso aceito/recusado nas
+   fronteiras do alvo, consumo/remessa/pagamento únicos, cavalo a pé/montado,
+   pausa e retomada. Corrida, saltos avançados e aquisição após a retirada
+   continuam separados, salvo dependência real comprovada. Validar
+   Linux/Windows, preservar portas e respeitar até 50 processos de teste.
 
 A fila continua sendo este arquivo. Não habilitar uma melhoria ainda sem seus
 mapas/estado/uso real e não criar aquisição gratuita para saltar dependências.
@@ -1217,7 +1352,13 @@ O custo da tabela original é referência de conteúdo, não limite de hardware 
 | 30 — concluída no recorte | Maçãs da árvore da fazenda | Três maçãs por manhã de outono, coleta/figura, mochila/geladeira, comida/suco/presente, remessas/pagamentos e estação/retomada; ver PF06_APPLES.md. |
 | 31 — concluída no recorte | Ovos termais | Galinha/ração compradas, ovos produzidos, fonte/respingo/conversão/apresentação, mochila cheia, consumo, 80 G e retomada; ver PF06_SPA_EGGS.md. |
 | 32 — concluída no recorte | Banho na fonte termal | Passagens 46/47, bancos/ANI/saltos, poses, recuperação por minuto, saída automática, chuva/neve, manhã e retomada; ver PF06_HOT_SPRING.md. |
-| **33 — próxima** | Ofertas à Deusa | Zona 44, oferta obtida, condições/diálogos/consumo/recompensas e retomada, após auditoria C/BIN. |
+| 33 — concluída no recorte | Ofertas à Deusa | Zona 44/evento 182, cultivo, marcos 5/10/20, cinco encontros/banho/prazo, Berry, Gotz, contador/RNG e retomadas; ver PF06_GODDESS.md. |
+| 34 — concluída no recorte | Kappa | Evento 197, três pepinos cultivados, recusas/cancelamentos, Mystic Berry/meia fadiga e retomadas; ver PF06_KAPPA.md. |
+| 35 — concluída no recorte | Cachorro inicial | Registro único, ANI/movimento, pegar/soltar/portas, L1, afeto/clima, status/pausa e retomadas; ver PF06_DOG.md. |
+| 36 — concluída no recorte | Cachorro adulto e bola | Outono/ANI adulta, evento 286 de Won/100 G, bola única, voo/busca/devolução, treino, perda/reposição e retomadas; ver PF06_DOG_BALL.md. |
+| 37 — concluída no recorte | Potro inicial | Eventos 1/73 de Barley, nome obrigatório, ANI/caminhada/L2/escovação/XA, afeto diário/status/pausa, manhã e retomadas; ver PF06_HORSE.md. |
+| 38 — concluída no recorte | Cavalo adulto e montaria | Aniversário original, inspeções 2/3 de Barley e limiar 180/181, ANI/subir/mover/descer, treino diário, cocheira, pausa e retomadas montadas; ver PF06_HORSE_RIDING.md. |
+| **39 — próxima** | Remessas pelo cavalo | Auditar `player_ship_thrown_item`/callback 0x200; arremesso real no adulto, alvo/colisão, som, estoque/pagamento únicos e retomada, na economia existente. Corrida e saltos avançados seguem como tarefas separadas. |
 
 `shop_greenhouse_step`, em `menu/shop_dialogues.c`, trata melhorias de
 ferramentas; acessórios usam `shop_item_menu_step`. Não são fluxos de construção. `field/greenhouse.c` contém

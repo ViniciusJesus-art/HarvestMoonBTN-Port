@@ -1,12 +1,30 @@
 # Status do porte nativo
 
-**Atualizado em:** 2026-11-04
+**Atualizado em:** 2026-11-05
 **Escopo atual:** Linux e Windows; Android é futuro.  
 **Prioridade:** port funcional com reaproveitamento do C original, conforme a fila PF do [ROADMAP.md](ROADMAP.md).
 **Concluídas:** MA-01..06 e PF-01..05 — base central, regras compartilhadas, cultivo, evento, atualização independente do desenho e saves nativos estáveis.
 
 **PF-06 em andamento:** batata, grama/feno, culturas base de verão/outono, clima diário/chuva, sementes sazonais de Won, desbloqueios do supermercado, Pink Cat/Toy Flower, variantes de Magic Red e Moondrop/visitas de Karen, carpintaria, ampliação do galinheiro e primeira casa (depósitos/núcleo da cozinha) concluídos nos respectivos recortes; obra/mapas/cochos do celeiro também entregues; aquisição/capacidade/alimentação bovina/ovina, segunda casa/lareira, estufa, Orangecup, ferramentas animais e leite/lã integrados; demais sistemas originais ainda parciais/ausentes.
-**Próxima implementação:** PF-06 — ofertas à Deusa.
+**Correção de apresentação:** degradê consistente ao redimensionar,
+apresentação acelerada, cadência com VSync e alimentação de áudio entre ticks
+entregues em [DISPLAY_AUDIO.md](DISPLAY_AUDIO.md), com validação Linux/Wine.
+**Próxima implementação:** PF-06 — remessas pelo cavalo.
+Adulto/montaria entregues em [PF06_HORSE_RIDING.md](PF06_HORSE_RIDING.md):
+aniversário, inspeções 2/3, montar/mover/desmontar, treino, cocheira e retomadas.
+Potro inicial entregue em [PF06_HORSE.md](PF06_HORSE.md): eventos 1/73 de
+Barley, nome, ANI/caminhada/L2/escovação/XA, afeto, status e retomadas.
+Cachorro adulto/bola entregues em [PF06_DOG_BALL.md](PF06_DOG_BALL.md):
+crescimento, visita de Won, busca/devolução, treino e reposição com retomadas.
+Cachorro inicial entregue em [PF06_DOG.md](PF06_DOG.md): filhote, ANI/movimento,
+transporte/portas, L1, afeto/clima, status/pausa e retomada.
+Kappa/Mystic Berry entregues em [PF06_KAPPA.md](PF06_KAPPA.md): pepinos
+comprados/cultivados, três ofertas, recusas, saída/amanhecer, câmera/ANI e
+efeito real de meia fadiga persistido.
+Ofertas à Deusa entregues em [PF06_GODDESS.md](PF06_GODDESS.md): cultivo e
+arremesso real, eventos 182/185/187/189/191/193, Power Berry, cinco encontros,
+prazo/banho/recusa e pagamento de Gotz. Contador e recompensa persistidos;
+portas do usuário preservadas.
 Banho na fonte termal entregue em [PF06_HOT_SPRING.md](PF06_HOT_SPRING.md).
 Ovos termais entregues em [PF06_SPA_EGGS.md](PF06_SPA_EGGS.md).
 Maçãs da fazenda entregues em [PF06_APPLES.md](PF06_APPLES.md).
@@ -33,7 +51,122 @@ não é requisito nem proibição. PF-06 e cozinha completa seguem abertas.
 MA-07..25 foram substituídas como fila, não concluídas. Refatorações necessárias
 acompanham as entregas funcionais; PF-04 separou atualização/desenho nos fluxos atuais.
 
-## Atualização atual — banho na fonte termal
+## PF-06 — Cavalo adulto e montaria — 2026-11-05
+
+Promoção pelo aniversário original, eventos 2/3 (retirada/manutenção no limiar
+180/181), ANI adulta e montaria com movimento/desmontagem/colisão. Cocheira
+com entrada automática, restrições originais, treino diário, pausa e saves
+montados (v28); amanhecer conserva o animal no mapa anterior.
+Debug: oito verificações dirigidas aprovadas (seleção final 6/6); Release:
+unidades 2/2 e percurso; MinGW/Wine: unidade/percurso/retomada aprovados.
+47 processos, com tentativas/wrappers/filhos/lançadores; portas personalizadas
+preservadas. [Auditoria e limites](PF06_HORSE_RIDING.md). Próximo: remessas.
+
+## PF-06 — Potro inicial — 2026-11-05
+
+Eventos instalados 1/73, recusas e nomeação obrigatória. Registro único
+no estábulo, ANI/caminhada/L2, ferramenta de escovar compartilhada, sons
+CD-XA 13/14 e mensagens originais. Afeto/clima diário, ocupação, status,
+pausa, portas, manhã e persistência v27 integrados.
+
+Linux Debug: 12 verificações selecionadas aprovadas após reexecução dirigida;
+Release 3/3; Windows/Wine com unidade/percurso/retomada aprovados.
+49 processos de teste naquela rodada; ver [PF06_HORSE.md](PF06_HORSE.md).
+Adulto/montaria/inspeção entregues no recorte seguinte; saltos avançados, remessas
+e corrida continuam pendentes. Portas do usuário preservadas.
+
+## PF-06 — Cachorro adulto e bola — 2026-11-05
+
+Promoção no outono do primeiro ano, ANI/banco adulto e identidade na mão
+preservados. Visita BIN 286 de Won com condições originais, duas respostas,
+100 G e apresentação da bola. Voo/respingo/marcador, busca com bola na boca,
+retorno/devolução, pickup, horário/raio, treino diário e reposição paga após
+perda/três manhãs. Registro único, inventário/portas/status/pausa e três
+checkpoints. Codec v26 adaptado somente ao estado necessário.
+[Auditoria C/BIN, percurso e limites](PF06_DOG_BALL.md).
+
+Linux Debug: configure/build completo e seleção 12/12 aprovados. Release:
+configure/build pertinente e seleção 3/3 aprovados. Windows: build MinGW,
+unidade/percurso e três retomadas no aplicativo via Wine aprovados. 46
+processos incluindo tentativas, CTest, wrappers/filhos e lançadores; sem
+suíte inteira ou avaliação em Windows/hardware físicos. Capturas inspecionadas;
+bloco de portas do usuário idêntico ao início. Concursos/defesa/condução e
+saltos/rotas autônomos ainda pendentes. Próximo então: cavalo inicial, entregue no recorte acima.
+PF-06/runtime parciais; bootstrap de diagnóstico sem jogo.
+
+## PF-06 — Cachorro inicial — 2026-11-05
+
+Filhote real do jogo novo: posição/afeto originais, ANI/banco instalados,
+poses diurnas/noturnas e caminhada. Pegar/transportar/soltar conserva o
+registro, recusa água/ocupantes e atravessa as portas existentes. Assobio L1
+com pose/som e resposta probabilística/seguimento; cuidados e penalidades
+diários, status/nome, pausa, sono e retomada interna/externa.
+O registro único é `session.dog`; nome no cadastro e vistas emprestadas para
+menu/vila substituem caches desconectados. Codec adaptado para v25 somente
+conforme o estado necessário. [Auditoria e reprodução](PF06_DOG.md).
+
+Debug: configure/build completo e seleção 14/14 aprovados. Release:
+configure/build pertinente e seleção 3/3 aprovados. Windows: build MinGW,
+unidade/percurso e duas retomadas pelo aplicativo no Wine aprovados.
+Depois do ajuste final da ANI de passeio, alvos recompilados nas três
+configurações e percurso repetido em Linux Release/Wine, com sucesso.
+50 processos incluindo tentativas, CTest, wrappers/filhos e lançadores;
+sem suíte inteira ou avaliação em hardware/Windows físicos. Capturas
+inspecionadas, bloco de portas do usuário idêntico ao início.
+Próximo: cachorro adulto e bola. PF-06/runtime parciais; bootstrap sem jogo.
+
+## PF-06 — Kappa e Mystic Berry — 2026-11-05
+
+Evento 197 integrado pelo roteiro instalado: três pepinos na mesma visita,
+janela/reação/clima originais, recusas, saída de área/amanhecer, falas,
+câmera, ator 27 e arte azul de staging. Consumo da recompensa ativa meia
+fadiga no estado do jogador; ferramentas, pesca, cuidados e medicina animal
+compartilham o cálculo original. Energia máxima não aumenta. Flag 0xCC e
+atributo retomados, com adaptação necessária do codec para v24.
+[Auditoria, percurso e reprodução](PF06_KAPPA.md).
+
+Linux: configure/build Debug/Release aprovados, seleção Debug 17/17 e
+Release 3/3. Windows: build MinGW, unidade/percurso Kappa, regressão de pesca
+e duas retomadas no aplicativo via Wine aprovados. Capturas inspecionadas;
+bloco de portas do usuário idêntico ao início. 49 processos incluindo
+execuções dirigidas, CTest, wrappers/filhos e lançadores.
+Sem suíte inteira ou avaliação de janela/som/Windows físicos.
+Próximo: cachorro inicial. PF-06/runtime parciais; bootstrap sem jogo.
+
+## Referência anterior — correções da fonte e animações de água
+
+Porta dupla da fonte restaurada nos modelos 0/1: colisão inclusive ao correr,
+giro espelhado, espera para passar e sons reais. O retorno libera o controle
+junto à cabine, considerando as caixas sazonais. Saltos/respingo/passos usam
+o banco de efeitos do jogo. As tabelas originais agora animam riachos, mar,
+rios, lagos e fonte/cachoeira, com quadros/rolagens e pausa pelo menu.
+[Auditoria, integração e validação](PF06_WORLD_ANIMATIONS.md).
+
+Linux Debug 13/13 e Release 4/4; build Windows, unidades, percursos de água e
+fonte e três retomadas no Wine aprovados. 47 processos incluindo tentativas,
+CTest, wrappers, filhos e lançadores.
+`runtime.c` e as animações/transições de portas do usuário inalterados neste
+recorte; codec v22 preservado. Ofertas à Deusa continuam como próximo recorte.
+PF-06/runtime parciais; bootstrap sem jogo.
+
+## PF-06 — Ofertas à Deusa — 2026-11-04
+
+Roteiros 182/185/187/189/191/193 integrados com cultivo/arremesso real,
+Power Berry, cinco encontros/prazo/banho/recusa e pagamento de Gotz.
+Contagem original em `days.values[1]`, bit da recompensa em `game.progress`,
+codec adaptado para v23; demais atributos/finanças/afinidade/RNG mantêm seus
+respectivos donos. [Relatório e reprodução](PF06_GODDESS.md).
+
+Debug: configure/build, seleção 8/8 e três percursos de regressão adicionais
+aprovados. Release: configure/build, unidade, percurso/duas retomadas e águas
+aprovados. Unidade ampliada repetida em Debug/Release após corrigir a estação
+do fixture. Windows: build e unidade/percurso da Deusa/banho no Wine aprovados.
+49 processos incluindo tentativas, CTest, wrappers, filhos e lançadores.
+Capturas inspecionadas; bloco de portas do usuário idêntico ao início.
+Sem suíte inteira ou validação em janela/áudio/Windows físicos.
+Próximo: Kappa. PF-06/runtime parciais; bootstrap de diagnóstico sem jogo.
+
+## Referência anterior — banho na fonte termal
 
 Entrada com mãos vazias pela cabine, salto/respingo/bancos originais e duas
 poses de banho. Recuperação +2 stamina/−1 fadiga por minuto, limites, Cross e
@@ -44,7 +177,8 @@ e passagem das 6h à casa sem banco/ação pendente verificados.
 Linux Debug 13/13 e Release 3/3; build Windows, unidade/percurso/três retomadas
 e regressão de portas no Wine aprovados. 46 processos incluindo tentativas,
 CTest, wrappers, filhos e lançadores. Animações/transições de portas preservadas; as passagens
-da fonte deixam de ser tratadas como folhas do modelo zero. Codec inalterado.
+da fonte foram depois integradas à porta dupla real, com colisão e sons,
+conforme PF06_WORLD_ANIMATIONS.md. Codec inalterado.
 Próximo: ofertas à Deusa. PF-06/runtime parciais; bootstrap sem jogo.
 
 ## Referência anterior — ovos termais

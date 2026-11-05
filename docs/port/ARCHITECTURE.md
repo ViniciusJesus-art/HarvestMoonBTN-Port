@@ -1357,10 +1357,147 @@ entrada termina pelo temporizador, pois a máscara de salto ignora a água
 0x8040; a passagem 47 encerra a saída e atravessa a cabine automaticamente.
 Desenho/ANI/áudio/clima continuam nos provedores atuais.
 
-`house_control`/`area_doors` excluem só essas passagens sem folha de porta;
+`house_control` reserva essas passagens ao banho; `area_doors` anima a porta
+dupla real (modelos 0/1), conforme a correção em PF06_WORLD_ANIMATIONS.md;
 o bloco de animação/transição das portas em `runtime.c` foi preservado byte
 a byte. A guarda de visitas não permite iniciar evento durante o banho.
 `daily` limpa fase/banco na manhã; `save_available` protege a ação transitória.
 Codec v22 sem alteração, atributos/itens persistidos pelos donos existentes.
 [Referência C/BIN, percurso e testes](PF06_HOT_SPRING.md).
 Bootstrap sem jogo; PF-06/runtime parciais. Próximo: ofertas à Deusa.
+
+### Correção da fonte e animação das águas — 2026-11-04
+
+`scene_slots` lê os oito registros de 18 bytes em 0x8a8 e adapta MoveImage
+sobre as palavras/presença do atlas. Preserva quadros/rolagens, deduplicação,
+repetição da espuma, pausa, clima e guarda da lareira. O host instala a fila
+com o mapa e a atualiza nos ticks; desenho não altera texturas ou contadores.
+Nenhum estado novo é serializado.
+
+A fonte usa a porta dupla real 0/1 por `area_doors`. O banho espera abertura,
+protege a travessia fechada e termina a caminhada ao liberar a entrada, com
+as caixas sazonais instaladas. Sons resolvem o catálogo do jogo e bancos
+originais. O bloco de portas do usuário e todo `runtime.c` permaneceram
+inalterados neste recorte. [Auditoria e validação](PF06_WORLD_ANIMATIONS.md).
+Runtime parcial; bootstrap sem jogo. Ofertas à Deusa seguem na fila.
+
+
+### Ofertas à Deusa — 2026-11-04
+
+`farm_carry` publica o conteúdo da oferta ao pousar na zona 44; `farm_visit`
+seleciona o evento modo 4 com reação/clima originais. `goddess` adapta somente
+os comandos que faltavam aos seis roteiros instalados; interpretação e donos
+de inventário/contador/atributos/RNG permanecem compartilhados. A sessão tem
+apenas cues transitórios; o bit da Berry reside em `game.progress`, codec v23.
+A identidade 46/47 da porta compartilhada permite o encontro no banho; controle
+suspenso não interrompe a caminhada automática. Banco de efeitos permanece
+carregado durante a música do evento. [Referência e testes](PF06_GODDESS.md).
+O runtime continua parcial e o bootstrap de diagnóstico não executa o jogo.
+
+
+### Kappa e fadiga por ação — 2026-11-05
+
+O evento 197 compartilha oferta/zona 44 e interpretador com a Deusa. O input
+transitório de presentes fica em `visit.gift`; o roteiro instalado mantém
+suas próprias etapas. Nudge vertical e glide por variáveis ficam no adaptador
+comum. A apresentação da Berry usa a ANI/banco do evento, não a imagem genérica.
+
+`farm_action.half_fatigue` é atributo do jogador. Ferramentas, pesca, medicina
+e cuidados animais consultam `hmbtn_farm_fatigue_cost`; o consumo da recompensa
+ativa o atributo, e o codec atual v24 o preserva. Flag da recompensa continua
+na vila. [Origem, testes e limites](PF06_KAPPA.md). Bootstrap sem jogo e runtime
+parcial permanecem explícitos; fontes/SDK/disco/toolchain PS1 preservados.
+## Cachorro inicial — PF-06, 2026-11-05
+
+`HmbtnSession.dog` é o registro único do filhote: ator/área, afeto, flags
+diários e cursores/RNG do comportamento adaptado de `animals/{animals,dog}.c`.
+O nome permanece no cadastro. `menu.dog` e `village.dog` são vistas emprestadas,
+recriadas pelo construtor da sessão; substituem os antigos valores de afeto
+e mão sem vínculo com um animal real. UI e desenho não comandam o pet.
+
+`dog.c` recebe terreno/campo e consultas de ocupação pelo frame de exploração,
+sem SDL ou recursos host. ANI e banco instalados são propriedade de
+`graphics/dog_art`; `HMBTN_EXP_DOG` empresta a ANI aos ticks. Os mesmos ticks
+avançam movimento/cue e animação, independentemente da apresentação, pausando
+durante menus/transições. A mão referencia o registro; portas apenas atualizam
+seu lugar enquanto carregado. O sono o solta antes da notificação diária.
+
+O coordenador diário aplica cuidado/assobio e penalidade do clima anterior
+uma vez por data. Save v25 codifica os campos necessários na seção de animais,
+sem serializar recursos/ponteiros nem criar outro dono de afeto. Fluxo de
+compatibilidade/migração inalterado. Crescimento/bola/treino e rotas autônomas
+entre mapas são próximos recortes. [Referência e validação](PF06_DOG.md).
+Bootstrap de diagnóstico sem jogo; runtime/PF-06 permanecem parciais.
+## Cachorro adulto e bola — PF-06, 2026-11-05
+
+O registro de `session.dog` recebe promoção, treino diário e cursores de
+busca. `dog.ball` é o único stamp: bola no inventário, no voo existente,
+no chão ou na boca. `carry.dog` é empréstimo; pousos/perdas emitem pedidos
+transitórios consumidos pela exploração, preservando `days.count0[16]` no
+dono original. A apresentação escolhe um dos dois packs por `dog.adult`;
+ambos são preparados antes do tick para a promoção matinal não exigir I/O.
+
+Won executa o roteiro instalado 286 pelo interpretador e serviços existentes.
+O banco de ANI de atores de evento e seus laços agora usam o limite comum
+`HMBTN_VILLAGERS` e validam índices, incluindo o ator 35. O codec v26 guarda
+os novos valores/cursores, sem serializar empréstimos ou recursos. Cuidados,
+treino e crescimento compartilham a única notificação diária. Pausa/desenho
+não comandam a IA. [Detalhes, percurso e limites](PF06_DOG_BALL.md).
+Runtime/PF-06 parciais; bootstrap sem jogo e fluxo PS1 preservado.
+
+
+## Potro inicial — PF-06, 2026-11-05
+
+`session.horse` possui o registro opcional do animal: nome, ator/área/data,
+afeto/treino, cuidados e cursores/RNG. Vila/status/ferramentas têm empréstimos;
+a aquisição acontece exclusivamente nos comandos dos eventos instalados
+1/73. Nomeação reutiliza o editor animal e ocupa o mesmo serviço de roteiro.
+O par transitório de recusa da porta 8 pertence à visita, não ao save.
+
+`hmbtn_pet_walk` compartilha a adaptação anterior do caminhador do cachorro,
+com estado separado por animal. Exploração coordena movimento/ANI/ocupação;
+o host apenas prepara o pack e desenha. O assobio L2 usa o fluxo do jogador,
+a escovação usa a ferramenta animal existente. Pedidos XA 13/14 passam pelo
+serviço de áudio e mantêm sua ordem com respostas pendentes. O diário aplica
+as regras de cuidado uma vez por data. Codec v27 guarda somente os campos
+do domínio; empréstimos e pedidos transitórios são reconstruídos.
+
+[Auditoria, percurso e limites](PF06_HORSE.md). Adulto/montaria e inspeção
+entregues no recorte seguinte; saltos avançados, remessas e corrida pendentes.
+
+
+## Apresentação redimensionável e áudio — 2026-11-05
+
+O host deixa SDL selecionar apresentação acelerada e a alternativa de software,
+respeitando uma escolha explícita de driver. O renderer continua recebendo o
+quadro composto em 320×240. O menu nativo usa uma textura RGBA contínua e
+reutilizável para o degradê, evitando a cobertura irregular de faixas finas
+arredondadas pelo backend de software em escalas fracionárias.
+
+O relógio de jogo conserva sua cadência. `app.c` usa a espera manual de 60 Hz
+somente sem VSync e descarta o tempo da troca F11. Título/cenário oferecem
+`pump_audio` para o host reabastecer o stream antes/depois de apresentar,
+mesmo sem tick. O alvo PCM de 3072 frames (~70 ms) absorve variação entre
+quadros; os blocos/limites continuam constantes, sem thread de mixer que
+possa concorrer com mudanças de vozes/bancos. A pausa continua suspensa no
+mesmo stream. [Auditoria e validação](DISPLAY_AUDIO.md).
+
+
+## Cavalo adulto e montaria — 2026-11-05
+
+`session.horse` conserva a propriedade do animal; adulto/montaria estendem
+seu registro. `horse_morning` aplica o crescimento original e treino no mesmo
+pipeline diário. `house_control` compartilha terreno/colisão entre locomoção
+a pé e montada. Sincronização do cavalo com o jogador ocorre nos ticks,
+inclusive após transições, nunca como efeito do desenho.
+
+Eventos 2/3 usam os serviços/intérprete e atores vinculados existentes. A marca
+transitória IN_EVENT esconde o registro persistente durante a encenação;
+comando 49/1 retira e 92/0 restaura o mesmo animal. A entrada montada na cocheira
+reutiliza o adapter de portas, com os blocos personalizados preservados.
+Reset matinal desliga a montaria antes da mudança do jogador para casa.
+
+Codec v28 persiste adulto/montaria, posição e cuidados; a fase subir/descer não
+é serializada. O host carrega os dois packs originais e desenha o adulto com a
+ANI selecionada pelo domínio. [Referência, validação e limites](PF06_HORSE_RIDING.md).
+Remessas e corrida ainda exigem integração; runtime/PF-06 permanecem parciais.

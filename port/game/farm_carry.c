@@ -1,11 +1,12 @@
 #include "farm_carry.h"
 #include "inventory.h"
 #include "basket.h"
+#include "dog.h"
 #include "psx_data.h"
 #include <stdio.h>
 static int half(const uint8_t *p)
 { unsigned n=hmbtn_read_le16(p);return n<32768 ? (int)n : (int)n-65536; }
-static bool egg_target(const uint8_t *section,size_t size,const int32_t point[3])
+static unsigned landing_zone(const uint8_t *section,size_t size,const int32_t point[3])
 {
     if(!section || size<16+50*44) return false;
     /* farm_zone_at_probe: the first active containing box wins, with strict
@@ -16,7 +17,7 @@ static bool egg_target(const uint8_t *section,size_t size,const int32_t point[3]
                 || point[0]<=half(q+14) || point[0]>=half(q+20)
                 || point[2]<=half(q+18) || point[2]>=half(q+24)
                 || point[1]<=half(q+16)-128 || point[1]>=half(q+22)+120) continue;
-        return hmbtn_read_le16(q+2)==38;
+        return hmbtn_read_le16(q+2);
     }
     return false;
 }
@@ -44,7 +45,9 @@ void hmbtn_farm_carry_flight(HmbtnFarmCarry *s,HmbtnFarmField *field,
             }
             continue;
         }
-        t->position[0]+=step[t->facing][0];t->position[2]+=step[t->facing][1];
+        const bool ball=t->item.id==HMBTN_DOG_BALL;
+        const int32_t old_x=t->position[0],old_z=t->position[2];
+        t->position[0]+=step[t->facing][0]*(ball ? 2 : 1);t->position[2]+=step[t->facing][1]*(ball ? 2 : 1);
         t->position[1]+=t->velocity;t->velocity+=9;
         if(t->velocity>45) t->velocity=45;
         HmbtnGroundHit hit={0};bool surface=false;
@@ -56,11 +59,19 @@ void hmbtn_farm_carry_flight(HmbtnFarmCarry *s,HmbtnFarmField *field,
                 surface=hmbtn_ground_find(ground,probe,0,tolerances[j],&hit);
             t->ground=surface ? hit.height : 5001;
         }
+        if(ball && surface && (hit.flags&0xC000u) && !(hit.flags&0x46u)) {
+            t->facing=(t->facing+2)&3u;t->position[0]=old_x;t->position[2]=old_z;continue;
+        }
+        if(ball && t->position[1]>5000) {
+            if(s->dog && hmbtn_dog_ball_disarm(s->dog)) s->ball_lost=true;
+            t->item=(HmbtnStoredTool){0};continue;
+        }
         if(t->position[1]>=t->ground) {
             int32_t landing[3]={t->position[0],t->ground,t->position[2]};
             /* farm_status_kind gives pond bit 4 priority over other waters.
              * The landing consumes even a refused fish, as in the original. */
             if(surface && (hit.flags&0x46u)) {
+                if(ball && s->dog && hmbtn_dog_ball_disarm(s->dog)) s->ball_lost=true;
                 if((hit.flags&4u) && s->pond) {
                     if(t->item.id>=161 && t->item.id<=163 && !hmbtn_pond_add(s->pond,t->item.id)) s->request=0x382;
                     if(t->item.id==132) s->pond->fed=true;
@@ -68,9 +79,15 @@ void hmbtn_farm_carry_flight(HmbtnFarmCarry *s,HmbtnFarmField *field,
                 const unsigned id=t->item.id;
                 const bool egg=(id>=0x122 && id<=0x124) || id==0xe8 || id==0x125;
                 t->position[1]=t->ground;t->velocity=0;
-                t->phase=egg && egg_target(section,section_size,landing) ? HMBTN_THROWN_EGG_WATER : HMBTN_THROWN_WATER;
+                t->phase=egg && landing_zone(section,section_size,landing)==38 ? HMBTN_THROWN_EGG_WATER : HMBTN_THROWN_WATER;
                 t->splash=(HmbtnAnimationPlayer){23,0,0};s->sound=16;
+                if(!ball && landing_zone(section,section_size,landing)==44)
+                    s->offering=t->item.id==164 ? t->item.modifier : t->item.id;
                 continue;
+            }
+            if(ball && s->dog) {
+                hmbtn_dog_ball_place(s->dog,t->area,landing);s->ball_landed=true;
+                t->item=(HmbtnStoredTool){0};continue;
             }
             if(hmbtn_basket_near(s->basket,s->area,landing) && hmbtn_farm_shipping_price(economy,t->item.id)) {
                 if(!hmbtn_basket_add(s->basket,economy,t->item.id)) s->request=0x383;
@@ -128,6 +145,7 @@ bool hmbtn_farm_carry_tick(HmbtnFarmCarry *s,HmbtnHouseInteraction *h,
             s->thrown[i]=(HmbtnThrownItem){.item=h->inventory->held_item,
                 .position={p->position[0],p->position[1]-300,p->position[2]},
                 .ground=p->position[1],.facing=p->facing,.area=s->area};
+            if(h->inventory->held_item.id==HMBTN_DOG_BALL) s->thrown[i].velocity=-28;
             h->inventory->held_item=(HmbtnStoredTool){0};s->sound=9;
         }
         s->phase=0;p->sprite=(HmbtnAnimationPlayer){0,(uint16_t)p->facing,0};p->animation_done=false;

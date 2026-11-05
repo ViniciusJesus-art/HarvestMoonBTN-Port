@@ -13,7 +13,8 @@ typedef struct HmbtnXAStream {
     bool active, primed, ended;
 } HmbtnXAStream;
 
-/* Childhood cues 4/5 and cooking result 0x16 use original cd_audio_tracks rows.
+/* Childhood 4/5, horse praise/neglect 13/14 and cooking result 0x16
+ * use original cd_audio_tracks rows.
  * One sector of PCM, one open file, no whole-track allocation. */
 bool hmbtn_xa_stream_start(HmbtnXAStream *stream, const char *root, unsigned track,
     char *error, size_t error_size);
